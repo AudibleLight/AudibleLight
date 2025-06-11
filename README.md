@@ -11,6 +11,7 @@ This project provides a platform for generating synthetic soundscapes by simulat
 ## Installation:
 
 - Ensure `sox` and `ffmpeg` are installed, i.e. `sudo apt install libsox-dev` etc.
+- Ensure `glut` is installed, i.e. `sudo apt install freeglut3-dev`
 - `git clone` this repository
 - Create a `venv` and activate
 - `pip install -r requirements.txt`
