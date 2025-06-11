@@ -5,3 +5,7 @@
 # ignore mesh files currently
 *.obj
 *.glb
+# Ignore outputs
+*.wav
+*.png
+*.sofa
