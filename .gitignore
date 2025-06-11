@@ -1,3 +1,7 @@
 # created by virtualenv automatically
 /venv
 /.idea
+
+# ignore mesh files currently
+*.obj
+*.glb
