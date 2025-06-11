@@ -15,3 +15,5 @@ This project provides a platform for generating synthetic soundscapes by simulat
 - `git clone` this repository
 - Create a `venv` and activate
 - `pip install -r requirements.txt`
+- Install pre-commit hooks: `pre-commit install`
+- Run pre-commit: `pre-commit run --all-files`

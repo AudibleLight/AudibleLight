@@ -15,3 +15,5 @@ scaper
 torch
 rlr-audio-propagation @ git+https://github.com/beasteers/rlr-audio-propagation@main
 pyglet<2
+loguru
+pre-commit
