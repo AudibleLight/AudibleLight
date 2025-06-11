@@ -17,3 +17,4 @@ rlr-audio-propagation @ git+https://github.com/beasteers/rlr-audio-propagation@m
 pyglet<2
 loguru
 pre-commit
+netCDF4
