@@ -19,3 +19,4 @@ loguru
 pre-commit
 netCDF4
 pytest
+coverage
