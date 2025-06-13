@@ -315,20 +315,19 @@ class Space:
 
         # Iterate over provided source positions: should be 1D arrays in XYZ format
         for i, abs_pos in enumerate(source_positions):
-            assert abs_pos.shape == 3, "Provided coordinates must be in XYZ format"
+            assert abs_pos.shape == (3,), "Provided coordinates must be in XYZ format"
             # Validate that the point is inside the mesh, that it is far enough away from the other mics and sources...
             if self._validate_source_position(abs_pos):
                 self.source_positions.append(abs_pos)
             else :
-                logger.warning(f"Source {i} located outside of mesh with "
-                               f"absolute position {abs_pos}. "
+                logger.warning(f"Source {i} invalid with absolute position {abs_pos}. "
                                f"Skipping source {i} and moving on to source {i + 1}")
                 continue
 
         # Sanity checking
         if len(self.source_positions) == 0:
             raise ValueError("None of the provided sources could be placed within the mesh.")
-        self.source_positions = np.asarray(source_positions)
+        self.source_positions = np.asarray(self.source_positions)
         self._set_sources()
 
     def add_sources_relative_to_mic(
@@ -352,7 +351,7 @@ class Space:
         for i, rel_pos in enumerate(source_positions):
             # Initial position is relative, so express in absolute terms here
             abs_pos = desired_mic + rel_pos
-            assert abs_pos.shape == 3, "Provided coordinates must be in XYZ format"
+            assert abs_pos.shape == (3,), "Provided coordinates must be in XYZ format"
             # Validate that the point is inside the mesh, that it is far enough away from the other mics and sources...
             if self._validate_source_position(abs_pos):
                 self.source_positions.append(abs_pos)
