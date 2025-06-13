@@ -5,6 +5,7 @@
 
 import os
 from pathlib import Path
+from typing import Union
 
 import random
 import numpy as np
@@ -23,6 +24,17 @@ REF_DB = -65  # Reference decibel level for the background ambient noise. Try ma
 NSCAPES = 20
 SEED = 42
 SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
+
+
+def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndarray:
+    """Coerces an input type to a 2D array"""
+    # Coerce list types to arrays
+    if isinstance(array, list):
+        array = np.array(array)
+    # Convert 1D arrays to 2D
+    if len(array.shape) == 1:
+        array = np.array([array])
+    return array
 
 
 def foa_to_simple_stereo(audio: np.ndarray, angle: int = 0) -> np.ndarray:

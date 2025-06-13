@@ -39,7 +39,7 @@ def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
         # elif not mesh.endswith(".glb"):
         #     logger.warning(f"Mesh file {mesh} is not a .glb file!")
         # Load mesh from file
-        loaded_mesh = trimesh.load_mesh(mesh, file_type=mesh.split(".")[-1])
+        loaded_mesh = trimesh.load_mesh(mesh, file_type=mesh.split(".")[-1], metadata={"fpath": mesh})
     # Passed in a loaded mesh object
     elif isinstance(mesh, trimesh.Trimesh):
         loaded_mesh = mesh
@@ -97,22 +97,39 @@ class Space:
 
     Attributes:
         mesh (str | Path | trimesh.Trimesh): The mesh, either loaded as a trimesh or a path to a glb object on the disk.
-        mic_position (np.array): Position of the microphone in the mesh.
+        mic_positions (np.array): Position of the microphone in the mesh.
         ctx (rlr_audio_propagation.Context): The context for audio propagation simulation.
         source_positions (np.array): relative positions of sound sources
 
     """
-    def __init__(self, mesh: str | trimesh.Trimesh, mic_position: np.ndarray = None):
+    def __init__(
+            self,
+            mesh: str | trimesh.Trimesh,
+            mic_positions: np.ndarray = None,
+            min_distance_from_mic: float = MIN_DISTANCE_FROM_MIC,
+            min_distance_from_source: float = MIN_DISTANCE_FROM_SOURCE,
+            min_distance_from_surface: float = MIN_DISTANCE_FROM_SURFACE,
+    ):
         """
         Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
 
         Args:
             mesh (str|trimesh.Trimesh): The name of the mesh file (without file extension).
-            mic_position (np.array, optional): Initial position of the microphone within the mesh.
+            mic_positions (np.array, optional): Initial position of the microphone within the mesh.
+                Position should be provided as a 2D array, where each row is X, Y, Z coordinates of one microphone.
                 If None, a random valid position will be generated.
+            min_distance_from_mic (float): minimum distance new sources/mics will be placed from other mics
+            min_distance_from_source (float): minimum distance new sources/mics will be placed from other sources
+            min_distance_from_surface (float): minimum distance new sources/mics will be placed from mesh sources
         """
-        # Store source positions in here to access later; these should be in ABSOLUTE form
+        # Store source and mic positions in here to access later; these should be in ABSOLUTE form
         self.source_positions: np.ndarray = np.array([])
+        self.mic_positions: np.ndarray = np.array([])
+
+        # Distances from objects/mesh surfaces
+        self.min_distance_from_mic = min_distance_from_mic
+        self.min_distance_from_surface = min_distance_from_surface
+        self.min_distance_from_source = min_distance_from_source
 
         # Initialize mesh and filename
         if isinstance(mesh, str):
@@ -128,8 +145,8 @@ class Space:
         self.ctx = Context(cfg)
         self.setup_audio_context()
         # Adding the microphone position if provided by the user, and it's inside the 3D mesh.
-        self.mic_position = self.setup_microphones(mic_position)
-        # Setting up listener
+        self.setup_microphones(mic_positions)
+        # Setting up listener: we need one listener per microphone
         self.setup_listener()
 
     def calculate_weighted_average_ray_length(self, point: np.ndarray, num_rays: int = 100) -> float:
@@ -171,33 +188,42 @@ class Space:
         Adds a listener to the audio context and sets its position to the microphone's position.
         WARNING: Hard-coded to AMBISONICS for now
         """
-        # TODO: remove hardcoded ambisonics
-        # TODO: this should be dependent on the number of microphones that we have, so with 2 microphones == 2 listeners
-        self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Ambisonics, 4))
-        self.ctx.set_listener_position(0, self.mic_position.tolist())
+        # We need to add a single listener for each individual microphone
+        for mic_idx, mic_position in enumerate(self.mic_positions):
+            # TODO: remove hardcoded ambisonics
+            self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Ambisonics, 4))
+            if isinstance(mic_position, np.ndarray):
+                mic_position = mic_position.tolist()
+            self.ctx.set_listener_position(mic_idx, mic_position)
 
-    def setup_microphones(self, mic_pos: Union[list[np.ndarray], np.ndarray, None]) -> np.ndarray:
+    def setup_microphones(self, mic_pos: Union[list[np.ndarray], np.ndarray, None]) -> None:
         """
         Add the microphone position if provided by the user, and it's inside the 3D mesh.
         """
         # When no position passed in, always used a random position
-        if not mic_pos:
-            return self.get_random_point_inside_mesh()
-        # Coerce list types to arrays
-        if isinstance(mic_pos, list):
-            mic_pos = np.array(mic_pos)
-        # If the array is not 1D, just use the first position
-        # TODO: add support for multiple microphones
-        if len(mic_pos.shape) > 1:
-            mic_pos = mic_pos[:, 0]
-        # If the array is inside the mesh, we just use the given position
-        if self._is_point_inside_mesh(mic_pos):
-            placed = mic_pos
-        # Otherwise, we need to get a random position inside the array
-        else:
-            logger.warning(f"Provided microphone position {mic_pos} not inside mesh, using a random mic position")
-            placed = self.get_random_point_inside_mesh()
-        return placed
+        if mic_pos is None:
+            logger.warning(f"No microphone positions provided, using a random position!")
+            # Return this as a 2D array of [[X, Y, Z]]
+            return np.array([self.get_random_position()])
+
+        # Coerce everything nicely to a 2D array
+        mic_pos = utils.coerce2d(mic_pos)
+        # Iterate over 1D arrays of XYZ coordinates
+        self.mic_positions = []
+        for mic in mic_pos:
+            # If the coordinates are inside the mesh, we just use the given position
+            if self._validate_source_position(mic):
+                self.mic_positions.append(mic)
+            # Otherwise, we need to get a random position inside the array
+            else:
+                logger.warning(f"Provided microphone position {mic} invalid, skipping...")
+                continue
+
+        # Catch instances where no microphone exist inside the array
+        if len(self.mic_positions) == 0:
+            raise ValueError("No microphone positions inside the mesh provided")
+        # Returns a 2D array with shape [N_mics, 3]
+        self.mic_positions = np.array(self.mic_positions)
 
     def get_random_position(self) -> np.ndarray:
         """
@@ -222,22 +248,18 @@ class Space:
                          f"Using the last attempted position, which is {mic_pos}.")
         return mic_pos
 
-    def get_random_point_inside_mesh(self, min_distance_from_surface: float = MIN_DISTANCE_FROM_SURFACE) -> np.ndarray:
+    def get_random_point_inside_mesh(self) -> np.ndarray:
         """
-        Generates a random point inside the mesh that adheres to a minimum distance from the mesh surface.
-
-        Args:
-            min_distance_from_surface (float): The minimum required distance from the nearest surface of the mesh.
+        Generates a random valid point inside the mesh.
 
         Returns:
-            np.array: A valid point within the mesh.
+            np.array: A valid point within the mesh in XYZ format
         """
         while True:
             point = np.random.uniform(self.mesh.bounds[0], self.mesh.bounds[1])
-            if self._is_point_inside_mesh(point):
-                _, distance, _ = self.mesh.nearest.on_surface([point])
-                if distance[0] >= min_distance_from_surface:
-                    return point
+            # This checks e.g. distance from surface, other sources, other mics, and that point is in-bounds
+            if self._validate_source_position(point):
+                return point
 
     def _is_point_inside_mesh(self, point: np.array) -> bool:
         """
@@ -254,7 +276,7 @@ class Space:
             point = np.array([point])
         elif shape > 2:
             raise ValueError(f"Expected shape == 2, but got {shape}")
-        return self.mesh.contains(point)[0]
+        return bool(self.mesh.contains(point)[0])
 
     def _set_sources(self):
         """
@@ -272,66 +294,105 @@ class Space:
         """
         return all((
             # source must be a minimum distance from all other sources
-            (np.linalg.norm(pos_abs - pos) >= MIN_DISTANCE_FROM_SOURCE for pos in self.source_positions),
-            # source must be a minimum distance from the microphone
-            np.linalg.norm(pos_abs - self.mic_position) >= MIN_DISTANCE_FROM_MIC,
+            all(np.linalg.norm(pos_abs - pos) >= self.min_distance_from_source for pos in self.source_positions),
+            # source must be a minimum distance from every microphone
+            all(np.linalg.norm(pos_abs - mic) >= self.min_distance_from_mic for mic in self.mic_positions),
+            # source must be a minimum distance from the surface
+            bool(self.mesh.nearest.on_surface([pos_abs])[1][0] >= self.min_distance_from_surface),
             # source must be inside the mesh
             self._is_point_inside_mesh(pos_abs)
         ))
 
-    def add_sources(self, source_positions: list[np.ndarray]) -> None:
+    def add_sources(self, source_positions: Union[list[np.ndarray], np.ndarray, list[float]]) -> None:
         """
-        Adds pre-defined sources to a space, skipping over when they are invalid.
+        Adds pre-defined sources to the mesh with given absolute positions.
 
         Args:
-            source_positions (List[np.array]): A list of source positions, relative to the microphone
+            source_positions (Iterable): A list of source positions, in absolute
         """
-        valid_source_positions = []    # clear the list of sources
-        for i, pos in enumerate(source_positions):
-            # Position is relative, rather than absolute
-            # TODO: account for multiple microphone setups here
-            pos = self.mic_position + np.asarray(pos)
-            # Validate that the point is inside the mesh
-            if self._validate_source_position(pos):
-                valid_source_positions.append(pos)
+        self.source_positions = []    # clear the list of sources
+        source_positions: np.ndarray = utils.coerce2d(source_positions)        # Coerce list types to arrays
+
+        # Iterate over provided source positions: should be 1D arrays in XYZ format
+        for i, abs_pos in enumerate(source_positions):
+            assert abs_pos.shape == 3, "Provided coordinates must be in XYZ format"
+            # Validate that the point is inside the mesh, that it is far enough away from the other mics and sources...
+            if self._validate_source_position(abs_pos):
+                self.source_positions.append(abs_pos)
             else :
-                logger.warning(f"Source {i} located outside of mesh with position {pos}. "
+                logger.warning(f"Source {i} located outside of mesh with "
+                               f"absolute position {abs_pos}. "
                                f"Skipping source {i} and moving on to source {i + 1}")
                 continue
+
+        # Sanity checking
+        if len(self.source_positions) == 0:
+            raise ValueError("None of the provided sources could be placed within the mesh.")
         self.source_positions = np.asarray(source_positions)
         self._set_sources()
 
-    def add_random_sources(
+    def add_sources_relative_to_mic(
             self,
-            n_sources: int,
+            source_positions: Union[list[np.ndarray], np.ndarray, list[float]],
+            mic_idx: int
     ) -> None:
         """
-        Adds N random sound sources to the space,
+        Adds pre-defined sources to a space, relative to the position of a given microphone.
 
-        Sources must be at least MIN_DISTANCE_FROM_MIC away from the microphone and MIN_DISTANCE_FROM_SOURCE away
-        from each other.
+        Args:
+            source_positions (Iterable): A list of source positions, relative to the microphone
+            mic_idx (int): The index of the microphone that the sources are relative to
+        """
+        self.source_positions = []    # clear the list of sources
+        desired_mic = self.mic_positions[mic_idx, :]    # 1D array with shape XYZ
+
+        # Coerce list types to arrays
+        source_positions = utils.coerce2d(source_positions)
+        # Iterating over 1D arrays with shape XYZ
+        for i, rel_pos in enumerate(source_positions):
+            # Initial position is relative, so express in absolute terms here
+            abs_pos = desired_mic + rel_pos
+            assert abs_pos.shape == 3, "Provided coordinates must be in XYZ format"
+            # Validate that the point is inside the mesh, that it is far enough away from the other mics and sources...
+            if self._validate_source_position(abs_pos):
+                self.source_positions.append(abs_pos)
+            else :
+                logger.warning(f"Source {i} located outside of mesh with "
+                               f"relative position {rel_pos}, absolute position {abs_pos}. "
+                               f"Skipping source {i} and moving on to source {i + 1}")
+                continue
+
+        # Sanity checking
+        if len(self.source_positions) == 0:
+            raise ValueError("None of the provided sources could be placed within the mesh.")
+        self.source_positions = np.asarray(self.source_positions)
+        self._set_sources()
+
+    def add_random_sources(self, n_sources: int, max_place_attempts: int = MAX_PLACE_ATTEMPTS) -> None:
+        """
+        Adds N random sound sources to the space.
 
         Args:
             n_sources (int): The number of sources to place randomly in the space.
+            max_place_attempts (int): The number of times we'll attempt to place a source before giving up
         """
-
-        source_positions = []    # clear the list of sources
+        self.source_positions = []    # clear the list of sources
         # Iterate over the number of sources we want to try and place
         for source_idx in range(n_sources):
             # Iterate over the number of times we try and place the source
-            for attempt in range(MAX_PLACE_ATTEMPTS):
+            for attempt in range(max_place_attempts):
                 source_pos_abs = self.get_random_position()
                 # If the source is in a valid position, add it to the list
                 if self._validate_source_position(source_pos_abs):
-                    source_positions.append(source_pos_abs)
+                    self.source_positions.append(source_pos_abs)
                     break
                 # If we've tried too many times to place the source, make a log
-                elif attempt == MAX_PLACE_ATTEMPTS - 1:
+                elif attempt == max_place_attempts - 1:
                     logger.error(f"Could not place source {source_idx}, skipping to source {source_idx + 1}. "
                                  f"If this is happening frequently, consider reducing `n_sources`, "
                                  f"`min_distance_from_mic`, or `min_distance_from_source`.")
         # Add all the valid sources in
-        self.source_positions = np.asarray(source_positions)
+        self.source_positions = np.asarray(self.source_positions)
         self._set_sources()
 
     def simulate(self) -> np.ndarray:
@@ -341,47 +402,48 @@ class Space:
         Returns:
             np.array: The impulse response matrix from the simulation.
         """
+        if len(self.source_positions) == 0:
+            logger.warning("No sources have been added, so no IRs will be created!")
         self.ctx.simulate()
+        efficiency = self.ctx.get_indirect_ray_efficiency()
+        # Log the ray efficiency: outdoor would have a very low value, e.g. < 0.05.
+        #  A closed indoor room would have >0.95, and a room with some holes might be in the 0.1-0.8 range.
+        #  If the ray efficiency is low for an indoor environment, it indicates a lot of ray leak from holes.
+        logger.info(f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}")
         return self.retrieve_impulse_responses()
 
     @lru_cache(maxsize=None)
     def retrieve_impulse_responses(self) -> np.ndarray:
         """
-        Retrieves impulse responses from the context after simulation. Cached for speed on multiple calls.
+        Retrieves impulse responses from the context after simulation.
 
         Returns:
-            np.array: A matrix containing the impulse responses for the listener-source setup.
+            np.array: IRs of shape (n_listeners, n_sources, n_channels, n_samples)
         """
-        # IRs of shape (n_listeners, n_sources, n_channels, n_samples)
-        # https://github.com/beasteers/rlr-audio-propagation/blob/f510714ffe3a968555754d49edc1bfdcee8d4f5f/rlr_audio_propagation/core.py#L70
-        irs = self.ctx.get_audio()
-        # We return [0] here as we only added one listener here
-        # TODO: will need to be adapted for multiple microphone array setups
-        return irs[0]
+        # This is just an alias, but the caching is helpful if we call the function multiple times
+        return self.ctx.get_audio()
 
     def save_sofa(self, outpath: str) -> None:
-        """
-        Dumps room impulse responses to SOFA format.
+        # TODO: this is almost definitely wrong/broken
+        rirs = self.retrieve_impulse_responses()  # shape: [N_mics, N_sources, N_channels, N_samples]
+        N_mics, N_sources, N_channels, N_samples = rirs.shape
 
-        Args:
-            outpath (str): path to dump .SOFA file to
-        """
-        # Load in IRs and unpack shape
-        rirs = self.retrieve_impulse_responses()
-        M, R, N = rirs.shape
-        E, I, C = 1, 1, 3
-        # Sanity checking
-        assert rirs.shape == (M, R, N), f"RIRs shape mismatch: expected {(M, R, N)}, got {rirs.shape}"
-        assert self.source_positions.shape == (M, C), f"Source position shape mismatch: expected {(M, C)}, got {self.source_positions.shape}"
-        # Skip over creating files that already exist
+        assert N_channels == 4, "Expected 4 channels for FOA"
+
+        M = N_mics  # Listener positions (microphones)
+        R = N_sources * N_channels  # Receivers = sources * FOA channels
+        C = 3
+        E, I = 1, 1
+
+        # Check source positions shape (should be N_sources x 3)
+        assert self.source_positions.shape == (N_sources, C)
+
         if os.path.exists(outpath):
-            logger.warning(f"File {outpath} already exists, skipping save!")
-            return
-        # Create dataset
+            logger.warning(f"File {outpath} already exists, overwriting!")
+
         rootgrp = Dataset(outpath, "w", format="NETCDF4")
-        # Save required attributes
+
         rootgrp.Conventions = "SOFA"
-        # rootgrp.Version = "2.1"
         rootgrp.SOFAConventions = "SingleRoomSRIR"
         rootgrp.SOFAConventionsVersion = "1.0"
         rootgrp.APIName = "pysofaconventions"
@@ -390,84 +452,104 @@ class Space:
         current_time = time.ctime(time.time())
         rootgrp.DateCreated = current_time
         rootgrp.DateModified = current_time
-        # rootgrp.AuthorContact = "chris.ick@nyu.edu"
-        # rootgrp.Organization = "Music and Audio Research Lab - NYU"
-        # rootgrp.License = "Use whatever you want"
-        # rootgrp.Title = db_name + " - " + self.mesh_fpath
-        # rootgrp.RoomType = "shoebox"
-        # rootgrp.DatabaseName = db_name
-        # rootgrp.ListenerShortName = "mic"
-        # rootgrp.RoomShortName = self.mesh_fpath
-        # Create all dimensions
-        for dim_str, dim_val in zip(["M", "N", "E", "R", "I", "C"], [M, N, E, R, I, C]):
+
+        for dim_str, dim_val in zip(["M", "R", "N", "E", "I", "C"], [M, R, N_samples, E, I, C]):
             rootgrp.createDimension(dim_str, dim_val)
-        # Create listener position variable
+
+        # ListenerPosition (M, C): mic positions
         listener_pos_var = rootgrp.createVariable("ListenerPosition", "f8", ("M", "C"))
         listener_pos_var.Units = "metre"
         listener_pos_var.Type = "cartesian"
-        listener_pos_var[:] = self.mic_position
-        # Create listener up variable
+        listener_pos_var[:] = self.mic_positions  # shape (M, 3)
+
+        # ListenerUp (I, C)
         listener_up_var = rootgrp.createVariable("ListenerUp", "f8", ("I", "C"))
         listener_up_var.Units = "metre"
         listener_up_var.Type = "cartesian"
-        listener_up_var[:] = np.asarray([0, 0, 1])
-        # Create listener view variable
+        listener_up_var[:] = np.asarray([[0, 0, 1]])
+
+        # ListenerView (I, C)
         listener_view_var = rootgrp.createVariable("ListenerView", "f8", ("I", "C"))
         listener_view_var.Units = "metre"
         listener_view_var.Type = "cartesian"
-        listener_view_var[:] = np.asarray([1, 0, 0])
-        # Create emitter position variable
-        emitter_position_var = rootgrp.createVariable(
-            "EmitterPosition", "f8", ("E", "C", "I")
-        )
+        listener_view_var[:] = np.asarray([[1, 0, 0]])
+
+        # EmitterPosition (E, C, I)
+        emitter_position_var = rootgrp.createVariable("EmitterPosition", "f8", ("E", "C", "I"))
         emitter_position_var.Units = "metre"
         emitter_position_var.Type = "spherical"
         emitter_position_var[:] = np.zeros((E, C, I))
-        # Create source position variable
-        source_position_var = rootgrp.createVariable("SourcePosition", "f8", ("M", "C"))
+
+        # SourcePosition (R, C, I): for each receiver, need a position
+        # Since receivers = sources * channels, we expand source_positions accordingly
+
+        source_positions_expanded = np.repeat(self.source_positions, N_channels, axis=0)  # shape (R, 3)
+
+        source_position_var = rootgrp.createVariable("SourcePosition", "f8", ("R", "C"))
         source_position_var.Units = "metre"
         source_position_var.Type = "cartesian"
-        source_position_var[:] = self.source_positions
-        # Create source up variable
+        source_position_var[:] = source_positions_expanded
+
+        # SourceUp (I, C)
         source_up_var = rootgrp.createVariable("SourceUp", "f8", ("I", "C"))
         source_up_var.Units = "metre"
         source_up_var.Type = "cartesian"
-        source_up_var[:] = np.asarray([0, 0, 1])
-        # Create source view variable
+        source_up_var[:] = np.asarray([[0, 0, 1]])
+
+        # SourceView (I, C)
         source_view_var = rootgrp.createVariable("SourceView", "f8", ("I", "C"))
         source_view_var.Units = "metre"
         source_view_var.Type = "cartesian"
-        source_view_var[:] = np.asarray([1, 0, 0])
-        # Create receiver position variable
-        receiver_position_var = rootgrp.createVariable(
-            "ReceiverPosition", "f8", ("R", "C", "I")
-        )
+        source_view_var[:] = np.asarray([[1, 0, 0]])
+
+        # ReceiverPosition (R, C, I)
+        receiver_position_var = rootgrp.createVariable("ReceiverPosition", "f8", ("R", "C", "I"))
         receiver_position_var.Units = "metre"
         receiver_position_var.Type = "cartesian"
-        receiver_position_var[:] = np.zeros((R, C, I))
-        # Create sampling rate variable
+
+        # Each receiver corresponds to a (source, channel) pair
+        # Receiver positions are mic positions repeated for each source * channel
+        receiver_positions = np.repeat(self.mic_positions, N_sources * N_channels, axis=0)[:R]
+        receiver_position_var[:] = receiver_positions[:, :, np.newaxis]  # shape (R, 3, 1)
+
+        # Sampling rate (I,)
         sampling_rate_var = rootgrp.createVariable("Data.SamplingRate", "f8", ("I",))
         sampling_rate_var.Units = "hertz"
         sampling_rate_var[:] = utils.SAMPLE_RATE
-        # Create delay variable
+
+        # Delay (I, R)
         delay_var = rootgrp.createVariable("Data.Delay", "f8", ("I", "R"))
         delay_var[:, :] = np.zeros((I, R))
-        # Create RIR variable
+
+        # Data.IR (M, R, N)
         data_ir_var = rootgrp.createVariable("Data.IR", "f8", ("M", "R", "N"))
-        data_ir_var.ChannelOrdering = "acn"  # standard ambi ordering
+        data_ir_var.ChannelOrdering = "acn"
         data_ir_var.Normalization = "sn3d"
-        data_ir_var[:] = rirs
-        # Close file to finish
+
+        # Rearrange rirs to (M, R, N)
+        # rirs shape: (N_mics, N_sources, N_channels, N_samples)
+        # Want: M=N_mics, R=N_sources * N_channels, N=N_samples
+
+        rirs_transposed = rirs.transpose(0, 1, 2, 3)  # (M, N_sources, N_channels, N_samples)
+        rirs_reshaped = rirs_transposed.reshape(M, R, N_samples)
+        data_ir_var[:] = rirs_reshaped
+
         rootgrp.close()
         logger.info(f"SOFA file saved to {outpath}")
 
     def create_scene(self) -> trimesh.Scene:
-        """Creates a trimesh.Scene with the Space's mesh, microphone position, and sources all added"""
+        """
+        Creates a trimesh.Scene with the Space's mesh, microphone position, and sources all added
+
+        Returns:
+            trimesh.Scene: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
+        """
         # Finally, visualize microphone and sources inside the scene
         scene = trimesh.Scene()
         scene.add_geometry(self.mesh)
-        # This just adds the microphone into the scene
-        add_sphere(scene, self.mic_position, color=[255, 0, 0], r=0.2)
+        # This just adds the microphone positions
+        for mic_position in self.mic_positions:
+            add_sphere(scene, mic_position, color=[255, 0, 0], r=0.2)
         # This adds the sound sources, with different color + radius
         for source in self.source_positions:
             add_sphere(scene, source, [0, 255, 0], r=0.1)
@@ -483,10 +565,9 @@ class Space:
             # Scatter the vertices first
             ax_.scatter(vertices[:, 0], vertices[:, idx], c='gray', alpha=0.1, s=1)
             # Then the microphone and source positions
-            ax_.scatter(self.mic_position[0], self.mic_position[idx], c='red', s=100, label='Microphone')
+            ax_.scatter(self.mic_positions[:, 0], self.mic_positions[:, idx], c='red', s=100, label='Microphone')
             ax_.scatter(
-                self.source_positions[:, 0], self.source_positions[:, idx],
-                c='blue', s=25, alpha=0.5, label='Sound Sources'
+                self.source_positions[:, 0], self.source_positions[:, idx], c='blue', s=25, alpha=0.5, label='Sources'
             )
             # These are just plot aesthetics
             ax_.set_xlabel('X')
@@ -498,6 +579,34 @@ class Space:
         # Return the matplotlib figure object
         fig.tight_layout()
         return fig    # can be used with plt.show, fig.savefig, etc.
+
+    def save_irs_to_stereo_wav(self, outdir: str = None) -> None:
+        """
+        Writes IRs to WAV audio files. WARNING: currently, hardcoded to stereo.
+
+        IRs will be dumped in the form `lmic{idx1}_source_{idx2}.wav`. For instance, with two sources and two
+        microphones, we'd expect `mic_001_source_001.wav`, `mic_001_source_002.wav`, `mic_002_source_001.wav`,
+        and `mic_002_source_002.wav`.
+
+        Conversion from FOA to stereo is handled with a simple algorithm.
+
+        Args:
+            outdir (str): If provided, IRs will be saved here.
+        """
+        assert os.path.isdir(outdir), f"Output directory {outdir} does not exist!"
+        # Shape [mics, sources, channels, samples]
+        irs = self.retrieve_impulse_responses()
+        # This iterates over [sources, channels, samples]
+        for listener_idx, listener in enumerate(irs, 1):
+            listener_idx = str(listener_idx).zfill(3)
+            # This iterates over [channels, samples]
+            for source_idx, source in enumerate(listener, 1):
+                source_idx = str(source_idx).zfill(3)
+                # Straightforward conversion of FOA to stereo
+                ir_stereo = utils.foa_to_simple_stereo(source).T
+                ir_fpath = os.path.join(outdir, f"mic_{listener_idx}_source_{source_idx}.wav")
+                if outdir is not None:
+                    wavfile.write(ir_fpath, utils.SAMPLE_RATE, ir_stereo)
 
 
 if __name__ == "__main__":
@@ -515,7 +624,7 @@ if __name__ == "__main__":
     for mesh_path in mesh_paths:
         logger.info(f"Processing {mesh_path}")
         # Create the space and add N random sources
-        room = Space(mesh=mesh_path, mic_position=None)
+        room = Space(mesh=mesh_path, mic_positions=None)
         room.add_random_sources(5)
         # Simulate the room impulse responses
         irs_ = room.simulate()
@@ -526,8 +635,4 @@ if __name__ == "__main__":
         basename = os.path.dirname(mesh_path)
         room_fig.savefig(os.path.join(basename, "out.png"))
         room.save_sofa(os.path.join(basename, "out.sofa"))
-        # Write out the IRs to a simple stereo file
-        for idx_, ir in enumerate(irs_):
-            ir_stereo = utils.foa_to_simple_stereo(ir)
-            ir_fpath = os.path.join(basename, f"ir_{str(idx_).zfill(3)}.wav")
-            wavfile.write(ir_fpath, utils.SAMPLE_RATE, ir_stereo.T)
+        room.save_irs_to_stereo_wav(basename)
