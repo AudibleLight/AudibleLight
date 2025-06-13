@@ -18,3 +18,4 @@ pyglet<2
 loguru
 pre-commit
 netCDF4
+pytest
