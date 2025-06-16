@@ -32,7 +32,7 @@ WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this valu
 
 def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
     """
-    Loads a mesh from disk or directly from a `trimesh.Trimesh` object
+    Loads a mesh from disk or directly from a `trimesh.Trimesh` object and coerces units to meters
     """
     # Passed in filepath as a string: convert to a Path
     if isinstance(mesh, (str, Path)):
@@ -119,13 +119,13 @@ class Space:
         Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
 
         Args:
-            mesh (str|trimesh.Trimesh): The name of the mesh file (without file extension).
+            mesh (str|trimesh.Trimesh): The name of the mesh file. Units will be coerced to meters when loading
             mic_positions (np.array, optional): Initial position of the microphone within the mesh.
                 Position should be provided as a 2D array, where each row is X, Y, Z coordinates of one microphone.
                 If None, a random valid position will be generated.
-            min_distance_from_mic (float): minimum distance new sources/mics will be placed from other mics
-            min_distance_from_source (float): minimum distance new sources/mics will be placed from other sources
-            min_distance_from_surface (float): minimum distance new sources/mics will be placed from mesh sources
+            min_distance_from_mic (float): minimum meters new sources/mics will be placed from other mics
+            min_distance_from_source (float): minimum meters new sources/mics will be placed from other sources
+            min_distance_from_surface (float): minimum meters new sources/mics will be placed from mesh sources
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
         """

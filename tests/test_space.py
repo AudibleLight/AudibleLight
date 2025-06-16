@@ -50,9 +50,9 @@ def oyens_space() -> Space:
     space = Space(
         oyens,
         mic_positions=[-0.5, -0.5, 0.5],
-        min_distance_from_source=0.2,
-        min_distance_from_mic=0.1,
-        min_distance_from_surface=0.2
+        min_distance_from_source=0.2,    # all in meters
+        min_distance_from_mic=0.1,    # all in meters
+        min_distance_from_surface=0.2    # all in meters
     )
     return space
 
