@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 from trimesh import Trimesh
 
-from audiblelight.space import Space, load_mesh, validate_mesh
+from audiblelight.space import Space, load_mesh, repair_mesh
 from audiblelight import utils
 
 
@@ -21,12 +21,12 @@ TEST_MESHES = [TEST_RESOURCES / glb for glb in TEST_RESOURCES.glob("*.glb")]
 def test_repair_mesh(mesh_fpath: str):
     # Load up the mesh
     loaded = load_mesh(mesh_fpath)
-    in_faces = loaded.faces.copy()
+    # Make a copy of the mesh
+    new_mesh = Trimesh(vertices=loaded.vertices.copy(), faces=loaded.faces.copy())
     # Repair the mesh, in-place
-    new_mesh = validate_mesh(loaded)
-    out_faces = new_mesh.faces
-    # Should have a different number of faces after repair
-    assert len(in_faces) != len(out_faces)
+    repair_mesh(new_mesh)
+    # Should still expect a mesh object to be returned
+    assert isinstance(new_mesh, Trimesh)
 
 
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)

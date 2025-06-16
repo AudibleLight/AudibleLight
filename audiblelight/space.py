@@ -7,7 +7,7 @@ import os
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +26,8 @@ MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a sourc
 MIN_DISTANCE_FROM_SOURCE = 0.2  # Minimum distance one sound source can be from another
 MIN_DISTANCE_FROM_MIC = 0.1    # Minimum distance one sound source can be from the mic
 MIN_DISTANCE_FROM_SURFACE = 0.2    # Minimum distance from the nearest mesh surface
+
+WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
 
 
 def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
@@ -53,25 +55,19 @@ def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
     return loaded_mesh
 
 
-def validate_mesh(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
-    """
-    Validates watertight status of a mesh and repairs when necessary
-    """
+def get_broken_faces(mesh: trimesh.Trimesh) -> np.ndarray:
+    """Get the idxs of broken faces in a mesh. Uses copies to prevent anything being set inplace."""
+    # Make a copy of the mesh
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
     new_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
     # Get the idxs of the faces in the mesh which break the watertight status of the mesh.
-    broken_faces = trimesh.repair.broken_faces(new_mesh, color=FACE_FILL_COLOR)
-    # Only run the repairing function when there are actually broken faces
-    if len(broken_faces) > 0:
-        logger.warning(f"Found {len(broken_faces)} broken faces in mesh, repairing...")
-        repair_mesh(new_mesh)
-    return new_mesh
+    return trimesh.repair.broken_faces(new_mesh, color=FACE_FILL_COLOR)
 
 
 def repair_mesh(mesh: trimesh.Trimesh) -> None:
     """
-    Uses trimesh functionality to repair a mesh inplace
+    Uses Trimesh functionality to repair a mesh when necessary
     """
     # These functions all operate inplace
     trimesh.repair.fix_inversion(mesh)
@@ -109,10 +105,11 @@ class Space:
     def __init__(
             self,
             mesh: str | trimesh.Trimesh,
-            mic_positions: np.ndarray = None,
+            mic_positions: np.ndarray = Optional[None],
             min_distance_from_mic: float = MIN_DISTANCE_FROM_MIC,
             min_distance_from_source: float = MIN_DISTANCE_FROM_SOURCE,
             min_distance_from_surface: float = MIN_DISTANCE_FROM_SURFACE,
+            repair_threshold: Optional[float] = None
     ):
         """
         Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
@@ -125,6 +122,8 @@ class Space:
             min_distance_from_mic (float): minimum distance new sources/mics will be placed from other mics
             min_distance_from_source (float): minimum distance new sources/mics will be placed from other sources
             min_distance_from_surface (float): minimum distance new sources/mics will be placed from mesh sources
+            repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
+                repair the mesh and fill holes. If None, will never repair the mesh.
         """
         # Store source and mic positions in here to access later; these should be in ABSOLUTE form
         self.source_positions: np.ndarray = np.array([])
@@ -135,13 +134,15 @@ class Space:
         self.min_distance_from_surface = min_distance_from_surface
         self.min_distance_from_source = min_distance_from_source
 
-        # Initialize mesh and filename
-        if isinstance(mesh, str):
-            self.mesh_fpath = mesh
-        else:
-            self.mesh_fpath = ""
-        mesh = load_mesh(mesh)
-        self.mesh = validate_mesh(mesh)
+        # Load in the trimesh object
+        self.mesh = load_mesh(mesh)
+        # If we want to try and repair the mesh, and if it actually needs repairing
+        if repair_threshold is not None and not self.mesh.is_watertight:
+            # Get the idxs of faces in the mesh that break the watertight status
+            broken_faces = get_broken_faces(self.mesh)    # this uses copies so nothing will be set in-place
+            # If the proportion of broken faces is below the desired threshold, do the repair in-place
+            if len(broken_faces) / self.mesh.faces.shape[0] < repair_threshold:
+                repair_mesh(self.mesh)
 
         # Setting up audio context
         # TODO: is it possible to set the sample rate here?
@@ -413,6 +414,10 @@ class Space:
         #  A closed indoor room would have >0.95, and a room with some holes might be in the 0.1-0.8 range.
         #  If the ray efficiency is low for an indoor environment, it indicates a lot of ray leak from holes.
         logger.info(f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}")
+        if efficiency < WARN_WHEN_EFFICIENCY_BELOW:
+            logger.warning(f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
+                           f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
+                           f"`Space` object, or running `trimesh.repair.fill_holes` on your mesh.")
         return self.retrieve_impulse_responses()
 
     @lru_cache(maxsize=None)
@@ -575,7 +580,7 @@ class Space:
             # These are just plot aesthetics
             ax_.set_xlabel('X')
             ax_.set_ylabel(ylab)
-            ax_.set_title(f'{title} view of {os.path.basename(self.mesh_fpath)}')
+            ax_.set_title(f'{title} view of {self.mesh.metadata["fpath"]}')
             ax_.legend()
             ax_.axis('equal')
             ax_.grid(True)
