@@ -213,26 +213,26 @@ class Space:
         if mic_pos is None:
             logger.warning(f"No microphone positions provided, using a random position!")
             # Return this as a 2D array of [[X, Y, Z]]
-            return np.array([self.get_random_position()])
-
-        # Coerce everything nicely to a 2D array
-        mic_pos = utils.coerce2d(mic_pos)
-        # Iterate over 1D arrays of XYZ coordinates
-        self.mic_positions = []
-        for mic in mic_pos:
-            # If the coordinates are inside the mesh, we just use the given position
-            if self._validate_source_position(mic):
-                self.mic_positions.append(mic)
-            # Otherwise, we need to get a random position inside the array
-            else:
-                logger.warning(f"Provided microphone position {mic} invalid, skipping...")
-                continue
-
-        # Catch instances where no microphone exist inside the array
-        if len(self.mic_positions) == 0:
-            raise ValueError("No microphone positions inside the mesh provided")
-        # Returns a 2D array with shape [N_mics, 3]
-        self.mic_positions = np.array(self.mic_positions)
+            self.mic_positions = utils.coerce2d([self.get_random_position()])
+        # Otherwise, we've passed in a mic position
+        else:
+            # Coerce everything nicely to a 2D array
+            mic_pos = utils.coerce2d(mic_pos)
+            # Iterate over 1D arrays of XYZ coordinates
+            self.mic_positions = []
+            for mic in mic_pos:
+                # If the coordinates are inside the mesh, we just use the given position
+                if self._validate_source_position(mic):
+                    self.mic_positions.append(mic)
+                # Otherwise, we need to get a random position inside the array
+                else:
+                    logger.warning(f"Provided microphone position {mic} invalid, skipping...")
+                    continue
+            # Catch instances where no microphone exist inside the array
+            if len(self.mic_positions) == 0:
+                raise ValueError("No microphone positions inside the mesh provided")
+            # Returns a 2D array with shape [N_mics, 3]
+            self.mic_positions = np.array(self.mic_positions)
 
     def get_random_position(self) -> np.ndarray:
         """
