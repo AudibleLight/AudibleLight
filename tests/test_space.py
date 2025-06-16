@@ -34,6 +34,7 @@ def test_load_mesh(mesh_fpath: str):
     loaded = load_mesh(mesh_fpath)
     assert isinstance(loaded, Trimesh)
     assert loaded.metadata["fpath"] == str(mesh_fpath)    # need both to be a string or we'll get TypeError
+    assert loaded.units == utils.MESH_UNITS    # units should be in meters
 
 
 @pytest.mark.parametrize("mesh_fpath,expected", [("iamnotafile", FileNotFoundError), (1234, TypeError)])

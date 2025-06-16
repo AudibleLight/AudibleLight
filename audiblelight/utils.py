@@ -11,6 +11,7 @@ import random
 import numpy as np
 import torch
 
+MESH_UNITS = "meters"    # will convert to this if
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 FOREGROUND_DIR = "FSD50K_FMA_SMALL"
 RIR_DIR = None

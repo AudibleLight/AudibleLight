@@ -46,6 +46,10 @@ def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
         #  This just allows us to access the filename, etc., later
         metadata = dict(fname=mesh.stem, ftype=mesh.suffix, fpath=str(mesh))
         loaded_mesh = trimesh.load_mesh(mesh, file_type=mesh.suffix, metadata=metadata)
+        # Convert the units of the mesh to meters, if this is not provided
+        if loaded_mesh.units != utils.MESH_UNITS:
+            logger.warning(f"Mesh {mesh.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}")
+            loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
     # Passed in a loaded mesh object
     elif isinstance(mesh, trimesh.Trimesh):
         loaded_mesh = mesh
@@ -552,9 +556,7 @@ class Space:
         Returns:
             trimesh.Scene: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
         """
-        # Finally, visualize microphone and sources inside the scene
-        scene = trimesh.Scene()
-        scene.add_geometry(self.mesh)
+        scene = self.mesh.scene()
         # This just adds the microphone positions
         for mic_position in self.mic_positions:
             add_sphere(scene, mic_position, color=[255, 0, 0], r=0.2)
