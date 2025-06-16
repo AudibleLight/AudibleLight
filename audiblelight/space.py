@@ -176,6 +176,11 @@ class Space:
         origins = np.tile(point, (num_rays, 1))
         # Cast rays from the origin in the computed directions and find the longest intersection distances with the mesh
         distances = trimesh.proximity.longest_ray(self.mesh, origins, directions)
+        # We can get `inf` values here, likely due to holes in the mesh causing a ray never to intersect
+        if any(np.isinf(distances)):
+            # For simplicity, we can just remove these here but raise a warning
+            logger.warning(f"Some rays cast from point {point} have infinite distances: is the mesh watertight?")
+            distances = distances[distances != np.inf]
         # Compute weights by squaring the distances to give more importance to longer rays
         weights = distances ** 2
         # Calculate weighted average of the distances using the computed weights
