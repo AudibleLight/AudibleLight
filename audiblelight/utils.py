@@ -5,11 +5,13 @@
 
 import os
 from pathlib import Path
+from typing import Union
 
 import random
 import numpy as np
 import torch
 
+MESH_UNITS = "meters"    # will convert to this if
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 FOREGROUND_DIR = "FSD50K_FMA_SMALL"
 RIR_DIR = None
@@ -23,6 +25,17 @@ REF_DB = -65  # Reference decibel level for the background ambient noise. Try ma
 NSCAPES = 20
 SEED = 42
 SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
+
+
+def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndarray:
+    """Coerces an input type to a 2D array"""
+    # Coerce list types to arrays
+    if isinstance(array, list):
+        array = np.array(array)
+    # Convert 1D arrays to 2D
+    if len(array.shape) == 1:
+        array = np.array([array])
+    return array
 
 
 def foa_to_simple_stereo(audio: np.ndarray, angle: int = 0) -> np.ndarray:
@@ -60,12 +73,13 @@ def seed_everything(seed: int = SEED) -> None:
     np.random.seed(seed)
 
 
-def get_project_root() -> str:
-    """Returns the root directory of the project"""
-    # Possibly the root directory, but doesn't work when running from the CLI for some reason
-    poss_path = str(Path(__file__).parent.parent)
+def get_project_root() -> Path:
+    """Returns the root directory of the project."""
+    # Possibly the root directory, but doesn't always work when running from the CLI for some reason
+    poss_path = Path(__file__).parent.parent
     # The root directory should always have these files (this is pretty hacky)
-    if all(fp in os.listdir(poss_path) for fp in ["audiblelight", "notebooks", "resources", "tests", "setup.py"]):
+    expected_files = ["audiblelight", "notebooks", "resources", "tests", "setup.py"]
+    if all((poss_path / fp).exists() for fp in expected_files):
         return poss_path
     else:
-        return os.path.abspath(os.curdir)
+        return Path.cwd()

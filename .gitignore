@@ -5,6 +5,7 @@
 # ignore mesh files currently
 *.obj
 *.glb
+*.navmesh
 # Ignore outputs
 *.wav
 *.png
