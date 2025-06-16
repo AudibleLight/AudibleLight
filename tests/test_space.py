@@ -87,7 +87,7 @@ def test_place_microphones(microphone_positions):
         (np.array([0.5, 0.5, 0.5]), True)    # Also fine
     ]
 )
-def test_validate_positions(test_position: np.ndarray, expected: bool, oyens_space: Space):
+def test_validate_source_positions(test_position: np.ndarray, expected: bool, oyens_space: Space):
     """Given a microphone with coordinates [-0.5, -0.5, 0.5], test whether test_position is valid"""
     assert oyens_space._validate_source_position(test_position) == expected
 
