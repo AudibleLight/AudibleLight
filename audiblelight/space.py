@@ -32,14 +32,18 @@ def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
     """
     Loads a mesh from disk or directly from a `trimesh.Trimesh` object
     """
-    # Passed in a filepath
+    # Passed in filepath as a string: convert to a Path
     if isinstance(mesh, (str, Path)):
-        if not os.path.exists(mesh):
+        # Coerce string types to Path
+        if isinstance(mesh, str):
+            mesh = Path(mesh)
+        # Raise a nicer error when the file can't be found
+        if not mesh.is_file():
             raise FileNotFoundError(f"Cannot find mesh file at {mesh}, does it exist?")
-        # elif not mesh.endswith(".glb"):
-        #     logger.warning(f"Mesh file {mesh} is not a .glb file!")
-        # Load mesh from file
-        loaded_mesh = trimesh.load_mesh(mesh, file_type=mesh.split(".")[-1], metadata={"fpath": mesh})
+        # Load up in trimesh, setting the metadata dictionary nicely
+        #  This just allows us to access the filename, etc., later
+        metadata = dict(fname=mesh.stem, ftype=mesh.suffix, fpath=str(mesh))
+        loaded_mesh = trimesh.load_mesh(mesh, file_type=mesh.suffix, metadata=metadata)
     # Passed in a loaded mesh object
     elif isinstance(mesh, trimesh.Trimesh):
         loaded_mesh = mesh

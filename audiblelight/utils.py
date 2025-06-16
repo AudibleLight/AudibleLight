@@ -72,12 +72,13 @@ def seed_everything(seed: int = SEED) -> None:
     np.random.seed(seed)
 
 
-def get_project_root() -> str:
-    """Returns the root directory of the project"""
-    # Possibly the root directory, but doesn't work when running from the CLI for some reason
-    poss_path = str(Path(__file__).parent.parent)
+def get_project_root() -> Path:
+    """Returns the root directory of the project."""
+    # Possibly the root directory, but doesn't always work when running from the CLI for some reason
+    poss_path = Path(__file__).parent.parent
     # The root directory should always have these files (this is pretty hacky)
-    if all(fp in os.listdir(poss_path) for fp in ["audiblelight", "notebooks", "resources", "tests", "setup.py"]):
+    expected_files = ["audiblelight", "notebooks", "resources", "tests", "setup.py"]
+    if all((poss_path / fp).exists() for fp in expected_files):
         return poss_path
     else:
-        return os.path.abspath(os.curdir)
+        return Path.cwd()

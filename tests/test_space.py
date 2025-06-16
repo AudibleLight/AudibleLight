@@ -13,8 +13,8 @@ from audiblelight.space import Space, load_mesh, validate_mesh
 from audiblelight import utils
 
 
-TEST_RESOURCES = os.path.join(utils.get_project_root(), "tests/test_resources")
-TEST_MESHES = [os.path.join(TEST_RESOURCES, glb) for glb in os.listdir(TEST_RESOURCES) if glb.endswith(".glb")]
+TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
+TEST_MESHES = [TEST_RESOURCES / glb for glb in TEST_RESOURCES.glob("*.glb")]
 
 
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
@@ -33,7 +33,7 @@ def test_repair_mesh(mesh_fpath: str):
 def test_load_mesh(mesh_fpath: str):
     loaded = load_mesh(mesh_fpath)
     assert isinstance(loaded, Trimesh)
-    assert loaded.metadata["fpath"] == mesh_fpath
+    assert loaded.metadata["fpath"] == str(mesh_fpath)    # need both to be a string or we'll get TypeError
 
 
 @pytest.mark.parametrize("mesh_fpath,expected", [("iamnotafile", FileNotFoundError), (1234, TypeError)])
