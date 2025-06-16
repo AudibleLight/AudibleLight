@@ -5,7 +5,6 @@
 
 import os
 import time
-from functools import lru_cache
 from pathlib import Path
 from typing import Union, Optional
 
@@ -429,7 +428,7 @@ class Space:
                            f"`Space` object, or running `trimesh.repair.fill_holes` on your mesh.")
         return self.retrieve_impulse_responses()
 
-    @lru_cache(maxsize=None)
+    # @lru_cache(maxsize=None)    # caching causes issues when we call add_sources multiple times
     def retrieve_impulse_responses(self) -> np.ndarray:
         """
         Retrieves impulse responses from the context after simulation.
@@ -437,7 +436,6 @@ class Space:
         Returns:
             np.array: IRs of shape (n_listeners, n_sources, n_channels, n_samples)
         """
-        # This is just an alias, but the caching is helpful if we call the function multiple times
         return self.ctx.get_audio()
 
     def save_sofa(self, outpath: str) -> None:

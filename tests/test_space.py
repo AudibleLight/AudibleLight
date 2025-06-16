@@ -68,7 +68,7 @@ def test_place_microphones(microphone_positions):
     space = Space(TEST_MESHES[0], microphone_positions)
     # Should have the same number of mic positions we've passed in
     assert isinstance(space.mic_positions, np.ndarray)
-    # All mic positions should be in XYZ format
+    # All mic positions should have 3D coordinates
     assert space.mic_positions.shape == (len(microphone_positions), 3)
     # Iterate over all mics
     for mic_position in space.mic_positions:
@@ -141,3 +141,22 @@ def test_get_random_position(test_num: int, oyens_space: Space):
     # It should be valid (suitable distance from surfaces, inside mesh, away from mics/sources...)
     assert oyens_space._validate_source_position(random_point)
     assert random_point.shape == (3,)   # should be a 1D array of XYZ
+
+
+@pytest.mark.parametrize("n_mics,n_sources", )
+def test_simulated_ir_shape(n_mics: int, n_sources: int, oyens_space: Space):
+    # For reproducible results
+    utils.seed_everything(n_sources)
+    # Add some sources to the space
+    oyens_space.add_random_sources(n_sources)
+    # Grab the IRs, should be in shape (N_mics, N_sources, N_channels, N_samples)
+    simulated_irs = oyens_space.simulate()
+    # Get the shapes of all arrays
+    expected_mics, expected_sources, expected_channels = (1, n_sources, 4)
+    actual_mics, actual_sources, actual_channels, actual_samples = simulated_irs.shape
+    # Compare across the first 3 dims of the IR array
+    assert expected_mics == actual_mics
+    assert expected_sources == actual_sources
+    assert expected_channels == actual_channels
+    # We can't easily check the number of samples explicitly, but it should be more than 1
+    assert actual_samples >= 1
