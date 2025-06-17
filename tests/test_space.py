@@ -143,7 +143,7 @@ def test_get_random_position(test_num: int, oyens_space: Space):
     assert random_point.shape == (3,)   # should be a 1D array of XYZ
 
 
-@pytest.mark.parametrize("n_mics,n_sources", )
+@pytest.mark.parametrize("n_mics,n_sources", [(m, s) for m, s in zip(list(range(1, 20, 5))[::-1], range(1, 20, 5))])
 def test_simulated_ir_shape(n_mics: int, n_sources: int, oyens_space: Space):
     # For reproducible results
     utils.seed_everything(n_sources)
