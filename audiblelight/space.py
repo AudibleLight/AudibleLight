@@ -15,6 +15,7 @@ from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutT
 from netCDF4 import Dataset
 from loguru import logger
 
+from audiblelight.micarrays import get_micarray_from_string
 from audiblelight import utils
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
@@ -203,8 +204,7 @@ class Space:
         """
         # We need to add a single listener for each individual microphone
         for mic_idx, mic_position in enumerate(self.mic_positions):
-            # TODO: remove hardcoded ambisonics
-            self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Ambisonics, 4))
+            self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
             if isinstance(mic_position, np.ndarray):
                 mic_position = mic_position.tolist()
             self.ctx.set_listener_position(mic_idx, mic_position)
@@ -216,8 +216,12 @@ class Space:
         # When no position passed in, always used a random position
         if mic_pos is None:
             logger.warning(f"No microphone positions provided, using a random position!")
-            # Return this as a 2D array of [[X, Y, Z]]
-            self.mic_positions = utils.coerce2d([self.get_random_position()])
+            # Grab a random position as (XYZ) in cartesian coordinates
+            mic_center = utils.coerce2d([self.get_random_position()])
+            # For now, just get an AmbeoVR microphone
+            mic_array = get_micarray_from_string("eigenmike32")()
+            # Get the cartesian coordinates of the capsules of the mic array
+            self.mic_positions = mic_array.coordinates_absolute(mic_center)
         # Otherwise, we've passed in a mic position
         else:
             # Coerce everything nicely to a 2D array
@@ -552,9 +556,21 @@ class Space:
         rootgrp.close()
         logger.info(f"SOFA file saved to {outpath}")
 
-    def create_scene(self) -> trimesh.Scene:
+    def create_scene(
+            self,
+            mic_color: list[int] = None,
+            mic_radius: float = 0.2,
+            source_color: list[int] = None,
+            source_radius: float = 0.1
+    ) -> trimesh.Scene:
         """
         Creates a trimesh.Scene with the Space's mesh, microphone position, and sources all added
+
+        Args:
+            mic_color (list[int]): color to use when visualising microphones: should be in [R, G, B] format, [0, 255]
+            mic_radius (float): radius of spheres created for individual microphone capsules
+            source_color (list[int]): color to use when visualising sources
+            source_radius (float): radius of spheres created for individual sound sources
 
         Returns:
             trimesh.Scene: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
@@ -562,10 +578,10 @@ class Space:
         scene = self.mesh.scene()
         # This just adds the microphone positions
         for mic_position in self.mic_positions:
-            add_sphere(scene, mic_position, color=[255, 0, 0], r=0.2)
+            add_sphere(scene, mic_position, color=mic_color if mic_color is not None else [255, 0, 0], r=mic_radius)
         # This adds the sound sources, with different color + radius
         for source in self.source_positions:
-            add_sphere(scene, source, [0, 255, 0], r=0.1)
+            add_sphere(scene, source, color=source_color if source_color is not None else [0, 255, 0], r=source_radius)
         return scene    # can then run `.show()` on the returned object
 
     def plot_scene(self,) -> plt.Figure:
