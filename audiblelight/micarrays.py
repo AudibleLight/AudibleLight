@@ -479,7 +479,7 @@ MICARRAY_LIST = [
 ]
 
 
-def get_micarray_from_string(micarray_name: str) -> object:
+def get_micarray_from_string(micarray_name: str) -> type[MicArray]:
     """Given a string representation of a microphone array (e.g., `eigenmike32`), return the correct MicArray object"""
     # These are the name attributes for all valid microphone arrays
     acceptable_values = [ma().name for ma in MICARRAY_LIST]
