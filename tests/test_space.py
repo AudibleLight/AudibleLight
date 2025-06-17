@@ -18,6 +18,7 @@ TEST_MESHES = [TEST_RESOURCES / glb for glb in TEST_RESOURCES.glob("*.glb")]
 
 
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_repair_mesh(mesh_fpath: str):
     # Load up the mesh
     loaded = load_mesh(mesh_fpath)
