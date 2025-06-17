@@ -119,11 +119,11 @@ class MicArray:
     def __len__(self) -> int:
         return self.n_capsules
 
-    def __str__(self) -> str:
-        return self.name
-
     def __repr__(self) -> str:
-        return f"Microphone array {self} with {len(self)} capsules"
+        return f"{self.__class__.__name__}('n_capsules'={self.n_capsules}, 'is_spherical'={self.is_spherical})"
+
+    def __str__(self) -> str:
+        return f"Microphone array '{self.__class__.__name__}' with {len(self)} capsules"
 
 
 @dataclass
