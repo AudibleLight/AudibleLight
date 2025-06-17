@@ -20,3 +20,4 @@ pre-commit
 netCDF4
 pytest
 coverage
+pytest-cov
