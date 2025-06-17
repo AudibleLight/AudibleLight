@@ -13,6 +13,7 @@ __all__ = [
     "polar_to_cartesian",
     "cartesian_to_polar",
     "center_coordinates",
+    "get_micarray_from_string",
     "MicArray",
     "Eigenmike32",
     "Eigenmike64",
@@ -21,7 +22,8 @@ __all__ = [
     "Oct3D",
     "PCMA3D",
     "Cube2L",
-    "HamasakiSquare"
+    "HamasakiSquare",
+    "MICARRAY_LIST"
 ]
 
 
@@ -462,4 +464,26 @@ class HamasakiSquare(MicArray):
     @property
     def capsule_names(self) -> list[str]:
         return ["FL", "FR", "RL", "RR", "FLh_0", "FRh_0", "RLh_0", "RRh_0", "FLh_1", "FRh_1", "RLh_1", "RRh_1"]
-    
+
+
+# A list of all mic array objects
+MICARRAY_LIST = [
+    Eigenmike32,
+    Eigenmike64,
+    AmbeoVR,
+    DeccaCuboid,
+    Oct3D,
+    PCMA3D,
+    Cube2L,
+    HamasakiSquare
+]
+
+
+def get_micarray_from_string(micarray_name: str) -> object:
+    """Given a string representation of a microphone array (e.g., `eigenmike32`), return the correct MicArray object"""
+    # These are the name attributes for all valid microphone arrays
+    acceptable_values = [ma().name for ma in MICARRAY_LIST]
+    if micarray_name not in acceptable_values:
+        raise ValueError(f"Cannot find array {micarray_name}: expected one of {','.join(acceptable_values)}")
+    else:
+        return [ma for ma in MICARRAY_LIST if ma.name == micarray_name][0]

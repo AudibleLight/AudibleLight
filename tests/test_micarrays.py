@@ -9,18 +9,6 @@ import numpy as np
 from audiblelight.micarrays import *
 
 
-# A list of microphone arrays to test
-MICARRAY_LIST = [
-    Eigenmike32,
-    Eigenmike64,
-    AmbeoVR,
-    DeccaCuboid,
-    Oct3D,
-    PCMA3D,
-    Cube2L,
-    HamasakiSquare
-]
-
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
 def test_string_attributes(micarray):
     # The class should have all the desired attributes as non-empty strings
@@ -141,3 +129,12 @@ def test_center_coords(x: int, y: int, z: int):
 def test_absolute_coordinates(micarray, center: np.ndarray):
     abs_coords = micarray().coordinates_absolute(center)
     assert abs_coords.shape == micarray().coordinates_cartesian.shape
+
+
+@pytest.mark.parametrize("array_name,expected", [("eigenmike32", Eigenmike32), ("ambeovr", AmbeoVR), ("asdf", None)])
+def test_get_array_from_string(array_name: str, expected: object):
+    if expected is None:
+        with pytest.raises(ValueError):
+            _ = get_micarray_from_string(array_name)
+    else:
+        assert type(expected) == type(get_micarray_from_string(array_name))
