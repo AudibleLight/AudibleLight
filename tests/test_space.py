@@ -18,6 +18,7 @@ TEST_MESHES = [TEST_RESOURCES / glb for glb in TEST_RESOURCES.glob("*.glb")]
 
 
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_repair_mesh(mesh_fpath: str):
     # Load up the mesh
     loaded = load_mesh(mesh_fpath)
@@ -143,7 +144,7 @@ def test_get_random_position(test_num: int, oyens_space: Space):
     assert random_point.shape == (3,)   # should be a 1D array of XYZ
 
 
-@pytest.mark.parametrize("n_mics,n_sources", )
+@pytest.mark.parametrize("n_mics,n_sources", [(m, s) for m, s in zip(list(range(1, 20, 5))[::-1], range(1, 20, 5))])
 def test_simulated_ir_shape(n_mics: int, n_sources: int, oyens_space: Space):
     # For reproducible results
     utils.seed_everything(n_sources)
