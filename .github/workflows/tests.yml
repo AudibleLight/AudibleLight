@@ -30,6 +30,5 @@ jobs:
           sudo apt install libsox-dev libsox-fmt-all freeglut3-dev
           pip install -r requirements.txt
 
-      - name: Install dependencies
-        run: |
-          pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+      - name: Run tests
+        run: pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
