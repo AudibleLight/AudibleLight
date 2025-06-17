@@ -21,3 +21,4 @@ netCDF4
 pytest
 coverage
 pytest-cov
+pytest-xdist
