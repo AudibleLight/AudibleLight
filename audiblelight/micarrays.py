@@ -3,7 +3,7 @@
 
 """Implements dataclasses for working with common microphone array types"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -85,13 +85,17 @@ class MicArray:
             microphone (as given, e.g., by the manufacturer logo), colatitude/elevation increases from the top
             (0, away from the shaft) to the bottom (180, aligned with the shaft). When `is_spherical` is False, is None.
         coordinates_cartesian (np.array): the positions of the capsules in Cartesian (XYZ) coordinates, with distance
-            measured using meters away from the center of the array (nb: coordinates
+            measured using meters away from the center of the array
+        coordinates_absolute (np.array): the absolute position of all capsules based on a provided center.
         n_capsules (int): number of capsules in the array
         capsule_names (list[str]): the names of the microphone capsules
     """
 
     name: str = ""
     is_spherical: bool = False
+    irs: np.ndarray = field(default=None, init=False, repr=False)
+    _coordinates_absolute: np.ndarray = field(default=None, init=False, repr=False)
+    _coordinates_center: np.ndarray = field(default=None, init=False, repr=False)
     
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -102,6 +106,20 @@ class MicArray:
         raise NotImplementedError
 
     @property
+    def coordinates_absolute(self) -> np.ndarray:
+        if self._coordinates_absolute is None:
+            raise NotImplementedError("Must call `.set_absolute_coordinates` first!")
+        else:
+            return self._coordinates_absolute
+
+    @property
+    def coordinates_center(self) -> np.ndarray:
+        if self._coordinates_center is None:
+            raise NotImplementedError("Must call `.set_absolute_coordinates` first!")
+        else:
+            return self._coordinates_center
+
+    @property
     def n_capsules(self) -> int:
         return len(self.capsule_names)
     
@@ -109,14 +127,15 @@ class MicArray:
     def capsule_names(self) -> list[str]:
         return []
 
-    def coordinates_absolute(self, mic_center: np.ndarray) -> np.ndarray:
+    def set_absolute_coordinates(self, mic_center: np.ndarray) -> np.ndarray:
         """
         Calculates absolute position of all microphone capsules based on a provided center.
 
         The center should be in cartesian coordinates with the form (XYZ), with units in meters.
         """
-        mic_center = utils.coerce2d(mic_center)
-        return self.coordinates_cartesian + mic_center
+        self._coordinates_center = utils.coerce2d(mic_center)
+        self._coordinates_absolute = self.coordinates_cartesian + self._coordinates_center
+        return self._coordinates_absolute
 
     def __len__(self) -> int:
         return self.n_capsules

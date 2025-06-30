@@ -127,8 +127,19 @@ def test_center_coords(x: int, y: int, z: int):
 
 @pytest.mark.parametrize("micarray,center", [(ma, np.array([5.0, 5.0, 5.0])) for ma in MICARRAY_LIST])
 def test_absolute_coordinates(micarray, center: np.ndarray):
-    abs_coords = micarray().coordinates_absolute(center)
-    assert abs_coords.shape == micarray().coordinates_cartesian.shape
+    ma = micarray()
+    with pytest.raises(NotImplementedError):
+        _ = ma.coordinates_absolute
+    with pytest.raises(NotImplementedError):
+        _ = ma.coordinates_center
+    # Set up the absolute coordinates
+    abs_coords = ma.set_absolute_coordinates(center)
+    assert abs_coords.shape == ma.coordinates_cartesian.shape
+    try:
+        _ = ma.coordinates_absolute
+        _ = ma.coordinates_center
+    except NotImplementedError:
+        pytest.fail()
 
 
 @pytest.mark.parametrize("array_name,expected", [("eigenmike32", Eigenmike32), ("ambeovr", AmbeoVR), ("asdf", None)])
