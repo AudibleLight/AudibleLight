@@ -82,8 +82,8 @@ class MicArray:
 
         The center should be in cartesian coordinates with the form (XYZ), with units in meters.
         """
-        self._coordinates_center = utils.coerce2d(mic_center)
-        self._coordinates_absolute = self.coordinates_cartesian + self._coordinates_center
+        self._coordinates_center = mic_center
+        self._coordinates_absolute = self.coordinates_cartesian + utils.coerce2d(self._coordinates_center)
         return self._coordinates_absolute
 
     def __len__(self) -> int:
