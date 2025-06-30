@@ -3,7 +3,6 @@
 
 """Utility functions, variables, objects etc."""
 
-import os
 from pathlib import Path
 from typing import Union
 
@@ -83,3 +82,46 @@ def get_project_root() -> Path:
         return poss_path
     else:
         return Path.cwd()
+
+
+def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
+    """Converts an array of spherical coordinates (azimuth°, polar°, radius) to Cartesian coordinates (XYZ)."""
+    spherical_array = coerce2d(spherical_array)
+    # Convert azimuth + elevation to radians
+    azimuth_rad = np.deg2rad(spherical_array[:, 0])  # phi
+    polar_rad = np.deg2rad(spherical_array[:, 1])    # theta, polar angle from z-axis
+    # No need to do this for radius
+    r = spherical_array[:, 2]
+    # Express everything in cartesian form
+    x = r * np.sin(polar_rad) * np.cos(azimuth_rad)
+    y = r * np.sin(polar_rad) * np.sin(azimuth_rad)
+    z = r * np.cos(polar_rad)
+    # Stack into a 2D array of shape (n_capsules, 3)
+    return np.column_stack((x, y, z))
+
+
+def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
+    """Converts an array of Cartesian coordinates (XYZ) to spherical coordinates (azimuth°, polar°, radius)."""
+    cartesian_array = coerce2d(cartesian_array)
+    # Unpack everything
+    x = cartesian_array[:, 0]
+    y = cartesian_array[:, 1]
+    z = cartesian_array[:, 2]
+    # Compute radius using the classic equation
+    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    assert r > 0, f"Expected radius > 0, but got radius = {r}"
+    # Get azimuth and polar in radians first, then convert to degrees
+    azimuth = np.rad2deg(np.arctan2(y, x))  # φ, angle in x-y plane from x-axis
+    polar = np.rad2deg(np.arccos(z / r))  # θ, angle from z-axis
+    # Ensure azimuth is in [0, 360)
+    azimuth = np.mod(azimuth, 360)
+    # Stack everything back into a 2D array of shape (n_capsules, 3)
+    return np.column_stack((azimuth, polar, r))
+
+
+def center_coordinates(cartesian_array: np.ndarray) -> np.ndarray:
+    """Take a dictionary of cartesian coordinates, find the center, and subtract to center all coordinates around 0"""
+    # Shape (3,)
+    c_mean = np.mean(cartesian_array, axis=0)
+    # Shape (n_capsules, 3)
+    return cartesian_array - c_mean
