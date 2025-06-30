@@ -10,9 +10,6 @@ import numpy as np
 from audiblelight import utils
 
 __all__ = [
-    "polar_to_cartesian",
-    "cartesian_to_polar",
-    "center_coordinates",
     "get_micarray_from_string",
     "MicArray",
     "Eigenmike32",
@@ -25,49 +22,6 @@ __all__ = [
     "HamasakiSquare",
     "MICARRAY_LIST"
 ]
-
-
-def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
-    """Converts an array of spherical coordinates (azimuth°, polar°, radius) to Cartesian coordinates (XYZ)."""
-    spherical_array = utils.coerce2d(spherical_array)
-    # Convert azimuth + elevation to radians
-    azimuth_rad = np.deg2rad(spherical_array[:, 0])  # phi
-    polar_rad = np.deg2rad(spherical_array[:, 1])    # theta, polar angle from z-axis
-    # No need to do this for radius
-    r = spherical_array[:, 2]
-    # Express everything in cartesian form
-    x = r * np.sin(polar_rad) * np.cos(azimuth_rad)
-    y = r * np.sin(polar_rad) * np.sin(azimuth_rad)
-    z = r * np.cos(polar_rad)
-    # Stack into a 2D array of shape (n_capsules, 3)
-    return np.column_stack((x, y, z))
-
-
-def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
-    """Converts an array of Cartesian coordinates (XYZ) to spherical coordinates (azimuth°, polar°, radius)."""
-    cartesian_array = utils.coerce2d(cartesian_array)
-    # Unpack everything
-    x = cartesian_array[:, 0]
-    y = cartesian_array[:, 1]
-    z = cartesian_array[:, 2]
-    # Compute radius using the classic equation
-    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    assert r > 0, f"Expected radius > 0, but got radius = {r}"
-    # Get azimuth and polar in radians first, then convert to degrees
-    azimuth = np.rad2deg(np.arctan2(y, x))  # φ, angle in x-y plane from x-axis
-    polar = np.rad2deg(np.arccos(z / r))  # θ, angle from z-axis
-    # Ensure azimuth is in [0, 360)
-    azimuth = np.mod(azimuth, 360)
-    # Stack everything back into a 2D array of shape (n_capsules, 3)
-    return np.column_stack((azimuth, polar, r))
-
-
-def center_coordinates(cartesian_array: np.ndarray) -> np.ndarray:
-    """Take a dictionary of cartesian coordinates, find the center, and subtract to center all coordinates around 0"""
-    # Shape (3,)
-    c_mean = np.mean(cartesian_array, axis=0)
-    # Shape (n_capsules, 3)
-    return cartesian_array - c_mean
 
 
 @dataclass
@@ -170,7 +124,7 @@ class AmbeoVR(MicArray):
     @property
     def coordinates_cartesian(self) -> np.ndarray:
         """The positions of the capsules in Cartesian coordinates, i.e. as meters from the center of the array."""
-        return polar_to_cartesian(self.coordinates_polar)
+        return utils.polar_to_cartesian(self.coordinates_polar)
     
     @property
     def capsule_names(self) -> list[str]:
@@ -229,7 +183,7 @@ class Eigenmike32(MicArray):
     @property
     def coordinates_cartesian(self) -> np.ndarray:
         """The positions of the capsules in Cartesian coordinates, i.e. as meters from the center of the array."""
-        return polar_to_cartesian(self.coordinates_polar)
+        return utils.polar_to_cartesian(self.coordinates_polar)
     
     @property
     def capsule_names(self) -> list[str]:
@@ -323,7 +277,7 @@ class Eigenmike64(MicArray):
     @property
     def coordinates_cartesian(self) -> np.ndarray:
         """The positions of the capsules in Cartesian coordinates, i.e. as meters from the center of the array."""
-        return polar_to_cartesian(self.coordinates_polar)
+        return utils.polar_to_cartesian(self.coordinates_polar)
     
     @property
     def capsule_names(self) -> list[str]:
@@ -343,7 +297,7 @@ class Oct3D(MicArray):
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
-        return center_coordinates(np.array([
+        return utils.center_coordinates(np.array([
             # x, y, z
             # (meters)
             [0, 0.35, 0],
@@ -376,7 +330,7 @@ class PCMA3D(MicArray):
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
-        return center_coordinates(np.array([
+        return utils.center_coordinates(np.array([
             [0, 0.5, 0],
             [0, -0.5, 0],
             [0.25, 0, 0],
@@ -407,7 +361,7 @@ class Cube2L(MicArray):
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
-        return center_coordinates(np.array([
+        return utils.center_coordinates(np.array([
             [0, 0.5, 0],
             [0, -0.5, 0],
             [0.25, 0, 0],
@@ -438,7 +392,7 @@ class DeccaCuboid(MicArray):
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
-        return center_coordinates(np.array([
+        return utils.center_coordinates(np.array([
             [0, 1.0, 0],
             [0, -1.0, 0],
             [0.25, 0, 0],
@@ -469,7 +423,7 @@ class HamasakiSquare(MicArray):
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
-        return center_coordinates(np.array([
+        return utils.center_coordinates(np.array([
             [0, 1.0, 0],
             [0, -1.0, 0],
             [-2.0, 1.0, 1.6],

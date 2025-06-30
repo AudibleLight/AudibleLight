@@ -6,6 +6,7 @@
 import pytest
 import numpy as np
 
+from audiblelight import utils
 from audiblelight.micarrays import *
 
 
@@ -72,10 +73,10 @@ def test_cartesian_coordinates(micarray):
 )
 def test_polar_to_cartesian(spherical, expected_cartesian):
     # polar -> cartesian
-    result = polar_to_cartesian(spherical)
+    result = utils.polar_to_cartesian(spherical)
     assert np.allclose(result, expected_cartesian, atol=1e-6)
     # polar -> cartesian -> polar
-    result_pol = cartesian_to_polar(result)
+    result_pol = utils.cartesian_to_polar(result)
     assert np.allclose(spherical, result_pol)
 
 
@@ -106,18 +107,18 @@ def test_polar_to_cartesian(spherical, expected_cartesian):
 )
 def test_cartesian_to_polar(cartesian, expected_spherical):
     # cartesian -> polar
-    result = cartesian_to_polar(cartesian)
+    result = utils.cartesian_to_polar(cartesian)
     assert np.allclose(result, expected_spherical)
     # cartesian -> polar -> cartesian
-    result_cart = polar_to_cartesian(result)
+    result_cart = utils.polar_to_cartesian(result)
     assert np.allclose(cartesian, result_cart)
 
 
 @pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])
 def test_center_coords(x: int, y: int, z: int):
     coords_dict_deg = np.array([x, y, z])
-    coords_dict_cart = polar_to_cartesian(coords_dict_deg)
-    coords_dict_centered = center_coordinates(coords_dict_cart)
+    coords_dict_cart = utils.polar_to_cartesian(coords_dict_deg)
+    coords_dict_centered = utils.center_coordinates(coords_dict_cart)
     # Everything should be centered around the mean
     #  As we only passed in one row, this will mean that every coordinate becomes a 0
     assert np.allclose(
