@@ -15,11 +15,6 @@ __all__ = [
     "Eigenmike32",
     "Eigenmike64",
     "AmbeoVR",
-    "DeccaCuboid",
-    "Oct3D",
-    "PCMA3D",
-    "Cube2L",
-    "HamasakiSquare",
     "MICARRAY_LIST"
 ]
 
@@ -284,175 +279,11 @@ class Eigenmike64(MicArray):
         return [str(i) for i in range(1, 65)]
 
 
-@dataclass
-class Oct3D(MicArray):
-    """
-    Oct3D (Optimised Cardioid Triangle) recording technique for 9 channel surround sound.
-
-    Adapted from https://schoeps.de/en/products/surround-3d/oct-3d-set/oct-3d.html
-    """
-
-    name: str = "oct3d"
-    is_spherical: bool = False
-
-    @property
-    def coordinates_cartesian(self) -> np.ndarray:
-        return utils.center_coordinates(np.array([
-            # x, y, z
-            # (meters)
-            [0, 0.35, 0],
-            [0, -0.35, 0],
-            [0.05, 0, 0],
-            [-0.4, 0.5, 0],
-            [-0.4, -0.5, 0],
-            [0, 0.5, 1.0],
-            [0, -0.5, 1.0],
-            [-1.0, 0.5, 1.0],
-            [-1.0, -0.5, 1.0],
-        ]))
-
-    @property
-    def capsule_names(self) -> list[str]:
-        # FLh = "Front-Left-Height"
-        return ["FL", "FR", "FC", "RL", "RR", "FLh", "FRh", "RLh", "RRh"]
-
-
-@dataclass
-class PCMA3D(MicArray):
-    """
-    PCMA-3D microphone array.
-
-    The PCMA-3D array is based on the Perspective Control Microphone Array design, which incorporates five channels.
-    """
-
-    name: str = "pcma3d"
-    is_spherical: bool = False
-
-    @property
-    def coordinates_cartesian(self) -> np.ndarray:
-        return utils.center_coordinates(np.array([
-            [0, 0.5, 0],
-            [0, -0.5, 0],
-            [0.25, 0, 0],
-            [-1.0, 0.5, 0],
-            [-1.0, -0.5, 0],
-            [0.0, 0.5, 0.0],
-            [0.0, -0.5, 0.0],
-            [-1.0, 0.5, 0.0],
-            [-1.0, -0.5, 0.0],
-        ]))
-    
-    @property
-    def capsule_names(self) -> list[str]:
-        return ["FL", "FR", "FC", "RL", "RR", "FLh", "FRh", "RLh", "RRh"]
-
-
-@dataclass
-class Cube2L(MicArray):
-    """
-    2L-Cube microphone array.
-
-    The 2L-Cube employs 9 microphones in a cuboid arrangement. The dimensions in the initial description of this array
-    are unclear, so here we implement a 1 x 1 x 1 meter cube, for comparison with the PCMA-3D array.
-    """
-
-    name: str = "cube2l"
-    is_spherical: bool = False
-
-    @property
-    def coordinates_cartesian(self) -> np.ndarray:
-        return utils.center_coordinates(np.array([
-            [0, 0.5, 0],
-            [0, -0.5, 0],
-            [0.25, 0, 0],
-            [-1.0, 0.5, 0],
-            [-1.0, -0.5, 0],
-            [0, 0.5, 1.0],
-            [0, -0.5, 1.0],
-            [-1.0, 0.5, 1.0],
-            [-1.0, -0.5, 1.0],
-        ]))
-    
-    @property
-    def capsule_names(self) -> list[str]:
-        return ["FL", "FR", "FC", "RL", "RR", "FLh", "FRh", "RLh", "RRh"]
-
-
-@dataclass
-class DeccaCuboid(MicArray):
-    """
-    Decca Cuboid microphone array.
-
-    The Decca Cuboid is based on the Decca Tree, a widely used array setup for Orchestral recordings. The extensions
-    consist of placing rear microphones behind the base point and height microphones above the base layer.
-    """
-
-    name: str = "deccacuboid"
-    is_spherical: bool = False
-
-    @property
-    def coordinates_cartesian(self) -> np.ndarray:
-        return utils.center_coordinates(np.array([
-            [0, 1.0, 0],
-            [0, -1.0, 0],
-            [0.25, 0, 0],
-            [-2.0, 1.0, 0],
-            [-2.0, -1.0, 0],
-            [0, 1.0, 1.0],
-            [0, -1.0, 1.0],
-            [-2.0, 1.0, 1.0],
-            [-2.0, -1.0, 1.0],
-        ]))
-    
-    @property
-    def capsule_names(self) -> list[str]:
-        return ["FL", "FR", "FC", "RL", "RR", "FLh", "FRh", "RLh", "RRh"]
-
-
-@dataclass
-class HamasakiSquare(MicArray):
-    """
-    Hamasaki Square With Height microphone array.
-
-    The Hamasaki Square is a popular technique for recording four-channel ambience. This array is a vertical extension
-    of the approach, consisting of 12 channels.
-    """
-
-    name: str = "hamasakisquare"
-    is_spherical: bool = False
-
-    @property
-    def coordinates_cartesian(self) -> np.ndarray:
-        return utils.center_coordinates(np.array([
-            [0, 1.0, 0],
-            [0, -1.0, 0],
-            [-2.0, 1.0, 1.6],
-            [-2.0, -1.0, 1.6],
-            [0.0, 1.0, 0.0],
-            [0.0, -1.0, 0.0],
-            [-2.0, 1.0, 1.6],
-            [-2.0, -1.0, 1.6],
-            [0, 1.0, 1.0],
-            [0, -1.0, 1.0],
-            [-2.0, 1.0, 2.6],
-            [-2.0, -1.0, 2.6],
-        ]))
-
-    @property
-    def capsule_names(self) -> list[str]:
-        return ["FL", "FR", "RL", "RR", "FLh_0", "FRh_0", "RLh_0", "RRh_0", "FLh_1", "FRh_1", "RLh_1", "RRh_1"]
-
-
 # A list of all mic array objects
 MICARRAY_LIST = [
     Eigenmike32,
     Eigenmike64,
     AmbeoVR,
-    DeccaCuboid,
-    Oct3D,
-    PCMA3D,
-    Cube2L,
-    HamasakiSquare
 ]
 
 
