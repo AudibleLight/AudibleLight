@@ -35,7 +35,7 @@ def test_repair_mesh(mesh_fpath: str):
 def test_load_mesh(mesh_fpath: str):
     loaded = load_mesh(mesh_fpath)
     assert isinstance(loaded, Trimesh)
-    assert loaded.metadata["fpath"] == str(mesh_fpath)    # need both to be a string or we'll get TypeError
+    assert loaded.metadata["fpath"] == str(mesh_fpath)    # need both to be a string, or we'll get TypeError
     assert loaded.units == utils.MESH_UNITS    # units should be in meters
 
 
@@ -109,16 +109,32 @@ def test_validate_source_positions(test_position: np.ndarray, expected: bool, oy
 
 
 @pytest.mark.parametrize(
+    "n_sources,expected_shape",
+    [
+        (None, (1, 3)),
+        (5, (5, 3)),
+        (3, (3, 3))
+    ]
+)
+def test_add_random_sources(n_sources, expected_shape, oyens_space: Space):
+    # Add the sources in and check that the shape of the resulting array is what we expect
+    oyens_space.add_sources(n_sources, keep_existing=False)
+    assert oyens_space.source_positions.shape == expected_shape
+
+
+@pytest.mark.parametrize(
     "test_position,expected_shape",
     [
         (np.array([[-0.4, -0.5, 0.5], [-0.1, -0.1, 0.6]]), (1, 3)),    # 1: too close to mic, 2: fine
         (np.array([[0.5, 0.5, 0.5], [0.6, 0.4, 0.5]]), (1, 3)),    # 1: fine, 2: too close to source 1
+        ([-0.1, -0.1, 0.6], (1, 3)),
+        ([[-0.1, -0.1, 0.6], [0.5, 0.5, 0.5]], (2, 3)),
     ]
 )
-def test_add_sources(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
+def test_add_sources_at_specific_position(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
     oyens_space.add_microphones(microphones={"ambeovr": [-0.5, -0.5, 0.5]}, keep_existing=False)
     # Add the sources in and check that the shape of the resulting array is what we expect
-    oyens_space.add_sources(test_position)
+    oyens_space.add_sources(test_position, keep_existing=False)
     assert oyens_space.source_positions.shape == expected_shape
 
 
@@ -126,15 +142,32 @@ def test_add_sources(test_position: np.ndarray, expected_shape: tuple[int], oyen
     "test_position,expected_shape",
     [
         (np.array([[0.1, 0.0, 0.0], [-0.2, 0.2, 0.2]]), (1, 3)),    # 1: too close to mic, 2: fine
-        (np.array([[-0.2, 0.2, 0.2], [-0.2, 0.3, 0.2]]), (1, 3)),    # 1: fine, 2: too close to source 1
+        ([[-0.2, 0.2, 0.2], [-0.2, 0.3, 0.2]], (1, 3)),    # 1: fine, 2: too close to source 1
         (np.array([[-0.2, 0.2, 0.2], [0.2, -0.3, -0.2]]), (2, 3)),  # both fine
     ]
 )
 def test_add_sources_relative_to_mic(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
     oyens_space.add_microphones(microphones={"ambeovr": [-0.5, -0.5, 0.5]}, keep_existing=False)
     # Add the sources in and check that the shape of the resulting array is what we expect
-    oyens_space.add_sources_relative_to_mic(test_position, 0)
+    oyens_space.add_sources(test_position, mic_idx=0, keep_existing=False)
     assert oyens_space.source_positions.shape == expected_shape
+
+
+def test_add_invalid_sources(oyens_space: Space):
+    # Cannot add empty list of sources
+    with pytest.raises(AssertionError):
+        oyens_space.add_sources([])
+    # Cannot add negative number of sources
+    with pytest.raises(AssertionError):
+        oyens_space.add_sources(-1)
+    # Cannot add sources with invalid input types
+    for inp in ["asdfasdfa", object, {}]:
+        with pytest.raises(TypeError):
+            oyens_space.add_sources(inp)
+    # Cannot add source that directly intersects with a microphone
+    oyens_space.add_microphones([[-0.5, -0.5, 0.5]])
+    with pytest.raises(ValueError):
+        oyens_space.add_sources([-0.5, -0.5, 0.5])
 
 
 @pytest.mark.parametrize("num_rays", [1, 10, 100])
@@ -155,7 +188,7 @@ def test_get_random_position(test_num: int, oyens_space: Space):
     # Add some microphones to the space
     oyens_space.add_microphones(test_num, keep_existing=False)
     # Add some sources to the space
-    oyens_space.add_random_sources(test_num)
+    oyens_space.add_sources(test_num)
     # Grab a random position
     random_point = oyens_space.get_random_position()
     # It should be valid (suitable distance from surfaces, inside mesh, away from mics/sources...)
@@ -171,7 +204,7 @@ def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: Space):
     # Add some sources and microphones to the space
     #  We could use other microphone types, but they're slow to simulate
     oyens_space.add_microphones(["ambeovr" for _ in range(n_mics)], keep_existing=False)
-    oyens_space.add_random_sources(n_sources)
+    oyens_space.add_sources(n_sources)
     # Grab the IRs: we should have one array for every microphone
     oyens_space.simulate()
     simulated_irs = list(oyens_space.irs.values())

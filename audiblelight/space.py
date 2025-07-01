@@ -409,11 +409,10 @@ class Space:
             raise ValueError(f"Expected shape == 2, but got {shape}")
         return bool(self.mesh.contains(point)[0])
 
-    def _set_sources(self):
+    def _setup_sources(self):
         """
         Sets the positions of sound sources in the space.
         """
-        self.ctx.clear_sources()
         # Now, iterate only through the valid sources and add these to the mesh
         for i, pos in enumerate(self.source_positions):
             self.ctx.add_source()
@@ -435,96 +434,108 @@ class Space:
             self._is_point_inside_mesh(pos_abs)
         ))
 
-    def add_sources(self, source_positions: Union[list[np.ndarray], np.ndarray, list[float]]) -> None:
-        """
-        Adds pre-defined sources to the mesh with given absolute positions.
-
-        Args:
-            source_positions (Iterable): A list of source positions, in cartesian coordinates (XYZ)
-        """
-        self.source_positions = []    # clear the list of sources
-        source_positions: np.ndarray = utils.coerce2d(source_positions)        # Coerce list types to arrays
-
-        # Iterate over provided source positions: should be 1D arrays in XYZ format
-        for i, abs_pos in enumerate(source_positions):
-            assert abs_pos.shape == (3,), "Provided coordinates must be in XYZ format"
-            # Validate that the point is inside the mesh, that it is far enough away from the other mics and sources...
-            if self._validate_source_position(abs_pos):
-                self.source_positions.append(abs_pos)
-            else :
-                logger.warning(f"Source {i} invalid with absolute position {abs_pos}. "
-                               f"Skipping source {i} and moving on to source {i + 1}")
-                continue
-
-        # Sanity checking
-        if len(self.source_positions) == 0:
-            raise ValueError("None of the provided sources could be placed within the mesh.")
-        self.source_positions = np.asarray(self.source_positions)
-        self._set_sources()
-
-    def add_sources_relative_to_mic(
+    def add_sources(
             self,
-            source_positions: Union[list[np.ndarray], np.ndarray, list[float]],
-            mic_idx: int
+            sources: Union[list, np.ndarray, int, None],
+            keep_existing: bool = False,
+            mic_idx: int = None
     ) -> None:
         """
-        Adds pre-defined sources to a space, relative to the position of a given microphone.
+        Add sources to the mesh at valid positions. Must be called before `simulate`.
 
-        Args:
-            source_positions (Iterable): A list of source positions, relative to the microphone
-            mic_idx (int): The index of the microphone that the sources are relative to
+        Arguments:
+            sources (optional): the sources to be added to the mesh.
+                If an integer, will be interpreted as the number of sources to add to the mesh, at random positions.
+                If a list, should be a list of coordinates in XYZ form. These are assumed to be ABSOLUTE positions,
+                 unless `mic_idx` is not None, in which case they are assumed to be relative to the absolute position
+                 of the microphone found at `microphones[mic_idx]`
+                If None, a single source will be added at a random position inside the mesh.
+            keep_existing (optional): whether to remove existing sources from the mesh, defaults to removing
+            mic_idx (optional): the index of the microphone that sources should be added relative to
+
+        Examples:
+            Create a space with a given mesh
+            >>> spa = Space(mesh=...)
+
+            Add a single source to the mesh with a random position
+            >>> spa.add_sources()
+
+            Add three random sources at random positions
+            >>> spa.add_sources(3)
+
+            Add one source at a specified absolute position
+            >>> spa.add_sources([0.0, 0.1, 0.2])
+
+            Add two sources at specified absolute positions
+            >>> spa.add_sources([[0.0, 0.1, 0.2], [0.2, 0.1, 0.0]])
+
+            Add one source at a specific position relative to the mic at index 1
+            >>> spa.add_sources([[0.0, 0.1, 0.2]], mic_idx=1)
+
         """
-        self.source_positions = []    # clear the list of sources
-        desired_mic = self.microphones[mic_idx]    # 1D array with shape XYZ
+        # Remove existing sources if we wish to do this
+        if not keep_existing:
+            self.source_positions = []
+            self.ctx.clear_sources()
 
-        # Coerce list types to arrays
-        source_positions = utils.coerce2d(source_positions)
-        # Iterating over 1D arrays with shape XYZ
-        for i, rel_pos in enumerate(source_positions):
-            # Initial position is relative, so express in absolute terms here
-            abs_pos = desired_mic.coordinates_center + rel_pos
-            assert abs_pos.shape == (3,), "Provided coordinates must be in XYZ format"
-            # Validate that the point is inside the mesh, that it is far enough away from the other mics and sources...
-            if self._validate_source_position(abs_pos):
-                self.source_positions.append(abs_pos)
-            else :
-                logger.warning(f"Source {i} located outside of mesh with "
-                               f"relative position {rel_pos}, absolute position {abs_pos}. "
-                               f"Skipping source {i} and moving on to source {i + 1}")
-                continue
+        # We assume that passing None is equivalent to placing a single random source
+        if sources is None:
+            logger.warning(f"No sources provided, placing a single source in a random position!")
+            sources = 1
+        if mic_idx is not None:
+            assert len(self.microphones) == mic_idx + 1, f"No microphone at specified index {mic_idx}!"
+
+        # If sources is an integer, we assume that this is the number of sources we want to place in random positions
+        if isinstance(sources, int):
+            assert sources > 0, "Number of sources to add must be greater than 0!"
+            # Iterate over the number of sources we want to try and place
+            for source_idx in range(sources):
+                # Iterate over the number of times we try and place the source
+                for attempt in range(MAX_PLACE_ATTEMPTS):
+                    source_pos_abs = self.get_random_position()
+                    # If the source is in a valid position, add it to the list
+                    if self._validate_source_position(source_pos_abs):
+                        self.source_positions.append(source_pos_abs)
+                        break
+                    # If we've tried too many times to place the source, make a log
+                    elif attempt == MAX_PLACE_ATTEMPTS - 1:
+                        logger.error(f"Could not place source {source_idx}, skipping to source {source_idx + 1}. "
+                                     f"If this is happening frequently, consider reducing the number of `sources`, "
+                                     f"`min_distance_from_mic`, or `min_distance_from_source`.")
+
+        # Otherwise, if sources is an iterable, we assume that this is a list of coordinates to place sources at
+        elif isinstance(sources, (list, np.ndarray)):
+            assert len(sources) > 0, "Provided iterable of sources must not be empty!"
+            # Coerce 1D arrays or lists to 2D numpy arrays
+            sources = utils.coerce2d(sources)
+            # If we want to place the sources relative to a given mic
+            if mic_idx is not None:
+                desired_mic = self.microphones[mic_idx]
+            else:
+                desired_mic = None
+            # Iterate over provided source positions: should be 1D arrays in XYZ format
+            for i, abs_pos in enumerate(sources):
+                # Provided position is relative, so express in absolute terms here
+                if desired_mic is not None:
+                    abs_pos = desired_mic.coordinates_center + abs_pos
+                assert abs_pos.shape == (3,), "Provided coordinates must be in XYZ format"
+                # Validate that the point is inside the mesh, that it is far enough away from the other mics and sources...
+                if self._validate_source_position(abs_pos):
+                    self.source_positions.append(abs_pos)
+                else :
+                    logger.warning(f"Source {i} invalid with absolute position {abs_pos}. "
+                                   f"Skipping source {i} and moving on to source {i + 1}")
+                    continue
+
+        # Otherwise, raise an error as the input is not in the expected format
+        else:
+            raise TypeError(f"Could not parse input with type {type(sources)}")
 
         # Sanity checking
         if len(self.source_positions) == 0:
             raise ValueError("None of the provided sources could be placed within the mesh.")
         self.source_positions = np.asarray(self.source_positions)
-        self._set_sources()
-
-    def add_random_sources(self, n_sources: int, max_place_attempts: int = MAX_PLACE_ATTEMPTS) -> None:
-        """
-        Adds N random sound sources to the space.
-
-        Args:
-            n_sources (int): The number of sources to place randomly in the space.
-            max_place_attempts (int): The number of times we'll attempt to place a source before giving up
-        """
-        self.source_positions = []    # clear the list of sources
-        # Iterate over the number of sources we want to try and place
-        for source_idx in range(n_sources):
-            # Iterate over the number of times we try and place the source
-            for attempt in range(max_place_attempts):
-                source_pos_abs = self.get_random_position()
-                # If the source is in a valid position, add it to the list
-                if self._validate_source_position(source_pos_abs):
-                    self.source_positions.append(source_pos_abs)
-                    break
-                # If we've tried too many times to place the source, make a log
-                elif attempt == max_place_attempts - 1:
-                    logger.error(f"Could not place source {source_idx}, skipping to source {source_idx + 1}. "
-                                 f"If this is happening frequently, consider reducing `n_sources`, "
-                                 f"`min_distance_from_mic`, or `min_distance_from_source`.")
-        # Add all the valid sources in
-        self.source_positions = np.asarray(self.source_positions)
-        self._set_sources()
+        self._setup_sources()
 
     def _simulation_sanity_check(self) -> None:
         """
@@ -640,7 +651,7 @@ class Space:
         emitter_position_var[:] = np.zeros((E, C, I))
 
         # SourcePosition (R, C, I): for each receiver, need a position
-        # Since receivers = sources * channels, we expand source_positions accordingly
+        # Since receivers = sources * channels, we expand sources accordingly
 
         source_positions_expanded = np.repeat(self.source_positions, N_channels, axis=0)  # shape (R, 3)
 
@@ -779,7 +790,7 @@ if __name__ == "__main__":
         # Create the space and add N random sources
         room = Space(mesh=mesh_path)
         room.add_microphones(microphones=["ambeovr", "ambeovr", "ambeovr"])
-        room.add_random_sources(5)
+        room.add_sources(5)
         # Simulate the room impulse responses
         room.simulate()
         # Visualize microphone and sources inside the scene
