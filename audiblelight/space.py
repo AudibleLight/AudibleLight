@@ -214,6 +214,123 @@ class Space:
             self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
             self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
 
+    @staticmethod
+    def _sanitize_microphone_input(microphones) -> list[tuple]:
+        """
+        Sanitizes any microphone input into the form [(mic_type, mic_location), (mic_type, mic_location), (...)].
+
+        Microphone types are coerced to their corresponding classes from `micarrays` and mic_locations are either
+        1D arrays of coordinates in the form XYZ or None (in which case a random position will be assigned).
+
+        Returns:
+            list[tuple]: the sanitized microphone inputs, in form [(mic1_cls, mic1_location), (mic2_cls, mic2_location)]
+        """
+        # Convert single strings to list of strings
+        sanitized_microphones = []
+
+        # If None, get a random microphone and use a randomized position
+        if microphones is None:
+            logger.warning(f"No microphone positions provided, using a random microphone array in a random position!")
+            # Get a random microphone class
+            mic_cls = random.choice(MICARRAY_LIST)
+            sanitized_microphones.append((mic_cls, None))
+
+        # If a string, use the desired microphone type but get a random position
+        elif isinstance(microphones, str):
+            sanitized_microphones.append((get_micarray_from_string(microphones), None))
+
+        # If a class contained inside MICARRAY_LIST
+        elif microphones in MICARRAY_LIST:
+            sanitized_microphones.append((microphones, None))
+
+        # If an integer, assume that this is the number of random microphones we want to place
+        elif isinstance(microphones, int):
+            assert microphones > 0, f"Number of microphones to create must be greater than 0, but got {microphones}"
+            for mic_idx in range(microphones):
+                # Get a random microphone class
+                mic_cls = random.choice(MICARRAY_LIST)
+                sanitized_microphones.append((mic_cls, None))
+
+        # If a dictionary of microphone types and positions
+        elif isinstance(microphones, dict):
+            assert len(microphones.items()) > 0, "Number of microphones to add must be greater than 0"
+            # Raise a warning for this type of input
+            logger.warning("Passing a dictionary of microphone types and coordinates is not recommended, as duplicates"
+                           " will be removed. Instead, we recommend passing a list of tuples, where the first element"
+                           " of each tuple is the desired microphone type and the second is the location to place it.")
+            for mic_str, mic_pos in microphones.items():
+                # Retrieve the class of microphone from the string name
+                mic_cls = get_micarray_from_string(mic_str)
+                sanitized_microphones.append((mic_cls, mic_pos))
+
+        # If we've passed in an iterable
+        elif isinstance(microphones, (list, np.ndarray)):
+            assert len(microphones) > 0, "Number of microphones to add must be greater than 0"
+            # Handle cases where we've just passed a single list of XYZ coordinates
+            if len(microphones) == 3 and all(isinstance(i, (float, int)) for i in microphones):
+                microphones = utils.coerce2d(microphones)
+
+            # If the iterable is a list of strings, corresponding to microphone array names
+            if all(isinstance(s, str) for s in microphones):
+                for mic_str in microphones:
+                    # We assume that this is the name of a microphone array
+                    mic_cls = get_micarray_from_string(mic_str)
+                    sanitized_microphones.append((mic_cls, None))
+
+            # If the iterable contains tuples in the form (microphone_type, microphone_coords)
+            elif all(
+                    isinstance(item, (tuple, list)) and
+                    len(item) == 2 and
+                    isinstance(item[0], str) and
+                    isinstance(item[1], (list, np.ndarray))
+                    for item in microphones
+            ):
+                for mic_str, mic_pos in microphones:
+                    # Retrieve the class of microphone from the string name
+                    mic_cls = get_micarray_from_string(mic_str)
+                    sanitized_microphones.append((mic_cls, mic_pos))
+
+            # If the iterable contains lists of coordinates
+            elif all(
+                    isinstance(item, (tuple, list, np.ndarray)) and  # every element of list must be one of these types
+                    len(item) == 3 and  # every element must be in XYZ form
+                    all(isinstance(i, (float, int)) for i in item)  # all items in every element must be float or ints
+                    for item in microphones
+            ):
+                for single_pos in microphones:
+                    # Get a random microphone class
+                    mic_cls = random.choice(MICARRAY_LIST)
+                    sanitized_microphones.append((mic_cls, single_pos))
+
+            # Otherwise, we don't know what the input is
+            else:
+                raise TypeError("Could not handle microphone input")
+
+        # Raise when invalid input types encountered
+        else:
+            raise TypeError(f"Could not parse input with type {type(microphones)}")
+        return sanitized_microphones
+
+    def _try_add_microphone(self, mic_cls, position: Union[list, None]) -> bool:
+        """
+        Try to instantiate and place a microphone of type mic_cls at position.
+        Return True if successful, False otherwise.
+        """
+        for attempt in range(MAX_PLACE_ATTEMPTS):
+            # Grab a random position for the microphone if required
+            pos = position if position is not None else self.get_random_position()
+            # Instantiate the microphone and set its coordinates
+            mic = mic_cls()
+            mic.set_absolute_coordinates(pos)
+            # If we have a valid position for the microphone
+            if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
+                self.microphones.append(mic)
+                return True
+            # If we were trying to place the microphone in a specific location, only make one attempt at placing it
+            elif position is not None:
+                break
+        return False
+
     def add_microphones(
             self,
             microphones: Union[list, np.ndarray, dict, None, int, str] = 1,
@@ -270,132 +387,21 @@ class Space:
             self.microphones = []
             self.ctx.clear_listeners()
 
-        # When no position passed in, always used a random position
-        if microphones is None:
-            logger.warning(f"No microphone positions provided, using a random microphone array in a random position!")
-            microphones = 1
-        # Convert single strings to list of strings
-        if isinstance(microphones, str):
-            microphones = [microphones]
-
-        # When an integer passed in, assume that this is the number of random microphones we want to place
-        if isinstance(microphones, int):
-            assert microphones > 0, f"Number of microphones to create must be greater than 0, but got {microphones}"
-            for mic_idx in range(microphones):
-                # Get a random microphone class and position inside the mesh
-                mic_cls = random.choice(MICARRAY_LIST)
-                # Try N times to place the microphone in the space
-                for attempt in range(MAX_PLACE_ATTEMPTS):
-                    # Initialise the microphone
-                    position = self.get_random_position()
-                    mic = mic_cls()
-                    mic.set_absolute_coordinates(position)
-                    # If the coordinates for all the capsules are valid, we can use the given position
-                    if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
-                        self.microphones.append(mic)
-                        break
-                    # Log a warning if we can't place the microphone in a valid position
-                    elif attempt == MAX_PLACE_ATTEMPTS - 1:
-                        logger.warning(f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
-                                       f"Consider reducing `min_distance_from` arguments.")
-
-        # If we've passed in a dictionary of microphone positions
-        elif isinstance(microphones, dict):
-            assert len(microphones.items()) > 0, "Number of microphones to add must be greater than 0"
-            # Raise a warning for this type of input
-            logger.warning("Passing a dictionary of microphone types and coordinates is not recommended, as duplicates"
-                           " will be removed. Instead, we recommend passing a list of tuples, where the first element"
-                           " of each tuple is the desired microphone type and the second is the location to place it.")
-            for single_mic, single_pos in microphones.items():
-                # Retrieve the class of microphone from the string name
-                single_mic = get_micarray_from_string(single_mic)
-                # Get the cartesian coordinates of the capsules of the microphone array, with units in metres
-                mic = single_mic()
-                mic.set_absolute_coordinates(single_pos)
-                # If the coordinates for all the capsules are valid, we can use the given position
-                if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
-                    self.microphones.append(mic)
+        # Sanitize the microphone input into lists of [(mic_cls, mic_pos), (mic_cls, mic_pos)]
+        sanitized_microphones = self._sanitize_microphone_input(microphones)
+        for mic_cls, mic_pos in sanitized_microphones:
+            # Try and add the microphone to the mesh
+            placed = self._try_add_microphone(mic_cls, mic_pos)
+            # If we can't add the microphone to the mesh
+            if not placed:
+                # If we were trying to add it to a random position
+                if mic_pos is None:
+                    logger.warning(f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                                   f"Consider reducing `min_distance_from` arguments.")
+                # If we were trying to add it to a specific position
                 else:
-                    logger.warning(f"Position {mic.coordinates_absolute} for mic {mic.name} invalid, skipping...")
-                    continue
-
-        # If we've passed in an iterable
-        elif isinstance(microphones, (list, np.ndarray)):
-            assert len(microphones) > 0, "Number of microphones to add must be greater than 0"
-            # Handle cases where we've just passed a single list of XYZ coordinates
-            if len(microphones) == 3 and all(isinstance(i, (float, int)) for i in microphones):
-                microphones = utils.coerce2d(microphones)
-
-            # If the iterable is a list of strings, corresponding to microphone array names
-            if all(isinstance(s, str) for s in microphones):
-                for mic_str in microphones:
-                    # We assume that this is the name of a microphone array
-                    mic_cls = get_micarray_from_string(mic_str)
-                    # Try N times to place the microphone in the space
-                    for attempt in range(MAX_PLACE_ATTEMPTS):
-                        # Initialise the microphone
-                        position = self.get_random_position()
-                        mic = mic_cls()
-                        mic.set_absolute_coordinates(position)
-                        # If the coordinates for all the capsules are valid, we can use the given position
-                        if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
-                            self.microphones.append(mic)
-                            break
-                        # Log a warning if we can't place the microphone in a valid position
-                        elif attempt == MAX_PLACE_ATTEMPTS - 1:
-                            logger.warning(
-                                f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
-                                f"Consider reducing `min_distance_from` arguments.")
-
-            # If the iterable is a list of tuples, with tuples having the form (microphone_type, microphone_coords)
-            elif all(
-                isinstance(item, (tuple, list)) and
-                len(item) == 2 and
-                isinstance(item[0], str) and
-                isinstance(item[1], (list, np.ndarray))
-                for item in microphones
-            ):
-                for single_mic, single_pos in microphones:
-                    # Retrieve the class of microphone from the string name
-                    single_mic = get_micarray_from_string(single_mic)
-                    # Get the cartesian coordinates of the capsules of the microphone array, with units in metres
-                    mic = single_mic()
-                    mic.set_absolute_coordinates(single_pos)
-                    # If the coordinates for all the capsules are valid, we can use the given position
-                    if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
-                        self.microphones.append(mic)
-                    else:
-                        logger.warning(f"Position {mic.coordinates_absolute} for mic {mic.name} invalid, skipping...")
-                        continue
-
-            # If the iterable is a list of coordinates
-            elif all(
-                isinstance(item, (tuple, list, np.ndarray)) and    # every element of list must be one of these types
-                len(item) == 3 and    # every element must be in XYZ form
-                all(isinstance(i, (float, int)) for i in item)     # all items in every element must be float or ints
-                for item in microphones
-            ):
-                # Coerce 1D arrays to 2D arrays
-                microphones = utils.coerce2d(microphones)
-                for single_pos in microphones:
-                    # Get a random microphone
-                    mic_cls = random.choice(MICARRAY_LIST)
-                    mic = mic_cls()
-                    mic.set_absolute_coordinates(single_pos)    # calls coerce2d
-                    # If the coordinates for all the capsules are valid, we can use the given position
-                    if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
-                        self.microphones.append(mic)
-                    else:
-                        logger.warning(f"Position {mic.coordinates_absolute} for mic {mic.name} invalid, skipping...")
-                        continue
-
-            # Otherwise, we don't know what the input is
-            else:
-                raise TypeError("Could not handle list input")
-
-        # Raise when invalid input types encountered
-        else:
-            raise TypeError(f"Could not parse input with type {type(microphones)}")
+                    logger.warning(f"Position {mic_pos} invalid for microphone {mic_cls.name}, "
+                                   f"skipping to next microphone! Consider reducing `min_distance_from` arguments.")
 
         # Catch instances where no microphone exist inside the array
         if len(self.microphones) == 0:
