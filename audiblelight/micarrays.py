@@ -14,6 +14,7 @@ __all__ = [
     "MicArray",
     "Eigenmike32",
     "Eigenmike64",
+    "Eigenmike32Tetrahedral",
     "AmbeoVR",
     "MICARRAY_LIST"
 ]
@@ -186,6 +187,32 @@ class Eigenmike32(MicArray):
 
 
 @dataclass
+class Eigenmike32Tetrahedral(Eigenmike32):
+    """
+    Eigenmike 32 microphone in tetrahedral form, using only 4 capsules.
+
+    Following [1], we use channels 6, 10, 22, 26 from the Eigenmike 32 to obtain a lower resolution, four channel
+    array. This can be useful, for instance, in training a model to upsample from the lower resolution input to the
+    original, 32-channel input.
+
+    [1] S. Adavanne, A. Politis, and T. Virtanen, "Localization, detection and tracking of multiple moving sound
+    sources with a convolutional recurrent neural network" in Acoustic Scenes and Events 2019 Workshop (DCASE2019),
+    2019, p. 20.
+    """
+
+    name: str = "eigenmike32_tetrahedral"
+    is_spherical: bool = True
+
+    @property
+    def coordinates_polar(self) -> np.ndarray:
+        return super().coordinates_polar[[6, 10, 22, 26], :]
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return [str(i) for i in [6, 10, 22, 26]]
+
+
+@dataclass
 class Eigenmike64(MicArray):
     """
     Eigenmike 64 microphone.
@@ -283,6 +310,7 @@ class Eigenmike64(MicArray):
 MICARRAY_LIST = [
     Eigenmike32,
     Eigenmike64,
+    Eigenmike32Tetrahedral,
     AmbeoVR,
 ]
 
