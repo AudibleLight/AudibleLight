@@ -4,10 +4,13 @@
 """Test cases for functionality inside audiblelight/space.py"""
 
 import os
+from tempfile import TemporaryDirectory
 
 import pytest
+import matplotlib.pyplot as plt
 import numpy as np
-from trimesh import Trimesh
+import librosa
+from trimesh import Trimesh, Scene
 
 from audiblelight import utils
 from audiblelight.space import Space, load_mesh, repair_mesh
@@ -67,7 +70,8 @@ def oyens_space() -> Space:
         (["ambeovr", "ambeovr"], 2),     # places two ambeoVRs in two random positions
         ({"eigenmike32": [-0.5, -0.5, 0.5]}, 1),    # places eigenmike32 in assigned position
         ({"eigenmike32": [-0.5, -0.5, 0.5], "ambeovr": [-0.1, -0.1, 0.6]}, 2),    # places mics in assigned positions
-        ([[-0.5, -0.5, 0.5], [-0.1, -0.1, 0.6]], 2)    # places two random mics in two assigned positions
+        ([[-0.5, -0.5, 0.5], [-0.1, -0.1, 0.6]], 2),    # places two random mics in two assigned positions
+        ([-0.5, -0.5, 0.5], 1)    # 1D arrays are valid and will be coerced to 2D
     ]
 )
 def test_place_microphones(microphones, expected_shape, oyens_space: Space):
@@ -89,6 +93,27 @@ def test_place_microphones(microphones, expected_shape, oyens_space: Space):
         # Iterate over all capsules
         for capsule in mic.coordinates_absolute:
             assert oyens_space._is_point_inside_mesh(capsule)
+
+
+def test_place_invalid_microphones(oyens_space):
+    # Trying to access IRs before placing anything should raise an error
+    with pytest.raises(AttributeError):
+        _ = oyens_space.irs
+    # Cannot add 0 sources
+    for inp in [-1, [], {}]:
+        with pytest.raises(AssertionError):
+            oyens_space.add_microphones(inp, keep_existing=False)
+    # Cannot add sources with invalid input types
+    for inp in [object, set(), lambda x: x]:
+        with pytest.raises(TypeError):
+            oyens_space.add_microphones(inp, keep_existing=False)
+    # Cannot add 3D array of mics
+    with pytest.raises(ValueError):
+        oyens_space.add_microphones([[[0.5, 0.5, 0.5]]], keep_existing=False)
+    # Cannot add mic that is way outside the mesh
+    for inp in [[1000., 1000., 1000.], {"ambeovr": [-1000, -1000, -1000]}]:
+        with pytest.raises(ValueError):
+            oyens_space.add_microphones(inp, keep_existing=False)
 
 
 @pytest.mark.parametrize(
@@ -164,10 +189,18 @@ def test_add_invalid_sources(oyens_space: Space):
     for inp in ["asdfasdfa", object, {}]:
         with pytest.raises(TypeError):
             oyens_space.add_sources(inp)
+    # Cannot add sources that are way outside the mesh
+    with pytest.raises(ValueError):
+        oyens_space.add_sources([[1000., 1000., 1000.], [-1000, -1000, -1000]], keep_existing=False)
     # Cannot add source that directly intersects with a microphone
     oyens_space.add_microphones([[-0.5, -0.5, 0.5]])
     with pytest.raises(ValueError):
-        oyens_space.add_sources([-0.5, -0.5, 0.5])
+        oyens_space.add_sources([-0.5, -0.5, 0.5])    # same, in absolute terms
+    with pytest.raises(ValueError):
+        oyens_space.add_sources([0.0, 0.0, 0.0], mic_idx=0)    # same, in relative terms
+    # Cannot add 3D array of sources
+    with pytest.raises(ValueError):
+        oyens_space.add_sources([[[0.5, 0.5, 0.5]]], keep_existing=False)
 
 
 @pytest.mark.parametrize("num_rays", [1, 10, 100])
@@ -207,6 +240,7 @@ def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: Space):
     oyens_space.add_sources(n_sources)
     # Grab the IRs: we should have one array for every microphone
     oyens_space.simulate()
+    assert isinstance(oyens_space.irs, dict)
     simulated_irs = list(oyens_space.irs.values())
     assert len(simulated_irs) == n_mics
     # Iterate over each individual microphone
@@ -225,3 +259,49 @@ def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: Space):
     assert all([m.irs.shape[2] == mic_1_samples for m in oyens_space.microphones])
     # Number of capsules should be the same as the "raw" results of the raytracing engine
     assert total_capsules == oyens_space.ctx.get_audio().shape[0]
+
+
+def test_create_plot(oyens_space):
+    # Add some microphones and sources
+    oyens_space.add_microphones(1)
+    oyens_space.add_sources(1)
+    # Create the plot
+    fig = oyens_space.create_plot()
+    assert isinstance(fig, plt.Figure)
+    # Should have two axes for the two views
+    assert len(fig.get_axes()) == 2
+
+
+def test_create_scene(oyens_space):
+    # Add some microphones and sources
+    oyens_space.add_microphones(1)
+    oyens_space.add_sources(1)
+    # Create the scene
+    scene = oyens_space.create_scene()
+    assert isinstance(scene, Scene)
+    # Should have more geometry than the "raw" scene (without adding spheres for capsules/sources)
+    assert len(scene.geometry) > len(oyens_space.mesh.scene().geometry)
+
+
+def test_save_wavs(oyens_space):
+    # Add some microphones and sources
+    oyens_space.add_microphones("ambeovr")    # just adds an ambeovr mic in a random plcae
+    oyens_space.add_sources(1)
+    # Run the simulation
+    oyens_space.simulate()
+    # Dump the IRs to a temporary directory
+    with TemporaryDirectory() as tmp:
+        oyens_space.save_irs_to_wav(tmp)
+        # We have 1 microphone with 4 capsules and 1 sound source
+        #  We should have saved a WAV file for each of these
+        all_irs = []
+        for caps_idx in range(4):
+            # The WAV file should exist
+            fp = os.path.join(tmp, f"mic000_capsule00{caps_idx}_source000.wav")
+            assert os.path.exists(fp)
+            # Load up the WAV file in librosa and get the number of samples
+            y, _ = librosa.load(fp, sr=oyens_space.ctx.config.sample_rate, mono=True, offset=0.0)
+            all_irs.append(y.shape)
+        # The number of samples for all IRs should be the same
+        assert all([a[0] == all_irs[0][0] for a in all_irs])
+    # Temporary directory is implicitly cleaned up
