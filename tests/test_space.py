@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import librosa
 from trimesh import Trimesh, Scene
+from scipy.signal import stft
+from pyroomacoustics.doa.music import MUSIC
 
 from audiblelight import utils
 from audiblelight.space import Space, load_mesh, repair_mesh
@@ -305,3 +307,79 @@ def test_save_wavs(oyens_space):
         # The number of samples for all IRs should be the same
         assert all([a[0] == all_irs[0][0] for a in all_irs])
     # Temporary directory is implicitly cleaned up
+
+
+@pytest.mark.parametrize(
+    "microphone,sources,actual_doa",
+    [
+        # Test case 1: two sources at 90 and 270 degree angles from the mic
+        (
+            [-1.5, -1.5, 0.7],    # mic placed in bedroom 1
+            [[0.0, 0.5, 0.0], [0.0, -0.5, 0.0]],
+            [90, 270]
+        ),
+        # Test case 2: two sources at 0 and 180 degree angles from the mic
+        (
+            [2.9, -7.0, 0.3],    # mic placed in bedroom 2
+            [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]],
+            [0, 180]
+        ),
+        # Test case 3: combines 1 and 2 (four sources at 0, 90, 180, 270 degrees)
+        (
+            [2.5, 0., 0.5],     # mic placed in living room
+            [[1.0, 0.0, 0.0], [0.0, 0.5, 0.0], [-1.0, 0.0, 0.0], [0.0, -0.5, 0.0]],
+            [0, 90, 180, 270]
+        ),
+        # Test case 4: single sound source at a 45-degree angle
+        (
+            [2.5, -1.0, 0.5],  # mic placed in living room
+            [[1.0, 1.0, 0.0]],
+            [45,]
+        )
+    ]
+)
+def test_simulated_doa_with_music(microphone: list, sources: list, actual_doa: list[int], oyens_space: Space):
+    """
+    Tests DOA of simulated sound sources and microphones with MUSIC algorithm.
+
+    Places an Eigenmike32, simulates sound sources, runs MUSIC, checks that estimated DOA is near to actual DOA
+    """
+    # Add the microphones and simulate the space
+    oyens_space.add_microphones(microphones={"eigenmike32": microphone}, keep_existing=False)
+    oyens_space.add_sources(sources, mic_idx=0, keep_existing=False)
+    oyens_space.simulate()
+    # TODO: in the future we should use simulated sound sources, not the IRs
+    output = oyens_space.irs
+
+    # Create the MUSIC object
+    L = oyens_space.microphones[0].coordinates_absolute.T    # coordinates of our capsules for the eigenmike
+    fs = int(oyens_space.ctx.config.sample_rate)
+    nfft = 1024
+    num_sources = oyens_space.source_positions.shape[0]    # number of sound sources we've added
+    assert num_sources == len(actual_doa) == len(sources)    # sanity check everything
+    music = MUSIC(
+        L=L,
+        fs=fs,
+        nfft=nfft,
+        azimuth=np.deg2rad(np.arange(360)),
+        num_sources=num_sources
+    )
+
+    # Iterating over all of our sound sources
+    for doa_deg_true, source_idx in zip(actual_doa, range(num_sources)):
+        # Get the IRs for this source: shape (N_capsules=32, 1=mono, N_samples)
+        signals = np.vstack([m[:, source_idx, :] for m in output.values()])
+        # Iterate over each individual IR (one per capsule: shape = 1, N_samples) and compute the STFT
+        #  Stacked shape is (N_capsules, (N_fft / 2) + 1, N_frames)
+        stft_signals = np.stack([stft(cs, fs=fs, nperseg=nfft, noverlap=0, boundary=None)[2] for cs in signals])
+        # Sanity check the returned shape
+        x, y, _ = stft_signals.shape
+        assert x == oyens_space.microphones[0].n_capsules
+        assert y == (nfft / 2) + 1
+        # Run the music algorithm and get the predicted DOA
+        music.locate_sources(stft_signals)
+        doa_deg_pred = np.rad2deg(music.azimuth_recon[0])
+        # Check that the predicted DOA is within a window of tolerance
+        diff = abs(doa_deg_pred - doa_deg_true) % 360
+        diff = min(diff, 360 - diff)  # smallest distance between angles
+        assert diff <= 30
