@@ -165,15 +165,16 @@ def test_get_random_position(test_num: int, oyens_space: Space):
 
 # Goes (1 mic, 4 sources), (2 mics, 3 sources), (3 mics, 2 sources), (4 mics, 1 source)
 @pytest.mark.parametrize("n_mics,n_sources", [(m, s) for m, s in zip(list(range(1, 5))[::-1], range(1, 5))])
-def test_simulated_ir_shape(n_mics: int, n_sources: int, oyens_space: Space):
+def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: Space):
     # For reproducible results
     utils.seed_everything(n_sources)
-    # Add some sources and ambeovr microphones to the space
-    #  We could use other microphone types but they're slow to simulate
+    # Add some sources and microphones to the space
+    #  We could use other microphone types, but they're slow to simulate
     oyens_space.add_microphones(["ambeovr" for _ in range(n_mics)], keep_existing=False)
     oyens_space.add_random_sources(n_sources)
     # Grab the IRs: we should have one array for every microphone
-    simulated_irs = oyens_space.simulate()
+    oyens_space.simulate()
+    simulated_irs = list(oyens_space.irs.values())
     assert len(simulated_irs) == n_mics
     # Iterate over each individual microphone
     total_capsules = 0
@@ -186,7 +187,8 @@ def test_simulated_ir_shape(n_mics: int, n_sources: int, oyens_space: Space):
         assert actual_samples >= 1    # difficult to test number of samples
         total_capsules += actual_capsules
     # IRs for all microphones should have same number of sources and samples
-    assert all([m.irs.shape[1] == oyens_space.microphones[0].irs.shape[1] for m in oyens_space.microphones]) # sources
-    assert all([m.irs.shape[2] == oyens_space.microphones[0].irs.shape[2] for m in oyens_space.microphones]) # samples
+    _, mic_1_sources, mic_1_samples = oyens_space.microphones[0].irs.shape
+    assert all([m.irs.shape[1] == mic_1_sources for m in oyens_space.microphones])
+    assert all([m.irs.shape[2] == mic_1_samples for m in oyens_space.microphones])
     # Number of capsules should be the same as the "raw" results of the raytracing engine
     assert total_capsules == oyens_space.ctx.get_audio().shape[0]

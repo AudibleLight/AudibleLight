@@ -130,6 +130,7 @@ class Space:
         # Store source and mic positions in here to access later; these should be in ABSOLUTE form
         self.source_positions: np.ndarray = np.array([])
         self.microphones = []
+        self._irs = None    # will be updated when calling `simulate`
 
         # Distances from objects/mesh surfaces
         self.min_distance_from_mic = min_distance_from_mic
@@ -150,7 +151,17 @@ class Space:
         # TODO: is it possible to set the sample rate here?
         cfg = Config()
         self.ctx = Context(cfg)
-        self.setup_audio_context()
+        self._setup_audio_context()
+
+    @property
+    def irs(self) -> dict[str, np.ndarray]:
+        """
+        Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_sources, N_samples), mic001: (...)}
+        """
+        if self._irs is None:
+            raise AttributeError("IRs have not been simulated yet: add microphones and sources and call `simulate`.")
+        else:
+            return self._irs
 
     def calculate_weighted_average_ray_length(self, point: np.ndarray, num_rays: int = 100) -> float:
         """
@@ -182,7 +193,7 @@ class Space:
         # Return the weighted average ray length
         return weighted_average
 
-    def setup_audio_context(self) -> None:
+    def _setup_audio_context(self) -> None:
         """
         Initializes the audio context and configures the mesh for the context.
         """
@@ -191,7 +202,7 @@ class Space:
         self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
         self.ctx.finalize_object_mesh(0)
 
-    def setup_listener(self) -> None:
+    def _setup_listener(self) -> None:
         """
         Adds a listener to the audio context and sets its position to the microphone's position.
         """
@@ -343,7 +354,7 @@ class Space:
             raise ValueError("Mesh does not contain any valid microphones!")
 
         # Set up the listeners inside the ray-tracing engine: add one mono listener per microphone capsule
-        self.setup_listener()
+        self._setup_listener()
 
     def get_random_position(self) -> np.ndarray:
         """
@@ -515,15 +526,25 @@ class Space:
         self.source_positions = np.asarray(self.source_positions)
         self._set_sources()
 
-    def simulate(self) -> list[np.ndarray]:
+    def _simulation_sanity_check(self) -> None:
         """
-        Simulates audio propagation in the space with the current listener and source positions.
-
-        Returns:
-            list[np.array]: a list of IRs with shape (N_mics). Each IR has shape (N_capsules, N_sources, N_samples)
+        Check conditions required for simulation are met
         """
         assert len(self.source_positions) > 0, "Must have added valid sources to the mesh before calling `.simulate`!"
         assert len(self.microphones) > 0, "Must have added valid microphones to the mesh before calling `.simulate`!"
+        assert all(type(m) in MICARRAY_LIST for m in self.microphones), "Non-microphone objects in microphone list"
+        assert self.ctx.get_listener_count() > 0, "Must have listeners added to the ray tracing engine"
+        assert self.ctx.get_source_count() > 0, "Must have sources added to the ray tracing engine"
+
+    def simulate(self) -> None:
+        """
+        Simulates audio propagation in the space with the current listener and source positions.
+        """
+        # Sanity check that we actually have sources and microphones in the space
+        self._simulation_sanity_check()
+        # Clear out any existing IRs
+        self._irs = None
+        # Run the simulation
         self.ctx.simulate()
         efficiency = self.ctx.get_indirect_ray_efficiency()
         # Log the ray efficiency: outdoor would have a very low value, e.g. < 0.05.
@@ -536,19 +557,21 @@ class Space:
                            f"`Space` object, or running `trimesh.repair.fill_holes` on your mesh.")
         # Compute the IRs: this gives us shape (N_capsules, N_sources, N_channels == 1, N_samples)
         irs = self.ctx.get_audio()
-        # Format irs as lists of [(N_capsules, N_sources, N_samples), (N_capsules, N_sources, N_samples)]
-        #  with one array per microphone. We have to do this because we cannot have ragged arrays
-        mic_irs = self.assign_irs_to_mics(irs)
-        return mic_irs
+        # Format irs into a dictionary of {mic000: (N_capsules, N_sources, N_samples), mic001: (...)}
+        #  with one key-value pair per microphone. We have to do this because we cannot have ragged arrays
+        #  The individual arrays can then be accessed by calling `self.irs.values()`
+        self._irs = self._format_irs(irs)
 
-    def assign_irs_to_mics(self, irs: np.ndarray) -> np.ndarray:
+    def _format_irs(self, irs: np.ndarray) -> dict:
         """
-        Adds impulse response arrays to each individual MicArray object
+        Formats IRs from the ray tracing engine into a dictionary of {mic1: (N_capsules, N_sources, N_samples), ...}
         """
+        # Define a counter that we can use to access the flat array of (capsules, sources, samples)
         counter = 0
-        all_irs = []
+        all_irs = {}
         for mic_idx, mic in enumerate(self.microphones):
             mic_ir = []
+            # Iterate over the capsules associated with this microphone
             for n_capsule in range(counter, mic.n_capsules + counter):
                 counter += 1
                 # This just gets the mono audio for each capsule
@@ -556,13 +579,13 @@ class Space:
                 mic_ir.append(capsule_ir)
             # Stack to a shape of (N_capsules, N_sources, N_samples)
             mic.irs = np.stack(mic_ir)
-            all_irs.append(mic.irs)
+            # Get the name of the mic and create a new key-value pair
+            all_irs[f"mic{str(mic_idx).zfill(3)}"] = mic.irs
         return all_irs
 
     def save_sofa(self, outpath: str) -> None:
         # TODO: this is almost definitely wrong/broken
-        rirs = self.simulate()  # shape: [N_mics, N_sources, N_channels, N_samples]
-        N_mics, N_sources, N_channels, N_samples = rirs.shape
+        N_mics, N_sources, N_channels, N_samples = self.irs.shape
 
         assert N_channels == 4, "Expected 4 channels for FOA"
 
@@ -666,7 +689,7 @@ class Space:
         # rirs shape: (N_mics, N_sources, N_channels, N_samples)
         # Want: M=N_mics, R=N_sources * N_channels, N=N_samples
 
-        rirs_transposed = rirs.transpose(0, 1, 2, 3)  # (M, N_sources, N_channels, N_samples)
+        rirs_transposed = self.irs.transpose(0, 1, 2, 3)  # (M, N_sources, N_channels, N_samples)
         rirs_reshaped = rirs_transposed.reshape(M, R, N_samples)
         data_ir_var[:] = rirs_reshaped
 
@@ -727,6 +750,7 @@ class Space:
         Args:
             outdir (str): IRs will be saved here.
         """
+        assert self._irs is not None, f"IRs have not been created yet!"
         assert os.path.isdir(outdir), f"Output directory {outdir} does not exist!"
         # This iterates over [sources, channels, samples]
         for mic_idx, mic in enumerate(self.microphones):
@@ -757,7 +781,7 @@ if __name__ == "__main__":
         room.add_microphones(microphones=["ambeovr", "ambeovr", "ambeovr"])
         room.add_random_sources(5)
         # Simulate the room impulse responses
-        irs_ = room.simulate()
+        room.simulate()
         # Visualize microphone and sources inside the scene
         room_fig = room.create_plot()
         # Dump the plot to an image and the RIRs to WAV files
