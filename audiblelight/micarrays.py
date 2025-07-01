@@ -59,14 +59,14 @@ class MicArray:
         if self._coordinates_absolute is None:
             raise NotImplementedError("Must call `.set_absolute_coordinates` first!")
         else:
-            return self._coordinates_absolute
+            return np.array(self._coordinates_absolute)
 
     @property
     def coordinates_center(self) -> np.ndarray:
         if self._coordinates_center is None:
             raise NotImplementedError("Must call `.set_absolute_coordinates` first!")
         else:
-            return self._coordinates_center
+            return np.array(self._coordinates_center)
 
     @property
     def n_capsules(self) -> int:
