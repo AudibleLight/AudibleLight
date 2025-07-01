@@ -589,7 +589,7 @@ class Space:
         sanitized_sources = self._sanitize_source_input(sources)
         # If we want to express our sources relative to a given microphone, grab this now
         if mic_idx is not None:
-            assert len(self.microphones) == mic_idx + 1, f"No microphone at specified index {mic_idx}!"
+            assert len(self.microphones) >= mic_idx + 1, f"No microphone at specified index {mic_idx}!"
             desired_mic = self.microphones[mic_idx]
         else:
             desired_mic = None
