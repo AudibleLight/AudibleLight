@@ -382,3 +382,50 @@ def test_simulated_doa_with_music(microphone: list, sources: list, actual_doa: l
         diff = abs(doa_deg_pred - doa_deg_true) % 360
         diff = min(diff, 360 - diff)  # smallest distance between angles
         assert diff <= 30
+
+
+@pytest.mark.parametrize(
+    "closemic_position,farmic_position,source_position",
+    [
+        # Testing "length-wise" in the room
+        (
+            [1.0, -9.5, 0.7],
+            [1.0, 0.5, 0.7],
+            [0.0, 0.5, 0.0],
+        ),
+        # Testing "width-wise" in the room
+        (
+            [0.5, -3.5, 0.7],
+            [5.5, -3.5, 0.7],
+            [0.5, 0.0, 0.0],
+        ),
+        # Testing "vertical-wise" in the room
+        (
+            [0.5, -3.5, 0.3],
+            [0.5, -3.5, 0.9],
+            [0.5, 0.0, 0.3],
+        ),
+    ]
+)
+def test_simulated_sound_distance(closemic_position: list, farmic_position: list, source_position: list, oyens_space):
+    """
+    Tests distance of simulated sound sources and microphones.
+
+    Places a source and two AmbeoVR microphones near and far, then checks that the sound hits the close mic before far
+    """
+
+    # Add the microphones and simulate the space
+    oyens_space.add_microphones(
+        microphones=[("ambeovr", closemic_position), ("ambeovr", farmic_position)],
+        keep_existing=False
+    )
+    oyens_space.add_sources(source_position, mic_idx=0, keep_existing=False)
+    oyens_space.simulate()
+    irs = oyens_space.irs
+    # Shape of the IRs should be as expected
+    assert len(irs) == 2
+    # Get the IDX of the sample at which the sound hits both microphones
+    arrival_close = min(np.flatnonzero(irs["mic000"]))
+    arrival_far = min(np.flatnonzero(irs["mic001"]))
+    # Should hit the closer mic before the further mic
+    assert arrival_close < arrival_far
