@@ -34,6 +34,8 @@ def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndar
     # Convert 1D arrays to 2D
     if len(array.shape) == 1:
         array = np.array([array])
+    if len(array.shape) != 2:
+        raise ValueError(f"Expected a 1- or 2D array, but got {len(array.shape)}D array")
     return array
 
 
