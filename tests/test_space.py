@@ -70,8 +70,10 @@ def oyens_space() -> Space:
         (3, 3),    # places 3 random mics in 3 random positions
         ("eigenmike32", 1),    # places eigenmike32 in random position
         (["ambeovr", "ambeovr"], 2),     # places two ambeoVRs in two random positions
-        ({"eigenmike32": [-0.5, -0.5, 0.5]}, 1),    # places eigenmike32 in assigned position
-        ({"eigenmike32": [-0.5, -0.5, 0.5], "ambeovr": [-0.1, -0.1, 0.6]}, 2),    # places mics in assigned positions
+        ({"eigenmike32": [-0.5, -0.5, 0.5]}, 1),  # places eigenmike32 in assigned position
+        ({"eigenmike32": [-0.5, -0.5, 0.5], "ambeovr": [-0.1, -0.1, 0.6]}, 2),  # places mics in assigned positions
+        ([("eigenmike32", [-0.5, -0.5, 0.5]), ], 1),    # places eigenmike32 in assigned position
+        ([("eigenmike32", [-0.5, -0.5, 0.5]), ("ambeovr", [-0.1, -0.1, 0.6])], 2),    # places mics in positions
         ([[-0.5, -0.5, 0.5], [-0.1, -0.1, 0.6]], 2),    # places two random mics in two assigned positions
         ([-0.5, -0.5, 0.5], 1)    # 1D arrays are valid and will be coerced to 2D
     ]
@@ -106,14 +108,11 @@ def test_place_invalid_microphones(oyens_space):
         with pytest.raises(AssertionError):
             oyens_space.add_microphones(inp, keep_existing=False)
     # Cannot add sources with invalid input types
-    for inp in [object, set(), lambda x: x]:
+    for inp in [object, set(), lambda x: x, [[1, 2], [1, 2, 3]], [[[0.5, 0.5, 0.5]]]]:
         with pytest.raises(TypeError):
             oyens_space.add_microphones(inp, keep_existing=False)
-    # Cannot add 3D array of mics
-    with pytest.raises(ValueError):
-        oyens_space.add_microphones([[[0.5, 0.5, 0.5]]], keep_existing=False)
     # Cannot add mic that is way outside the mesh
-    for inp in [[1000., 1000., 1000.], {"ambeovr": [-1000, -1000, -1000]}]:
+    for inp in [[1000., 1000., 1000.], [("ambeovr", [-1000, -1000, -1000]),]]:
         with pytest.raises(ValueError):
             oyens_space.add_microphones(inp, keep_existing=False)
 
@@ -131,7 +130,7 @@ def test_place_invalid_microphones(oyens_space):
 )
 def test_validate_source_positions(test_position: np.ndarray, expected: bool, oyens_space: Space):
     """Given a microphone with coordinates [-0.5, -0.5, 0.5], test whether test_position is valid"""
-    oyens_space.add_microphones(microphones={"ambeovr": [-0.5, -0.5, 0.5]}, keep_existing=False)
+    oyens_space.add_microphones(microphones=[("ambeovr", [-0.5, -0.5, 0.5]),], keep_existing=False)
     assert oyens_space._validate_source_position(test_position) == expected
 
 
@@ -159,7 +158,7 @@ def test_add_random_sources(n_sources, expected_shape, oyens_space: Space):
     ]
 )
 def test_add_sources_at_specific_position(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
-    oyens_space.add_microphones(microphones={"ambeovr": [-0.5, -0.5, 0.5]}, keep_existing=False)
+    oyens_space.add_microphones(microphones=[("ambeovr", [-0.5, -0.5, 0.5]),], keep_existing=False)
     # Add the sources in and check that the shape of the resulting array is what we expect
     oyens_space.add_sources(test_position, keep_existing=False)
     assert oyens_space.source_positions.shape == expected_shape
@@ -174,7 +173,7 @@ def test_add_sources_at_specific_position(test_position: np.ndarray, expected_sh
     ]
 )
 def test_add_sources_relative_to_mic(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
-    oyens_space.add_microphones(microphones={"ambeovr": [-0.5, -0.5, 0.5]}, keep_existing=False)
+    oyens_space.add_microphones(microphones=[("ambeovr", [-0.5, -0.5, 0.5]),], keep_existing=False)
     # Add the sources in and check that the shape of the resulting array is what we expect
     oyens_space.add_sources(test_position, mic_idx=0, keep_existing=False)
     assert oyens_space.source_positions.shape == expected_shape
@@ -345,7 +344,7 @@ def test_simulated_doa_with_music(microphone: list, sources: list, actual_doa: l
     Places an Eigenmike32, simulates sound sources, runs MUSIC, checks that estimated DOA is near to actual DOA
     """
     # Add the microphones and simulate the space
-    oyens_space.add_microphones(microphones={"eigenmike32": microphone}, keep_existing=False)
+    oyens_space.add_microphones(microphones=[("eigenmike32", microphone)], keep_existing=False)
     oyens_space.add_sources(sources, mic_idx=0, keep_existing=False)
     oyens_space.simulate()
     # TODO: in the future we should use simulated sound sources, not the IRs

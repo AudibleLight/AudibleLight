@@ -228,9 +228,14 @@ class Space:
                 If a string, must be the name of a valid microphone array.
                 If a dictionary, should be in the format {mic_type: mic_center, mic_type: mic_center}, where mic_type
                  refers to one of the objects defined in `micarrays` and mic_center is a 1D array of cartesian
-                 coordinates in form [X, Y, Z]
-                If a list, should be either a list of strings of micarray classes, or a list of coordinate lists.
-                If None, a single random microphone will be added at a random position inside the mesh.
+                 coordinates in form [X, Y, Z].
+                 Note that dictionary types are not preferred over list of iterables, as dictionaries cannot have
+                 duplicate keys, meaning that only one microphone of any type can be placed using this method.
+                If a list, three input formats are accepted:
+                 A list of strings, where each string is a microphone type to place in a random position
+                 A list of iterables, where the first element is the microphone type and the second is its coordinates
+                 A list of iterables, where each element is the coordinates for a random microphone
+                If None, a single random microphone type will be added at a random position inside the mesh.
             keep_existing (optional): whether to remove existing microphones from the mesh, defaults to removing
 
         Examples:
@@ -250,6 +255,10 @@ class Space:
             >>> spa.add_microphones(["ambeovr", "ambeovr"])
 
             Add an Eigenmike32 at a predefined position
+            >>> spa.add_microphones([("eigenmike32", [0.0, 1.0, 0.0])])
+
+            Alternatively, the above can be written as (although this is not recommended, as it will mean only one
+             "eigenmike32" can be added at any one time).
             >>> spa.add_microphones({"eigenmike32": [0.0, 1.0, 0.0]})
 
             Add two random microphones at two predefined positions
@@ -293,6 +302,10 @@ class Space:
         # If we've passed in a dictionary of microphone positions
         elif isinstance(microphones, dict):
             assert len(microphones.items()) > 0, "Number of microphones to add must be greater than 0"
+            # Raise a warning for this type of input
+            logger.warning("Passing a dictionary of microphone types and coordinates is not recommended, as duplicates"
+                           " will be removed. Instead, we recommend passing a list of tuples, where the first element"
+                           " of each tuple is the desired microphone type and the second is the location to place it.")
             for single_mic, single_pos in microphones.items():
                 # Retrieve the class of microphone from the string name
                 single_mic = get_micarray_from_string(single_mic)
@@ -309,6 +322,10 @@ class Space:
         # If we've passed in an iterable
         elif isinstance(microphones, (list, np.ndarray)):
             assert len(microphones) > 0, "Number of microphones to add must be greater than 0"
+            # Handle cases where we've just passed a single list of XYZ coordinates
+            if len(microphones) == 3 and all(isinstance(i, (float, int)) for i in microphones):
+                microphones = utils.coerce2d(microphones)
+
             # If the iterable is a list of strings, corresponding to microphone array names
             if all(isinstance(s, str) for s in microphones):
                 for mic_str in microphones:
@@ -330,8 +347,34 @@ class Space:
                                 f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
                                 f"Consider reducing `min_distance_from` arguments.")
 
+            # If the iterable is a list of tuples, with tuples having the form (microphone_type, microphone_coords)
+            elif all(
+                isinstance(item, (tuple, list)) and
+                len(item) == 2 and
+                isinstance(item[0], str) and
+                isinstance(item[1], (list, np.ndarray))
+                for item in microphones
+            ):
+                for single_mic, single_pos in microphones:
+                    # Retrieve the class of microphone from the string name
+                    single_mic = get_micarray_from_string(single_mic)
+                    # Get the cartesian coordinates of the capsules of the microphone array, with units in metres
+                    mic = single_mic()
+                    mic.set_absolute_coordinates(single_pos)
+                    # If the coordinates for all the capsules are valid, we can use the given position
+                    if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
+                        self.microphones.append(mic)
+                    else:
+                        logger.warning(f"Position {mic.coordinates_absolute} for mic {mic.name} invalid, skipping...")
+                        continue
+
             # If the iterable is a list of coordinates
-            else:
+            elif all(
+                isinstance(item, (tuple, list, np.ndarray)) and    # every element of list must be one of these types
+                len(item) == 3 and    # every element must be in XYZ form
+                all(isinstance(i, (float, int)) for i in item)     # all items in every element must be float or ints
+                for item in microphones
+            ):
                 # Coerce 1D arrays to 2D arrays
                 microphones = utils.coerce2d(microphones)
                 for single_pos in microphones:
@@ -345,6 +388,10 @@ class Space:
                     else:
                         logger.warning(f"Position {mic.coordinates_absolute} for mic {mic.name} invalid, skipping...")
                         continue
+
+            # Otherwise, we don't know what the input is
+            else:
+                raise TypeError("Could not handle list input")
 
         # Raise when invalid input types encountered
         else:
