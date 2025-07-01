@@ -271,7 +271,7 @@ class Space:
 
         # When an integer passed in, assume that this is the number of random microphones we want to place
         if isinstance(microphones, int):
-            assert microphones >= 1, f"Number of microphones to create must be positive, but got {microphones}"
+            assert microphones > 0, f"Number of microphones to create must be greater than 0, but got {microphones}"
             for mic_idx in range(microphones):
                 # Get a random microphone class and position inside the mesh
                 mic_cls = random.choice(MICARRAY_LIST)
@@ -292,6 +292,7 @@ class Space:
 
         # If we've passed in a dictionary of microphone positions
         elif isinstance(microphones, dict):
+            assert len(microphones.items()) > 0, "Number of microphones to add must be greater than 0"
             for single_mic, single_pos in microphones.items():
                 # Retrieve the class of microphone from the string name
                 single_mic = get_micarray_from_string(single_mic)
@@ -307,6 +308,7 @@ class Space:
 
         # If we've passed in an iterable
         elif isinstance(microphones, (list, np.ndarray)):
+            assert len(microphones) > 0, "Number of microphones to add must be greater than 0"
             # If the iterable is a list of strings, corresponding to microphone array names
             if all(isinstance(s, str) for s in microphones):
                 for mic_str in microphones:
@@ -329,7 +331,9 @@ class Space:
                                 f"Consider reducing `min_distance_from` arguments.")
 
             # If the iterable is a list of coordinates
-            elif all(isinstance(s, (np.ndarray, list)) for s in microphones):
+            else:
+                # Coerce 1D arrays to 2D arrays
+                microphones = utils.coerce2d(microphones)
                 for single_pos in microphones:
                     # Get a random microphone
                     mic_cls = random.choice(MICARRAY_LIST)
@@ -341,9 +345,6 @@ class Space:
                     else:
                         logger.warning(f"Position {mic.coordinates_absolute} for mic {mic.name} invalid, skipping...")
                         continue
-
-            else:
-                raise TypeError("If passing in an iterable, all items must be strings or iterables")
 
         # Raise when invalid input types encountered
         else:
@@ -392,22 +393,17 @@ class Space:
             if self._validate_source_position(point):
                 return point
 
-    def _is_point_inside_mesh(self, point: np.array) -> bool:
+    def _is_point_inside_mesh(self, point: Union[np.array, list]) -> bool:
         """
         Determines whether a given point is inside the mesh.
 
         Args:
-            point (np.array): The point to check.
+            point (np.array, list): The point to check.
 
         Returns:
             bool: True if the point is inside the mesh, otherwise False.
         """
-        shape = len(point.shape)
-        if shape == 1:
-            point = np.array([point])
-        elif shape > 2:
-            raise ValueError(f"Expected shape == 2, but got {shape}")
-        return bool(self.mesh.contains(point)[0])
+        return bool(self.mesh.contains(utils.coerce2d(point))[0])
 
     def _setup_sources(self):
         """
@@ -725,7 +721,12 @@ class Space:
         return scene    # can then run `.show()` on the returned object
 
     def create_plot(self, ) -> plt.Figure:
-        """Creates a matplotlib.Figure object corresponding to top-down and side-views of the scene"""
+        """
+        Creates a matplotlib.Figure object corresponding to top-down and side-views of the scene
+
+        Returns:
+            plt.Figure: The rendered figure that can be shown with e.g. plt.show()
+        """
         # Create a figure with two subplots side by side
         fig, ax = plt.subplots(1, 2, figsize=(20, 10))
         vertices = self.mesh.vertices
