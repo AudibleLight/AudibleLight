@@ -4,7 +4,6 @@
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
 import os
-import time
 import random
 from pathlib import Path
 from typing import Union, Optional, Type
@@ -13,7 +12,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
 from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
-from netCDF4 import Dataset
 from loguru import logger
 
 from audiblelight import utils
@@ -672,119 +670,6 @@ class Space:
             # Get the name of the mic and create a new key-value pair
             all_irs[f"mic{str(mic_idx).zfill(3)}"] = mic.irs
         return all_irs
-
-    def save_sofa(self, outpath: str) -> None:
-        # TODO: this is almost definitely wrong/broken
-        N_mics, N_sources, N_channels, N_samples = self.irs.shape
-
-        assert N_channels == 4, "Expected 4 channels for FOA"
-
-        M = N_mics  # Listener positions (microphones)
-        R = N_sources * N_channels  # Receivers = sources * FOA channels
-        C = 3
-        E, I = 1, 1
-
-        # Check source positions shape (should be N_sources x 3)
-        assert self.source_positions.shape == (N_sources, C)
-
-        if os.path.exists(outpath):
-            logger.warning(f"File {outpath} already exists, overwriting!")
-
-        rootgrp = Dataset(outpath, "w", format="NETCDF4")
-
-        rootgrp.Conventions = "SOFA"
-        rootgrp.SOFAConventions = "SingleRoomSRIR"
-        rootgrp.SOFAConventionsVersion = "1.0"
-        rootgrp.APIName = "pysofaconventions"
-        rootgrp.APIVersion = "0.1.5"
-        rootgrp.DataType = "FIR"
-        current_time = time.ctime(time.time())
-        rootgrp.DateCreated = current_time
-        rootgrp.DateModified = current_time
-
-        for dim_str, dim_val in zip(["M", "R", "N", "E", "I", "C"], [M, R, N_samples, E, I, C]):
-            rootgrp.createDimension(dim_str, dim_val)
-
-        # ListenerPosition (M, C): mic positions
-        listener_pos_var = rootgrp.createVariable("ListenerPosition", "f8", ("M", "C"))
-        listener_pos_var.Units = "metre"
-        listener_pos_var.Type = "cartesian"
-        listener_pos_var[:] = self.microphones  # shape (M, 3)
-
-        # ListenerUp (I, C)
-        listener_up_var = rootgrp.createVariable("ListenerUp", "f8", ("I", "C"))
-        listener_up_var.Units = "metre"
-        listener_up_var.Type = "cartesian"
-        listener_up_var[:] = np.asarray([[0, 0, 1]])
-
-        # ListenerView (I, C)
-        listener_view_var = rootgrp.createVariable("ListenerView", "f8", ("I", "C"))
-        listener_view_var.Units = "metre"
-        listener_view_var.Type = "cartesian"
-        listener_view_var[:] = np.asarray([[1, 0, 0]])
-
-        # EmitterPosition (E, C, I)
-        emitter_position_var = rootgrp.createVariable("EmitterPosition", "f8", ("E", "C", "I"))
-        emitter_position_var.Units = "metre"
-        emitter_position_var.Type = "spherical"
-        emitter_position_var[:] = np.zeros((E, C, I))
-
-        # SourcePosition (R, C, I): for each receiver, need a position
-        # Since receivers = sources * channels, we expand sources accordingly
-
-        source_positions_expanded = np.repeat(self.source_positions, N_channels, axis=0)  # shape (R, 3)
-
-        source_position_var = rootgrp.createVariable("SourcePosition", "f8", ("R", "C"))
-        source_position_var.Units = "metre"
-        source_position_var.Type = "cartesian"
-        source_position_var[:] = source_positions_expanded
-
-        # SourceUp (I, C)
-        source_up_var = rootgrp.createVariable("SourceUp", "f8", ("I", "C"))
-        source_up_var.Units = "metre"
-        source_up_var.Type = "cartesian"
-        source_up_var[:] = np.asarray([[0, 0, 1]])
-
-        # SourceView (I, C)
-        source_view_var = rootgrp.createVariable("SourceView", "f8", ("I", "C"))
-        source_view_var.Units = "metre"
-        source_view_var.Type = "cartesian"
-        source_view_var[:] = np.asarray([[1, 0, 0]])
-
-        # ReceiverPosition (R, C, I)
-        receiver_position_var = rootgrp.createVariable("ReceiverPosition", "f8", ("R", "C", "I"))
-        receiver_position_var.Units = "metre"
-        receiver_position_var.Type = "cartesian"
-
-        # Each receiver corresponds to a (source, channel) pair
-        # Receiver positions are mic positions repeated for each source * channel
-        receiver_positions = np.repeat(self.microphones, N_sources * N_channels, axis=0)[:R]
-        receiver_position_var[:] = receiver_positions[:, :, np.newaxis]  # shape (R, 3, 1)
-
-        # Sampling rate (I,)
-        sampling_rate_var = rootgrp.createVariable("Data.SamplingRate", "f8", ("I",))
-        sampling_rate_var.Units = "hertz"
-        sampling_rate_var[:] = utils.SAMPLE_RATE
-
-        # Delay (I, R)
-        delay_var = rootgrp.createVariable("Data.Delay", "f8", ("I", "R"))
-        delay_var[:, :] = np.zeros((I, R))
-
-        # Data.IR (M, R, N)
-        data_ir_var = rootgrp.createVariable("Data.IR", "f8", ("M", "R", "N"))
-        data_ir_var.ChannelOrdering = "acn"
-        data_ir_var.Normalization = "sn3d"
-
-        # Rearrange rirs to (M, R, N)
-        # rirs shape: (N_mics, N_sources, N_channels, N_samples)
-        # Want: M=N_mics, R=N_sources * N_channels, N=N_samples
-
-        rirs_transposed = self.irs.transpose(0, 1, 2, 3)  # (M, N_sources, N_channels, N_samples)
-        rirs_reshaped = rirs_transposed.reshape(M, R, N_samples)
-        data_ir_var[:] = rirs_reshaped
-
-        rootgrp.close()
-        logger.info(f"SOFA file saved to {outpath}")
 
     def create_scene(self, mic_radius: float = 0.2, source_radius: float = 0.1) -> trimesh.Scene:
         """

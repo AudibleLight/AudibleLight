@@ -75,33 +75,6 @@ def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndar
     return array
 
 
-def foa_to_simple_stereo(audio: np.ndarray, angle: int = 0) -> np.ndarray:
-    """Simple conversion of FOA ambisonic audio to stereo. We should replace this with something more complex later!"""
-    assert audio.shape[0] == 4, "Input must be in FOA format (WXYZ)"
-    w, x, y, _ = audio
-    angle = angle * np.pi / 180
-    left = w + 0.7071 * (x * np.cos(angle) + y * np.sin(angle))
-    right = w + 0.7071 * (x * np.cos(-angle) + y * np.sin(-angle))
-    return np.vstack((left, right))
-
-
-def pad2d(iter2d: list[np.ndarray]) -> np.ndarray:
-    """Pads a list of 2D arrays to the same length"""
-    # Get the length of the longest array
-    max_length = max([ir.shape[-1] for ir in iter2d])
-    padded_iters = []
-    # Iterate over all the arrays
-    for ir in iter2d:
-        # Pad short arrays
-        if ir.shape[-1] < max_length:
-            padded = np.pad(ir, ((0, 0), (0, max_length - ir.shape[-1])), mode='constant')
-        # Truncate long ones
-        else:
-            padded = ir[:, :max_length]
-        padded_iters.append(padded)
-    return np.array(padded_iters)
-
-
 def seed_everything(seed: int = SEED) -> None:
     """Set the random seeds for libraries used by AudibleLight."""
     torch.manual_seed(seed)
