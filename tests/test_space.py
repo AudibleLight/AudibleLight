@@ -11,12 +11,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import librosa
 from trimesh import Trimesh, Scene
+from trimesh import load_mesh as trimesh_loader
 from scipy.signal import stft
 from pyroomacoustics.doa.music import MUSIC
 
 from audiblelight import utils
 from audiblelight.space import Space, load_mesh, repair_mesh
-from audiblelight.micarrays import MICARRAY_LIST
+from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR
 
 
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
@@ -37,11 +38,19 @@ def test_repair_mesh(mesh_fpath: str):
 
 
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
-def test_load_mesh(mesh_fpath: str):
+def test_load_mesh_from_fpath(mesh_fpath: str):
     loaded = load_mesh(mesh_fpath)
     assert isinstance(loaded, Trimesh)
     assert loaded.metadata["fpath"] == str(mesh_fpath)    # need both to be a string, or we'll get TypeError
     assert loaded.units == utils.MESH_UNITS    # units should be in meters
+
+
+@pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+def test_load_mesh_from_trimesh(mesh_fpath: str):
+    trimesh_loaded = trimesh_loader(mesh_fpath)
+    our_loaded = load_mesh(trimesh_loaded)
+    assert np.array_equal(our_loaded.vertices, trimesh_loaded.vertices)
+    assert np.array_equal(our_loaded.faces, trimesh_loaded.faces)
 
 
 @pytest.mark.parametrize("mesh_fpath,expected", [("iamnotafile", FileNotFoundError), (1234, TypeError)])
@@ -68,6 +77,7 @@ def oyens_space() -> Space:
     [
         (None, 1),    # places 1 random mic in a random position
         (3, 3),    # places 3 random mics in 3 random positions
+        (AmbeoVR, 1),  # places ambeoVR in random position
         ("eigenmike32", 1),    # places eigenmike32 in random position
         (["ambeovr", "ambeovr"], 2),     # places two ambeoVRs in two random positions
         ({"eigenmike32": [-0.5, -0.5, 0.5]}, 1),  # places eigenmike32 in assigned position
