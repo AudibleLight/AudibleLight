@@ -418,7 +418,7 @@ class Space:
             avg_ray_length = self.calculate_weighted_average_ray_length(mic_pos)
             # If the position is acceptable, break out
             if avg_ray_length >= MIN_AVG_RAY_LENGTH:
-                logger.info(f"Found suitable position after {attempt + 1} attempts")
+                # logger.info(f"Found suitable position after {attempt + 1} attempts")
                 break
             # Otherwise, try again with a new position
             else:
@@ -518,7 +518,35 @@ class Space:
 
         return sanitized_sources
 
-    def _try_add_source(self, position: Union[list, None], relative_mic: Optional[Type['MicArray']]) -> bool:
+    def direct_line_exists_between_points(self, point_a: np.ndarray, point_b: np.ndarray) -> bool:
+        """
+        Returns True if a direct line exists between point_a and point_b in the mesh, False otherwise.
+        """
+        # Calculate direction vector from points A to B
+        direction = point_b - point_a
+        length = np.linalg.norm(direction)
+        direction_unit = direction / length
+        # Cast ray from A towards B and get intersections (locations and indices)
+        locations, index_ray, index_tri = self.mesh.ray.intersects_location(
+            ray_origins=utils.coerce2d(point_a),    # trimesh expecting 2D arrays?
+            ray_directions=utils.coerce2d(direction_unit)
+        )
+        # Check if any intersection is closer than B
+        if len(locations) > 0:
+            # Calculate distances from A to each intersection
+            distances = np.linalg.norm(locations - point_a, axis=1)
+            if np.any(distances < length):
+                # No direct line: mesh blocks the segment.
+                return False
+        # Direct line exists: either no blocking intersections, or no intersections at all
+        return True
+
+    def _try_add_source(
+            self,
+            position: Union[list, None],
+            relative_mic: Optional[Type['MicArray']],
+            ensure_direct_line: bool
+    ) -> bool:
         """
         Try to place a source at position. Return True if successful, False otherwise.
         """
@@ -526,11 +554,15 @@ class Space:
             # Grab a random position for the source if required
             pos = position if position is not None else self.get_random_position()
             # If we want to express the position relative to a given microphone
-            if relative_mic is not None:
+            if relative_mic is not None and position is not None:
                 # Add the source position to the center of the microphone
                 pos = relative_mic.coordinates_center + pos
             # If we have a valid position for the source
             if self._validate_source_position(pos):
+                # If we want to ensure that there is a direct line between the source and microphone, check this now
+                if ensure_direct_line:
+                    if not self.direct_line_exists_between_points(pos, relative_mic.coordinates_center):
+                        continue
                 self.source_positions.append(pos)
                 return True
             # If we were trying to place the source in a specific location, only make one attempt at placing it
@@ -542,7 +574,8 @@ class Space:
             self,
             sources: Union[list, np.ndarray, int, None],
             keep_existing: bool = False,
-            mic_idx: int = None
+            mic_idx: int = None,
+            ensure_direct_line: bool = False
     ) -> None:
         """
         Add sources to the mesh at valid positions. Must be called before `simulate`.
@@ -556,6 +589,8 @@ class Space:
                 If None, a single source will be added at a random position inside the mesh.
             keep_existing (optional): whether to remove existing sources from the mesh, defaults to removing
             mic_idx (optional): the index of the microphone that sources should be added relative to
+            ensure_direct_line (optional): if True, a direct line must exist between the placed source and the
+                microphone at `mic_idx`. Defaults to False.
 
         Examples:
             Create a space with a given mesh
@@ -581,6 +616,8 @@ class Space:
         if not keep_existing:
             self.source_positions = []
             self.ctx.clear_sources()
+        if mic_idx is None and ensure_direct_line:
+            raise AttributeError("Must pass the index of a microphone to ensure a direct line between source and mic!")
 
         # Sanitize the inputs into a single list
         sanitized_sources = self._sanitize_source_input(sources)
@@ -594,7 +631,7 @@ class Space:
         # Iterate over our sanitized source positions
         for source_pos in sanitized_sources:
             # Try and place inside the mesh: return True if placed, False if not
-            placed = self._try_add_source(source_pos, desired_mic)
+            placed = self._try_add_source(source_pos, desired_mic, ensure_direct_line)
             # If we can't add the source to the mesh
             if not placed:
                 # If we were trying to add it to a random position
