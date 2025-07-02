@@ -101,7 +101,7 @@ class Space:
     This class is capable of handling spatial operations and simulating audio propagation using the ray-tracing library.
 
     Attributes:
-        mesh (str | Path | trimesh.Trimesh): The mesh, either loaded as a trimesh or a path to a glb object on the disk.
+        mesh (str, Path, trimesh.Trimesh): The mesh, either loaded as a trimesh or a path to a glb object on the disk.
         microphones (np.array): Position of the microphone in the mesh.
         ctx (rlr_audio_propagation.Context): The context for audio propagation simulation.
         source_positions (np.array): relative positions of sound sources
@@ -109,7 +109,7 @@ class Space:
     """
     def __init__(
             self,
-            mesh: str | trimesh.Trimesh,
+            mesh: Union[str, trimesh.Trimesh],
             min_distance_from_mic: float = MIN_DISTANCE_FROM_MIC,
             min_distance_from_source: float = MIN_DISTANCE_FROM_SOURCE,
             min_distance_from_surface: float = MIN_DISTANCE_FROM_SURFACE,
