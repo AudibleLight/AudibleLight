@@ -742,30 +742,3 @@ class Space:
                     fname = os.path.join(outdir, f"mic{mic_idx}_capsule{caps_idx}_source{source_idx}.wav")
                     # Dump the audio to a 16-bit PCM wav using our predefined sample rate
                     utils.write_wav(source, fname, self.ctx.config.sample_rate)
-
-
-if __name__ == "__main__":
-    import glob
-
-    # For reproducible random source placement
-    utils.seed_everything(utils.SEED)
-    # Get all the object files we're considering here
-    dataset_dir = os.path.join(utils.get_project_root(), "resources/meshes")
-    mesh_paths = [glob.glob(e, root_dir=dataset_dir) for e in ['**/*.glb', '**/*.obj']]
-    # Flatten and combine with the root directory
-    mesh_paths = [os.path.join(dataset_dir, x) for xs in mesh_paths for x in xs]
-    # Iterate over all the .glb files inside the meshes directory
-    for mesh_path in mesh_paths:
-        logger.info(f"Processing {mesh_path}")
-        # Create the space and add N random sources
-        room = Space(mesh=mesh_path)
-        room.add_microphones(microphones=["ambeovr", "ambeovr", "ambeovr"])
-        room.add_sources(5)
-        # Simulate the room impulse responses
-        room.simulate()
-        # Visualize microphone and sources inside the scene
-        room_fig = room.create_plot()
-        # Dump the plot to an image and the RIRs to WAV files
-        basename = os.path.dirname(mesh_path)
-        room_fig.savefig(os.path.join(basename, "out.png"))
-        room.save_irs_to_wav(basename)
