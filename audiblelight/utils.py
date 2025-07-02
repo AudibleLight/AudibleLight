@@ -3,12 +3,14 @@
 
 """Utility functions, variables, objects etc."""
 
+import wave
 from pathlib import Path
 from typing import Union
 
 import random
 import numpy as np
 import torch
+from loguru import logger
 
 MESH_UNITS = "meters"    # will convert to this if
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -24,6 +26,40 @@ REF_DB = -65  # Reference decibel level for the background ambient noise. Try ma
 NSCAPES = 20
 SEED = 42
 SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
+
+
+def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
+    """
+    Writes a mono audio array to a WAV file in 16-bit PCM format.
+
+    The input must be a 1D float array. Values are expected in [-1, 1], and will
+    be normalized if they exceed this range.
+    """
+    # Cast array to float64
+    audio = np.asarray(audio, dtype=np.float64)
+    # Sanity checking
+    assert len(audio.shape) == 1, "Only mono audio supported"
+    assert Path(outpath).parent.exists(), "Output directory must exist"
+    # Check if normalization is needed
+    max_val = np.max(np.abs(audio))
+    if max_val > 1.0:
+        logger.warning(f"Audio file absolute max exceeds 1.0 ({round(max_val, 3)}), normalizing...")
+        audio = audio / max_val
+    # Catch cases where silent audio would lead to dividing by zero
+    elif max_val == 0.:
+        logger.warning("Audio is completely silent.")
+    # Convert to 16-bit PCM
+    audio_int16 = (audio * 32767).astype(np.int16)
+    # Coerce to 2D array
+    audio_fmt = coerce2d(audio_int16).T
+    # Write to WAV using wave module
+    #  We use wave for dumping wav files, not scipy, as scipy depends on audioread which is no longer maintained
+    #  See https://github.com/beetbox/audioread/issues/144
+    with wave.open(outpath, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 2 bytes = 16-bit
+        wf.setframerate(sample_rate)
+        wf.writeframes(audio_fmt.tobytes())
 
 
 def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndarray:

@@ -15,7 +15,6 @@ import trimesh
 from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
 from netCDF4 import Dataset
 from loguru import logger
-from scipy.io import wavfile
 
 from audiblelight import utils
 from audiblelight.micarrays import get_micarray_from_string, MICARRAY_LIST, MicArray
@@ -856,7 +855,8 @@ class Space:
                 for source_idx, source in enumerate(caps):
                     source_idx = str(source_idx).zfill(3)
                     fname = os.path.join(outdir, f"mic{mic_idx}_capsule{caps_idx}_source{source_idx}.wav")
-                    wavfile.write(fname, utils.SAMPLE_RATE, source)
+                    # Dump the audio to a 16-bit PCM wav using our predefined sample rate
+                    utils.write_wav(source, fname, self.ctx.config.sample_rate)
 
 
 if __name__ == "__main__":
