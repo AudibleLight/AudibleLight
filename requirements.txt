@@ -2,7 +2,7 @@
 #  in the future we should probably make them less specific
 
 librosa==0.11.0
-matplotlib~=3
+matplotlib
 numpy==2.0.2
 pandas==2.2.2
 pillow==11.2.1
