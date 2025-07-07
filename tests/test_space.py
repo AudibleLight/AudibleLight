@@ -9,9 +9,8 @@ from tempfile import TemporaryDirectory
 import pytest
 import matplotlib.pyplot as plt
 import numpy as np
-import librosa
+import soundfile as sf
 from trimesh import Trimesh, Scene
-from trimesh import load_mesh as trimesh_loader
 from scipy.signal import stft
 from pyroomacoustics.doa.music import MUSIC
 
@@ -109,7 +108,7 @@ def test_place_invalid_microphones(oyens_space):
     # Trying to access IRs before placing anything should raise an error
     with pytest.raises(AttributeError):
         _ = oyens_space.irs
-    # Cannot add 0 sources
+    # Cannot add 0 microphones
     for inp in [-1, [], {}]:
         with pytest.raises(AssertionError):
             oyens_space.add_microphones(inp, keep_existing=False)
@@ -134,7 +133,7 @@ def test_place_invalid_microphones(oyens_space):
         (np.array([0.5, 0.5, 0.5]), True)    # Also fine
     ]
 )
-def test_validate_source_positions(test_position: np.ndarray, expected: bool, oyens_space: Space):
+def test_source_positions(test_position: np.ndarray, expected: bool, oyens_space: Space):
     """Given a microphone with coordinates [-0.5, -0.5, 0.5], test whether test_position is valid"""
     oyens_space.add_microphones(microphones=[("ambeovr", [-0.5, -0.5, 0.5]),], keep_existing=False)
     assert oyens_space._validate_source_position(test_position) == expected
@@ -195,6 +194,7 @@ def test_add_invalid_sources(oyens_space: Space):
     # Cannot add sources with invalid input types
     for inp in ["asdfasdfa", object, {}]:
         with pytest.raises(TypeError):
+            # noinspection PyTypeChecker
             oyens_space.add_sources(inp)
     # Cannot add sources that are way outside the mesh
     with pytest.raises(ValueError):
@@ -290,7 +290,7 @@ def test_create_scene(oyens_space):
     assert len(scene.geometry) > len(oyens_space.mesh.scene().geometry)
 
 
-def test_save_wavs(oyens_space):
+def test_save_wavs(oyens_space: Space):
     # Add some microphones and sources
     oyens_space.add_microphones("ambeovr")    # just adds an ambeovr mic in a random plcae
     oyens_space.add_sources(1)
@@ -301,16 +301,15 @@ def test_save_wavs(oyens_space):
         oyens_space.save_irs_to_wav(tmp)
         # We have 1 microphone with 4 capsules and 1 sound source
         #  We should have saved a WAV file for each of these
-        all_irs = []
         for caps_idx in range(4):
             # The WAV file should exist
             fp = os.path.join(tmp, f"mic000_capsule00{caps_idx}_source000.wav")
             assert os.path.exists(fp)
             # Load up the WAV file in librosa and get the number of samples
-            y, _ = librosa.load(fp, sr=oyens_space.ctx.config.sample_rate, mono=True, offset=0.0)
-            all_irs.append(y.shape)
-        # The number of samples for all IRs should be the same
-        assert all([a[0] == all_irs[0][0] for a in all_irs])
+            y, _ = sf.read(fp, )
+            # Compare to the original IR
+            x = oyens_space.irs["mic000"][caps_idx][0]
+            assert np.allclose(y, x, atol=1e-4)
     # Temporary directory is implicitly cleaned up
 
 
