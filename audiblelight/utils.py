@@ -136,3 +136,10 @@ def center_coordinates(cartesian_array: np.ndarray) -> np.ndarray:
     c_mean = np.mean(cartesian_array, axis=0)
     # Shape (n_capsules, 3)
     return cartesian_array - c_mean
+
+
+def check_all_lens_equal(*iterables) -> bool:
+    """
+    Returns True if all iterables have the same length, False otherwise
+    """
+    return len({len(i) for i in iterables}) == 1

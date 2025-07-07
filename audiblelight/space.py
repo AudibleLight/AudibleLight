@@ -6,7 +6,7 @@
 import os
 import random
 from pathlib import Path
-from typing import Union, Optional, Type
+from typing import Any, Union, Optional, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,6 +44,7 @@ def load_mesh(mesh: Union[str, Path]) -> trimesh.Trimesh:
         # Load up in trimesh, setting the metadata dictionary nicely
         #  This just allows us to access the filename, etc., later
         metadata = dict(fname=mesh.stem, ftype=mesh.suffix, fpath=str(mesh))
+        # noinspection PyTypeChecker
         loaded_mesh = trimesh.load_mesh(mesh, file_type=mesh.suffix, metadata=metadata)
         # Convert the units of the mesh to meters, if this is not provided
         if loaded_mesh.units != utils.MESH_UNITS:
@@ -99,7 +100,7 @@ class Space:
         mesh (str, Path, trimesh.Trimesh): The mesh, either loaded as a trimesh or a path to a glb object on the disk.
         microphones (np.array): Position of the microphone in the mesh.
         ctx (rlr_audio_propagation.Context): The context for audio propagation simulation.
-        source_positions (np.array): relative positions of sound sources
+        sources (np.array): relative positions of sound sources
 
     """
     def __init__(
@@ -122,8 +123,8 @@ class Space:
                 repair the mesh and fill holes. If None, will never repair the mesh.
         """
         # Store source and mic positions in here to access later; these should be in ABSOLUTE form
-        self.source_positions = []
-        self.microphones = []
+        self.sources = {}
+        self.microphones = {}
         self._irs = None    # will be updated when calling `simulate`
 
         # Distances from objects/mesh surfaces
@@ -201,7 +202,7 @@ class Space:
         Adds a listener to the audio context and sets its position to the microphone's position.
         """
         # Stack the coordinates of all capsules into a single 2D array
-        all_caps = np.vstack([m.coordinates_absolute for m in self.microphones])
+        all_caps = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
         # Iterate over all the capsules
         for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
             # Add a single listener for each individual capsule
@@ -209,196 +210,218 @@ class Space:
             self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
 
     @staticmethod
-    def _sanitize_microphone_input(microphones) -> list[tuple]:
+    def _sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
         """
-        Sanitizes any microphone input into the form [(mic_type, mic_location), (mic_type, mic_location), (...)].
-
-        Microphone types are coerced to their corresponding classes from `micarrays` and mic_locations are either
-        1D arrays of coordinates in the form XYZ or None (in which case a random position will be assigned).
+        Sanitizes any microphone input into the correct 'MicArray' class.
 
         Returns:
-            list[tuple]: the sanitized microphone inputs, in form [(mic1_cls, mic1_location), (mic2_cls, mic2_location)]
+            Type['MicArray']: the sanitized microphone class, ready to be instantiated
         """
-        # Convert single strings to list of strings
-        sanitized_microphones = []
 
+        # Parsing the microphone type
         # If None, get a random microphone and use a randomized position
-        if microphones is None:
+        if microphone_type is None:
             logger.warning(f"No microphone positions provided, using a random microphone array in a random position!")
             # Get a random microphone class
+            # TODO: this should be a mono capsule
             mic_cls = random.choice(MICARRAY_LIST)
-            sanitized_microphones.append((mic_cls, None))
+            sanitized_microphone = mic_cls
 
         # If a string, use the desired microphone type but get a random position
-        elif isinstance(microphones, str):
-            sanitized_microphones.append((get_micarray_from_string(microphones), None))
+        elif isinstance(microphone_type, str):
+            sanitized_microphone = get_micarray_from_string(microphone_type)
 
         # If a class contained inside MICARRAY_LIST
-        elif microphones in MICARRAY_LIST:
-            sanitized_microphones.append((microphones, None))
+        elif microphone_type in MICARRAY_LIST:
+            sanitized_microphone = microphone_type
 
-        # If an integer, assume that this is the number of random microphones we want to place
-        elif isinstance(microphones, int):
-            assert microphones > 0, f"Number of microphones to create must be greater than 0, but got {microphones}"
-            for mic_idx in range(microphones):
-                # Get a random microphone class
-                mic_cls = random.choice(MICARRAY_LIST)
-                sanitized_microphones.append((mic_cls, None))
-
-        # If a dictionary of microphone types and positions
-        elif isinstance(microphones, dict):
-            assert len(microphones.items()) > 0, "Number of microphones to add must be greater than 0"
-            # Raise a warning for this type of input
-            logger.warning("Passing a dictionary of microphone types and coordinates is not recommended, as duplicates"
-                           " will be removed. Instead, we recommend passing a list of tuples, where the first element"
-                           " of each tuple is the desired microphone type and the second is the location to place it.")
-            for mic_str, mic_pos in microphones.items():
-                # Retrieve the class of microphone from the string name
-                mic_cls = get_micarray_from_string(mic_str)
-                sanitized_microphones.append((mic_cls, mic_pos))
-
-        # If we've passed in an iterable
-        elif isinstance(microphones, (list, np.ndarray)):
-            assert len(microphones) > 0, "Number of microphones to add must be greater than 0"
-            # Handle cases where we've just passed a single list of XYZ coordinates
-            if len(microphones) == 3 and all(isinstance(i, (float, int)) for i in microphones):
-                microphones = utils.coerce2d(microphones)
-
-            # If the iterable is a list of strings, corresponding to microphone array names
-            if all(isinstance(s, str) for s in microphones):
-                for mic_str in microphones:
-                    # We assume that this is the name of a microphone array
-                    mic_cls = get_micarray_from_string(mic_str)
-                    sanitized_microphones.append((mic_cls, None))
-
-            # If the iterable contains tuples in the form (microphone_type, microphone_coords)
-            elif all(
-                    isinstance(item, (tuple, list)) and
-                    len(item) == 2 and
-                    isinstance(item[0], str) and
-                    isinstance(item[1], (list, np.ndarray))
-                    for item in microphones
-            ):
-                for mic_str, mic_pos in microphones:
-                    # Retrieve the class of microphone from the string name
-                    mic_cls = get_micarray_from_string(mic_str)
-                    sanitized_microphones.append((mic_cls, mic_pos))
-
-            # If the iterable contains lists of coordinates
-            elif all(
-                    isinstance(item, (tuple, list, np.ndarray)) and  # every element of list must be one of these types
-                    len(item) == 3 and  # every element must be in XYZ form
-                    all(isinstance(i, (float, int)) for i in item)  # all items in every element must be float or ints
-                    for item in microphones
-            ):
-                for single_pos in microphones:
-                    # Get a random microphone class
-                    mic_cls = random.choice(MICARRAY_LIST)
-                    sanitized_microphones.append((mic_cls, single_pos))
-
-            # Otherwise, we don't know what the input is
-            else:
-                raise TypeError("Could not handle microphone input")
-
-        # Raise when invalid input types encountered
+        # Otherwise, we don't know what the microphone is
         else:
-            raise TypeError(f"Could not parse input with type {type(microphones)}")
-        return sanitized_microphones
+            raise TypeError(f"Could not parse microphone type {type(microphone_type)}")
 
-    def _try_add_microphone(self, mic_cls, position: Union[list, None]) -> bool:
+        return sanitized_microphone
+
+    def _try_add_microphone(self, mic_cls, position: Union[list, None], alias: str) -> bool:
         """
-        Try to place a microphone of type mic_cls at position. Return True if successful, False otherwise.
+        Try to place a microphone of type mic_cls at position with given alias. Return True if successful.
         """
+        if alias in self.microphones.keys():
+            raise KeyError(f"Alias {alias} already exists in microphone dictionary")
+
         for attempt in range(MAX_PLACE_ATTEMPTS):
             # Grab a random position for the microphone if required
             pos = position if position is not None else self.get_random_position()
+            assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
             # Instantiate the microphone and set its coordinates
             mic = mic_cls()
             mic.set_absolute_coordinates(pos)
             # If we have a valid position for the microphone
-            if all(self._validate_source_position(caps) for caps in mic.coordinates_absolute):
-                self.microphones.append(mic)
+            if all(self._validate_position(caps) for caps in mic.coordinates_absolute):
+                self.microphones[alias] = mic
                 return True
             # If we were trying to place the microphone in a specific location, only make one attempt at placing it
             elif position is not None:
                 break
         return False
 
-    def add_microphones(
+    def _get_default_microphone_alias(self) -> str:
+        """Returns a default alias for a microphone"""
+        n_current_mics = len(self.microphones) + 1 if len(self.microphones) > 0 else 0
+        return f"mic{str(n_current_mics).zfill(3)}"
+
+    def _clear_microphones(self) -> None:
+        """Removes all current microphones"""
+        self.microphones = {}
+        self.ctx.clear_listeners()
+
+    def add_microphone(
             self,
-            microphones: Union[list, np.ndarray, dict, None, int, str] = 1,
-            keep_existing: bool = False,
+            microphone_type: Union[str, Type['MicArray'], None] = None,
+            position: Union[list, np.ndarray, None] = None,
+            alias: str = None,
+            keep_existing: bool = True,
     ) -> None:
         """
-        Add microphones to the mesh at valid positions. Must be called before `simulate`.
+        Add a microphone to the space.
 
         Arguments:
-            microphones (optional): the microphones to be added to the mesh.
-                If an integer, will be interpreted as the number of microphones to add to the mesh, at random positions.
-                If a string, must be the name of a valid microphone array.
-                If a dictionary, should be in the format {mic_type: mic_center, mic_type: mic_center}, where mic_type
-                 refers to one of the objects defined in `micarrays` and mic_center is a 1D array of cartesian
-                 coordinates in form [X, Y, Z].
-                 Note that dictionary types are not preferred over list of iterables, as dictionaries cannot have
-                 duplicate keys, meaning that only one microphone of any type can be placed using this method.
-                If a list, three input formats are accepted:
-                 A list of strings, where each string is a microphone type to place in a random position
-                 A list of iterables, where the first element is the microphone type and the second is its coordinates
-                 A list of iterables, where each element is the coordinates for a random microphone
-                If None, a single random microphone type will be added at a random position inside the mesh.
-            keep_existing (optional): whether to remove existing microphones from the mesh, defaults to removing
+            microphone_type: Type of microphone to add, defaults to a mono capsule.
+            position: Location to add the microphone in absolute cartesian units, defaults to a random, valid location.
+            alias: String reference to access the microphone inside the `self.microphones` dictionary.
+            keep_existing (optional): whether to keep existing microphones from the mesh or remove, defaults to keep
 
         Examples:
             Create a space with a given mesh
             >>> spa = Space(mesh=...)
 
-            Add a single microphone to the mesh with a random position
-            >>> spa.add_microphones()
+            Add a AmbeoVR microphone with a random position and default alias
+            >>> spa.add_microphone("ambeovr")
+            >>> spa.microphones["mic000"]    # access with default alias
 
-            Add three random microphones at three random positions
-            >>> spa.add_microphones(3)
+            Alternative, using `MicArray` objects
+            >>> from audiblelight.micarrays import AmbeoVR
+            >>> spa.add_microphone(AmbeoVR)
 
-            Add a single Eigenmike32 at a random position
-            >>> spa.add_microphones("eigenmike32")
-
-            Add two AmbeoVR microphones at random positions
-            >>> spa.add_microphones(["ambeovr", "ambeovr"])
-
-            Add an Eigenmike32 at a predefined position
-            >>> spa.add_microphones([("eigenmike32", [0.0, 1.0, 0.0])])
-
-            Alternatively, the above can be written as (although this is not recommended, as it will mean only one
-             "eigenmike32" can be added at any one time).
-            >>> spa.add_microphones({"eigenmike32": [0.0, 1.0, 0.0]})
-
-            Add two random microphones at two predefined positions
-            >>> spa.add_microphones([[0.0, 0.0, 1.0], [-1.0, 1.0, 0.0]])
-
+            Add AmbeoVR with given position and alias
+            >>> spa.add_microphone(microphone_type="ambeovr", position=[0.5, 0.5, 0.5], alias="ambeo")
+            >>> spa.microphones["ambeo"]    # access using given alias
         """
+
         # Remove existing microphones if we wish to do this
         if not keep_existing:
-            self.microphones = []
-            self.ctx.clear_listeners()
+            self._clear_microphones()
 
-        # Sanitize the microphone input into lists of [(mic_cls, mic_pos), (mic_cls, mic_pos)]
-        sanitized_microphones = self._sanitize_microphone_input(microphones)
-        for mic_cls, mic_pos in sanitized_microphones:
-            # Try and add the microphone to the mesh
-            placed = self._try_add_microphone(mic_cls, mic_pos)
+        # Get the correct microphone type.
+        sanitized_microphone = self._sanitize_microphone_input(microphone_type)
+
+        # Get the microphone alias
+        alias = self._get_default_microphone_alias() if alias is None else alias
+
+        # Try and place the microphone inside the space
+        placed = self._try_add_microphone(sanitized_microphone, position, alias)
+
+        # If we can't add the microphone to the mesh
+        if not placed:
+            # If we were trying to add it to a random position
+            if position is None:
+                raise ValueError(f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                                 f"Consider reducing `min_distance_from` arguments.")
+            # If we were trying to add it to a specific position
+            else:
+                raise ValueError(f"Position {position} invalid for microphone {sanitized_microphone.name}. "
+                                f"Consider reducing `min_distance_from` arguments.")
+
+        # Set up the listeners inside the ray-tracing engine: add one mono listener per microphone capsule
+        self._setup_listener()
+
+
+    def add_microphones(
+            self,
+            microphone_types: list[Union[str, Type['MicArray'], None]] = None,
+            positions: list[Union[list, np.ndarray, None]] = None,
+            aliases: list[str] = None,
+            keep_existing: bool = True,
+            raise_on_error: bool = True,
+    ) -> None:
+        """
+        Add multiple microphones to the mesh.
+
+        This function essentially takes in lists of the arguments expected by `add_microphone`. The `raise_on_error`
+        command will skip over microphones that cannot be placed in the mesh and raise a warning in the console.
+
+        Arguments:
+            microphone_types: Types of microphones to add, defaults to a single mono capsule.
+            positions: Locations to add the microphones in absolute cartesian units, defaults to a single location.
+            aliases: String references to access the microphones inside the `self.microphones` dictionary.
+            keep_existing (optional): whether to keep existing microphones from the mesh or remove, defaults to keep
+            raise_on_error (optional): if True, will raise an error when unable to place a mic, otherwise skips to next
+
+        Examples:
+            Create a space with a given mesh
+            >>> spa = Space(mesh=...)
+
+            Add some AmbeoVRs with random positions
+            >>> spa.add_microphones(microphone_types=["ambeovr", "ambeovr", "ambeovr"])
+            >>> spa.microphones["mic002"]    # access with default alias
+
+            Add AmbeoVR and Eigenmike32 with given positions and aliases
+            >>> spa.add_microphones(
+            >>>     microphone_types=["ambeovr", "eigenmike32"],
+            >>>     positions=[[0.5, 0.5, 0.5], [0.1, 0.1, 0.1]],
+            >>>     alias=["ambeo", "eigen"],
+            >>>     keep_existing=False,     # removes microphones already added to the space
+            >>>     raise_on_error=True,    # raises an error if any microphone cannot be placed
+            >>> )
+            >>> spa.microphones["eigen"]    # access using given alias
+        """
+
+        # Remove existing microphones if we wish to do this
+        if not keep_existing:
+            self._clear_microphones()
+
+        # Handle cases with non-unique aliases
+        if aliases is not None:
+            if len(set(aliases)) != len(aliases):
+                raise ValueError("Only unique aliases can be passed")
+
+        all_not_none = [l for l in [microphone_types, positions, aliases] if l is not None]
+        # Handle cases where we haven't provided an equal number of mic types, positions, and aliases
+        if not utils.check_all_lens_equal(*all_not_none):
+            raise ValueError("Expected all inputs to have equal length")
+
+        # Get the index to iterate up to
+        max_idx = max([len(a) for a in all_not_none]) if len(all_not_none) > 0 else 0
+        # Iterate over all the microphones we want to place
+        for idx in range(max_idx):
+            microphone_type_ = microphone_types[idx] if microphone_types is not None else None
+            position_ = positions[idx] if positions is not None else None
+            alias_ = aliases[idx] if aliases is not None else None
+
+            # Get the correct microphone type.
+            sanitized_microphone = self._sanitize_microphone_input(microphone_type_)
+
+            # Get the microphone alias
+            alias_ = self._get_default_microphone_alias() if alias_ is None else alias_
+
+            # Try and place the microphone inside the space
+            placed = self._try_add_microphone(sanitized_microphone, position_, alias_)
+
             # If we can't add the microphone to the mesh
             if not placed:
                 # If we were trying to add it to a random position
-                if mic_pos is None:
-                    logger.warning(f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
-                                   f"Consider reducing `min_distance_from` arguments.")
+                if position_ is None:
+                    msg = (f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                           f"Consider reducing `min_distance_from` arguments.")
                 # If we were trying to add it to a specific position
                 else:
-                    logger.warning(f"Position {mic_pos} invalid for microphone {mic_cls.name}, "
-                                   f"skipping to next microphone! Consider reducing `min_distance_from` arguments.")
+                    msg = (f"Position {position_} invalid for microphone {sanitized_microphone.name}. "
+                           f"Consider reducing `min_distance_from` arguments.")
 
-        # Catch instances where no microphone exist inside the array
-        if len(self.microphones) == 0:
-            raise ValueError("Mesh does not contain any valid microphones!")
+                # Raise the error if required or just log a warning and skip to the next microphone
+                if raise_on_error:
+                    raise ValueError(msg)
+                else:
+                    logger.warning(msg)
 
         # Set up the listeners inside the ray-tracing engine: add one mono listener per microphone capsule
         self._setup_listener()
@@ -436,7 +459,7 @@ class Space:
         while True:
             point = np.random.uniform(self.mesh.bounds[0], self.mesh.bounds[1])
             # This checks e.g. distance from surface, other sources, other mics, and that point is in-bounds
-            if self._validate_source_position(point):
+            if self._validate_position(point):
                 return point
 
     def _is_point_inside_mesh(self, point: Union[np.array, list]) -> bool:
@@ -456,168 +479,242 @@ class Space:
         Sets the positions of sound sources in the space.
         """
         # Now, iterate only through the valid sources and add these to the mesh
-        for i, pos in enumerate(self.source_positions):
+        for i, pos in enumerate(self.sources.values()):
             self.ctx.add_source()
             self.ctx.set_source_position(i, pos.tolist() if isinstance(pos, np.ndarray) else pos)
 
-    def _validate_source_position(self, pos_abs: np.ndarray) -> bool:
+    def _validate_position(self, pos_abs: np.ndarray) -> bool:
         """
-        Validates a sound source position.
+        Validates a position with respect to the mesh and objects (microphones, sources) inside it
         """
         return all((
             # source must be a minimum distance from all other sources
-            all(np.linalg.norm(pos_abs - pos) >= self.min_distance_from_source for pos in self.source_positions),
+            all(np.linalg.norm(pos_abs - pos) >= self.min_distance_from_source for pos in self.sources.values()),
             # source must be a minimum distance from every microphone capsule
             #  setting axis=1 means that we calculate the distance independently for every capsule on every microphone
-            all(all(np.linalg.norm(pos_abs - mic.coordinates_absolute, axis=1) >= self.min_distance_from_mic) for mic in self.microphones),
+            all(all(np.linalg.norm(pos_abs - mic.coordinates_absolute, axis=1) >= self.min_distance_from_mic) for mic in self.microphones.values()),
             # source must be a minimum distance from the surface
             bool(self.mesh.nearest.on_surface([pos_abs])[1][0] >= self.min_distance_from_surface),
             # source must be inside the mesh
             self._is_point_inside_mesh(pos_abs)
         ))
 
-    @staticmethod
-    def _sanitize_source_input(sources) -> list[Union[None, list]]:
+    def _try_add_source(
+            self,
+            position: Union[list, None],
+            relative_mic: Optional[Type['MicArray']],
+            source_alias: str
+    ) -> bool:
         """
-        Sanitizes any source input into the form [[source_coords], [source_coords]].
-
-        `source_coords` is either a list of cartesian coordinates in XYZ format or None (in which case a random
-        position will be found inside the mesh).
-
-        Returns:
-            list: the sanitized source inputs
-        """
-
-        sanitized_sources = []
-        # If sources is None, we just want to add one random source
-        if sources is None:
-            logger.warning(f"No sources provided, placing a single source in a random position!")
-            sanitized_sources.append(None)
-
-        # If sources is an integer, we assume that this is the number of sources we want to place in random positions
-        elif isinstance(sources, int):
-            assert sources > 0, "Number of sources to add must be greater than 0!"
-            # Iterate over the number of sources we want to try and place
-            for source_idx in range(sources):
-                sanitized_sources.append(None)
-
-        # Otherwise, if sources is an iterable, we assume that this is a list of coordinates to place sources at
-        elif isinstance(sources, (list, np.ndarray)):
-            assert len(sources) > 0, "Number of sources to add must be greater than 0!"
-            sources = utils.coerce2d(sources)
-            for source in sources:
-                assert len(source) == 3, "Sources must be in XYZ format!"
-                sanitized_sources.append(source)
-
-        # Otherwise, raise an error as the input is not in the expected format
-        else:
-            raise TypeError(f"Could not parse input with type {type(sources)}")
-
-        return sanitized_sources
-
-    def _try_add_source(self, position: Union[list, None], relative_mic: Optional[Type['MicArray']]) -> bool:
-        """
-        Try to place a source at position. Return True if successful, False otherwise.
+        Try to place a source at position with the given alias. Return True if successful, False otherwise.
         """
         for attempt in range(MAX_PLACE_ATTEMPTS):
             # Grab a random position for the source if required
             pos = position if position is not None else self.get_random_position()
+            assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
             # If we want to express the position relative to a given microphone
             if relative_mic is not None:
                 # Add the source position to the center of the microphone
                 pos = relative_mic.coordinates_center + pos
             # If we have a valid position for the source
-            if self._validate_source_position(pos):
-                self.source_positions.append(pos)
+            if self._validate_position(pos):
+                self.sources[source_alias] = np.asarray(pos)
                 return True
             # If we were trying to place the source in a specific location, only make one attempt at placing it
             elif position is not None:
                 break
         return False
 
-    def add_sources(
+    def _get_default_source_alias(self) -> str:
+        """Returns a default alias for a source"""
+        n_current_sources = len(self.sources) + 1 if len(self.sources) > 0 else 0
+        return f"src{str(n_current_sources).zfill(3)}"
+
+    def _get_mic_from_alias(self, mic_alias: Optional[str]) -> Optional[Type['MicArray']]:
+        """Get a given `MicArray` object from its alias"""
+        if mic_alias is not None:
+            if mic_alias not in self.microphones:
+                raise KeyError(f"No microphone found with alias {mic_alias}!")
+            return self.microphones[mic_alias]
+        else:
+            return None
+
+    def _clear_sources(self) -> None:
+        """Removes all current sources"""
+        self.sources = {}
+        self.ctx.clear_sources()
+
+    def add_source(
             self,
-            sources: Union[list, np.ndarray, int, None],
+            position: Union[list, np.ndarray, None] = None,
+            source_alias: str = None,
+            mic_alias: str = None,
             keep_existing: bool = False,
-            mic_idx: int = None
+            polar: bool = True,
     ) -> None:
         """
-        Add sources to the mesh at valid positions. Must be called before `simulate`.
+        Add a source to the space.
+
+        If `mic_alias` is a key inside `microphones`, `position` is assumed to be relative to that microphone; else,
+        it is assumed to be in absolute terms. If `polar` is True, `position` should be in the form [azimuth,
+        colatitude, elevation]; else, it should be in cartesian coordinates in meters with the form [x, y, z]. Note that
+        `mic_alias` must not be None when `polar` is True.
 
         Arguments:
-            sources (optional): the sources to be added to the mesh.
-                If an integer, will be interpreted as the number of sources to add to the mesh, at random positions.
-                If a list, should be a list of coordinates in XYZ form. These are assumed to be ABSOLUTE positions,
-                 unless `mic_idx` is not None, in which case they are assumed to be relative to the absolute position
-                 of the microphone found at `microphones[mic_idx]`
-                If None, a single source will be added at a random position inside the mesh.
-            keep_existing (optional): whether to remove existing sources from the mesh, defaults to removing
-            mic_idx (optional): the index of the microphone that sources should be added relative to
+            position: Location to add the source, defaults to a random, valid location.
+            source_alias: String reference to access the source inside the `self.sources` dictionary.
+            mic_alias: String reference to a microphone inside `self.microphones`;
+                when provided, `position` is interpreted as RELATIVE to the center of this microphone
+            keep_existing (optional): Whether to keep existing sources from the mesh or remove, defaults to keep
+            polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
+                units are [x, y, z] in absolute, cartesian terms.
 
         Examples:
-            Create a space with a given mesh
+            Create a space with a given mesh and add a microphone
             >>> spa = Space(mesh=...)
+            >>> spa.add_microphone(alias="tester")
 
-            Add a single source to the mesh with a random position
-            >>> spa.add_sources()
+            Add a single source with a random position
+            >>> spa.add_source()
+            >>> spa.sources["src000"]    # access with default alias
 
-            Add three random sources at random positions
-            >>> spa.add_sources(3)
+            Add source with given position and alias
+            >>> spa.add_source(position=[0.5, 0.5, 0.5], source_alias="custom")
+            >>> spa.sources["custom"]    # access using given alias
 
-            Add one source at a specified absolute position
-            >>> spa.add_sources([0.0, 0.1, 0.2])
-
-            Add two sources at specified absolute positions
-            >>> spa.add_sources([[0.0, 0.1, 0.2], [0.2, 0.1, 0.0]])
-
-            Add one source at a specific position relative to the mic at index 1
-            >>> spa.add_sources([[0.0, 0.1, 0.2]], mic_idx=1)
-
+            Add source relative to microphone
+            >>> spa.add_source(position=[0.1, 0.1, 0.1], source_alias="custom", mic_alias="tester")
+            >>> spa.sources["custom"]
         """
+        # TODO: allow sources to be specified in polar units
         # Remove existing sources if we wish to do this
         if not keep_existing:
-            self.source_positions = []
+            self._clear_sources()
+
+        # If we want to express our sources relative to a given microphone, grab this now
+        desired_mic = self._get_mic_from_alias(mic_alias)
+
+        # Get the alias for this source
+        source_alias = self._get_default_source_alias() if source_alias is None else source_alias
+
+        # Try and place inside the mesh: return True if placed, False if not
+        placed = self._try_add_source(position, desired_mic, source_alias)
+        # If we can't add the source to the mesh
+        if not placed:
+            # If we were trying to add it to a random position
+            if position is None:
+                raise ValueError(f"Could not place source in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                                 f"If this is happening frequently, consider reducing the number of `sources`, "
+                                 f"`min_distance_from_mic`, or `min_distance_from_source`.")
+            # If we were trying to add it to a specific position
+            else:
+                raise ValueError(f"Position {position} invalid when placing source inside the mesh! "
+                                 f"If this is happening frequently, consider reducing the number of `sources`, "
+                                 f"`min_distance_from_mic`, or `min_distance_from_source`.")
+
+        # Add the sources to the ray-tracing engine
+        self._setup_sources()
+
+    def add_sources(
+            self,
+            positions: Union[list, np.ndarray, None] = None,
+            source_aliases: list[str] = None,
+            mic_aliases: Union[list[str], str] = None,
+            n_sources: Optional[int] = None,
+            keep_existing: bool = False,
+            polar: bool = True,
+            raise_on_error: bool = True,
+    ) -> None:
+        """
+        Add sources to the mesh.
+
+        This function essentially takes in lists of the arguments expected by `add_sources`. The `raise_on_error`
+        command will skip over microphones that cannot be placed in the mesh and raise a warning in the console.
+
+        Additionally, `n_sources` can be provided instead of `positions` to choose a number of sources to add randomly.
+
+        Arguments:
+            positions: Locations to add the sources, defaults to a single random location.
+            source_aliases: String references to assign the sources inside the `sources` dictionary.
+            mic_aliases: String references to microphones inside the `microphones` dictionary.
+            keep_existing (optional): whether to keep existing sources from the mesh or remove, defaults to keep.
+            raise_on_error (optional): if True, raises an error when unable to place source, otherwise skips to next.
+            n_sources: Number of sources to add with random positions
+            polar (optional): if True, `position` is expected in form [azimuth, colatitude, elevation] relative to mic
+        """
+        # TODO: allow sources to be specified in polar units
+        # Remove existing sources if we wish to do this
+        if not keep_existing:
+            self.sources = {}
             self.ctx.clear_sources()
 
-        # Sanitize the inputs into a single list
-        sanitized_sources = self._sanitize_source_input(sources)
-        # If we want to express our sources relative to a given microphone, grab this now
-        if mic_idx is not None:
-            assert len(self.microphones) >= mic_idx + 1, f"No microphone at specified index {mic_idx}!"
-            desired_mic = self.microphones[mic_idx]
-        else:
-            desired_mic = None
+        if positions is not None and n_sources is not None:
+            raise TypeError("Cannot specify both `n_sources` and `positions`.")
 
-        # Iterate over our sanitized source positions
-        for source_pos in sanitized_sources:
-            # Try and place inside the mesh: return True if placed, False if not
-            placed = self._try_add_source(source_pos, desired_mic)
+        if n_sources is not None:
+            assert isinstance(n_sources, int), "`n_sources` must be an integer!"
+            assert n_sources > 0, "`n_sources` must be positive!"
+            positions = [None for _ in range(n_sources)]
+
+        # Handle cases with non-unique aliases
+        if source_aliases is not None:
+            if len(set(source_aliases)) != len(source_aliases):
+                raise ValueError("Only unique aliases can be passed")
+
+        all_not_none = [l for l in [positions, source_aliases, mic_aliases]
+                        if l is not None and isinstance(l, (list, np.ndarray))]
+        # Handle cases where we haven't provided an equal number of positions and aliases
+        if not utils.check_all_lens_equal(*all_not_none):
+            raise ValueError("Expected all inputs to have equal length")
+
+        # Get the index to iterate up to
+        max_idx = max([len(a) for a in all_not_none]) if len(all_not_none) > 0 else 0
+        # Tile the mic aliases if we've only provided a single one
+        if isinstance(mic_aliases, str):
+            mic_aliases = [mic_aliases for _ in range(max_idx)]
+
+        # Iterate over all the sources we want to place
+        for idx in range(max_idx):
+            position_ = positions[idx] if positions is not None else None
+            source_alias_ = source_aliases[idx] if source_aliases is not None else None
+            mic_alias_ = mic_aliases[idx] if mic_aliases is not None else None
+
+            # If we want to express our sources relative to a given microphone, grab this now
+            desired_mic = self._get_mic_from_alias(mic_alias_)
+
+            # Get the source alias
+            source_alias_ = self._get_default_source_alias() if source_alias_ is None else source_alias_
+
+            # Try and place the source inside the space
+            placed = self._try_add_source(position_, desired_mic, source_alias_)
+
             # If we can't add the source to the mesh
             if not placed:
                 # If we were trying to add it to a random position
-                if source_pos is None:
-                    logger.warning(f"Could not place source in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
-                                   f"If this is happening frequently, consider reducing the number of `sources`, "
-                                   f"`min_distance_from_mic`, or `min_distance_from_source`.")
+                if position_ is None:
+                    msg = (f"Could not place source in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                           f"Consider reducing `min_distance_from` arguments.")
                 # If we were trying to add it to a specific position
                 else:
-                    logger.warning(f"Position {source_pos} invalid, skipping to next source! "
-                                   f"Consider reducing `min_distance_from` arguments.")
+                    msg = (f"Position {position_} invalid for source. "
+                           f"Consider reducing `min_distance_from` arguments.")
 
-        # Sanity checking
-        if len(self.source_positions) == 0:
-            raise ValueError("None of the provided sources could be placed within the mesh.")
+                # Raise the error if required or just log a warning and skip to the next source
+                if raise_on_error:
+                    raise ValueError(msg)
+                else:
+                    logger.warning(msg)
 
-        self.source_positions = np.asarray(self.source_positions)
+        # Set up the sources in the ray-tracing engine
         self._setup_sources()
 
     def _simulation_sanity_check(self) -> None:
         """
         Check conditions required for simulation are met
         """
-        assert len(self.source_positions) > 0, "Must have added valid sources to the mesh before calling `.simulate`!"
+        assert len(self.sources) > 0, "Must have added valid sources to the mesh before calling `.simulate`!"
         assert len(self.microphones) > 0, "Must have added valid microphones to the mesh before calling `.simulate`!"
-        assert all(type(m) in MICARRAY_LIST for m in self.microphones), "Non-microphone objects in microphone list"
+        assert all(type(m) in MICARRAY_LIST for m in self.microphones.values()), "Non-microphone objects in microphone attribute"
         assert self.ctx.get_listener_count() > 0, "Must have listeners added to the ray tracing engine"
         assert self.ctx.get_source_count() > 0, "Must have sources added to the ray tracing engine"
 
@@ -654,7 +751,7 @@ class Space:
         # Define a counter that we can use to access the flat array of (capsules, sources, samples)
         counter = 0
         all_irs = {}
-        for mic_idx, mic in enumerate(self.microphones):
+        for mic_idx, mic in enumerate(self.microphones.values()):
             mic_ir = []
             # Iterate over the capsules associated with this microphone
             for n_capsule in range(counter, mic.n_capsules + counter):
@@ -677,11 +774,11 @@ class Space:
         """
         scene = self.mesh.scene()
         # This just adds the microphone positions
-        for mic in self.microphones:
+        for mic in self.microphones.values():
             for capsule in mic.coordinates_absolute:
                 add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
         # This adds the sound sources, with different color + radius
-        for source in self.source_positions:
+        for source in self.sources.values():
             add_sphere(scene, source, [0, 255, 0], r=source_radius)
         return scene    # can then run `.show()` on the returned object
 
@@ -696,15 +793,14 @@ class Space:
         fig, ax = plt.subplots(1, 2, figsize=(20, 10))
         vertices = self.mesh.vertices
         # Create a top-down view first, then a side view
-        mic_positions = np.vstack([m.coordinates_absolute for m in self.microphones])
+        mic_positions = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
+        source_positions = np.vstack([v for v in self.sources.values()])
         for ax_, idx, color, ylab, title in zip(ax.flatten(), [1, 2], ["red", "blue"], ["Y", "Z"], ["Top", "Side"]):
             # Scatter the vertices first
             ax_.scatter(vertices[:, 0], vertices[:, idx], c='gray', alpha=0.1, s=1)
             # Then the microphone and source positions
             ax_.scatter(mic_positions[:, 0], mic_positions[:, idx], c='red', s=100, label='Microphone')
-            ax_.scatter(
-                self.source_positions[:, 0], self.source_positions[:, idx], c='blue', s=25, alpha=0.5, label='Sources'
-            )
+            ax_.scatter(source_positions[:, 0], source_positions[:, idx], c='blue', s=25, alpha=0.5, label='Sources')
             # These are just plot aesthetics
             ax_.set_xlabel('X')
             ax_.set_ylabel(ylab)
@@ -730,7 +826,7 @@ class Space:
         assert self._irs is not None, f"IRs have not been created yet!"
         assert os.path.isdir(outdir), f"Output directory {outdir} does not exist!"
         # This iterates over [sources, channels, samples]
-        for mic_idx, mic in enumerate(self.microphones):
+        for mic_idx, mic in enumerate(self.microphones.values()):
             mic_idx = str(mic_idx).zfill(3)
             for caps_idx, caps in enumerate(mic.irs):
                 caps_idx = str(caps_idx).zfill(3)
