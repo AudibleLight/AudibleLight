@@ -17,6 +17,7 @@ def test_string_attributes(micarray):
     assert isinstance(getattr(micarray(), "name"), str)
     assert getattr(micarray(), "name") != ""
 
+
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
 def test_polar_coordinates(micarray):
     # Non-spherical mics will not have polar coordinates

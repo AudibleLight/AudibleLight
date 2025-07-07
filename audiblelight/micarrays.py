@@ -14,6 +14,7 @@ __all__ = [
     "MicArray",
     "Eigenmike32",
     "Eigenmike64",
+    "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST"
 ]
@@ -102,6 +103,27 @@ class MicArray:
 
     def __str__(self) -> str:
         return f"Microphone array '{self.__class__.__name__}' with {len(self)} capsules"
+
+
+@dataclass
+class MonoCapsule(MicArray):
+    """
+    A single mono microphone capsule
+    """
+    name: str = "monocapsule"
+    is_spherical: bool = False
+
+    @property
+    def coordinates_polar(self) -> np.ndarray:
+        return np.array([[0., 0., 0.]])
+
+    @property
+    def coordinates_cartesian(self) -> np.ndarray:
+        return np.array([[0., 0., 0.]])
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return ["mono"]
 
 
 @dataclass
@@ -292,6 +314,7 @@ MICARRAY_LIST = [
     Eigenmike32,
     Eigenmike64,
     AmbeoVR,
+    MonoCapsule
 ]
 
 
