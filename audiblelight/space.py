@@ -751,7 +751,7 @@ class Space:
         # Define a counter that we can use to access the flat array of (capsules, sources, samples)
         counter = 0
         all_irs = {}
-        for mic_idx, mic in enumerate(self.microphones.values()):
+        for mic_alias, mic in self.microphones.items():
             mic_ir = []
             # Iterate over the capsules associated with this microphone
             for n_capsule in range(counter, mic.n_capsules + counter):
@@ -762,7 +762,7 @@ class Space:
             # Stack to a shape of (N_capsules, N_sources, N_samples)
             mic.irs = np.stack(mic_ir)
             # Get the name of the mic and create a new key-value pair
-            all_irs[f"mic{str(mic_idx).zfill(3)}"] = mic.irs
+            all_irs[mic_alias] = mic.irs
         return all_irs
 
     def create_scene(self, mic_radius: float = 0.2, source_radius: float = 0.1) -> trimesh.Scene:
@@ -826,12 +826,11 @@ class Space:
         assert self._irs is not None, f"IRs have not been created yet!"
         assert os.path.isdir(outdir), f"Output directory {outdir} does not exist!"
         # This iterates over [sources, channels, samples]
-        for mic_idx, mic in enumerate(self.microphones.values()):
-            mic_idx = str(mic_idx).zfill(3)
+        for mic_alias, mic in self.microphones.items():
             for caps_idx, caps in enumerate(mic.irs):
                 caps_idx = str(caps_idx).zfill(3)
                 for source_idx, source in enumerate(caps):
                     source_idx = str(source_idx).zfill(3)
-                    fname = os.path.join(outdir, f"mic{mic_idx}_capsule{caps_idx}_source{source_idx}.wav")
+                    fname = os.path.join(outdir, f"{mic_alias}_capsule{caps_idx}_source{source_idx}.wav")
                     # Dump the audio to a 16-bit PCM wav using our predefined sample rate
                     utils.write_wav(source, fname, self.ctx.config.sample_rate)
