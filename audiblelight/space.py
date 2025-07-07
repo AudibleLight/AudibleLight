@@ -29,9 +29,9 @@ MIN_DISTANCE_FROM_SURFACE = 0.2    # Minimum distance from the nearest mesh surf
 WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
 
 
-def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
+def load_mesh(mesh: Union[str, Path]) -> trimesh.Trimesh:
     """
-    Loads a mesh from disk or directly from a `trimesh.Trimesh` object and coerces units to meters
+    Loads a mesh from disk and coerces units to meters
     """
     # Passed in filepath as a string: convert to a Path
     if isinstance(mesh, (str, Path)):
@@ -49,9 +49,6 @@ def load_mesh(mesh: Union[str, Path, trimesh.Trimesh]) -> trimesh.Trimesh:
         if loaded_mesh.units != utils.MESH_UNITS:
             logger.warning(f"Mesh {mesh.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}")
             loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
-    # Passed in a loaded mesh object
-    elif isinstance(mesh, trimesh.Trimesh):
-        loaded_mesh = mesh
     # Passed in something else
     else:
         raise TypeError(f"Expected mesh to be either a filepath or Trimesh object, but got {type(mesh)}")

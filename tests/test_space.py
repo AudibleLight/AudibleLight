@@ -43,14 +43,10 @@ def test_load_mesh_from_fpath(mesh_fpath: str):
     assert isinstance(loaded, Trimesh)
     assert loaded.metadata["fpath"] == str(mesh_fpath)    # need both to be a string, or we'll get TypeError
     assert loaded.units == utils.MESH_UNITS    # units should be in meters
-
-
-@pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
-def test_load_mesh_from_trimesh(mesh_fpath: str):
-    trimesh_loaded = trimesh_loader(mesh_fpath)
-    our_loaded = load_mesh(trimesh_loaded)
-    assert np.array_equal(our_loaded.vertices, trimesh_loaded.vertices)
-    assert np.array_equal(our_loaded.faces, trimesh_loaded.faces)
+    # If we try to load from a mesh object, should raise an error
+    with pytest.raises(TypeError):
+        # noinspection PyTypeChecker
+        _ = load_mesh(loaded)
 
 
 @pytest.mark.parametrize("mesh_fpath,expected", [("iamnotafile", FileNotFoundError), (1234, TypeError)])
