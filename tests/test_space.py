@@ -220,7 +220,7 @@ def test_validate_positions(test_position: np.ndarray, expected: bool, oyens_spa
 def test_add_source(position, source_alias, oyens_space: Space):
     oyens_space._clear_microphones()
     # Add the sources in and check that the shape of the resulting array is what we expect
-    oyens_space.add_source(position, source_alias, mic_alias=None, keep_existing=False)
+    oyens_space.add_source(position, source_alias, mic_alias=None, keep_existing=False, polar=False)
     assert isinstance(oyens_space.sources, dict)
     assert len(oyens_space.sources) == 1
     # Get the desired source
@@ -233,17 +233,17 @@ def test_add_source(position, source_alias, oyens_space: Space):
 def test_add_source_invalid(oyens_space: Space):
     # Raise error when no microphone with alias has been added
     with pytest.raises(KeyError):
-        oyens_space.add_source(mic_alias="ambeovr", position=[1000, 1000, 1000], keep_existing=False)
+        oyens_space.add_source(mic_alias="ambeovr", position=[1000, 1000, 1000], keep_existing=False, polar=False)
     # Raise error when trying to add source out of bounds
     oyens_space.add_microphone(alias="ambeovr")
     with pytest.raises(ValueError):
-        oyens_space.add_source(mic_alias="ambeovr", position=[1000, 1000, 1000], keep_existing=False)
+        oyens_space.add_source(mic_alias="ambeovr", position=[1000, 1000, 1000], keep_existing=False, polar=False)
     # Cannot add source that directly intersects with a microphone
     oyens_space.add_microphone(position=[-0.5, -0.5, 0.5], keep_existing=False)
     with pytest.raises(ValueError):
-        oyens_space.add_source([-0.5, -0.5, 0.5])    # same, in absolute terms
+        oyens_space.add_source([-0.5, -0.5, 0.5], polar=False)    # same, in absolute terms
     with pytest.raises(ValueError):
-        oyens_space.add_source([0.0, 0.0, 0.0], mic_alias="mic000")    # same, in relative terms
+        oyens_space.add_source([0.0, 0.0, 0.0], mic_alias="mic000", polar=False)    # same, in relative terms
 
 
 @pytest.mark.parametrize(
@@ -267,9 +267,9 @@ def test_add_source_relative_to_mic(position, accept: bool, oyens_space: Space):
     # Trying to add a source that should be rejected
     if not accept:
         with pytest.raises(ValueError):
-            oyens_space.add_source(position=position, mic_alias="tester", keep_existing=False)
+            oyens_space.add_source(position=position, mic_alias="tester", keep_existing=False, polar=False)
     else:
-        oyens_space.add_source(position=position, mic_alias="tester", keep_existing=False)
+        oyens_space.add_source(position=position, mic_alias="tester", keep_existing=False, polar=False)
         assert len(oyens_space.sources) == 1
         src = oyens_space.sources["src000"]
         assert len(src) == 3
@@ -285,7 +285,7 @@ def test_add_source_relative_to_mic(position, accept: bool, oyens_space: Space):
 )
 def test_add_sources(positions, source_aliases, oyens_space: Space):
     oyens_space._clear_microphones()
-    oyens_space.add_sources(positions, source_aliases, keep_existing=False)
+    oyens_space.add_sources(positions, source_aliases, keep_existing=False, polar=False)
     assert len(oyens_space.sources) == len(positions)
     if source_aliases is not None:
         assert set(oyens_space.sources.keys()) == set(source_aliases)
@@ -308,7 +308,9 @@ def test_add_sources_relative_to_mic(test_position: np.ndarray, expected_shape: 
     oyens_space.add_microphone(microphone_type=AmbeoVR, position=[-0.5, -0.5, 0.5], alias="testmic", keep_existing=False)
     # Add the sources in and check that the shape of the resulting array is what we expect
     #  We set `raise_on_error=False` so we skip over raising an error for invalid sources
-    oyens_space.add_sources(positions=test_position, mic_aliases="testmic", keep_existing=False, raise_on_error=False)
+    oyens_space.add_sources(
+        positions=test_position, mic_aliases="testmic", keep_existing=False, raise_on_error=False, polar=False
+    )
     assert len(oyens_space.sources) == expected_shape
     for source in oyens_space.sources.values():
         assert oyens_space._is_point_inside_mesh(source)
@@ -319,7 +321,7 @@ def test_add_sources_relative_to_mic(test_position: np.ndarray, expected_shape: 
     [i for i in range(1, 10, 2)],
 )
 def test_add_n_sources(n_sources, oyens_space: Space):
-    oyens_space.add_sources(n_sources=n_sources, keep_existing=False)
+    oyens_space.add_sources(n_sources=n_sources, keep_existing=False, polar=False)
     assert len(oyens_space.sources) == n_sources
     for source in oyens_space.sources.values():
         assert oyens_space._is_point_inside_mesh(source)
@@ -337,7 +339,7 @@ def test_add_n_sources(n_sources, oyens_space: Space):
 def test_add_sources_at_specific_position(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
     oyens_space.add_microphone(microphone_type=AmbeoVR, position=[-0.5, -0.5, 0.5], keep_existing=False)
     # Add the sources in and check that the shape of the resulting array is what we expect
-    oyens_space.add_sources(positions=test_position, keep_existing=False, raise_on_error=False)
+    oyens_space.add_sources(positions=test_position, keep_existing=False, raise_on_error=False, polar=False)
     assert len(oyens_space.sources) == expected_shape
 
 
@@ -345,16 +347,16 @@ def test_add_sources_invalid(oyens_space: Space):
     # n_sources must be a postive integer
     with pytest.raises(AssertionError):
         for inp in ["asdf", [], -1, -100, 0]:
-            oyens_space.add_sources(n_sources=inp, keep_existing=False)
+            oyens_space.add_sources(n_sources=inp, keep_existing=False, polar=False)
     # Cannot specify both a number of random sources and positions for them
     with pytest.raises(TypeError):
-        oyens_space.add_sources(positions=[[0, 0, 0]], n_sources=1)
+        oyens_space.add_sources(positions=[[0, 0, 0]], n_sources=1, polar=False)
     # Aliases for sources must be unique
     with pytest.raises(ValueError):
-        oyens_space.add_sources(source_aliases=["asdf", "asdf"])
+        oyens_space.add_sources(source_aliases=["asdf", "asdf"], polar=False)
     # Cannot add sources that are way outside the mesh
     with pytest.raises(ValueError):
-        oyens_space.add_sources([[1000., 1000., 1000.], [-1000, -1000, -1000]], keep_existing=False)
+        oyens_space.add_sources([[1000., 1000., 1000.], [-1000, -1000, -1000]], keep_existing=False, polar=False)
 
 
 @pytest.mark.parametrize("num_rays", [1, 10, 100])
@@ -375,7 +377,7 @@ def test_get_random_position(test_num: int, oyens_space: Space):
     # Add some microphones and sources to the space
     for idx_ in range(test_num):
         oyens_space.add_microphone(keep_existing=True)
-        oyens_space.add_source(keep_existing=True)
+        oyens_space.add_source(keep_existing=True, polar=False)
     # Grab a random position
     random_point = oyens_space.get_random_position()
     # It should be valid (suitable distance from surfaces, inside mesh, away from mics/sources...)
@@ -391,7 +393,7 @@ def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: Space):
     # Add some sources and microphones to the space
     #  We could use other microphone types, but they're slow to simulate
     oyens_space.add_microphones(microphone_types=["ambeovr" for _ in range(n_mics)], keep_existing=False)
-    oyens_space.add_sources(n_sources=n_sources)
+    oyens_space.add_sources(n_sources=n_sources, polar=False)
     # Grab the IRs: we should have one array for every microphone
     oyens_space.simulate()
     assert isinstance(oyens_space.irs, dict)
@@ -418,7 +420,7 @@ def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: Space):
 def test_create_plot(oyens_space):
     # Add some microphones and sources
     oyens_space.add_microphone(keep_existing=False)
-    oyens_space.add_source()
+    oyens_space.add_source(polar=False)
     # Create the plot
     fig = oyens_space.create_plot()
     assert isinstance(fig, plt.Figure)
@@ -429,7 +431,7 @@ def test_create_plot(oyens_space):
 def test_create_scene(oyens_space):
     # Add some microphones and sources
     oyens_space.add_microphone(keep_existing=False)
-    oyens_space.add_source()
+    oyens_space.add_source(polar=False)
     # Create the scene
     scene = oyens_space.create_scene()
     assert isinstance(scene, Scene)
@@ -440,7 +442,7 @@ def test_create_scene(oyens_space):
 def test_save_wavs(oyens_space: Space):
     # Add some microphones and sources
     oyens_space.add_microphone(microphone_type="ambeovr", keep_existing=False)    # just adds an ambeovr mic in a random plcae
-    oyens_space.add_source()
+    oyens_space.add_source(polar=False)
     # Run the simulation
     oyens_space.simulate()
     # Dump the IRs to a temporary directory
@@ -497,7 +499,7 @@ def test_simulated_doa_with_music(microphone: list, sources: list, actual_doa: l
     """
     # Add the microphones and simulate the space
     oyens_space.add_microphone(microphone_type="eigenmike32", position=microphone, keep_existing=False, alias="tester")
-    oyens_space.add_sources(positions=sources, mic_aliases="tester", keep_existing=False)
+    oyens_space.add_sources(positions=sources, mic_aliases="tester", keep_existing=False, polar=False)
     oyens_space.simulate()
     # TODO: in the future we should use simulated sound sources, not the IRs
     output = oyens_space.irs
@@ -566,6 +568,8 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
     Places a source and two AmbeoVR microphones near and far, then checks that the sound hits the close mic before far
     """
 
+    oyens_space._clear_microphones()
+    oyens_space._clear_sources()
     # Add the microphones and simulate the space
     oyens_space.add_microphones(
         microphone_types=["ambeovr", AmbeoVR],
@@ -573,13 +577,13 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
         aliases=["closemic", "farmic"],
         keep_existing=False
     )
-    oyens_space.add_source(source_position, mic_alias="closemic", keep_existing=False)
+    oyens_space.add_source(source_position, mic_alias="closemic", keep_existing=False, polar=False)
     oyens_space.simulate()
     irs = oyens_space.irs
     # Shape of the IRs should be as expected
     assert len(irs) == 2
     # Get the IDX of the sample at which the sound hits both microphones
-    arrival_close = min(np.flatnonzero(irs["mic000"]))
-    arrival_far = min(np.flatnonzero(irs["mic001"]))
+    arrival_close = min(np.flatnonzero(irs["closemic"]))
+    arrival_far = min(np.flatnonzero(irs["farmic"]))
     # Should hit the closer mic before the further mic
     assert arrival_close < arrival_far

@@ -114,10 +114,6 @@ class MonoCapsule(MicArray):
     is_spherical: bool = False
 
     @property
-    def coordinates_polar(self) -> np.ndarray:
-        return np.array([[0., 0., 0.]])
-
-    @property
     def coordinates_cartesian(self) -> np.ndarray:
         return np.array([[0., 0., 0.]])
 
