@@ -16,7 +16,7 @@ from pyroomacoustics.doa.music import MUSIC
 
 from audiblelight import utils
 from audiblelight.space import Space, load_mesh, repair_mesh
-from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR
+from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR, MonoCapsule, get_micarray_from_string
 
 
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
@@ -84,6 +84,15 @@ def test_add_microphone(microphone_type, position, alias, oyens_space: Space):
     oyens_space.add_microphone(microphone_type, position, alias, keep_existing=False)
     assert isinstance(oyens_space.microphones, dict)
     assert len(oyens_space.microphones) == 1    # only addding one microphone with this function
+    # Test microphone type
+    mic = list(oyens_space.microphones.values())[0]
+    if microphone_type is None:
+        assert isinstance(mic, MonoCapsule)
+    elif isinstance(microphone_type, str):
+        assert isinstance(mic, get_micarray_from_string(microphone_type))
+    else:
+        assert isinstance(mic, microphone_type)
+    # Test aliases
     if alias is not None:
         assert list(oyens_space.microphones.keys())[0] == alias     # alias should be what we expect
         mic = oyens_space.microphones[alias]
@@ -132,6 +141,8 @@ def test_place_invalid_microphones(oyens_space: Space):
         (["eigenmike32", "ambeovr"], [[-0.5, -0.5, 0.5], [-0.1, -0.1, 0.6]], ["eigenmike000", "ambeovr000"]),
         # Three ambeovrs in random positions with default aliases
         (["ambeovr", "ambeovr", AmbeoVR], None, None),
+        # A mono capsule, an ambeovr, and an eigenmike (all specified in different ways) with random positions
+        ([None, AmbeoVR, "eigenmike32"], None, ["mono", "ambeo", "eigen"])
     ]
 )
 def test_add_microphones(microphone_types, positions, aliases, oyens_space: Space):

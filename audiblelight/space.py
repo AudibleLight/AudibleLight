@@ -4,7 +4,6 @@
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
 import os
-import random
 from pathlib import Path
 from typing import Any, Union, Optional, Type
 
@@ -15,7 +14,7 @@ from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutT
 from loguru import logger
 
 from audiblelight import utils
-from audiblelight.micarrays import get_micarray_from_string, MICARRAY_LIST, MicArray
+from audiblelight.micarrays import get_micarray_from_string, MICARRAY_LIST, MicArray, MonoCapsule
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
 
@@ -221,11 +220,9 @@ class Space:
         # Parsing the microphone type
         # If None, get a random microphone and use a randomized position
         if microphone_type is None:
-            logger.warning(f"No microphone positions provided, using a random microphone array in a random position!")
+            logger.warning(f"No microphone type provided, using a mono microphone capsule in a random position!")
             # Get a random microphone class
-            # TODO: this should be a mono capsule
-            mic_cls = random.choice(MICARRAY_LIST)
-            sanitized_microphone = mic_cls
+            sanitized_microphone = MonoCapsule
 
         # If a string, use the desired microphone type but get a random position
         elif isinstance(microphone_type, str):
