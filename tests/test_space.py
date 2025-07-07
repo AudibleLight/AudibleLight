@@ -244,6 +244,42 @@ def test_add_source_invalid(oyens_space: Space):
         oyens_space.add_source([-0.5, -0.5, 0.5], polar=False)    # same, in absolute terms
     with pytest.raises(ValueError):
         oyens_space.add_source([0.0, 0.0, 0.0], mic_alias="mic000", polar=False)    # same, in relative terms
+    # Must provide a reference microphone when using polar sources
+    with pytest.raises(AssertionError):
+        oyens_space.add_source([0.0, 0.0, 0.0], polar=True, mic_alias=None)
+    # Cannot use random positions with polar = True
+    with pytest.raises(AssertionError):
+        oyens_space.add_source(position=None, polar=True)
+
+
+@pytest.mark.parametrize(
+    "source_position,expected_position",
+    [
+        # Source offset 20 cm along +x direction (azimuth=0°, colatitude=90°)
+        ([0.0, 90.0, 0.2], [-0.3, -0.5, 0.5]),
+        # Source offset 20 cm along +y direction (azimuth=90°, colatitude=90°)
+        (np.array([90.0, 90.0, 0.2]), np.array([-0.5, -0.3, 0.5])),
+        # Source offset 20 cm along -z direction (azimuth=90°, colatitude=180°)
+        (np.array([90.0, 180.0, 0.2]), [-0.5, -0.5, 0.3]),
+        # Source directly above the mic, 20 cm along +z (colatitude=0°)
+        ([0.0, 0.0, 0.2], [-0.5, -0.5, 0.7]),
+        # Source directly below the mic, 20 cm along -z (colatitude=180°)
+        ([0.0, 180.0, 0.2], [-0.5, -0.5, 0.3]),
+        # Source offset 30 cm along +y direction (azimuth=90°, colatitude=90°)
+        ([90.0, 90.0, 0.3], [-0.5, -0.2, 0.5]),
+        # Source diagonally down-forward (azimuth=45°, colatitude=135°)
+        ([45.0, 135.0, 0.2], [-0.4, -0.4, 0.5 - 0.1414]),
+    ]
+)
+def test_add_polar_source(source_position, expected_position, oyens_space: Space):
+    oyens_space.add_microphone(
+        keep_existing=False,
+        position=[-0.5, -0.5, 0.5],
+        microphone_type="monocapsule",
+        alias="tester"
+    )
+    oyens_space.add_source(position=source_position, polar=True, mic_alias="tester", keep_existing=False)
+    assert np.allclose(oyens_space.sources["src000"], expected_position, atol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -291,6 +327,31 @@ def test_add_sources(positions, source_aliases, oyens_space: Space):
         assert set(oyens_space.sources.keys()) == set(source_aliases)
     for source in oyens_space.sources.values():
         assert oyens_space._is_point_inside_mesh(source)
+
+
+@pytest.mark.parametrize(
+    "source_positions,expected_positions",
+    [
+        # 1. Azimuth = 0°, Colatitude = 90° (x+), and Colatitude = 0° (z+)
+        # Source 1: offset 20 cm along +x; Source 2: offset 20 cm directly above mic
+        ([[0.0, 90.0, 0.2], [0.0, 0.0, 0.2]],
+         [[-0.3, -0.5, 0.5], [-0.5, -0.5, 0.7]]),
+        # 2. Azimuth = 90°, Colatitude = 90° (y+), and Azimuth = 270°, Colatitude = 90° (y−)
+        # Source 1: offset 20 cm along +y; Source 2: offset 20 cm along −y
+        ([[90.0, 90.0, 0.2], [270.0, 90.0, 0.2]],
+         [[-0.5, -0.3, 0.5], [-0.5, -0.7, 0.5]]),
+    ]
+)
+def test_add_polar_sources(source_positions, expected_positions, oyens_space: Space):
+    oyens_space.add_microphone(
+        keep_existing=False,
+        position=[-0.5, -0.5, 0.5],
+        microphone_type="monocapsule",
+        alias="tester"
+    )
+    oyens_space.add_sources(positions=source_positions, polar=True, mic_aliases="tester", keep_existing=False)
+    for source_position, expected_position in zip(oyens_space.sources.values(), expected_positions):
+        assert np.allclose(source_position, expected_position, atol=1e-4)
 
 
 @pytest.mark.parametrize(

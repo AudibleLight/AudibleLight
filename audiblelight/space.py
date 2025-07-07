@@ -500,7 +500,8 @@ class Space:
             self,
             position: Union[list, None],
             relative_mic: Optional[Type['MicArray']],
-            source_alias: str
+            source_alias: str,
+            polar: bool
     ) -> bool:
         """
         Try to place a source at position with the given alias. Return True if successful, False otherwise.
@@ -509,6 +510,11 @@ class Space:
             # Grab a random position for the source if required
             pos = position if position is not None else self.get_random_position()
             assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
+            # Pos will be in cartesian form, but we can convert to polar if required
+            if polar:
+                assert relative_mic is not None, "Must provide a reference mic to use polar coordinates"
+                assert position is not None, "Must set polar to False when using random positions"
+                pos = utils.polar_to_cartesian(pos)[0]
             # If we want to express the position relative to a given microphone
             if relative_mic is not None:
                 # Add the source position to the center of the microphone
@@ -553,9 +559,9 @@ class Space:
         Add a source to the space.
 
         If `mic_alias` is a key inside `microphones`, `position` is assumed to be relative to that microphone; else,
-        it is assumed to be in absolute terms. If `polar` is True, `position` should be in the form [azimuth,
-        colatitude, elevation]; else, it should be in cartesian coordinates in meters with the form [x, y, z]. Note that
-        `mic_alias` must not be None when `polar` is True.
+        it is assumed to be in absolute terms. If `polar` is True, `position` should be in the form
+        (azimuth°, polar°, radius); else, it should be in cartesian coordinates in meters with the form [x, y, z].
+        Note that `mic_alias` must not be None when `polar` is True.
 
         Arguments:
             position: Location to add the source, defaults to a random, valid location.
@@ -588,6 +594,9 @@ class Space:
         if not keep_existing:
             self._clear_sources()
 
+        if polar:
+            assert mic_alias is not None, "mic_alias is required for polar coordinates"
+
         # If we want to express our sources relative to a given microphone, grab this now
         desired_mic = self._get_mic_from_alias(mic_alias)
 
@@ -595,7 +604,7 @@ class Space:
         source_alias = self._get_default_source_alias() if source_alias is None else source_alias
 
         # Try and place inside the mesh: return True if placed, False if not
-        placed = self._try_add_source(position, desired_mic, source_alias)
+        placed = self._try_add_source(position, desired_mic, source_alias, polar)
         # If we can't add the source to the mesh
         if not placed:
             # If we were trying to add it to a random position
@@ -645,6 +654,9 @@ class Space:
             self.sources = {}
             self.ctx.clear_sources()
 
+        if polar:
+            assert mic_aliases is not None, "mic_alias is required for polar coordinates"
+
         if positions is not None and n_sources is not None:
             raise TypeError("Cannot specify both `n_sources` and `positions`.")
 
@@ -683,7 +695,7 @@ class Space:
             source_alias_ = self._get_default_source_alias() if source_alias_ is None else source_alias_
 
             # Try and place the source inside the space
-            placed = self._try_add_source(position_, desired_mic, source_alias_)
+            placed = self._try_add_source(position_, desired_mic, source_alias_, polar)
 
             # If we can't add the source to the mesh
             if not placed:
