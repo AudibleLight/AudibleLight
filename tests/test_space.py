@@ -60,9 +60,9 @@ def oyens_space() -> Space:
     oyens = os.path.join(utils.get_project_root(), "tests/test_resources/Oyens.glb")
     space = Space(
         oyens,
-        min_distance_from_source=0.2,    # all in meters
-        min_distance_from_mic=0.1,    # all in meters
-        min_distance_from_surface=0.2    # all in meters
+        empty_space_around_source=0.2,    # all in meters
+        empty_space_around_mic=0.1,    # all in meters
+        empty_space_around_surface=0.2    # all in meters
     )
     return space
 

@@ -21,9 +21,10 @@ FACE_FILL_COLOR = [255, 0, 0, 255]
 MIN_AVG_RAY_LENGTH = 3.0
 MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
 
-MIN_DISTANCE_FROM_SOURCE = 0.2  # Minimum distance one sound source can be from another
-MIN_DISTANCE_FROM_MIC = 0.1    # Minimum distance one sound source can be from the mic
-MIN_DISTANCE_FROM_SURFACE = 0.2    # Minimum distance from the nearest mesh surface
+EMPTY_SPACE_AROUND_SOURCE = 0.2  # Minimum distance one sound source can be from another
+EMPTY_SPACE_AROUND_MIC = 0.1    # Minimum distance one sound source can be from the mic
+EMPTY_SPACE_AROUND_SURFACE = 0.2    # Minimum distance from the nearest mesh surface
+EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual microphone capsules
 
 WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
 
@@ -105,9 +106,10 @@ class Space:
     def __init__(
             self,
             mesh: Union[str, trimesh.Trimesh],
-            min_distance_from_mic: float = MIN_DISTANCE_FROM_MIC,
-            min_distance_from_source: float = MIN_DISTANCE_FROM_SOURCE,
-            min_distance_from_surface: float = MIN_DISTANCE_FROM_SURFACE,
+            empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
+            empty_space_around_source: Optional[float] = EMPTY_SPACE_AROUND_SOURCE,
+            empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
+            empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
             repair_threshold: Optional[float] = None
     ):
         """
@@ -115,9 +117,10 @@ class Space:
 
         Args:
             mesh (str|trimesh.Trimesh): The name of the mesh file. Units will be coerced to meters when loading
-            min_distance_from_mic (float): minimum meters new sources/mics will be placed from other mics
-            min_distance_from_source (float): minimum meters new sources/mics will be placed from other sources
-            min_distance_from_surface (float): minimum meters new sources/mics will be placed from mesh sources
+            empty_space_around_mic (float): minimum meters new sources/mics will be placed from the center of other mics
+            empty_space_around_source (float): minimum meters new sources/mics will be placed from other sources
+            empty_space_around_surface (float): minimum meters new sources/mics will be placed from mesh sources
+            empty_space_around_capsule (float): minimum meters new sources/mics will be placed from mic capsules
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
         """
@@ -127,9 +130,10 @@ class Space:
         self._irs = None    # will be updated when calling `simulate`
 
         # Distances from objects/mesh surfaces
-        self.min_distance_from_mic = min_distance_from_mic
-        self.min_distance_from_surface = min_distance_from_surface
-        self.min_distance_from_source = min_distance_from_source
+        self.empty_space_around_mic = empty_space_around_mic
+        self.empty_space_around_surface = empty_space_around_surface
+        self.empty_space_around_source = empty_space_around_source
+        self.empty_space_around_capsule = empty_space_around_capsule
 
         # Load in the trimesh object
         self.mesh = load_mesh(mesh)
@@ -322,11 +326,11 @@ class Space:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
-                                 f"Consider reducing `min_distance_from` arguments.")
+                                 f"Consider reducing `empty_space_around` arguments.")
             # If we were trying to add it to a specific position
             else:
                 raise ValueError(f"Position {position} invalid for microphone {sanitized_microphone.name}. "
-                                f"Consider reducing `min_distance_from` arguments.")
+                                f"Consider reducing `empty_space_around` arguments.")
 
         # Set up the listeners inside the ray-tracing engine: add one mono listener per microphone capsule
         self._setup_listener()
@@ -408,11 +412,11 @@ class Space:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
-                           f"Consider reducing `min_distance_from` arguments.")
+                           f"Consider reducing `empty_space_around` arguments.")
                 # If we were trying to add it to a specific position
                 else:
                     msg = (f"Position {position_} invalid for microphone {sanitized_microphone.name}. "
-                           f"Consider reducing `min_distance_from` arguments.")
+                           f"Consider reducing `empty_space_around` arguments.")
 
                 # Raise the error if required or just log a warning and skip to the next microphone
                 if raise_on_error:
@@ -493,18 +497,23 @@ class Space:
         # Iterate over all positions
         for position in positions:
             # Check minimum distance from all sources
-            if any(np.linalg.norm(position - src) < self.min_distance_from_source for src in self.sources.values()):
+            if any(np.linalg.norm(position - src) < self.empty_space_around_source for src in self.sources.values()):
                 return False
 
-            # Check minimum distance from the center of every microphone
+            # Check minimum distance from the center of every microphone and from every individual capsule
             if len(self.microphones) > 0:
-                coordinates = np.vstack([mic.coordinates_center for mic in self.microphones.values()])
-                distances = np.linalg.norm(position - coordinates, axis=1)
-                if np.any(distances < self.min_distance_from_mic):
-                    return False
+                for attr, thresh in zip(
+                    # check mic centers first, check mic capsules second
+                    ["coordinates_center", "coordinates_absolute"],
+                    [self.empty_space_around_mic, self.empty_space_around_capsule]
+                ):
+                    coordinates = np.vstack([getattr(mic, attr) for mic in self.microphones.values()])
+                    distances = np.linalg.norm(position - coordinates, axis=1)
+                    if np.any(distances < thresh):
+                        return False
 
             # Check minimum distance from mesh surface
-            if self.mesh.nearest.on_surface([position])[1][0] < self.min_distance_from_surface:
+            if self.mesh.nearest.on_surface([position])[1][0] < self.empty_space_around_surface:
                 return False
 
             # Check if the position is inside the mesh
@@ -708,12 +717,12 @@ class Space:
             if position is None:
                 raise ValueError(f"Could not place source in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
                                  f"If this is happening frequently, consider reducing the number of `sources`, "
-                                 f"`min_distance_from_mic`, or `min_distance_from_source`.")
+                                 f"or the `empty_space_around` arguments.")
             # If we were trying to add it to a specific position
             else:
                 raise ValueError(f"Position {position} invalid when placing source inside the mesh! "
                                  f"If this is happening frequently, consider reducing the number of `sources`, "
-                                 f"`min_distance_from_mic`, or `min_distance_from_source`.")
+                                 f"or the `empty_space_around` arguments.")
 
         # Add the sources to the ray-tracing engine
         self._setup_sources()
@@ -806,11 +815,11 @@ class Space:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (f"Could not place source in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
-                           f"Consider reducing `min_distance_from` arguments.")
+                           f"Consider reducing `empty_space_around` arguments.")
                 # If we were trying to add it to a specific position
                 else:
                     msg = (f"Position {position_} invalid for source. "
-                           f"Consider reducing `min_distance_from` arguments.")
+                           f"Consider reducing `empty_space_around` arguments.")
 
                 # Raise the error if required or just log a warning and skip to the next source
                 if raise_on_error:
