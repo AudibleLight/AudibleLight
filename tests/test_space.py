@@ -250,6 +250,41 @@ def test_add_source_invalid(oyens_space: Space):
     # Cannot use random positions with polar = True
     with pytest.raises(AssertionError):
         oyens_space.add_source(position=None, polar=True)
+    # This source is valid, but has no direct path to the microphone
+    with pytest.raises(ValueError):
+        # Source is in bedroom 2, microphone is in living room
+        oyens_space.add_microphone(position=np.array([-1.5, -1.5, 0.7]), alias="tester", keep_existing=False)
+        oyens_space.add_source(
+            position=np.array([2.9, -7.0, 0.3]),
+            polar=False,
+            ensure_direct_path="tester",
+            keep_existing=False
+        )
+
+
+# noinspection PyTypeChecker
+@pytest.mark.parametrize(
+    "inputs,outputs",
+    [
+        (True, ["tester1", "tester2", "tester3"]),
+        ("tester1", ["tester1"]),
+        (["tester2", "tester3"], ["tester2", "tester3"]),
+        (["tester3", "tester3"], ["tester3"]),    # duplicates removed
+        (False, []),
+        ("tester4", KeyError),    # not a microphone alias
+        (["tester1", "tester2", "tester4"], KeyError),     # contains a missing alias
+        (object, TypeError),    # cannot handle this type
+        (123, TypeError),    # cannot handle this type
+    ]
+)
+def test_get_microphones_from_alias(inputs, outputs, oyens_space: Space):
+    oyens_space.add_microphones(aliases=["tester1", "tester2", "tester3"], keep_existing=False)
+    if isinstance(outputs, type) and issubclass(outputs, Exception):
+        with pytest.raises(outputs):
+            _ = oyens_space._parse_valid_microphone_aliases(inputs)
+    else:
+        actuals = oyens_space._parse_valid_microphone_aliases(inputs)
+        assert sorted(actuals) == outputs
 
 
 @pytest.mark.parametrize(
@@ -521,6 +556,37 @@ def test_save_wavs(oyens_space: Space):
             x = oyens_space.irs["mic000"][caps_idx][0]
             assert np.allclose(y, x, atol=1e-4)
     # Temporary directory is implicitly cleaned up
+
+
+@pytest.mark.parametrize(
+    "point_a,point_b,expected_result",
+    [
+        # Point A in bedroom 1, point B in bedroom 2: should have no direct line
+        (
+            np.array([-1.5, -1.5, 0.7]),
+            np.array([2.9, -7.0, 0.3]),
+            False
+        ),
+        # Point A and B both in living room, should have a direct line
+        (
+            [2.5, 0., 0.5],
+            [2.4, -1.0, 0.7],
+            True
+        ),
+        # Point A in living room, point B in bedroom 2
+        (
+            np.array([2.5, 0., 0.5]),
+            [2.9, -7.0, 0.3],
+            False
+        )
+    ]
+)
+def test_path_between_points(point_a: np.ndarray, point_b: np.ndarray, expected_result: bool, oyens_space: Space):
+    """Tests function for ensuring a direct path exists between two points inside a mesh"""
+    # Go "both ways" for this function: result should be identical
+    result1 = oyens_space.path_exists_between_points(point_a, point_b)
+    result2 = oyens_space.path_exists_between_points(point_b, point_a)
+    assert result1 == expected_result == result2
 
 
 @pytest.mark.parametrize(

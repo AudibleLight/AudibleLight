@@ -498,34 +498,43 @@ class Space:
 
     def _try_add_source(
             self,
-            position: Union[list, None],
+            position: Optional[list],
             relative_mic: Optional[Type['MicArray']],
             source_alias: str,
-            polar: bool
+            polar: bool,
+            path_between: list[str]
     ) -> bool:
         """
-        Try to place a source at position with the given alias. Return True if successful, False otherwise.
+        Attempt to add a source at the given position with the specified alias.
+        Returns True if placement is successful, otherwise False.
         """
-        for attempt in range(MAX_PLACE_ATTEMPTS):
-            # Grab a random position for the source if required
-            pos = position if position is not None else self.get_random_position()
-            assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
-            # Pos will be in cartesian form, but we can convert to polar if required
+        # True if we want a specific position, False if not
+        position_is_assigned = position is not None
+        # If we have already provided a position, this loop will only iterate once
+        #  Otherwise, we want a random position, so we iterate N times until the position is valid
+        for attempt in range(1 if position_is_assigned else MAX_PLACE_ATTEMPTS):
+            # Get a random position if required or use the assigned one
+            pos = position if position_is_assigned else self.get_random_position()
+            if len(pos) != 3:
+                raise ValueError(f"Expected three coordinates but got {len(pos)}")
+            # Convert to Cartesian if position is in polar coordinates
             if polar:
-                assert relative_mic is not None, "Must provide a reference mic to use polar coordinates"
-                assert position is not None, "Must set polar to False when using random positions"
+                if not relative_mic or not position_is_assigned:
+                    raise ValueError("Polar coordinates require a relative mic and a fixed position")
                 pos = utils.polar_to_cartesian(pos)[0]
-            # If we want to express the position relative to a given microphone
-            if relative_mic is not None:
-                # Add the source position to the center of the microphone
+            # Adjust position relative to the mic array if provided
+            if relative_mic:
                 pos = relative_mic.coordinates_center + pos
-            # If we have a valid position for the source
-            if self._validate_position(pos):
-                self.sources[source_alias] = np.asarray(pos)
-                return True
-            # If we were trying to place the source in a specific location, only make one attempt at placing it
-            elif position is not None:
-                break
+            # If position invalid, skip over
+            if not self._validate_position(pos):
+                continue
+            # If line-of-sight not obtained with required microphones, skip over
+            if not all(self.path_exists_between_points(pos, self.microphones[d].coordinates_center) for d in path_between):
+                continue
+            # Successfully placed: add to the source dictionary and return True
+            self.sources[source_alias] = np.asarray(pos)
+            return True
+        # Cannot place: return False
         return False
 
     def _get_default_source_alias(self) -> str:
@@ -547,6 +556,65 @@ class Space:
         self.sources = {}
         self.ctx.clear_sources()
 
+    def path_exists_between_points(self, point_a: np.ndarray, point_b: np.ndarray) -> bool:
+        """
+        Returns True if a direct point exists between point_a and point_b in the mesh, False otherwise.
+        """
+        # Coerce to 1D array and sanity check
+        point_a = np.asarray(point_a)
+        point_b = np.asarray(point_b)
+        for point in [point_a, point_b]:
+            assert point.shape == (3, ), f"Expected an array with shape (3, ) but got {point.shape}"
+            assert self._is_point_inside_mesh(point), f"Point {point} is not inside the mesh"
+        # Calculate direction vector from points A to B
+        direction = point_b - point_a
+        length = np.linalg.norm(direction)
+        direction_unit = direction / length
+        # Cast ray from A towards B and get intersections (locations and indices)
+        locations, index_ray, index_tri = self.mesh.ray.intersects_location(
+            ray_origins=utils.coerce2d(point_a),  # trimesh expecting 2D arrays?
+            ray_directions=utils.coerce2d(direction_unit)
+        )
+        # Check if any intersection is closer than B
+        if len(locations) > 0:
+            # Calculate distances from A to each intersection
+            distances = np.linalg.norm(locations - point_a, axis=1)
+            if np.any(distances < length):
+                # No direct line: mesh blocks the segment.
+                return False
+        # Direct line exists: either no blocking intersections, or no intersections at all
+        return True
+
+    def _parse_valid_microphone_aliases(
+            self,
+            aliases: Union[bool, list, str, None]
+    ) -> list[str]:
+        """
+        Get valid microphone aliases from an input
+        """
+        # If True, we should get a list of all the microphones
+        if aliases is True:
+            return list(self.microphones.keys())
+        # If a single string, validate and convert to [string]
+        elif isinstance(aliases, str):
+            if aliases not in self.microphones.keys():
+                raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
+            return [aliases]
+        # If a list of strings, validate these
+        elif isinstance(aliases, list):
+            # Sanity check that all the provided aliases exist in our dictionary
+            not_in = [e for e in aliases if e not in self.microphones.keys()]
+            if len(not_in) > 0:
+                raise KeyError(f"Some provided microphone aliases were not found: {', '.join(not_in)}")
+            # Remove duplicates from the list
+            return list(set(aliases))
+        # If False or None, return an empty list (which we'll skip over later)
+        elif aliases is False or aliases is None:
+            return []
+        # Otherwise, we can't handle the input, so return an error
+        else:
+            raise TypeError(f"Cannot handle input with type {type(aliases)}")
+
     def add_source(
             self,
             position: Union[list, np.ndarray, None] = None,
@@ -554,6 +622,7 @@ class Space:
             mic_alias: str = None,
             keep_existing: bool = False,
             polar: bool = True,
+            ensure_direct_path: Union[bool, list, str, None] = False,
     ) -> None:
         """
         Add a source to the space.
@@ -571,6 +640,10 @@ class Space:
             keep_existing (optional): Whether to keep existing sources from the mesh or remove, defaults to keep
             polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
                 units are [x, y, z] in absolute, cartesian terms.
+            ensure_direct_path: Whether to ensure a direct line exists between the source and given microphone(s).
+                If True, will ensure a direct line exists between the source and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a source.
 
         Examples:
             Create a space with a given mesh and add a microphone
@@ -588,13 +661,20 @@ class Space:
             Add source relative to microphone
             >>> spa.add_source(position=[0.1, 0.1, 0.1], source_alias="custom", mic_alias="tester")
             >>> spa.sources["custom"]
+
+            Add source with a random position that is in a direct line with the microphone we placed above
+            >>> spa.add_source(ensure_direct_path="tester")
         """
         # Remove existing sources if we wish to do this
         if not keep_existing:
             self._clear_sources()
 
+        # Sanity checking
         if polar:
             assert mic_alias is not None, "mic_alias is required for polar coordinates"
+
+        # Parse the list of microphone aliases that we require a direct line to
+        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # If we want to express our sources relative to a given microphone, grab this now
         desired_mic = self._get_mic_from_alias(mic_alias)
@@ -603,7 +683,8 @@ class Space:
         source_alias = self._get_default_source_alias() if source_alias is None else source_alias
 
         # Try and place inside the mesh: return True if placed, False if not
-        placed = self._try_add_source(position, desired_mic, source_alias, polar)
+        placed = self._try_add_source(position, desired_mic, source_alias, polar, direct_path_to)
+
         # If we can't add the source to the mesh
         if not placed:
             # If we were trying to add it to a random position
@@ -628,6 +709,7 @@ class Space:
             n_sources: Optional[int] = None,
             keep_existing: bool = False,
             polar: bool = True,
+            ensure_direct_path: Union[bool, list, str, None] = False,
             raise_on_error: bool = True,
     ) -> None:
         """
@@ -646,6 +728,10 @@ class Space:
             raise_on_error (optional): if True, raises an error when unable to place source, otherwise skips to next.
             n_sources: Number of sources to add with random positions
             polar (optional): if True, `position` is expected in form [azimuth, colatitude, elevation] relative to mic
+            ensure_direct_path: Whether to ensure a direct line exists between the source and given microphone(s).
+                If True, will ensure a direct line exists between the source and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a source.
         """
         # Remove existing sources if we wish to do this
         if not keep_existing:
@@ -654,6 +740,9 @@ class Space:
 
         if polar:
             assert mic_aliases is not None, "mic_alias is required for polar coordinates"
+
+        # Parse the list of microphone aliases that we require a direct line to
+        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         if positions is not None and n_sources is not None:
             raise TypeError("Cannot specify both `n_sources` and `positions`.")
@@ -693,7 +782,7 @@ class Space:
             source_alias_ = self._get_default_source_alias() if source_alias_ is None else source_alias_
 
             # Try and place the source inside the space
-            placed = self._try_add_source(position_, desired_mic, source_alias_, polar)
+            placed = self._try_add_source(position_, desired_mic, source_alias_, polar, direct_path_to)
 
             # If we can't add the source to the mesh
             if not placed:
