@@ -192,6 +192,7 @@ def test_add_microphones_invalid_inputs(oyens_space: Space):
         oyens_space.add_microphones(aliases=["tmp_alias"], keep_existing=True)
 
 
+# noinspection PyTypeChecker
 @pytest.mark.parametrize(
     "test_position,expected",
     [
@@ -200,13 +201,21 @@ def test_add_microphones_invalid_inputs(oyens_space: Space):
         (np.array([-0.5, -0.5, 0.4]), False),    # Too close to mic
         (np.array([-0.8, -1.5, 0.2]), False),    # Too close to the surface
         (np.array([-0.1, -0.1, 0.6]), True),    # Fine!
-        (np.array([0.5, 0.5, 0.5]), True)    # Also fine
+        (np.array([0.5, 0.5, 0.5]), True),   # Also fine
+        (np.array([0.5]), ValueError),     # should raise an error with invalid array shape
+        (np.array([[0.5, 0.5, 0.5], [-0.4, -0.5, 0.5]]), False),     # 1 invalid, 2 valid
+        (np.array([[0.5, 0.5, 0.5], [-0.1, -0.1, 0.6]]), True),    # both valid
+        (np.array([[0.5], [0.5]]), ValueError),     # should raise an error with invalid array shape
     ]
 )
-def test_validate_positions(test_position: np.ndarray, expected: bool, oyens_space: Space):
+def test_validate_position(test_position: np.ndarray, expected: bool, oyens_space: Space):
     """Given a microphone with coordinates [-0.5, -0.5, 0.5], test whether test_position is valid"""
     oyens_space.add_microphone(microphone_type="ambeovr", position=[-0.5, -0.5, 0.5], keep_existing=False)
-    assert oyens_space._validate_position(test_position) == expected
+    if isinstance(expected, type) and issubclass(expected, Exception):
+        with pytest.raises(expected):
+            oyens_space._validate_position(test_position)
+    else:
+        assert oyens_space._validate_position(test_position) == expected
 
 
 @pytest.mark.parametrize(

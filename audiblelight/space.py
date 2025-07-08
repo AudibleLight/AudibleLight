@@ -482,19 +482,36 @@ class Space:
 
     def _validate_position(self, pos_abs: np.ndarray) -> bool:
         """
-        Validates a position with respect to the mesh and objects (microphones, sources) inside it
+        Validates a position or array of positions with respect to the mesh and objects inside it.
+        Returns True if valid, False if not. If multiple arrays provided, return True only if all are valid.
         """
-        return all((
-            # source must be a minimum distance from all other sources
-            all(np.linalg.norm(pos_abs - pos) >= self.min_distance_from_source for pos in self.sources.values()),
-            # source must be a minimum distance from every microphone capsule
-            #  setting axis=1 means that we calculate the distance independently for every capsule on every microphone
-            all(all(np.linalg.norm(pos_abs - mic.coordinates_absolute, axis=1) >= self.min_distance_from_mic) for mic in self.microphones.values()),
-            # source must be a minimum distance from the surface
-            bool(self.mesh.nearest.on_surface([pos_abs])[1][0] >= self.min_distance_from_surface),
-            # source must be inside the mesh
-            self._is_point_inside_mesh(pos_abs)
-        ))
+        # Coerce to a 2D array of XYZ positions, for iteration
+        positions = utils.coerce2d(pos_abs)
+        if positions.shape[1] != 3:
+            raise ValueError("Expected input to have shape (N, 3) for XYZ coordinates")
+
+        # Iterate over all positions
+        for position in positions:
+            # Check minimum distance from all sources
+            if any(np.linalg.norm(position - src) < self.min_distance_from_source for src in self.sources.values()):
+                return False
+
+            # Check minimum distance from the center of every microphone
+            if len(self.microphones) > 0:
+                coordinates = np.vstack([mic.coordinates_center for mic in self.microphones.values()])
+                distances = np.linalg.norm(position - coordinates, axis=1)
+                if np.any(distances < self.min_distance_from_mic):
+                    return False
+
+            # Check minimum distance from mesh surface
+            if self.mesh.nearest.on_surface([position])[1][0] < self.min_distance_from_surface:
+                return False
+
+            # Check if the position is inside the mesh
+            if not self._is_point_inside_mesh(position):
+                return False
+
+        return True
 
     def _try_add_source(
             self,
