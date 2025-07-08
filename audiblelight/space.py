@@ -589,7 +589,6 @@ class Space:
             >>> spa.add_source(position=[0.1, 0.1, 0.1], source_alias="custom", mic_alias="tester")
             >>> spa.sources["custom"]
         """
-        # TODO: allow sources to be specified in polar units
         # Remove existing sources if we wish to do this
         if not keep_existing:
             self._clear_sources()
@@ -648,7 +647,6 @@ class Space:
             n_sources: Number of sources to add with random positions
             polar (optional): if True, `position` is expected in form [azimuth, colatitude, elevation] relative to mic
         """
-        # TODO: allow sources to be specified in polar units
         # Remove existing sources if we wish to do this
         if not keep_existing:
             self.sources = {}
