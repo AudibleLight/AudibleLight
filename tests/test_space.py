@@ -723,3 +723,16 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
     arrival_far = min(np.flatnonzero(irs["farmic"]))
     # Should hit the closer mic before the further mic
     assert arrival_close < arrival_far
+
+
+def test_save_egocentric_view(oyens_space: Space):
+    # Add microphone and sources
+    oyens_space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
+    oyens_space.add_sources(n_sources=5, ensure_direct_path="ego", keep_existing=False, polar=False)
+    # Dump a graphic
+    oyens_space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", view_angle=60)
+    assert os.path.isfile("tmp.svg")
+    os.remove("tmp.svg")
+    # Try with some invalid attributes
+    with pytest.raises(AttributeError):
+        oyens_space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", will_raise="an_error")

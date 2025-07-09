@@ -17,6 +17,7 @@ from audiblelight import utils
 from audiblelight.micarrays import get_micarray_from_string, MICARRAY_LIST, MicArray, MonoCapsule
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
+UP = (0, 0, 1)    # vector pointing straight up in z-axis direction
 
 MIN_AVG_RAY_LENGTH = 3.0
 MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
@@ -896,12 +897,19 @@ class Space:
         """
         scene = self.mesh.scene()
         # This just adds the microphone positions
-        for mic in self.microphones.values():
-            for capsule in mic.coordinates_absolute:
-                add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
+        #  Having the if/else statement prevents errors when creating the sphere in trimesh
+        if mic_radius > 0.:
+            for mic in self.microphones.values():
+                for capsule in mic.coordinates_absolute:
+                    add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
+        else:
+            logger.warning("`mic_radius` is not positive: microphones will not be added to scene")
         # This adds the sound sources, with different color + radius
-        for source in self.sources.values():
-            add_sphere(scene, source, [0, 255, 0], r=source_radius)
+        if source_radius > 0.:
+            for source in self.sources.values():
+                add_sphere(scene, source, [0, 255, 0], r=source_radius)
+        else:
+            logger.warning("`source_radius` is not positive: sources will not be added to scene")
         return scene    # can then run `.show()` on the returned object
 
     def create_plot(self, ) -> plt.Figure:
@@ -933,6 +941,73 @@ class Space:
         # Return the matplotlib figure object
         fig.tight_layout()
         return fig    # can be used with plt.show, fig.savefig, etc.
+
+    # noinspection PyTypeChecker
+    def save_egocentric_view(
+            self,
+            mic_alias: str,
+            outpath: str,
+            center: Optional[Union[list[float], np.ndarray]] = None,
+            **camera_kws
+    ) -> None:
+        """
+        Creates a graphic showing the egocentric view of the microphone pointing towards `center`.
+
+        Arguments:
+            mic_alias (str): The name of the microphone
+            outpath (str): The path of the output file
+            center: the position inside the mesh that the egocentric view should point towards
+            camera_kws: Additional keyword arguments to pass to the camera function in `pyvista`.
+
+        Examples:
+            >>> # Create a space with a given mesh, add a microphone and 10 random sources with a direct path to the mic
+            >>> spa = Space(mesh=...)
+            >>> spa.add_microphone(alias="ambeovr")
+            >>> spa.add_sources(n_sources=10, ensure_direct_path="ambeovr", polar=False)
+            >>> # Save the egocentric viewpoint of the microphone, pointing towards the center of all sources
+            >>> spa.save_egocentric_view("ambeovr", "out.svg", view_angle=60)    # view_angle passed to `pyvista`
+        """
+
+        # Handle PyVista import
+        try:
+            import pyvista as pv
+        except (ImportError, ModuleNotFoundError):
+            raise ModuleNotFoundError("PyVista is not installed. Please run `pip install 'pyvista[jupyter]'`.")
+
+        # Get the microphone coordinates
+        if mic_alias not in self.microphones.keys():
+            raise KeyError("Microphone alias '{}' is not a valid microphone alias".format(mic_alias))
+        x, y, z = self.microphones[mic_alias].coordinates_center
+
+        # Create the scene, dump the mesh, and load up in pyvista
+        sc = self.create_scene(mic_radius=0.)  # setting the radius to 0 means we won't add a sphere for the mic
+        tm = trimesh.util.concatenate(sc.dump())
+        pv_mesh = pv.wrap(tm)
+        # Create the plotting object inside pyvista
+        plotter = pv.Plotter(off_screen=True)   # don't create a window showing the plot
+        plotter.add_mesh(pv_mesh)
+
+        # If we haven't specified a center for the view, take the center of all sources or the center of the mesh
+        if center is None:
+            if len(self.sources.values()) == 0:
+                logger.info("Using mesh centroid as camera focus point")
+                center = self.mesh.centroid
+            else:
+                logger.info("Using centroids of all sources as camera focus point")
+                center = np.vstack(list(self.sources.values())).mean(axis=0)
+        assert self._is_point_inside_mesh(center), f"Point {center} is not inside the mesh"
+
+        # Set the camera position
+        plotter.camera_position = [(x, y, z), center, UP]
+        # Set the properties of the camera as required
+        for camera_key, camera_value in camera_kws.items():
+            if hasattr(plotter.camera, camera_key):
+                setattr(plotter.camera, camera_key, camera_value)
+            else:
+                raise AttributeError(f"`{camera_key}` is not a valid attribute for `pyvista.Camera`")
+
+        # Dump the graphic
+        plotter.save_graphic(outpath)
 
     def save_irs_to_wav(self, outdir: str) -> None:
         """
