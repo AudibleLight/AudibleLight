@@ -748,6 +748,7 @@ def test_parse_center_point(ins, outs, oyens_space: Space):
 
 
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_save_egocentric_view(mesh_fpath):
     space = Space(mesh_fpath)
     # Add microphone and sources
