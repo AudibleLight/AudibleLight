@@ -9,14 +9,18 @@ from typing import Any, Union, Optional, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pyvista as pv
 import trimesh
-from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
+from PIL import Image
 from loguru import logger
+from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
 
 from audiblelight import utils
 from audiblelight.micarrays import get_micarray_from_string, MICARRAY_LIST, MicArray, MonoCapsule
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
+MIC_FACE_COLOR = "red"
+SOURCE_FACE_COLOR = "blue"
 UP = (0, 0, 1)    # vector pointing straight up in z-axis direction
 
 MIN_AVG_RAY_LENGTH = 3.0
@@ -28,6 +32,8 @@ EMPTY_SPACE_AROUND_SURFACE = 0.2    # Minimum distance from the nearest mesh sur
 EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual microphone capsules
 
 WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
+
+Image.MAX_IMAGE_PIXELS = None    # seems necessary to load textures properly in trimesh
 
 
 def load_mesh(mesh: Union[str, Path]) -> trimesh.Trimesh:
@@ -106,7 +112,7 @@ class Space:
     """
     def __init__(
             self,
-            mesh: Union[str, trimesh.Trimesh],
+            mesh: Union[str, trimesh.Trimesh, Path],
             empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
             empty_space_around_source: Optional[float] = EMPTY_SPACE_AROUND_SOURCE,
             empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
@@ -117,7 +123,7 @@ class Space:
         Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
 
         Args:
-            mesh (str|trimesh.Trimesh): The name of the mesh file. Units will be coerced to meters when loading
+            mesh: The name of the mesh file. Units will be coerced to meters when loading
             empty_space_around_mic (float): minimum meters new sources/mics will be placed from the center of other mics
             empty_space_around_source (float): minimum meters new sources/mics will be placed from other sources
             empty_space_around_surface (float): minimum meters new sources/mics will be placed from mesh sources
@@ -888,29 +894,54 @@ class Space:
             all_irs[mic_alias] = mic.irs
         return all_irs
 
-    def create_scene(self, mic_radius: float = 0.2, source_radius: float = 0.1) -> trimesh.Scene:
+    def create_scene(
+            self,
+            mic_radius: float = 0.2,
+            source_radius: float = 0.1,
+            mic_color: Union[list[float], str] = MIC_FACE_COLOR,
+            source_color: Union[list[float], str] = SOURCE_FACE_COLOR
+    ) -> pv.Plotter:
         """
-        Creates a trimesh.Scene with the Space's mesh, microphone position, and sources all added
+        Creates a pv.Plotter with the Space's mesh, microphone position, and sources all added
+
+        Parameters:
+            mic_radius (float): the radius of spheres to add for microphone objects. If non-positive, no spheres added.
+            source_radius (float): the radius of spheres to add for sources. If non-positive, no spheres added.
+            mic_color (list[float] | str): the color used for microphone spheres, defaults to red
+            source_color (list[float] | str): the color used for source spheres, defaults to red
 
         Returns:
-            trimesh.Scene: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
+            pv.Plotter: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
         """
-        scene = self.mesh.scene()
+        # Create the plotting object inside pyvista
+        plotter = pv.Plotter(off_screen=True)   # don't create a window showing the plot
+        # Wrap the trimesh object up for Pyvista
+        pv_mesh = pv.wrap(self.mesh)
+        # Grab the texture
+        texture = utils.extract_texture(self.mesh)
+        # If we can get a texture, add it to the mesh, otherwise skip over
+        if texture is not None:
+            plotter.add_mesh(pv_mesh, texture=pv.Texture(texture))
+        else:
+            logger.warning("Could not get texture for mesh, skipping...")
+            plotter.add_mesh(pv_mesh)
         # This just adds the microphone positions
         #  Having the if/else statement prevents errors when creating the sphere in trimesh
         if mic_radius > 0.:
-            for mic in self.microphones.values():
+            for mic_alias, mic in self.microphones.items():
                 for capsule in mic.coordinates_absolute:
-                    add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
+                    sphere = pv.Sphere(radius=mic_radius, center=capsule)
+                    plotter.add_mesh(sphere, color=mic_color, name=mic_alias, label=mic_alias)
         else:
             logger.warning("`mic_radius` is not positive: microphones will not be added to scene")
         # This adds the sound sources, with different color + radius
         if source_radius > 0.:
-            for source in self.sources.values():
-                add_sphere(scene, source, [0, 255, 0], r=source_radius)
+            for source_alias, source in self.sources.items():
+                sphere = pv.Sphere(radius=source_radius, center=source)
+                plotter.add_mesh(sphere, color=source_color, name=source_alias, label=source_alias)
         else:
             logger.warning("`source_radius` is not positive: sources will not be added to scene")
-        return scene    # can then run `.show()` on the returned object
+        return plotter    # can then run `.show()` on the returned object
 
     def create_plot(self, ) -> plt.Figure:
         """
@@ -968,26 +999,16 @@ class Space:
             >>> spa.save_egocentric_view("ambeovr", "out.svg", view_angle=60)    # view_angle passed to `pyvista`
         """
 
-        # Handle PyVista import
-        try:
-            import pyvista as pv
-        except (ImportError, ModuleNotFoundError):
-            raise ModuleNotFoundError("PyVista is not installed. Please run `pip install 'pyvista[jupyter]'`.")
-
         # Get the microphone coordinates
         if mic_alias not in self.microphones.keys():
             raise KeyError("Microphone alias '{}' is not a valid microphone alias".format(mic_alias))
         x, y, z = self.microphones[mic_alias].coordinates_center
 
-        # Create the scene, dump the mesh, and load up in pyvista
-        sc = self.create_scene(mic_radius=0.)  # setting the radius to 0 means we won't add a sphere for the mic
-        tm = trimesh.util.concatenate(sc.dump())
-        pv_mesh = pv.wrap(tm)
         # Create the plotting object inside pyvista
-        plotter = pv.Plotter(off_screen=True)   # don't create a window showing the plot
-        plotter.add_mesh(pv_mesh)
+        plotter = self.create_scene(mic_radius=0.)
 
         # If we haven't specified a center for the view, take the center of all sources or the center of the mesh
+        # TODO: center should also support a (list of) source alias(es) which we'll point towards
         if center is None:
             if len(self.sources.values()) == 0:
                 logger.info("Using mesh centroid as camera focus point")

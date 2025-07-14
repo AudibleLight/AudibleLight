@@ -7,10 +7,11 @@ import os
 from tempfile import TemporaryDirectory
 
 import pytest
+import pyvista as pv
 import matplotlib.pyplot as plt
 import numpy as np
 import soundfile as sf
-from trimesh import Trimesh, Scene
+from trimesh import Trimesh
 from scipy.signal import stft
 from pyroomacoustics.doa.music import MUSIC
 
@@ -539,9 +540,7 @@ def test_create_scene(oyens_space):
     oyens_space.add_source(polar=False)
     # Create the scene
     scene = oyens_space.create_scene()
-    assert isinstance(scene, Scene)
-    # Should have more geometry than the "raw" scene (without adding spheres for capsules/sources)
-    assert len(scene.geometry) > len(oyens_space.mesh.scene().geometry)
+    assert isinstance(scene, pv.Plotter)
 
 
 def test_save_wavs(oyens_space: Space):
@@ -725,14 +724,16 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
     assert arrival_close < arrival_far
 
 
-def test_save_egocentric_view(oyens_space: Space):
+@pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+def test_save_egocentric_view(mesh_fpath):
+    space = Space(mesh_fpath)
     # Add microphone and sources
-    oyens_space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
-    oyens_space.add_sources(n_sources=5, ensure_direct_path="ego", keep_existing=False, polar=False)
+    space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
+    space.add_sources(n_sources=3, ensure_direct_path="ego", keep_existing=False, polar=False)
     # Dump a graphic
-    oyens_space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", view_angle=60)
+    space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", view_angle=60)
     assert os.path.isfile("tmp.svg")
     os.remove("tmp.svg")
     # Try with some invalid attributes
     with pytest.raises(AttributeError):
-        oyens_space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", will_raise="an_error")
+        space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", will_raise="an_error")
