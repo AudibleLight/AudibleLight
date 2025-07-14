@@ -13,7 +13,7 @@ tqdm==4.67.1
 trimesh==4.6.11
 scaper
 torch
-rlr-audio-propagation @ git+https://github.com/beasteers/rlr-audio-propagation@main
+rlr-audio-propagation @ git+https://github.com/facebookresearch/habitat-sim@RLRAudioPropagationUpdate
 pyglet<2
 loguru
 pre-commit
