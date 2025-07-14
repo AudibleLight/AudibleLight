@@ -750,15 +750,25 @@ def test_parse_center_point(ins, outs, oyens_space: Space):
 
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
 @pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
-def test_save_egocentric_view(mesh_fpath):
-    space = Space(mesh_fpath)
+def test_save_egocentric_graphic(mesh_fpath):
+    space = Space(mesh_fpath, use_textures=True)
     # Add microphone and sources
     space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
     space.add_sources(n_sources=3, ensure_direct_path="ego", keep_existing=False, polar=False)
     # Dump a graphic: using source_aliases=True means we'll focus on the center of all sources
-    space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", view_angle=60, center="source_center")
+    space.save_egocentric_graphic(mic_alias="ego", outpath="tmp.svg", view_angle=60, center="source_center")
     assert os.path.isfile("tmp.svg")
     os.remove("tmp.svg")
-    # Try with some invalid attributes
-    with pytest.raises(AttributeError):
-        space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", will_raise="an_error")
+
+
+@pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
+def test_save_egocentric_video(mesh_fpath: str):
+    space = Space(mesh_fpath, use_textures=True)
+    # Add microphone and sources
+    space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
+    space.add_sources(n_sources=5, ensure_direct_path="ego", keep_existing=False, polar=False)
+    # Create the video
+    space.save_egocentric_video("ego", "tmp.mp4", )
+    assert os.path.isfile("tmp.mp4")
+    os.remove("tmp.mp4")

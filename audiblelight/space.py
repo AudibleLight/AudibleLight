@@ -128,7 +128,7 @@ class Space:
             empty_space_around_capsule (float): minimum meters new sources/mics will be placed from mic capsules
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
-            use_textures:
+            use_textures (bool): whether or not to use textures when loading or visualising the mesh
         """
         self.use_textures = use_textures
         if self.use_textures:
@@ -1008,8 +1008,62 @@ class Space:
             raise TypeError(f"Expected `center` to be either a string or point inside mesh, but got {type(center)}")
         return np.asarray(center_point)
 
+    @staticmethod
+    def _update_pyvista_camera(plotter: pv.Plotter, **camera_kws):
+        """
+        Updates the camera of a `plotter` object with given kwargs
+        """
+        for camera_key, camera_value in camera_kws.items():
+            if camera_key == "camera_position":
+                raise AttributeError("Cannot pass a custom `camera_position` to `camera`!")
+            if hasattr(plotter.camera, camera_key):
+                setattr(plotter.camera, camera_key, camera_value)
+            else:
+                raise AttributeError(f"`{camera_key}` is not a valid attribute for `pyvista.Camera`")
+
+    def save_egocentric_video(
+            self,
+            mic_alias,
+            outpath: str,
+            n_frames: int = 360,
+            frame_rate: int = 30,
+            **camera_kws
+    ) -> None:
+        """
+        Creates a video showing the egocentric view of the microphone, panning 360 degrees in a circle.
+
+        Arguments:
+            mic_alias (str): The name of the microphone that the view will be created for
+            outpath (str): The path of the output file
+            n_frames (int): Number of frames to generate (defaults to 360)
+            frame_rate (int): Frame rate for video (defaults to 30)
+
+        Examples:
+            >>> # Create a space with a given mesh, add a microphone and 10 random sources with a direct path to the mic
+            >>> spa = Space(mesh=...)
+            >>> spa.add_microphone(alias="ambeovr")
+            >>> spa.add_sources(n_sources=10, ensure_direct_path="ambeovr", polar=False)
+            >>> # Save the egocentric viewpoint of the microphone
+            >>> spa.save_egocentric_video("ambeovr", "out.mp4", n_frames=360)
+        """
+        # Get the microphone coordinates
+        if mic_alias not in self.microphones.keys():
+            raise KeyError("Microphone alias '{}' is not a valid microphone alias".format(mic_alias))
+        ego_point = self.microphones[mic_alias].coordinates_center
+        # Create the pyvista plotting object
+        plotter = self.create_scene(mic_radius=0.)
+        plotter.open_movie(outpath, framerate=frame_rate)
+        # Set the properties of the camera as required
+        self._update_pyvista_camera(plotter, **camera_kws)
+        # Set the camera position for every frame
+        angles = utils.generate_horizontal_angles(ego_point, n_frames)
+        for angle in angles:
+            plotter.camera_position = [ego_point, angle, UP]
+            plotter.write_frame()
+        plotter.close()
+
     # noinspection PyTypeChecker
-    def save_egocentric_view(
+    def save_egocentric_graphic(
             self,
             mic_alias: str,
             outpath: str,
@@ -1032,7 +1086,7 @@ class Space:
             >>> spa.add_microphone(alias="ambeovr")
             >>> spa.add_sources(n_sources=10, ensure_direct_path="ambeovr", polar=False)
             >>> # Save the egocentric viewpoint of the microphone, pointing towards the center of all sources
-            >>> spa.save_egocentric_view("ambeovr", "out.svg", view_angle=60)    # view_angle passed to `pyvista`
+            >>> spa.save_egocentric_graphic("ambeovr", "out.svg", view_angle=60)    # view_angle passed to `pyvista`
         """
         # Get the microphone coordinates
         if mic_alias not in self.microphones.keys():
@@ -1045,11 +1099,7 @@ class Space:
         # Set the camera position
         plotter.camera_position = [(x, y, z), center_point, UP]
         # Set the properties of the camera as required
-        for camera_key, camera_value in camera_kws.items():
-            if hasattr(plotter.camera, camera_key):
-                setattr(plotter.camera, camera_key, camera_value)
-            else:
-                raise AttributeError(f"`{camera_key}` is not a valid attribute for `pyvista.Camera`")
+        self._update_pyvista_camera(plotter, **camera_kws)
         # Dump the graphic
         plotter.save_graphic(outpath)
 

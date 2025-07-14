@@ -167,3 +167,15 @@ def extract_texture(mesh: trimesh.Trimesh) -> Optional[np.ndarray]:
         else:
             raise TypeError(f"Cannot coerce texture type {type(image)} to array")
     return None
+
+
+def generate_horizontal_angles(position, radius: float = 1.0, n_points: int = 360) -> np.ndarray:
+    """Given a XYZ position in 3D space, generate N horizontal angles along a circle with a given radius"""
+    x1, y1, z1 = position
+    angles = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+    # Compute circle points around (x1, y1) at constant z1
+    targets = [
+        (x1 + radius * np.cos(theta), y1 + radius * np.sin(theta), z1)
+        for theta in angles
+    ]
+    return np.asarray(targets)
