@@ -631,11 +631,7 @@ class Space:
         """
         # If no dictionary passed in, use the microphones dictionary by default
         if _alias_iter is None:
-            assert self.microphones is not None
             _alias_iter = self.microphones
-        # Sanity checking input
-        assert _alias_iter is not None
-        assert len(_alias_iter) > 0
 
         # If True, we should get a list of all the microphones
         if aliases is True:
