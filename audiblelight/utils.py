@@ -5,11 +5,12 @@
 
 import wave
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import random
 import numpy as np
 import torch
+import trimesh.visual
 from loguru import logger
 
 MESH_UNITS = "meters"    # will convert to this if
@@ -143,3 +144,38 @@ def check_all_lens_equal(*iterables) -> bool:
     Returns True if all iterables have the same length, False otherwise
     """
     return len({len(i) for i in iterables}) == 1
+
+
+# noinspection PyTypeChecker
+def extract_texture(mesh: trimesh.Trimesh) -> Optional[np.ndarray]:
+    """
+    Extracts the texture from a mesh object.
+    """
+    from PIL.Image import Image
+
+    material = getattr(mesh.visual, "material", None)
+    # This type of material can be coerced to PBR easily
+    if isinstance(material, trimesh.visual.material.SimpleMaterial):
+        material = material.to_pbr()
+    # Safely handle getting the texture from the material
+    if isinstance(material, trimesh.visual.material.PBRMaterial):
+        image = material.baseColorTexture
+        if isinstance(image, Image):
+            return np.array(image)
+        elif isinstance(image, np.ndarray):
+            return image
+        else:
+            raise TypeError(f"Cannot coerce texture type {type(image)} to array")
+    return None
+
+
+def generate_horizontal_angles(position, radius: float = 1.0, n_points: int = 360) -> np.ndarray:
+    """Given a XYZ position in 3D space, generate N horizontal angles along a circle with a given radius"""
+    x1, y1, z1 = position
+    angles = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+    # Compute circle points around (x1, y1) at constant z1
+    targets = [
+        (x1 + radius * np.cos(theta), y1 + radius * np.sin(theta), z1)
+        for theta in angles
+    ]
+    return np.asarray(targets)

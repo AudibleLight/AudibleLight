@@ -7,10 +7,11 @@ import os
 from tempfile import TemporaryDirectory
 
 import pytest
+import pyvista as pv
 import matplotlib.pyplot as plt
 import numpy as np
 import soundfile as sf
-from trimesh import Trimesh, Scene
+from trimesh import Trimesh
 from scipy.signal import stft
 from pyroomacoustics.doa.music import MUSIC
 
@@ -60,6 +61,7 @@ def oyens_space() -> Space:
     oyens = os.path.join(utils.get_project_root(), "tests/test_resources/Oyens.glb")
     space = Space(
         oyens,
+        use_textures=False,
         empty_space_around_source=0.2,    # all in meters
         empty_space_around_mic=0.1,    # all in meters
         empty_space_around_surface=0.2    # all in meters
@@ -290,9 +292,9 @@ def test_get_microphones_from_alias(inputs, outputs, oyens_space: Space):
     oyens_space.add_microphones(aliases=["tester1", "tester2", "tester3"], keep_existing=False)
     if isinstance(outputs, type) and issubclass(outputs, Exception):
         with pytest.raises(outputs):
-            _ = oyens_space._parse_valid_microphone_aliases(inputs)
+            _ = oyens_space._parse_valid_aliases(inputs)
     else:
-        actuals = oyens_space._parse_valid_microphone_aliases(inputs)
+        actuals = oyens_space._parse_valid_aliases(inputs)
         assert sorted(actuals) == outputs
 
 
@@ -539,9 +541,7 @@ def test_create_scene(oyens_space):
     oyens_space.add_source(polar=False)
     # Create the scene
     scene = oyens_space.create_scene()
-    assert isinstance(scene, Scene)
-    # Should have more geometry than the "raw" scene (without adding spheres for capsules/sources)
-    assert len(scene.geometry) > len(oyens_space.mesh.scene().geometry)
+    assert isinstance(scene, pv.Plotter)
 
 
 def test_save_wavs(oyens_space: Space):
@@ -723,3 +723,52 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
     arrival_far = min(np.flatnonzero(irs["farmic"]))
     # Should hit the closer mic before the further mic
     assert arrival_close < arrival_far
+
+
+@pytest.mark.parametrize(
+    "ins,outs",
+    [
+        ("tester_mic", np.array([0.5, -3.5, 0.7])),
+        ("tester_source", np.array([-0.5, -0.5, 0.5])),
+        ("error_raise", ValueError),
+        ([-0.5, -0.5, 0.5], np.array([-0.5, -0.5, 0.5])),
+        (123, TypeError)
+    ]
+)
+def test_parse_center_point(ins, outs, oyens_space: Space):
+    oyens_space._clear_microphones()
+    oyens_space._clear_sources()
+    # Add dummy mic and source
+    oyens_space.add_microphone("ambeovr", position=[0.5, -3.5, 0.7], alias="tester_mic")
+    oyens_space.add_source(position=[-0.5, -0.5, 0.5], source_alias="tester_source", polar=False)
+    if isinstance(outs, type) and issubclass(outs, Exception):
+        with pytest.raises(outs):
+            oyens_space._parse_center_point_for_view(ins)
+    else:
+        assert np.array_equal(oyens_space._parse_center_point_for_view(ins), outs)
+
+
+@pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
+def test_save_egocentric_graphic(mesh_fpath):
+    space = Space(mesh_fpath, use_textures=True)
+    # Add microphone and sources
+    space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
+    space.add_sources(n_sources=3, ensure_direct_path="ego", keep_existing=False, polar=False)
+    # Dump a graphic: using source_aliases=True means we'll focus on the center of all sources
+    space.save_egocentric_graphic(mic_alias="ego", outpath="tmp.svg", view_angle=60, center="source_center")
+    assert os.path.isfile("tmp.svg")
+    os.remove("tmp.svg")
+
+
+@pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
+def test_save_egocentric_video(mesh_fpath: str):
+    space = Space(mesh_fpath, use_textures=True)
+    # Add microphone and sources
+    space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
+    space.add_sources(n_sources=5, ensure_direct_path="ego", keep_existing=False, polar=False)
+    # Create the video
+    space.save_egocentric_video("ego", "tmp.mp4", )
+    assert os.path.isfile("tmp.mp4")
+    os.remove("tmp.mp4")

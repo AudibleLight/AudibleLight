@@ -9,14 +9,19 @@ from typing import Any, Union, Optional, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pyvista as pv
 import trimesh
-from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
+from PIL import Image
 from loguru import logger
+from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
 
 from audiblelight import utils
 from audiblelight.micarrays import get_micarray_from_string, MICARRAY_LIST, MicArray, MonoCapsule
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
+MIC_FACE_COLOR = "red"
+SOURCE_FACE_COLOR = "blue"
+UP = (0, 0, 1)    # vector pointing straight up in z-axis direction
 
 MIN_AVG_RAY_LENGTH = 3.0
 MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
@@ -27,7 +32,6 @@ EMPTY_SPACE_AROUND_SURFACE = 0.2    # Minimum distance from the nearest mesh sur
 EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual microphone capsules
 
 WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
-
 
 def load_mesh(mesh: Union[str, Path]) -> trimesh.Trimesh:
     """
@@ -105,25 +109,31 @@ class Space:
     """
     def __init__(
             self,
-            mesh: Union[str, trimesh.Trimesh],
+            mesh: Union[str, trimesh.Trimesh, Path],
             empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
             empty_space_around_source: Optional[float] = EMPTY_SPACE_AROUND_SOURCE,
             empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
             empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
-            repair_threshold: Optional[float] = None
+            repair_threshold: Optional[float] = None,
+            use_textures: bool = False
     ):
         """
         Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
 
         Args:
-            mesh (str|trimesh.Trimesh): The name of the mesh file. Units will be coerced to meters when loading
+            mesh: The name of the mesh file. Units will be coerced to meters when loading
             empty_space_around_mic (float): minimum meters new sources/mics will be placed from the center of other mics
             empty_space_around_source (float): minimum meters new sources/mics will be placed from other sources
             empty_space_around_surface (float): minimum meters new sources/mics will be placed from mesh sources
             empty_space_around_capsule (float): minimum meters new sources/mics will be placed from mic capsules
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
+            use_textures (bool): whether or not to use textures when loading or visualising the mesh
         """
+        self.use_textures = use_textures
+        if self.use_textures:
+            Image.MAX_IMAGE_PIXELS = None  # seems necessary to load textures properly in trimesh
+
         # Store source and mic positions in here to access later; these should be in ABSOLUTE form
         self.sources = {}
         self.microphones = {}
@@ -611,25 +621,30 @@ class Space:
         # Direct line exists: either no blocking intersections, or no intersections at all
         return True
 
-    def _parse_valid_microphone_aliases(
+    def _parse_valid_aliases(
             self,
-            aliases: Union[bool, list, str, None]
+            aliases: Union[bool, list, str, None],
+            _alias_iter: dict = None
     ) -> list[str]:
         """
-        Get valid microphone aliases from an input
+        Get valid aliases from an input dictionary, defaults to `microphones` attribute
         """
+        # If no dictionary passed in, use the microphones dictionary by default
+        if _alias_iter is None:
+            _alias_iter = self.microphones
+
         # If True, we should get a list of all the microphones
         if aliases is True:
-            return list(self.microphones.keys())
+            return list(_alias_iter.keys())
         # If a single string, validate and convert to [string]
         elif isinstance(aliases, str):
-            if aliases not in self.microphones.keys():
+            if aliases not in _alias_iter.keys():
                 raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
             return [aliases]
         # If a list of strings, validate these
         elif isinstance(aliases, list):
             # Sanity check that all the provided aliases exist in our dictionary
-            not_in = [e for e in aliases if e not in self.microphones.keys()]
+            not_in = [e for e in aliases if e not in _alias_iter.keys()]
             if len(not_in) > 0:
                 raise KeyError(f"Some provided microphone aliases were not found: {', '.join(not_in)}")
             # Remove duplicates from the list
@@ -700,7 +715,7 @@ class Space:
             assert mic_alias is not None, "mic_alias is required for polar coordinates"
 
         # Parse the list of microphone aliases that we require a direct line to
-        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
+        direct_path_to = self._parse_valid_aliases(ensure_direct_path)
 
         # If we want to express our sources relative to a given microphone, grab this now
         desired_mic = self._get_mic_from_alias(mic_alias)
@@ -730,7 +745,7 @@ class Space:
     def add_sources(
             self,
             positions: Union[list, np.ndarray, None] = None,
-            source_aliases: list[str] = None,
+            source_aliases: Optional[list[str]] = None,
             mic_aliases: Union[list[str], str] = None,
             n_sources: Optional[int] = None,
             keep_existing: bool = False,
@@ -768,7 +783,7 @@ class Space:
             assert mic_aliases is not None, "mic_alias is required for polar coordinates"
 
         # Parse the list of microphone aliases that we require a direct line to
-        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
+        direct_path_to = self._parse_valid_aliases(ensure_direct_path)
 
         if positions is not None and n_sources is not None:
             raise TypeError("Cannot specify both `n_sources` and `positions`.")
@@ -887,22 +902,54 @@ class Space:
             all_irs[mic_alias] = mic.irs
         return all_irs
 
-    def create_scene(self, mic_radius: float = 0.2, source_radius: float = 0.1) -> trimesh.Scene:
+    def create_scene(
+            self,
+            mic_radius: float = 0.2,
+            source_radius: float = 0.1,
+            mic_color: Union[list[float], str] = MIC_FACE_COLOR,
+            source_color: Union[list[float], str] = SOURCE_FACE_COLOR
+    ) -> pv.Plotter:
         """
-        Creates a trimesh.Scene with the Space's mesh, microphone position, and sources all added
+        Creates a pv.Plotter with the Space's mesh, microphone position, and sources all added
+
+        Parameters:
+            mic_radius (float): the radius of spheres to add for microphone objects. If non-positive, no spheres added.
+            source_radius (float): the radius of spheres to add for sources. If non-positive, no spheres added.
+            mic_color (list[float] | str): the color used for microphone spheres, defaults to red
+            source_color (list[float] | str): the color used for source spheres, defaults to red
 
         Returns:
-            trimesh.Scene: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
+            pv.Plotter: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
         """
-        scene = self.mesh.scene()
+        # Create the plotting object inside pyvista
+        plotter = pv.Plotter(off_screen=True)   # don't create a window showing the plot
+        # Wrap the trimesh object up for Pyvista
+        pv_mesh = pv.wrap(self.mesh)
+        # Grab the texture
+        texture = utils.extract_texture(self.mesh) if self.use_textures else None
+        # If we can get a texture, add it to the mesh, otherwise skip over
+        if texture is not None:
+            plotter.add_mesh(pv_mesh, texture=pv.Texture(texture))
+        else:
+            logger.warning("Could not get texture for mesh, skipping...")
+            plotter.add_mesh(pv_mesh)
         # This just adds the microphone positions
-        for mic in self.microphones.values():
-            for capsule in mic.coordinates_absolute:
-                add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
+        #  Having the if/else statement prevents errors when creating the sphere in trimesh
+        if mic_radius > 0.:
+            for mic_alias, mic in self.microphones.items():
+                for capsule in mic.coordinates_absolute:
+                    sphere = pv.Sphere(radius=mic_radius, center=capsule)
+                    plotter.add_mesh(sphere, color=mic_color, name=mic_alias, label=mic_alias)
+        else:
+            logger.warning("`mic_radius` is not positive: microphones will not be added to scene")
         # This adds the sound sources, with different color + radius
-        for source in self.sources.values():
-            add_sphere(scene, source, [0, 255, 0], r=source_radius)
-        return scene    # can then run `.show()` on the returned object
+        if source_radius > 0.:
+            for source_alias, source in self.sources.items():
+                sphere = pv.Sphere(radius=source_radius, center=source)
+                plotter.add_mesh(sphere, color=source_color, name=source_alias, label=source_alias)
+        else:
+            logger.warning("`source_radius` is not positive: sources will not be added to scene")
+        return plotter    # can then run `.show()` on the returned object
 
     def create_plot(self, ) -> plt.Figure:
         """
@@ -933,6 +980,128 @@ class Space:
         # Return the matplotlib figure object
         fig.tight_layout()
         return fig    # can be used with plt.show, fig.savefig, etc.
+
+    def _parse_center_point_for_view(self, center: Union[str, list[float], np.ndarray]) -> np.ndarray:
+        """
+        Get the correct center point for a view
+        """
+        # If input is a string, should be either a valid alias or "mesh_center"/"source_center"
+        if isinstance(center, str):
+            if center in self.microphones.keys():
+                center_point = self.microphones[center].coordinates_center
+            elif center in self.sources.keys():
+                center_point = self.sources[center]
+            elif center == "mesh_center":
+                center_point = self.mesh.centroid
+            elif center == "source_center":
+                center_point = np.vstack(list(self.sources.values())).mean(axis=0)
+            else:
+                raise ValueError("`center` must be either `mesh_center`, `source_center`, or a valid alias!")
+        # Handle list input: this should be a point inside the mesh
+        elif isinstance(center, (list, np.ndarray)):
+            if self._is_point_inside_mesh(center):
+                center_point = center
+            else:
+                raise ValueError(f"Point {center} is not inside mesh, cannot use as focus point for view!")
+        # Handle invalid input
+        else:
+            raise TypeError(f"Expected `center` to be either a string or point inside mesh, but got {type(center)}")
+        return np.asarray(center_point)
+
+    @staticmethod
+    def _update_pyvista_camera(plotter: pv.Plotter, **camera_kws):
+        """
+        Updates the camera of a `plotter` object with given kwargs
+        """
+        for camera_key, camera_value in camera_kws.items():
+            if camera_key == "camera_position":
+                raise AttributeError("Cannot pass a custom `camera_position` to `camera`!")
+            if hasattr(plotter.camera, camera_key):
+                setattr(plotter.camera, camera_key, camera_value)
+            else:
+                raise AttributeError(f"`{camera_key}` is not a valid attribute for `pyvista.Camera`")
+
+    def save_egocentric_video(
+            self,
+            mic_alias,
+            outpath: str,
+            n_frames: int = 360,
+            frame_rate: int = 30,
+            **camera_kws
+    ) -> None:
+        """
+        Creates a video showing the egocentric view of the microphone, panning 360 degrees in a circle.
+
+        Arguments:
+            mic_alias (str): The name of the microphone that the view will be created for
+            outpath (str): The path of the output file
+            n_frames (int): Number of frames to generate (defaults to 360)
+            frame_rate (int): Frame rate for video (defaults to 30)
+
+        Examples:
+            >>> # Create a space with a given mesh, add a microphone and 10 random sources with a direct path to the mic
+            >>> spa = Space(mesh=...)
+            >>> spa.add_microphone(alias="ambeovr")
+            >>> spa.add_sources(n_sources=10, ensure_direct_path="ambeovr", polar=False)
+            >>> # Save the egocentric viewpoint of the microphone
+            >>> spa.save_egocentric_video("ambeovr", "out.mp4", n_frames=360)
+        """
+        # Get the microphone coordinates
+        if mic_alias not in self.microphones.keys():
+            raise KeyError("Microphone alias '{}' is not a valid microphone alias".format(mic_alias))
+        ego_point = self.microphones[mic_alias].coordinates_center
+        # Create the pyvista plotting object
+        plotter = self.create_scene(mic_radius=0.)
+        plotter.open_movie(outpath, framerate=frame_rate)
+        # Set the properties of the camera as required
+        self._update_pyvista_camera(plotter, **camera_kws)
+        # Set the camera position for every frame
+        angles = utils.generate_horizontal_angles(ego_point, n_frames)
+        for angle in angles:
+            plotter.camera_position = [ego_point, angle, UP]
+            plotter.write_frame()
+        plotter.close()
+
+    # noinspection PyTypeChecker
+    def save_egocentric_graphic(
+            self,
+            mic_alias: str,
+            outpath: str,
+            center: Union[str, list[float], np.ndarray] = "sources",
+            **camera_kws
+    ) -> None:
+        """
+        Creates a graphic showing the egocentric view of the microphone pointing towards `center`.
+
+        Arguments:
+            mic_alias (str): The name of the microphone that the view will be created for
+            outpath (str): The path of the output file
+            center: the position to point the view towards.
+                Must be either a valid microphone or source alias, "mesh_center", "source_center", or a point inside
+                the mesh.
+
+        Examples:
+            >>> # Create a space with a given mesh, add a microphone and 10 random sources with a direct path to the mic
+            >>> spa = Space(mesh=...)
+            >>> spa.add_microphone(alias="ambeovr")
+            >>> spa.add_sources(n_sources=10, ensure_direct_path="ambeovr", polar=False)
+            >>> # Save the egocentric viewpoint of the microphone, pointing towards the center of all sources
+            >>> spa.save_egocentric_graphic("ambeovr", "out.svg", view_angle=60)    # view_angle passed to `pyvista`
+        """
+        # Get the microphone coordinates
+        if mic_alias not in self.microphones.keys():
+            raise KeyError("Microphone alias '{}' is not a valid microphone alias".format(mic_alias))
+        x, y, z = self.microphones[mic_alias].coordinates_center
+        # Get the point to focus the view on
+        center_point = self._parse_center_point_for_view(center)
+        # Create the plotting object inside pyvista
+        plotter = self.create_scene(mic_radius=0.)
+        # Set the camera position
+        plotter.camera_position = [(x, y, z), center_point, UP]
+        # Set the properties of the camera as required
+        self._update_pyvista_camera(plotter, **camera_kws)
+        # Dump the graphic
+        plotter.save_graphic(outpath)
 
     def save_irs_to_wav(self, outdir: str) -> None:
         """
