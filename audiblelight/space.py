@@ -33,9 +33,6 @@ EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual micropho
 
 WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
 
-Image.MAX_IMAGE_PIXELS = None    # seems necessary to load textures properly in trimesh
-
-
 def load_mesh(mesh: Union[str, Path]) -> trimesh.Trimesh:
     """
     Loads a mesh from disk and coerces units to meters
@@ -117,7 +114,8 @@ class Space:
             empty_space_around_source: Optional[float] = EMPTY_SPACE_AROUND_SOURCE,
             empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
             empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
-            repair_threshold: Optional[float] = None
+            repair_threshold: Optional[float] = None,
+            use_textures: bool = False
     ):
         """
         Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
@@ -130,7 +128,12 @@ class Space:
             empty_space_around_capsule (float): minimum meters new sources/mics will be placed from mic capsules
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
+            use_textures:
         """
+        self.use_textures = use_textures
+        if self.use_textures:
+            Image.MAX_IMAGE_PIXELS = None  # seems necessary to load textures properly in trimesh
+
         # Store source and mic positions in here to access later; these should be in ABSOLUTE form
         self.sources = {}
         self.microphones = {}
@@ -927,7 +930,7 @@ class Space:
         # Wrap the trimesh object up for Pyvista
         pv_mesh = pv.wrap(self.mesh)
         # Grab the texture
-        texture = utils.extract_texture(self.mesh)
+        texture = utils.extract_texture(self.mesh) if self.use_textures else None
         # If we can get a texture, add it to the mesh, otherwise skip over
         if texture is not None:
             plotter.add_mesh(pv_mesh, texture=pv.Texture(texture))
