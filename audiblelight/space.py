@@ -110,7 +110,8 @@ class Space:
             empty_space_around_source: Optional[float] = EMPTY_SPACE_AROUND_SOURCE,
             empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
             empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
-            repair_threshold: Optional[float] = None
+            repair_threshold: Optional[float] = None,
+            rlr_kwargs: Optional[dict] = None,
     ):
         """
         Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
@@ -123,6 +124,8 @@ class Space:
             empty_space_around_capsule (float): minimum meters new sources/mics will be placed from mic capsules
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
+            rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
+                For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
         """
         # Store source and mic positions in here to access later; these should be in ABSOLUTE form
         self.sources = {}
@@ -146,10 +149,26 @@ class Space:
                 repair_mesh(self.mesh)
 
         # Setting up audio context
-        # TODO: is it possible to set the sample rate here?
-        cfg = Config()
+        cfg = self._parse_rlr_config(rlr_kwargs)
         self.ctx = Context(cfg)
         self._setup_audio_context()
+
+    @staticmethod
+    def _parse_rlr_config(rlr_kwargs: dict) -> Config:
+        """
+        Parses the configuration for the ray-tracing engine
+        """
+        # Create the configuration object with the default settings
+        cfg = Config()
+        if rlr_kwargs is None:
+            rlr_kwargs = {}
+        # Iterate over our passed parameters and update as required
+        for rlr_kwarg, rlr_val in rlr_kwargs.items():
+            if hasattr(cfg, rlr_kwarg):
+                setattr(cfg, rlr_kwarg, rlr_val)
+            else:
+                raise AttributeError(f"Ray-tracing engine has no attribute {rlr_kwarg}")
+        return cfg
 
     @property
     def irs(self) -> dict[str, np.ndarray]:

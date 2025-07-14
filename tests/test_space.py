@@ -723,3 +723,21 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
     arrival_far = min(np.flatnonzero(irs["farmic"]))
     # Should hit the closer mic before the further mic
     assert arrival_close < arrival_far
+
+
+@pytest.mark.parametrize(
+    "cfg,expected",
+    [
+        (dict(sample_rate=22050, global_volume=0.5), None),
+        (dict(will_raise="an_error", sample_rate=595959), AttributeError)
+    ]
+)
+def test_config_parse(cfg, expected):
+    if expected is None:
+        space = Space(mesh=str(TEST_MESHES[-1]), rlr_kwargs=cfg)
+        for ke, val in cfg.items():
+            assert getattr(space.ctx.config, ke) == val
+
+    else:
+        with pytest.raises(expected):
+            _ = Space(mesh=str(TEST_MESHES[-1]), rlr_kwargs=cfg)
