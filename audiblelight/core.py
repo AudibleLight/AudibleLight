@@ -3,7 +3,7 @@ import numpy as np
 import json
 import soundfile as sf
 
-# import Scene ???
+# import Space ???
 
 class Scene:
     def __init__(
