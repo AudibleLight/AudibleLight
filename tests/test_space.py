@@ -291,9 +291,9 @@ def test_get_microphones_from_alias(inputs, outputs, oyens_space: Space):
     oyens_space.add_microphones(aliases=["tester1", "tester2", "tester3"], keep_existing=False)
     if isinstance(outputs, type) and issubclass(outputs, Exception):
         with pytest.raises(outputs):
-            _ = oyens_space._parse_valid_microphone_aliases(inputs)
+            _ = oyens_space._parse_valid_aliases(inputs)
     else:
-        actuals = oyens_space._parse_valid_microphone_aliases(inputs)
+        actuals = oyens_space._parse_valid_aliases(inputs)
         assert sorted(actuals) == outputs
 
 
@@ -724,14 +724,37 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
     assert arrival_close < arrival_far
 
 
+@pytest.mark.parametrize(
+    "ins,outs",
+    [
+        ("tester_mic", np.array([0.5, -3.5, 0.7])),
+        ("tester_source", np.array([-0.5, -0.5, 0.5])),
+        ("error_raise", ValueError),
+        ([-0.5, -0.5, 0.5], np.array([-0.5, -0.5, 0.5])),
+        (123, TypeError)
+    ]
+)
+def test_parse_center_point(ins, outs, oyens_space: Space):
+    oyens_space._clear_microphones()
+    oyens_space._clear_sources()
+    # Add dummy mic and source
+    oyens_space.add_microphone("ambeovr", position=[0.5, -3.5, 0.7], alias="tester_mic")
+    oyens_space.add_source(position=[-0.5, -0.5, 0.5], source_alias="tester_source", polar=False)
+    if isinstance(outs, type) and issubclass(outs, Exception):
+        with pytest.raises(outs):
+            oyens_space._parse_center_point_for_view(ins)
+    else:
+        assert np.array_equal(oyens_space._parse_center_point_for_view(ins), outs)
+
+
 @pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
 def test_save_egocentric_view(mesh_fpath):
     space = Space(mesh_fpath)
     # Add microphone and sources
     space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
     space.add_sources(n_sources=3, ensure_direct_path="ego", keep_existing=False, polar=False)
-    # Dump a graphic
-    space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", view_angle=60)
+    # Dump a graphic: using source_aliases=True means we'll focus on the center of all sources
+    space.save_egocentric_view(mic_alias="ego", outpath="tmp.svg", view_angle=60, center="source_center")
     assert os.path.isfile("tmp.svg")
     os.remove("tmp.svg")
     # Try with some invalid attributes

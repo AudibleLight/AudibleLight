@@ -618,25 +618,34 @@ class Space:
         # Direct line exists: either no blocking intersections, or no intersections at all
         return True
 
-    def _parse_valid_microphone_aliases(
+    def _parse_valid_aliases(
             self,
-            aliases: Union[bool, list, str, None]
+            aliases: Union[bool, list, str, None],
+            _alias_iter: dict = None
     ) -> list[str]:
         """
-        Get valid microphone aliases from an input
+        Get valid aliases from an input dictionary, defaults to `microphones` attribute
         """
+        # If no dictionary passed in, use the microphones dictionary by default
+        if _alias_iter is None:
+            assert self.microphones is not None
+            _alias_iter = self.microphones
+        # Sanity checking input
+        assert _alias_iter is not None
+        assert len(_alias_iter) > 0
+
         # If True, we should get a list of all the microphones
         if aliases is True:
-            return list(self.microphones.keys())
+            return list(_alias_iter.keys())
         # If a single string, validate and convert to [string]
         elif isinstance(aliases, str):
-            if aliases not in self.microphones.keys():
+            if aliases not in _alias_iter.keys():
                 raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
             return [aliases]
         # If a list of strings, validate these
         elif isinstance(aliases, list):
             # Sanity check that all the provided aliases exist in our dictionary
-            not_in = [e for e in aliases if e not in self.microphones.keys()]
+            not_in = [e for e in aliases if e not in _alias_iter.keys()]
             if len(not_in) > 0:
                 raise KeyError(f"Some provided microphone aliases were not found: {', '.join(not_in)}")
             # Remove duplicates from the list
@@ -707,7 +716,7 @@ class Space:
             assert mic_alias is not None, "mic_alias is required for polar coordinates"
 
         # Parse the list of microphone aliases that we require a direct line to
-        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
+        direct_path_to = self._parse_valid_aliases(ensure_direct_path)
 
         # If we want to express our sources relative to a given microphone, grab this now
         desired_mic = self._get_mic_from_alias(mic_alias)
@@ -737,7 +746,7 @@ class Space:
     def add_sources(
             self,
             positions: Union[list, np.ndarray, None] = None,
-            source_aliases: list[str] = None,
+            source_aliases: Optional[list[str]] = None,
             mic_aliases: Union[list[str], str] = None,
             n_sources: Optional[int] = None,
             keep_existing: bool = False,
@@ -775,7 +784,7 @@ class Space:
             assert mic_aliases is not None, "mic_alias is required for polar coordinates"
 
         # Parse the list of microphone aliases that we require a direct line to
-        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
+        direct_path_to = self._parse_valid_aliases(ensure_direct_path)
 
         if positions is not None and n_sources is not None:
             raise TypeError("Cannot specify both `n_sources` and `positions`.")
@@ -973,22 +982,50 @@ class Space:
         fig.tight_layout()
         return fig    # can be used with plt.show, fig.savefig, etc.
 
+    def _parse_center_point_for_view(self, center: Union[str, list[float], np.ndarray]) -> np.ndarray:
+        """
+        Get the correct center point for a view
+        """
+        # If input is a string, should be either a valid alias or "mesh_center"/"source_center"
+        if isinstance(center, str):
+            if center in self.microphones.keys():
+                center_point = self.microphones[center].coordinates_center
+            elif center in self.sources.keys():
+                center_point = self.sources[center]
+            elif center == "mesh_center":
+                center_point = self.mesh.centroid
+            elif center == "source_center":
+                center_point = np.vstack(list(self.sources.values())).mean(axis=0)
+            else:
+                raise ValueError("`center` must be either `mesh_center`, `source_center`, or a valid alias!")
+        # Handle list input: this should be a point inside the mesh
+        elif isinstance(center, (list, np.ndarray)):
+            if self._is_point_inside_mesh(center):
+                center_point = center
+            else:
+                raise ValueError(f"Point {center} is not inside mesh, cannot use as focus point for view!")
+        # Handle invalid input
+        else:
+            raise TypeError(f"Expected `center` to be either a string or point inside mesh, but got {type(center)}")
+        return np.asarray(center_point)
+
     # noinspection PyTypeChecker
     def save_egocentric_view(
             self,
             mic_alias: str,
             outpath: str,
-            center: Optional[Union[list[float], np.ndarray]] = None,
+            center: Union[str, list[float], np.ndarray] = "sources",
             **camera_kws
     ) -> None:
         """
         Creates a graphic showing the egocentric view of the microphone pointing towards `center`.
 
         Arguments:
-            mic_alias (str): The name of the microphone
+            mic_alias (str): The name of the microphone that the view will be created for
             outpath (str): The path of the output file
-            center: the position inside the mesh that the egocentric view should point towards
-            camera_kws: Additional keyword arguments to pass to the camera function in `pyvista`.
+            center: the position to point the view towards.
+                Must be either a valid microphone or source alias, "mesh_center", "source_center", or a point inside
+                the mesh.
 
         Examples:
             >>> # Create a space with a given mesh, add a microphone and 10 random sources with a direct path to the mic
@@ -998,35 +1035,22 @@ class Space:
             >>> # Save the egocentric viewpoint of the microphone, pointing towards the center of all sources
             >>> spa.save_egocentric_view("ambeovr", "out.svg", view_angle=60)    # view_angle passed to `pyvista`
         """
-
         # Get the microphone coordinates
         if mic_alias not in self.microphones.keys():
             raise KeyError("Microphone alias '{}' is not a valid microphone alias".format(mic_alias))
         x, y, z = self.microphones[mic_alias].coordinates_center
-
+        # Get the point to focus the view on
+        center_point = self._parse_center_point_for_view(center)
         # Create the plotting object inside pyvista
         plotter = self.create_scene(mic_radius=0.)
-
-        # If we haven't specified a center for the view, take the center of all sources or the center of the mesh
-        # TODO: center should also support a (list of) source alias(es) which we'll point towards
-        if center is None:
-            if len(self.sources.values()) == 0:
-                logger.info("Using mesh centroid as camera focus point")
-                center = self.mesh.centroid
-            else:
-                logger.info("Using centroids of all sources as camera focus point")
-                center = np.vstack(list(self.sources.values())).mean(axis=0)
-        assert self._is_point_inside_mesh(center), f"Point {center} is not inside the mesh"
-
         # Set the camera position
-        plotter.camera_position = [(x, y, z), center, UP]
+        plotter.camera_position = [(x, y, z), center_point, UP]
         # Set the properties of the camera as required
         for camera_key, camera_value in camera_kws.items():
             if hasattr(plotter.camera, camera_key):
                 setattr(plotter.camera, camera_key, camera_value)
             else:
                 raise AttributeError(f"`{camera_key}` is not a valid attribute for `pyvista.Camera`")
-
         # Dump the graphic
         plotter.save_graphic(outpath)
 
