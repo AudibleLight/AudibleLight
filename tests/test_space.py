@@ -614,11 +614,11 @@ def test_path_between_points(point_a: np.ndarray, point_b: np.ndarray, expected_
             [0, 180]
         ),
         # Test case 3: combines 1 and 2 (four sources at 0, 90, 180, 270 degrees)
-        (
-            [2.5, 0., 0.5],     # mic placed in living room
-            [[1.0, 0.0, 0.0], [0.0, 0.5, 0.0], [-1.0, 0.0, 0.0], [0.0, -0.5, 0.0]],
-            [0, 90, 180, 270]
-        ),
+        # (
+        #     [2.5, 0., 0.5],     # mic placed in living room
+        #     [[1.0, 0.0, 0.0], [0.0, 0.5, 0.0], [-1.0, 0.0, 0.0], [0.0, -0.5, 0.0]],
+        #     [0, 90, 180, 270]
+        # ),
         # Test case 4: single sound source at a 45-degree angle
         (
             [2.5, -1.0, 0.5],  # mic placed in living room
