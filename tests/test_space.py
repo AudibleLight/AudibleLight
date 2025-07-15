@@ -3,6 +3,7 @@
 
 """Test cases for functionality inside audiblelight/space.py"""
 
+import json
 import os
 from tempfile import TemporaryDirectory
 
@@ -741,3 +742,18 @@ def test_config_parse(cfg, expected):
     else:
         with pytest.raises(expected):
             _ = Space(mesh=str(TEST_MESHES[-1]), rlr_kwargs=cfg)
+
+
+def test_to_dict(oyens_space: Space):
+    oyens_space.add_microphone(microphone_type="ambeovr", alias="tester_mic", keep_existing=False)
+    oyens_space.add_source(source_alias="tester_source", polar=False, keep_existing=False)
+    dict_out = oyens_space.to_dict()
+    # Dictionary should have required keys
+    assert isinstance(dict_out, dict)
+    assert "tester_mic" in dict_out["microphones"]
+    assert "tester_source" in dict_out["sources"]
+    # Object must be JSON serializable
+    try:
+        json.dumps(dict_out)
+    except (TypeError, OverflowError):
+        pytest.fail("Dictionary not JSON serializable")

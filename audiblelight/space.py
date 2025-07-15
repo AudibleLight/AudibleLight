@@ -29,30 +29,20 @@ EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual micropho
 WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
 
 
-def load_mesh(mesh: Union[str, Path]) -> trimesh.Trimesh:
+def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     """
     Loads a mesh from disk and coerces units to meters
     """
-    # Passed in filepath as a string: convert to a Path
-    if isinstance(mesh, (str, Path)):
-        # Coerce string types to Path
-        if isinstance(mesh, str):
-            mesh = Path(mesh)
-        # Raise a nicer error when the file can't be found
-        if not mesh.is_file():
-            raise FileNotFoundError(f"Cannot find mesh file at {mesh}, does it exist?")
-        # Load up in trimesh, setting the metadata dictionary nicely
-        #  This just allows us to access the filename, etc., later
-        metadata = dict(fname=mesh.stem, ftype=mesh.suffix, fpath=str(mesh))
-        # noinspection PyTypeChecker
-        loaded_mesh = trimesh.load_mesh(mesh, file_type=mesh.suffix, metadata=metadata)
-        # Convert the units of the mesh to meters, if this is not provided
-        if loaded_mesh.units != utils.MESH_UNITS:
-            logger.warning(f"Mesh {mesh.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}")
-            loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
-    # Passed in something else
-    else:
-        raise TypeError(f"Expected mesh to be either a filepath or Trimesh object, but got {type(mesh)}")
+    # Load up in trimesh, setting the metadata dictionary nicely
+    #  This just allows us to access the filename, etc., later
+    mesh_fpath = utils.validate_filepath(mesh_fpath)
+    metadata = dict(fname=mesh_fpath.stem, ftype=mesh_fpath.suffix, fpath=str(mesh_fpath))
+    # noinspection PyTypeChecker
+    loaded_mesh = trimesh.load_mesh(mesh_fpath, file_type=mesh_fpath.suffix, metadata=metadata)
+    # Convert the units of the mesh to meters, if this is not provided
+    if loaded_mesh.units != utils.MESH_UNITS:
+        logger.warning(f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}")
+        loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
     return loaded_mesh
 
 
@@ -97,7 +87,7 @@ class Space:
     This class is capable of handling spatial operations and simulating audio propagation using the ray-tracing library.
 
     Attributes:
-        mesh (str, Path, trimesh.Trimesh): The mesh, either loaded as a trimesh or a path to a glb object on the disk.
+        mesh (str, Path): The path to the mesh on the disk.
         microphones (np.array): Position of the microphone in the mesh.
         ctx (rlr_audio_propagation.Context): The context for audio propagation simulation.
         sources (np.array): relative positions of sound sources
@@ -105,7 +95,7 @@ class Space:
     """
     def __init__(
             self,
-            mesh: Union[str, trimesh.Trimesh],
+            mesh: Union[str, Path],
             empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
             empty_space_around_source: Optional[float] = EMPTY_SPACE_AROUND_SOURCE,
             empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
@@ -140,6 +130,7 @@ class Space:
 
         # Load in the trimesh object
         self.mesh = load_mesh(mesh)
+
         # If we want to try and repair the mesh, and if it actually needs repairing
         if repair_threshold is not None and not self.mesh.is_watertight:
             # Get the idxs of faces in the mesh that break the watertight status
@@ -223,6 +214,8 @@ class Space:
         """
         Adds a listener to the audio context and sets its position to the microphone's position.
         """
+        # We should clear the listener list so we don't add listeners multiple times to the engine
+        self.ctx.clear_listeners()
         # Stack the coordinates of all capsules into a single 2D array
         all_caps = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
         # Iterate over all the capsules
@@ -296,7 +289,7 @@ class Space:
             >>> spa.add_microphone(microphone_type="ambeovr", position=[0.5, 0.5, 0.5], alias="ambeo")
             >>> spa.microphones["ambeo"]    # access using given alias
         """
-
+        # TODO: consider removing
         # Remove existing microphones if we wish to do this
         if not keep_existing:
             self._clear_microphones()
@@ -468,6 +461,8 @@ class Space:
         """
         Sets the positions of sound sources in the space.
         """
+        # We should clear the source list so we don't add the same source multiple times
+        self.ctx.clear_sources()
         # Now, iterate only through the valid sources and add these to the mesh
         for i, pos in enumerate(self.sources.values()):
             self.ctx.add_source()
@@ -632,12 +627,12 @@ class Space:
 
     def add_source(
             self,
-            position: Union[list, np.ndarray, None] = None,
-            source_alias: str = None,
-            mic_alias: str = None,
-            keep_existing: bool = False,
-            polar: bool = True,
-            ensure_direct_path: Union[bool, list, str, None] = False,
+            position: Optional[Union[list, np.ndarray]] = None,
+            source_alias: Optional[str] = None,
+            mic_alias: Optional[str] = None,
+            keep_existing: Optional[bool] = False,
+            polar: Optional[bool] = False,
+            ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> None:
         """
         Add a source to the space.
@@ -945,3 +940,17 @@ class Space:
                     fname = os.path.join(outdir, f"{mic_alias}_capsule{caps_idx}_source{source_idx}.wav")
                     # Dump the audio to a 16-bit PCM wav using our predefined sample rate
                     utils.write_wav(source, fname, self.ctx.config.sample_rate)
+
+    def to_dict(self) -> dict:
+        """
+        Returns metadata for this object as a dictionary
+        """
+        return dict(
+            sources={s_alias: s.tolist() for s_alias, s in self.sources.items()},    # need to call .tolist for JSON
+            microphones={m_alias: m.to_dict() for m_alias, m in self.microphones.items()},
+            mesh=dict(
+                **self.mesh.metadata,    # this gets us the filepath, filename, and file extension of the mesh
+                bounds=self.mesh.bounds.tolist(),
+                centroid=self.mesh.centroid.tolist()
+            )
+        )
