@@ -5,7 +5,7 @@
 
 import wave
 from pathlib import Path
-from typing import Union
+from typing import Union, Any
 
 import random
 import numpy as np
@@ -143,3 +143,46 @@ def check_all_lens_equal(*iterables) -> bool:
     Returns True if all iterables have the same length, False otherwise
     """
     return len({len(i) for i in iterables}) == 1
+
+
+def sanitise_filepath(filepath: Any) -> Union[Path, None]:
+    """
+    Validate that a filepath exists on the disk and coerce to a `Path` object
+    """
+    if isinstance(filepath, (str, Path)):
+        # Coerce string types to Path
+        if isinstance(filepath, str):
+            filepath = Path(filepath)
+        # Raise a nicer error when the file can't be found
+        if not filepath.is_file():
+            raise FileNotFoundError(f"Cannot find file at {filepath}, does it exist?")
+        else:
+            return filepath
+    else:
+        raise TypeError(f"Expected filepath to be either a string or Path object, but got {type(filepath)}")
+
+
+def sanitise_positive_number(x: Any) -> Union[float, None]:
+    """
+    Validate that an input is a positive numeric input and coerce to a `float`
+    """
+    if isinstance(x, (int, float, complex)) and not isinstance(x, bool):
+        if x >= 0.:
+            return float(x)
+        else:
+            raise ValueError(f"Expected a positive numeric input, but got {x}")
+    else:
+        raise TypeError("Expected a positive numeric input, but got {}".format(type(x)))
+
+
+def sanitise_coordinates(x: Any) -> Union[np.ndarray, None]:
+    """
+    Validate that an input is an array of coordinates (i.e., [X, Y, Z]) with the expected shape
+    """
+    if isinstance(x, (np.ndarray, list)):
+        if isinstance(x, list):
+            x = np.asarray(x)
+        if x.shape != (3,):
+            raise ValueError(f"Expected a shape of (3,), but got {x.shape}")
+    else:
+        raise TypeError("Expected a list or array input, but got {}".format(type(x)))

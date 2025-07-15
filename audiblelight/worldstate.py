@@ -35,7 +35,7 @@ def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     """
     # Load up in trimesh, setting the metadata dictionary nicely
     #  This just allows us to access the filename, etc., later
-    mesh_fpath = utils.validate_filepath(mesh_fpath)
+    mesh_fpath = utils.sanitise_filepath(mesh_fpath)
     metadata = dict(fname=mesh_fpath.stem, ftype=mesh_fpath.suffix, fpath=str(mesh_fpath))
     # noinspection PyTypeChecker
     loaded_mesh = trimesh.load_mesh(mesh_fpath, file_type=mesh_fpath.suffix, metadata=metadata)
