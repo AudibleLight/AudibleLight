@@ -1,6 +1,7 @@
 # created by virtualenv automatically
 /venv
 /.idea
+/notebooks/.ipynb_checkpoints
 
 # ignore mesh files currently
 *.obj
