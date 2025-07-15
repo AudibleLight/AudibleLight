@@ -80,9 +80,9 @@ def add_sphere(scene: trimesh.Scene, pos: np.array, color: list[int] = None, r: 
     scene.add_geometry(sphere)
 
 
-class Space:
+class WorldState:
     """
-    Represents a 3D space defined by a mesh, microphone position(s), and source position(s)
+    Represents a 3D space defined by a mesh, microphone position(s), and sound source position(s)
 
     This class is capable of handling spatial operations and simulating audio propagation using the ray-tracing library.
 
@@ -104,10 +104,10 @@ class Space:
             rlr_kwargs: Optional[dict] = None,
     ):
         """
-        Initializes the Space with a mesh and optionally a specific microphone position, and sets up the audio context.
+        Initializes the WorldState with a mesh and sets up the audio context.
 
         Args:
-            mesh (str|trimesh.Trimesh): The name of the mesh file. Units will be coerced to meters when loading
+            mesh (str|Path): The name of the mesh file. Units will be coerced to meters when loading
             empty_space_around_mic (float): minimum meters new sources/mics will be placed from the center of other mics
             empty_space_around_source (float): minimum meters new sources/mics will be placed from other sources
             empty_space_around_surface (float): minimum meters new sources/mics will be placed from mesh sources
@@ -274,8 +274,8 @@ class Space:
             keep_existing (optional): whether to keep existing microphones from the mesh or remove, defaults to keep
 
         Examples:
-            Create a space with a given mesh
-            >>> spa = Space(mesh=...)
+            Create a state from a given mesh
+            >>> spa = WorldState(mesh=...)
 
             Add a AmbeoVR microphone with a random position and default alias
             >>> spa.add_microphone("ambeovr")
@@ -340,8 +340,8 @@ class Space:
             raise_on_error (optional): if True, will raise an error when unable to place a mic, otherwise skips to next
 
         Examples:
-            Create a space with a given mesh
-            >>> spa = Space(mesh=...)
+            Create a state with a given mesh
+            >>> spa = WorldState(mesh=...)
 
             Add some AmbeoVRs with random positions
             >>> spa.add_microphones(microphone_types=["ambeovr", "ambeovr", "ambeovr"])
@@ -459,7 +459,7 @@ class Space:
 
     def _setup_sources(self):
         """
-        Sets the positions of sound sources in the space.
+        Sets the positions of sound sources in the state.
         """
         # We should clear the source list so we don't add the same source multiple times
         self.ctx.clear_sources()
@@ -635,7 +635,7 @@ class Space:
             ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> None:
         """
-        Add a source to the space.
+        Add a source to the state.
 
         If `mic_alias` is a key inside `microphones`, `position` is assumed to be relative to that microphone; else,
         it is assumed to be in absolute terms. If `polar` is True, `position` should be in the form
@@ -656,8 +656,8 @@ class Space:
                 ensured with all of these microphones. If False, no direct line is required for a source.
 
         Examples:
-            Create a space with a given mesh and add a microphone
-            >>> spa = Space(mesh=...)
+            Create a state with a given mesh and add a microphone
+            >>> spa = WorldState(mesh=...)
             >>> spa.add_microphone(alias="tester")
 
             Add a single source with a random position
@@ -826,9 +826,9 @@ class Space:
 
     def simulate(self) -> None:
         """
-        Simulates audio propagation in the space with the current listener and source positions.
+        Simulates audio propagation in the state with the current listener and sound source positions.
         """
-        # Sanity check that we actually have sources and microphones in the space
+        # Sanity check that we actually have sources and microphones in the state
         self._simulation_sanity_check()
         # Clear out any existing IRs
         self._irs = None
@@ -842,7 +842,7 @@ class Space:
         if efficiency < WARN_WHEN_EFFICIENCY_BELOW:
             logger.warning(f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
                            f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
-                           f"`Space` object, or running `trimesh.repair.fill_holes` on your mesh.")
+                           f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh.")
         # Compute the IRs: this gives us shape (N_capsules, N_sources, N_channels == 1, N_samples)
         irs = self.ctx.get_audio()
         # Format irs into a dictionary of {mic000: (N_capsules, N_sources, N_samples), mic001: (...)}

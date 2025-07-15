@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Test cases for functionality inside audiblelight/space.py"""
+"""Test cases for functionality inside audiblelight/worldstate.py"""
 
 import json
 import os
@@ -16,7 +16,7 @@ from scipy.signal import stft
 from pyroomacoustics.doa.music import MUSIC
 
 from audiblelight import utils
-from audiblelight.space import Space, load_mesh, repair_mesh
+from audiblelight.worldstate import WorldState, load_mesh, repair_mesh
 from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR, MonoCapsule, get_micarray_from_string
 
 
@@ -56,10 +56,10 @@ def test_load_broken_mesh(mesh_fpath: str, expected):
 
 
 @pytest.fixture(scope="function")
-def oyens_space() -> Space:
-    """Returns a Space object with the Oyens mesh (Gibson)"""
+def oyens_space() -> WorldState:
+    """Returns a WorldState object with the Oyens mesh (Gibson)"""
     oyens = os.path.join(utils.get_project_root(), "tests/test_resources/Oyens.glb")
-    space = Space(
+    space = WorldState(
         oyens,
         empty_space_around_source=0.2,    # all in meters
         empty_space_around_mic=0.1,    # all in meters
@@ -79,7 +79,7 @@ def oyens_space() -> Space:
         ("ambeovr", [-0.1, -0.1, 0.6], "ambeovr000"),    # places AmbeoVR in assigned position
     ]
 )
-def test_add_microphone(microphone_type, position, alias, oyens_space: Space):
+def test_add_microphone(microphone_type, position, alias, oyens_space: WorldState):
     """Test adding a single microphone to the space"""
     # Add the microphones to the space: keep_existing=False ensures we remove previously-added microphones
     oyens_space.add_microphone(microphone_type, position, alias, keep_existing=False)
@@ -115,7 +115,7 @@ def test_add_microphone(microphone_type, position, alias, oyens_space: Space):
 
 
 # noinspection PyTypeChecker
-def test_place_invalid_microphones(oyens_space: Space):
+def test_place_invalid_microphones(oyens_space: WorldState):
     # Trying to access IRs before placing anything should raise an error
     with pytest.raises(AttributeError):
         _ = oyens_space.irs
@@ -146,7 +146,7 @@ def test_place_invalid_microphones(oyens_space: Space):
         ([None, AmbeoVR, "eigenmike32"], None, ["mono", "ambeo", "eigen"])
     ]
 )
-def test_add_microphones(microphone_types, positions, aliases, oyens_space: Space):
+def test_add_microphones(microphone_types, positions, aliases, oyens_space: WorldState):
     # Add microphone types into space
     oyens_space.add_microphones(microphone_types, positions, aliases, keep_existing=False, raise_on_error=True)
     # Check overall dictionary
@@ -176,7 +176,7 @@ def test_add_microphones(microphone_types, positions, aliases, oyens_space: Spac
 
 
 # noinspection PyTypeChecker
-def test_add_microphones_invalid_inputs(oyens_space: Space):
+def test_add_microphones_invalid_inputs(oyens_space: WorldState):
     # Trying to add non-unique aliases raises an error
     with pytest.raises(ValueError):
         oyens_space.add_microphones(None, None, ["ambeovr", "ambeovr"], keep_existing=False)
@@ -209,7 +209,7 @@ def test_add_microphones_invalid_inputs(oyens_space: Space):
         (np.array([[0.5], [0.5]]), ValueError),     # should raise an error with invalid array shape
     ]
 )
-def test_validate_position(test_position: np.ndarray, expected: bool, oyens_space: Space):
+def test_validate_position(test_position: np.ndarray, expected: bool, oyens_space: WorldState):
     """Given a microphone with coordinates [-0.5, -0.5, 0.5], test whether test_position is valid"""
     oyens_space.add_microphone(microphone_type="ambeovr", position=[-0.5, -0.5, 0.5], keep_existing=False)
     if isinstance(expected, type) and issubclass(expected, Exception):
@@ -227,7 +227,7 @@ def test_validate_position(test_position: np.ndarray, expected: bool, oyens_spac
         ([-0.5, -0.5, 0.5], "custom_alias"),
     ]
 )
-def test_add_source(position, source_alias, oyens_space: Space):
+def test_add_source(position, source_alias, oyens_space: WorldState):
     oyens_space._clear_microphones()
     # Add the sources in and check that the shape of the resulting array is what we expect
     oyens_space.add_source(position, source_alias, mic_alias=None, keep_existing=False, polar=False)
@@ -240,7 +240,7 @@ def test_add_source(position, source_alias, oyens_space: Space):
         assert np.array_equal(src, position)
 
 
-def test_add_source_invalid(oyens_space: Space):
+def test_add_source_invalid(oyens_space: WorldState):
     # Raise error when no microphone with alias has been added
     with pytest.raises(KeyError):
         oyens_space.add_source(mic_alias="ambeovr", position=[1000, 1000, 1000], keep_existing=False, polar=False)
@@ -287,7 +287,7 @@ def test_add_source_invalid(oyens_space: Space):
         (123, TypeError),    # cannot handle this type
     ]
 )
-def test_get_microphones_from_alias(inputs, outputs, oyens_space: Space):
+def test_get_microphones_from_alias(inputs, outputs, oyens_space: WorldState):
     oyens_space.add_microphones(aliases=["tester1", "tester2", "tester3"], keep_existing=False)
     if isinstance(outputs, type) and issubclass(outputs, Exception):
         with pytest.raises(outputs):
@@ -316,7 +316,7 @@ def test_get_microphones_from_alias(inputs, outputs, oyens_space: Space):
         ([45.0, 135.0, 0.2], [-0.4, -0.4, 0.5 - 0.1414]),
     ]
 )
-def test_add_polar_source(source_position, expected_position, oyens_space: Space):
+def test_add_polar_source(source_position, expected_position, oyens_space: WorldState):
     oyens_space.add_microphone(
         keep_existing=False,
         position=[-0.5, -0.5, 0.5],
@@ -337,7 +337,7 @@ def test_add_polar_source(source_position, expected_position, oyens_space: Space
         ([0.2, -0.3, -0.2], True),
     ]
 )
-def test_add_source_relative_to_mic(position, accept: bool, oyens_space: Space):
+def test_add_source_relative_to_mic(position, accept: bool, oyens_space: WorldState):
     # Add a microphone to the space
     oyens_space.add_microphone(
         microphone_type="ambeovr",
@@ -364,7 +364,7 @@ def test_add_source_relative_to_mic(position, accept: bool, oyens_space: Space):
         ([[-0.1, -0.1, 0.6], [0.5, 0.5, 0.5], [-0.4, -0.5, 0.5]], ["custom_alias1", "custom_alias2", "custom_alias3"]),
     ]
 )
-def test_add_sources(positions, source_aliases, oyens_space: Space):
+def test_add_sources(positions, source_aliases, oyens_space: WorldState):
     oyens_space._clear_microphones()
     oyens_space.add_sources(positions, source_aliases, keep_existing=False, polar=False)
     assert len(oyens_space.sources) == len(positions)
@@ -387,7 +387,7 @@ def test_add_sources(positions, source_aliases, oyens_space: Space):
          [[-0.5, -0.3, 0.5], [-0.5, -0.7, 0.5]]),
     ]
 )
-def test_add_polar_sources(source_positions, expected_positions, oyens_space: Space):
+def test_add_polar_sources(source_positions, expected_positions, oyens_space: WorldState):
     oyens_space.add_microphone(
         keep_existing=False,
         position=[-0.5, -0.5, 0.5],
@@ -407,7 +407,7 @@ def test_add_polar_sources(source_positions, expected_positions, oyens_space: Sp
         (np.array([[-0.2, 0.2, 0.2], [0.2, -0.3, -0.2]]), 2),  # both fine
     ]
 )
-def test_add_sources_relative_to_mic(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
+def test_add_sources_relative_to_mic(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: WorldState):
     # Clear everything out
     oyens_space._clear_microphones()
     oyens_space._clear_sources()
@@ -426,7 +426,7 @@ def test_add_sources_relative_to_mic(test_position: np.ndarray, expected_shape: 
     "n_sources",
     [i for i in range(1, 10, 2)],
 )
-def test_add_n_sources(n_sources, oyens_space: Space):
+def test_add_n_sources(n_sources, oyens_space: WorldState):
     oyens_space.add_sources(n_sources=n_sources, keep_existing=False, polar=False)
     assert len(oyens_space.sources) == n_sources
     for source in oyens_space.sources.values():
@@ -442,14 +442,14 @@ def test_add_n_sources(n_sources, oyens_space: Space):
         ([[-0.1, -0.1, 0.6], [0.5, 0.5, 0.5]], 2),
     ]
 )
-def test_add_sources_at_specific_position(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: Space):
+def test_add_sources_at_specific_position(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: WorldState):
     oyens_space.add_microphone(microphone_type=AmbeoVR, position=[-0.5, -0.5, 0.5], keep_existing=False)
     # Add the sources in and check that the shape of the resulting array is what we expect
     oyens_space.add_sources(positions=test_position, keep_existing=False, raise_on_error=False, polar=False)
     assert len(oyens_space.sources) == expected_shape
 
 
-def test_add_sources_invalid(oyens_space: Space):
+def test_add_sources_invalid(oyens_space: WorldState):
     # n_sources must be a postive integer
     with pytest.raises(AssertionError):
         for inp in ["asdf", [], -1, -100, 0]:
@@ -466,7 +466,7 @@ def test_add_sources_invalid(oyens_space: Space):
 
 
 @pytest.mark.parametrize("num_rays", [1, 10, 100])
-def test_calculate_weighted_average_ray_length(num_rays: int, oyens_space: Space):
+def test_calculate_weighted_average_ray_length(num_rays: int, oyens_space: WorldState):
     # Get a random valid point inside the mesh
     point = oyens_space.get_random_position()
     result = oyens_space.calculate_weighted_average_ray_length(point, num_rays=num_rays)
@@ -477,7 +477,7 @@ def test_calculate_weighted_average_ray_length(num_rays: int, oyens_space: Space
 
 
 @pytest.mark.parametrize("test_num", range(1, 5))
-def test_get_random_position(test_num: int, oyens_space: Space):
+def test_get_random_position(test_num: int, oyens_space: WorldState):
     # For reproducible results
     utils.seed_everything(test_num)
     # Add some microphones and sources to the space
@@ -493,7 +493,7 @@ def test_get_random_position(test_num: int, oyens_space: Space):
 
 # Goes (1 mic, 4 sources), (2 mics, 3 sources), (3 mics, 2 sources), (4 mics, 1 source)
 @pytest.mark.parametrize("n_mics,n_sources", [(m, s) for m, s in zip(list(range(1, 5))[::-1], range(1, 5))])
-def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: Space):
+def test_simulated_ir(n_mics: int, n_sources: int, oyens_space: WorldState):
     # For reproducible results
     utils.seed_everything(n_sources)
     # Add some sources and microphones to the space
@@ -545,7 +545,7 @@ def test_create_scene(oyens_space):
     assert len(scene.geometry) > len(oyens_space.mesh.scene().geometry)
 
 
-def test_save_wavs(oyens_space: Space):
+def test_save_wavs(oyens_space: WorldState):
     # Add some microphones and sources
     oyens_space.add_microphone(microphone_type="ambeovr", keep_existing=False)    # just adds an ambeovr mic in a random plcae
     oyens_space.add_source(polar=False)
@@ -591,7 +591,7 @@ def test_save_wavs(oyens_space: Space):
         )
     ]
 )
-def test_path_between_points(point_a: np.ndarray, point_b: np.ndarray, expected_result: bool, oyens_space: Space):
+def test_path_between_points(point_a: np.ndarray, point_b: np.ndarray, expected_result: bool, oyens_space: WorldState):
     """Tests function for ensuring a direct path exists between two points inside a mesh"""
     # Go "both ways" for this function: result should be identical
     result1 = oyens_space.path_exists_between_points(point_a, point_b)
@@ -628,7 +628,7 @@ def test_path_between_points(point_a: np.ndarray, point_b: np.ndarray, expected_
         )
     ]
 )
-def test_simulated_doa_with_music(microphone: list, sources: list, actual_doa: list[int], oyens_space: Space):
+def test_simulated_doa_with_music(microphone: list, sources: list, actual_doa: list[int], oyens_space: WorldState):
     """
     Tests DOA of simulated sound sources and microphones with MUSIC algorithm.
 
@@ -735,16 +735,16 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
 )
 def test_config_parse(cfg, expected):
     if expected is None:
-        space = Space(mesh=str(TEST_MESHES[-1]), rlr_kwargs=cfg)
+        space = WorldState(mesh=str(TEST_MESHES[-1]), rlr_kwargs=cfg)
         for ke, val in cfg.items():
             assert getattr(space.ctx.config, ke) == val
 
     else:
         with pytest.raises(expected):
-            _ = Space(mesh=str(TEST_MESHES[-1]), rlr_kwargs=cfg)
+            _ = WorldState(mesh=str(TEST_MESHES[-1]), rlr_kwargs=cfg)
 
 
-def test_to_dict(oyens_space: Space):
+def test_to_dict(oyens_space: WorldState):
     oyens_space.add_microphone(microphone_type="ambeovr", alias="tester_mic", keep_existing=False)
     oyens_space.add_source(source_alias="tester_source", polar=False, keep_existing=False)
     dict_out = oyens_space.to_dict()
