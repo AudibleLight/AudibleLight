@@ -3,11 +3,11 @@
 
 """Utility functions, variables, objects etc."""
 
+import random
 import wave
 from pathlib import Path
-from typing import Union, Any
+from typing import Union, Any, Protocol, Callable
 
-import random
 import numpy as np
 import torch
 from loguru import logger
@@ -26,6 +26,7 @@ REF_DB = -65  # Reference decibel level for the background ambient noise. Try ma
 NSCAPES = 20
 SEED = 42
 SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
+MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
 
 
 def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
@@ -186,3 +187,77 @@ def sanitise_coordinates(x: Any) -> Union[np.ndarray, None]:
             raise ValueError(f"Expected a shape of (3,), but got {x.shape}")
     else:
         raise TypeError("Expected a list or array input, but got {}".format(type(x)))
+
+
+class DistributionLike(Protocol):
+    """
+    Typing protocol for any distribution-like object.
+
+    Must expose an `rvs()` method that returns a single random variate as a float (or float-compatible number).
+    """
+
+    def rvs(self, *args: Any, **kwargs: Any) -> Union[float, int, complex]:
+        ...
+
+
+class DistributionWrapper:
+    """
+    Wraps a callable (e.g. a function) as a distribution-like object with an `rvs()` method.
+    """
+
+    def __init__(self, distribution: Callable):
+        self.distribution = distribution
+
+    def rvs(self, *_: Any, **__: Any) -> Union[float, int, complex]:
+        return self.distribution()
+
+    def __call__(self) -> Union[float, int, complex]:
+        """Makes the wrapper itself callable like the original."""
+        return self.rvs()
+
+
+def sanitise_distribution(x: Any) -> Union[DistributionLike, None]:
+    """
+    Validate that an input is a scipy distribution-like object, a callable returning floats, or None.
+    """
+    if x is None:
+        return x
+    # Otherwise, object is a scipy-like distribution
+    elif hasattr(x, "rvs") and callable(x.rvs):
+        return x
+    # Otherwise, input is a function that might return random numbers
+    elif callable(x):
+        # Try and get a value from the function
+        try:
+            test_sample = x()
+        except Exception as e:
+            raise TypeError("Callable could not be evaluated during distribution validation") from e
+        # If we get a numeric value back from the function, wrap it up so we have the same API as a scipy distribution
+        if isinstance(test_sample, (int, float, complex)):
+            return DistributionWrapper(x)
+        else:
+            raise TypeError("Callable must return a numeric value to be used as a distribution")
+    # Otherwise, we cannot evaluate what the input is
+    else:
+        raise TypeError(f"Expected a distribution-like object or a callable returning floats, but got: {type(x)}")
+
+
+def get_default_alias(prefix: str, objects: dict[str, Any], zfill_ints: int = 3) -> str:
+    """
+    Returns a default alias for a microphone, source, event...
+
+    The alias is constructed in the form "{prefix}{idx}", where `prefix` is a required argument and `idx` is determined
+    by the number of `objects` already present (e.g., the number of current microphones), left-padded with the number
+    of `zfill_ints` (defaults to 3).
+
+    Examples:
+        >>> default_alias = get_default_alias("mic", {"mic000": "", "mic001": ""})
+        >>> print(default_alias)
+        mic002
+
+    """
+    n_current_objs = len(objects)
+    test_alias = f"{prefix}{str(n_current_objs).zfill(zfill_ints)}"
+    if test_alias in objects:
+        raise KeyError(f"Alias {test_alias} already exists in dictionary!")
+    return test_alias

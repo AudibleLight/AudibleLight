@@ -19,7 +19,6 @@ from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_
 FACE_FILL_COLOR = [255, 0, 0, 255]
 
 MIN_AVG_RAY_LENGTH = 3.0
-MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
 
 EMPTY_SPACE_AROUND_SOURCE = 0.2  # Minimum distance one sound source can be from another
 EMPTY_SPACE_AROUND_MIC = 0.1    # Minimum distance one sound source can be from the mic
@@ -231,7 +230,7 @@ class WorldState:
         if alias in self.microphones.keys():
             raise KeyError(f"Alias {alias} already exists in microphone dictionary")
 
-        for attempt in range(MAX_PLACE_ATTEMPTS):
+        for attempt in range(utils.MAX_PLACE_ATTEMPTS):
             # Grab a random position for the microphone if required
             pos = position if position is not None else self.get_random_position()
             assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
@@ -246,11 +245,6 @@ class WorldState:
             elif position is not None:
                 break
         return False
-
-    def _get_default_microphone_alias(self) -> str:
-        """Returns a default alias for a microphone"""
-        n_current_mics = len(self.microphones) + 1 if len(self.microphones) > 0 else 0
-        return f"mic{str(n_current_mics).zfill(3)}"
 
     def _clear_microphones(self) -> None:
         """Removes all current microphones"""
@@ -298,7 +292,7 @@ class WorldState:
         sanitized_microphone = sanitize_microphone_input(microphone_type)
 
         # Get the microphone alias
-        alias = self._get_default_microphone_alias() if alias is None else alias
+        alias = utils.get_default_alias("mic", self.microphones) if alias is None else alias
 
         # Try and place the microphone inside the space
         placed = self._try_add_microphone(sanitized_microphone, position, alias)
@@ -307,7 +301,7 @@ class WorldState:
         if not placed:
             # If we were trying to add it to a random position
             if position is None:
-                raise ValueError(f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                raise ValueError(f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                                  f"Consider reducing `empty_space_around` arguments.")
             # If we were trying to add it to a specific position
             else:
@@ -384,7 +378,7 @@ class WorldState:
             sanitized_microphone = sanitize_microphone_input(microphone_type_)
 
             # Get the microphone alias
-            alias_ = self._get_default_microphone_alias() if alias_ is None else alias_
+            alias_ = utils.get_default_alias("mic", self.microphones) if alias_ is None else alias_
 
             # Try and place the microphone inside the space
             placed = self._try_add_microphone(sanitized_microphone, position_, alias_)
@@ -393,7 +387,7 @@ class WorldState:
             if not placed:
                 # If we were trying to add it to a random position
                 if position_ is None:
-                    msg = (f"Could not place microphone in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                    msg = (f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                            f"Consider reducing `empty_space_around` arguments.")
                 # If we were trying to add it to a specific position
                 else:
@@ -416,7 +410,7 @@ class WorldState:
         # Get an initial microphone position
         mic_pos = self.get_random_point_inside_mesh()
         # Start iterating until we get an acceptable position
-        for attempt in range(MAX_PLACE_ATTEMPTS):
+        for attempt in range(utils.MAX_PLACE_ATTEMPTS):
             # Compute the weighted average ray length with this position
             avg_ray_length = self.calculate_weighted_average_ray_length(mic_pos)
             # If the position is acceptable, break out
@@ -428,7 +422,7 @@ class WorldState:
                 mic_pos = self.get_random_point_inside_mesh()
         # If we haven't found an acceptable position, log this and use the most recent one.
         else:
-            logger.error(f"Could not find a suitable position after {MAX_PLACE_ATTEMPTS} attempts. "
+            logger.error(f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                          f"Using the last attempted position, which is {mic_pos}.")
         return mic_pos
 
@@ -522,7 +516,7 @@ class WorldState:
         position_is_assigned = position is not None
         # If we have already provided a position, this loop will only iterate once
         #  Otherwise, we want a random position, so we iterate N times until the position is valid
-        for attempt in range(1 if position_is_assigned else MAX_PLACE_ATTEMPTS):
+        for attempt in range(1 if position_is_assigned else utils.MAX_PLACE_ATTEMPTS):
             # Get a random position if required or use the assigned one
             pos = position if position_is_assigned else self.get_random_position()
             if len(pos) != 3:
@@ -546,11 +540,6 @@ class WorldState:
             return True
         # Cannot place: return False
         return False
-
-    def _get_default_source_alias(self) -> str:
-        """Returns a default alias for a source"""
-        n_current_sources = len(self.sources) + 1 if len(self.sources) > 0 else 0
-        return f"src{str(n_current_sources).zfill(3)}"
 
     def _get_mic_from_alias(self, mic_alias: Optional[str]) -> Optional[Type['MicArray']]:
         """Get a given `MicArray` object from its alias"""
@@ -690,7 +679,7 @@ class WorldState:
         desired_mic = self._get_mic_from_alias(mic_alias)
 
         # Get the alias for this source
-        source_alias = self._get_default_source_alias() if source_alias is None else source_alias
+        source_alias = utils.get_default_alias("src", self.sources) if source_alias is None else source_alias
 
         # Try and place inside the mesh: return True if placed, False if not
         placed = self._try_add_source(position, desired_mic, source_alias, polar, direct_path_to)
@@ -699,7 +688,7 @@ class WorldState:
         if not placed:
             # If we were trying to add it to a random position
             if position is None:
-                raise ValueError(f"Could not place source in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                raise ValueError(f"Could not place source in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                                  f"If this is happening frequently, consider reducing the number of `sources`, "
                                  f"or the `empty_space_around` arguments.")
             # If we were trying to add it to a specific position
@@ -789,7 +778,7 @@ class WorldState:
             desired_mic = self._get_mic_from_alias(mic_alias_)
 
             # Get the source alias
-            source_alias_ = self._get_default_source_alias() if source_alias_ is None else source_alias_
+            source_alias_ = utils.get_default_alias("src", self.sources) if source_alias_ is None else source_alias_
 
             # Try and place the source inside the space
             placed = self._try_add_source(position_, desired_mic, source_alias_, polar, direct_path_to)
@@ -798,7 +787,7 @@ class WorldState:
             if not placed:
                 # If we were trying to add it to a random position
                 if position_ is None:
-                    msg = (f"Could not place source in the mesh after {MAX_PLACE_ATTEMPTS} attempts. "
+                    msg = (f"Could not place source in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                            f"Consider reducing `empty_space_around` arguments.")
                 # If we were trying to add it to a specific position
                 else:

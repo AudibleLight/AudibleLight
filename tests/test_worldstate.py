@@ -17,8 +17,7 @@ from pyroomacoustics.doa.music import MUSIC
 
 from audiblelight import utils
 from audiblelight.worldstate import WorldState, load_mesh, repair_mesh
-from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR, MonoCapsule, get_micarray_from_string
-
+from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR, MonoCapsule, sanitize_microphone_input
 
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
 TEST_MESHES = [TEST_RESOURCES / glb for glb in TEST_RESOURCES.glob("*.glb")]
@@ -90,7 +89,7 @@ def test_add_microphone(microphone_type, position, alias, oyens_space: WorldStat
     if microphone_type is None:
         assert isinstance(mic, MonoCapsule)
     elif isinstance(microphone_type, str):
-        assert isinstance(mic, get_micarray_from_string(microphone_type))
+        assert isinstance(mic, sanitize_microphone_input(microphone_type))
     else:
         assert isinstance(mic, microphone_type)
     # Test aliases
@@ -757,3 +756,15 @@ def test_to_dict(oyens_space: WorldState):
         json.dumps(dict_out)
     except (TypeError, OverflowError):
         pytest.fail("Dictionary not JSON serializable")
+
+
+@pytest.mark.parametrize(
+    "prefix,objects,expected",
+    [
+        ("tmp", {"tmp000": 123, "tmp001": 321}, "tmp002"),
+        ("empty", {}, "empty000")
+    ]
+)
+def test_get_default_alias(prefix, objects, expected):
+    actual = utils.get_default_alias(prefix, objects)
+    assert actual == expected
