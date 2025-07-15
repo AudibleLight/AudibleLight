@@ -5,7 +5,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Union, Optional, Type
+from typing import Union, Optional, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +14,7 @@ from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutT
 from loguru import logger
 
 from audiblelight import utils
-from audiblelight.micarrays import get_micarray_from_string, MICARRAY_LIST, MicArray, MonoCapsule
+from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
 
@@ -231,36 +231,6 @@ class Space:
             self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
             self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
 
-    @staticmethod
-    def _sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
-        """
-        Sanitizes any microphone input into the correct 'MicArray' class.
-
-        Returns:
-            Type['MicArray']: the sanitized microphone class, ready to be instantiated
-        """
-
-        # Parsing the microphone type
-        # If None, get a random microphone and use a randomized position
-        if microphone_type is None:
-            logger.warning(f"No microphone type provided, using a mono microphone capsule in a random position!")
-            # Get a random microphone class
-            sanitized_microphone = MonoCapsule
-
-        # If a string, use the desired microphone type but get a random position
-        elif isinstance(microphone_type, str):
-            sanitized_microphone = get_micarray_from_string(microphone_type)
-
-        # If a class contained inside MICARRAY_LIST
-        elif microphone_type in MICARRAY_LIST:
-            sanitized_microphone = microphone_type
-
-        # Otherwise, we don't know what the microphone is
-        else:
-            raise TypeError(f"Could not parse microphone type {type(microphone_type)}")
-
-        return sanitized_microphone
-
     def _try_add_microphone(self, mic_cls, position: Union[list, None], alias: str) -> bool:
         """
         Try to place a microphone of type mic_cls at position with given alias. Return True if successful.
@@ -332,7 +302,7 @@ class Space:
             self._clear_microphones()
 
         # Get the correct microphone type.
-        sanitized_microphone = self._sanitize_microphone_input(microphone_type)
+        sanitized_microphone = sanitize_microphone_input(microphone_type)
 
         # Get the microphone alias
         alias = self._get_default_microphone_alias() if alias is None else alias
@@ -418,7 +388,7 @@ class Space:
             alias_ = aliases[idx] if aliases is not None else None
 
             # Get the correct microphone type.
-            sanitized_microphone = self._sanitize_microphone_input(microphone_type_)
+            sanitized_microphone = sanitize_microphone_input(microphone_type_)
 
             # Get the microphone alias
             alias_ = self._get_default_microphone_alias() if alias_ is None else alias_

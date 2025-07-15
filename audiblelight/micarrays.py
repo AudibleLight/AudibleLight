@@ -4,13 +4,15 @@
 """Implements dataclasses for working with common microphone array types"""
 
 from dataclasses import dataclass, field
+from typing import Any, Type
 
 import numpy as np
+from loguru import logger
 
 from audiblelight import utils
 
 __all__ = [
-    "get_micarray_from_string",
+    "sanitize_microphone_input",
     "MicArray",
     "Eigenmike32",
     "Eigenmike64",
@@ -314,8 +316,40 @@ MICARRAY_LIST = [
 ]
 
 
-def get_micarray_from_string(micarray_name: str) -> type[MicArray]:
-    """Given a string representation of a microphone array (e.g., `eigenmike32`), return the correct MicArray object"""
+def sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
+    """
+    Sanitizes any microphone input into the correct 'MicArray' class.
+
+    Returns:
+        Type['MicArray']: the sanitized microphone class, ready to be instantiated
+    """
+
+    # Parsing the microphone type
+    # If None, get a random microphone and use a randomized position
+    if microphone_type is None:
+        logger.warning(f"No microphone type provided, using a mono microphone capsule in a random position!")
+        # Get a random microphone class
+        sanitized_microphone = MonoCapsule
+
+    # If a string, use the desired microphone type but get a random position
+    elif isinstance(microphone_type, str):
+        sanitized_microphone = get_micarray_from_string(microphone_type)
+
+    # If a class contained inside MICARRAY_LIST
+    elif microphone_type in MICARRAY_LIST:
+        sanitized_microphone = microphone_type
+
+    # Otherwise, we don't know what the microphone is
+    else:
+        raise TypeError(f"Could not parse microphone type {type(microphone_type)}")
+
+    return sanitized_microphone
+
+
+def get_micarray_from_string(micarray_name: str) -> Type['MicArray']:
+    """
+    Given a string representation of a microphone array (e.g., `eigenmike32`), return the correct MicArray object
+    """
     # These are the name attributes for all valid microphone arrays
     acceptable_values = [ma().name for ma in MICARRAY_LIST]
     if micarray_name not in acceptable_values:
