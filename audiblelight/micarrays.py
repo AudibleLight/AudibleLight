@@ -106,6 +106,32 @@ class MicArray:
     def __str__(self) -> str:
         return f"Microphone array '{self.__class__.__name__}' with {len(self)} capsules"
 
+    def to_dict(self) -> dict:
+        """
+        Returns metadata for this MicArray as a dictionary.
+        """
+        # Try and get all coordinate types for this microphone array
+        coords = ["coordinates_absolute", "coordinates_polar", "coordinates_center", "coordinates_cartesian"]
+        coord_dict = {}
+        for coord_type in coords:
+            try:
+                coord_val = getattr(self, coord_type)
+            # Skip over cases where this microphone doesn't have
+            except NotImplementedError:
+                coord_val = None
+            # Need to parse arrays to list so that JSON serialising will work OK later on
+            else:
+                if isinstance(coord_val, np.ndarray):
+                    coord_val = coord_val.tolist()
+            coord_dict[coord_type] = coord_val
+        return dict(
+            name=self.name,
+            is_spherical=self.is_spherical,
+            n_capsules=self.n_capsules,
+            capsule_names=self.capsule_names,
+            **coord_dict
+        )
+
 
 @dataclass
 class MonoCapsule(MicArray):

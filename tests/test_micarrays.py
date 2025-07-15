@@ -3,6 +3,8 @@
 
 """Tests microphone arrays in audiblelight.micarrays"""
 
+import json
+
 import pytest
 import numpy as np
 
@@ -43,6 +45,18 @@ def test_cartesian_coordinates(micarray):
     assert isinstance(cartesian, np.ndarray)
     # Everything should have the same shape
     assert cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
+
+
+@pytest.mark.parametrize("micarray", MICARRAY_LIST)
+def test_to_dict(micarray):
+    micarray = micarray()
+    micarray.set_absolute_coordinates([-0.5, -0.5, -0.5])
+    dict_out = micarray.to_dict()
+    assert isinstance(dict_out, dict)
+    try:
+        json.dumps(dict_out)
+    except (TypeError, OverflowError):
+        pytest.fail("Dictionary not JSON serializable")
 
 
 @pytest.mark.parametrize(
