@@ -772,3 +772,16 @@ def test_save_egocentric_video(mesh_fpath: str):
     space.save_egocentric_video("ego", "tmp.mp4", )
     assert os.path.isfile("tmp.mp4")
     os.remove("tmp.mp4")
+
+
+@pytest.mark.parametrize("mesh_fpath", TEST_MESHES)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
+def test_save_egocentric_panorama(mesh_fpath: str):
+    space = Space(mesh_fpath, use_textures=True)
+    # Add microphone and sources
+    space.add_microphone(alias="ego", microphone_type="ambeovr", keep_existing=False)
+    space.add_sources(n_sources=5, ensure_direct_path="ego", keep_existing=False, polar=False)
+    # Create the panorama
+    space.save_egocentric_panorama("ego", "tmp.png", )
+    assert os.path.isfile("tmp.png")
+    os.remove("tmp.png")

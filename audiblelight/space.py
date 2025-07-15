@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 import trimesh
+import vtkmodules.all as vtk
 from PIL import Image
 from loguru import logger
 from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
@@ -1009,15 +1010,15 @@ class Space:
         return np.asarray(center_point)
 
     @staticmethod
-    def _update_pyvista_camera(plotter: pv.Plotter, **camera_kws):
+    def _update_pyvista_camera(camera: pv.Camera, **camera_kws):
         """
-        Updates the camera of a `plotter` object with given kwargs
+        Updates a pyvista `Camera` object with given kwargs
         """
         for camera_key, camera_value in camera_kws.items():
             if camera_key == "camera_position":
                 raise AttributeError("Cannot pass a custom `camera_position` to `camera`!")
-            if hasattr(plotter.camera, camera_key):
-                setattr(plotter.camera, camera_key, camera_value)
+            if hasattr(camera, camera_key):
+                setattr(camera, camera_key, camera_value)
             else:
                 raise AttributeError(f"`{camera_key}` is not a valid attribute for `pyvista.Camera`")
 
@@ -1037,6 +1038,7 @@ class Space:
             outpath (str): The path of the output file
             n_frames (int): Number of frames to generate (defaults to 360)
             frame_rate (int): Frame rate for video (defaults to 30)
+            camera_kws (optional): additional keyword arguments to pass to `pyvista.Camera`.
 
         Examples:
             >>> # Create a space with a given mesh, add a microphone and 10 random sources with a direct path to the mic
@@ -1054,7 +1056,7 @@ class Space:
         plotter = self.create_scene(mic_radius=0.)
         plotter.open_movie(outpath, framerate=frame_rate)
         # Set the properties of the camera as required
-        self._update_pyvista_camera(plotter, **camera_kws)
+        self._update_pyvista_camera(plotter.camera, **camera_kws)
         # Set the camera position for every frame
         angles = utils.generate_horizontal_angles(ego_point, n_frames)
         for angle in angles:
@@ -1067,7 +1069,7 @@ class Space:
             self,
             mic_alias: str,
             outpath: str,
-            center: Union[str, list[float], np.ndarray] = "sources",
+            center: Optional[Union[str, list[float], np.ndarray]] = "sources",
             **camera_kws
     ) -> None:
         """
@@ -1076,9 +1078,10 @@ class Space:
         Arguments:
             mic_alias (str): The name of the microphone that the view will be created for
             outpath (str): The path of the output file
-            center: the position to point the view towards.
+            center (optional): the position to point the view towards.
                 Must be either a valid microphone or source alias, "mesh_center", "source_center", or a point inside
                 the mesh.
+            camera_kws (optional): additional keyword arguments to pass to `pyvista.Camera`.
 
         Examples:
             >>> # Create a space with a given mesh, add a microphone and 10 random sources with a direct path to the mic
@@ -1099,9 +1102,60 @@ class Space:
         # Set the camera position
         plotter.camera_position = [(x, y, z), center_point, UP]
         # Set the properties of the camera as required
-        self._update_pyvista_camera(plotter, **camera_kws)
+        self._update_pyvista_camera(plotter.camera, **camera_kws)
         # Dump the graphic
         plotter.save_graphic(outpath)
+
+    def save_egocentric_panorama(
+            self,
+            mic_alias: str,
+            outpath: str,
+            resolution: Optional[tuple[int, int]] = (3072, 1024),
+            **camera_kws
+    ) -> None:
+        """
+        Creates a panoramic image showing the complete view of the microphone given by `ego_alias`.
+
+        Arguments:
+            mic_alias (str): The name of the microphone that the view will be created for
+            outpath (str): The path of the output file
+            resolution (optional): the resolution of the image file, defaults to 3072x1024.
+            camera_kws (optional): additional keyword arguments to pass to `pyvista.Camera`.
+        """
+        # Get the microphone coordinates
+        if mic_alias not in self.microphones.keys():
+            raise KeyError("Microphone alias '{}' is not a valid microphone alias".format(mic_alias))
+        x, y, z = self.microphones[mic_alias].coordinates_center
+        # Focus in the center of the mesh
+        center_point = self.mesh.centroid
+        # Build the scene
+        plotter = self.create_scene(mic_radius=0.)
+        plotter.window_size = resolution
+        plotter.camera_position = [(x, y, z), center_point, UP]
+        self._update_pyvista_camera(plotter.camera, **camera_kws)
+        renderer = plotter.renderer
+        # Create basic passes (lighting, geometry, etc.)
+        basic_passes = vtk.vtkRenderPassCollection()
+        for item in [vtk.vtkLightsPass, vtk.vtkOpaquePass, vtk.vtkOverlayPass]:
+            basic_passes.AddItem(item())
+        # Wrap basic passes in a sequence
+        sequence = vtk.vtkSequencePass()
+        sequence.SetPasses(basic_passes)
+        # Camera pass delegates to sequence
+        camera_pass = vtk.vtkCameraPass()
+        camera_pass.SetDelegatePass(sequence)
+        # Panoramic projection pass delegates to camera pass
+        pan = vtk.vtkPanoramicProjectionPass()
+        pan.SetProjectionTypeToEquirectangular()
+        pan.SetAngle(360.0)
+        pan.SetCubeResolution(resolution[1])
+        pan.SetInterpolate(True)
+        pan.SetDelegatePass(camera_pass)
+        # Set the final pass into the renderer
+        renderer.SetPass(pan)
+        # Render and save
+        plotter.render()
+        plotter.screenshot(outpath)
 
     def save_irs_to_wav(self, outdir: str) -> None:
         """
