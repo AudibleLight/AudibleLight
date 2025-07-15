@@ -4,16 +4,19 @@
 """Implements dataclasses for working with common microphone array types"""
 
 from dataclasses import dataclass, field
+from typing import Any, Type
 
 import numpy as np
+from loguru import logger
 
 from audiblelight import utils
 
 __all__ = [
-    "get_micarray_from_string",
+    "sanitize_microphone_input",
     "MicArray",
     "Eigenmike32",
     "Eigenmike64",
+    "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST"
 ]
@@ -59,14 +62,22 @@ class MicArray:
         if self._coordinates_absolute is None:
             raise NotImplementedError("Must call `.set_absolute_coordinates` first!")
         else:
-            return self._coordinates_absolute
+            return (
+                np.array(self._coordinates_absolute)
+                if isinstance(self._coordinates_absolute, list)
+                else self._coordinates_absolute
+            )
 
     @property
     def coordinates_center(self) -> np.ndarray:
         if self._coordinates_center is None:
             raise NotImplementedError("Must call `.set_absolute_coordinates` first!")
         else:
-            return self._coordinates_center
+            return (
+                np.array(self._coordinates_center)
+                if isinstance(self._coordinates_center, list)
+                else self._coordinates_center
+            )
 
     @property
     def n_capsules(self) -> int:
@@ -82,8 +93,8 @@ class MicArray:
 
         The center should be in cartesian coordinates with the form (XYZ), with units in meters.
         """
-        self._coordinates_center = utils.coerce2d(mic_center)
-        self._coordinates_absolute = self.coordinates_cartesian + self._coordinates_center
+        self._coordinates_center = mic_center
+        self._coordinates_absolute = self.coordinates_cartesian + utils.coerce2d(self._coordinates_center)
         return self._coordinates_absolute
 
     def __len__(self) -> int:
@@ -94,6 +105,23 @@ class MicArray:
 
     def __str__(self) -> str:
         return f"Microphone array '{self.__class__.__name__}' with {len(self)} capsules"
+
+
+@dataclass
+class MonoCapsule(MicArray):
+    """
+    A single mono microphone capsule
+    """
+    name: str = "monocapsule"
+    is_spherical: bool = False
+
+    @property
+    def coordinates_cartesian(self) -> np.ndarray:
+        return np.array([[0., 0., 0.]])
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return ["mono"]
 
 
 @dataclass
@@ -284,11 +312,44 @@ MICARRAY_LIST = [
     Eigenmike32,
     Eigenmike64,
     AmbeoVR,
+    MonoCapsule
 ]
 
 
-def get_micarray_from_string(micarray_name: str) -> type[MicArray]:
-    """Given a string representation of a microphone array (e.g., `eigenmike32`), return the correct MicArray object"""
+def sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
+    """
+    Sanitizes any microphone input into the correct 'MicArray' class.
+
+    Returns:
+        Type['MicArray']: the sanitized microphone class, ready to be instantiated
+    """
+
+    # Parsing the microphone type
+    # If None, get a random microphone and use a randomized position
+    if microphone_type is None:
+        logger.warning(f"No microphone type provided, using a mono microphone capsule in a random position!")
+        # Get a random microphone class
+        sanitized_microphone = MonoCapsule
+
+    # If a string, use the desired microphone type but get a random position
+    elif isinstance(microphone_type, str):
+        sanitized_microphone = get_micarray_from_string(microphone_type)
+
+    # If a class contained inside MICARRAY_LIST
+    elif microphone_type in MICARRAY_LIST:
+        sanitized_microphone = microphone_type
+
+    # Otherwise, we don't know what the microphone is
+    else:
+        raise TypeError(f"Could not parse microphone type {type(microphone_type)}")
+
+    return sanitized_microphone
+
+
+def get_micarray_from_string(micarray_name: str) -> Type['MicArray']:
+    """
+    Given a string representation of a microphone array (e.g., `eigenmike32`), return the correct MicArray object
+    """
     # These are the name attributes for all valid microphone arrays
     acceptable_values = [ma().name for ma in MICARRAY_LIST]
     if micarray_name not in acceptable_values:

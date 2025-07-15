@@ -17,6 +17,7 @@ def test_string_attributes(micarray):
     assert isinstance(getattr(micarray(), "name"), str)
     assert getattr(micarray(), "name") != ""
 
+
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
 def test_polar_coordinates(micarray):
     # Non-spherical mics will not have polar coordinates
@@ -143,10 +144,13 @@ def test_absolute_coordinates(micarray, center: np.ndarray):
         pytest.fail()
 
 
-@pytest.mark.parametrize("array_name,expected", [("eigenmike32", Eigenmike32), ("ambeovr", AmbeoVR), ("asdf", None)])
-def test_get_array_from_string(array_name: str, expected: object):
-    if expected is None:
-        with pytest.raises(ValueError):
-            _ = get_micarray_from_string(array_name)
+@pytest.mark.parametrize(
+    "array_name,expected",
+    [("eigenmike32", Eigenmike32), ("ambeovr", AmbeoVR), ("asdf", ValueError), (None, MonoCapsule), (123, TypeError)]
+)
+def test_sanitize_microphone_input(array_name: str, expected: object):
+    if issubclass(expected, Exception):
+        with pytest.raises(expected):
+            _ = sanitize_microphone_input(array_name)
     else:
-        assert type(expected) == type(get_micarray_from_string(array_name))
+        assert type(expected) == type(sanitize_microphone_input(array_name))

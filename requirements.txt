@@ -2,13 +2,13 @@
 #  in the future we should probably make them less specific
 
 librosa==0.11.0
-matplotlib==3.10.0
+matplotlib
 numpy==2.0.2
 pandas==2.2.2
 pillow==11.2.1
 plotly==5.24.1
 rtree==1.4.0
-scipy==1.15.3
+scipy
 tqdm==4.67.1
 trimesh==4.6.11
 scaper
@@ -22,3 +22,5 @@ pytest
 coverage
 pytest-cov
 pytest-xdist
+pyroomacoustics
+h5py

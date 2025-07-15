@@ -3,12 +3,14 @@
 
 """Utility functions, variables, objects etc."""
 
+import wave
 from pathlib import Path
 from typing import Union
 
 import random
 import numpy as np
 import torch
+from loguru import logger
 
 MESH_UNITS = "meters"    # will convert to this if
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -26,6 +28,40 @@ SEED = 42
 SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
 
 
+def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
+    """
+    Writes a mono audio array to a WAV file in 16-bit PCM format.
+
+    The input must be a 1D float array. Values are expected in [-1, 1], and will
+    be normalized if they exceed this range.
+    """
+    # Cast array to float64
+    audio = np.asarray(audio, dtype=np.float64)
+    # Sanity checking
+    assert len(audio.shape) == 1, "Only mono audio supported"
+    assert Path(outpath).parent.exists(), "Output directory must exist"
+    # Check if normalization is needed
+    max_val = np.max(np.abs(audio))
+    if max_val > 1.0:
+        logger.warning(f"Audio file absolute max exceeds 1.0 ({round(max_val, 3)}), normalizing...")
+        audio = audio / max_val
+    # Catch cases where silent audio would lead to dividing by zero
+    elif max_val == 0.:
+        logger.warning("Audio is completely silent.")
+    # Convert to 16-bit PCM
+    audio_int16 = (audio * 32767).astype(np.int16)
+    # Coerce to 2D array
+    audio_fmt = coerce2d(audio_int16).T
+    # Write to WAV using wave module
+    #  We use wave for dumping wav files, not scipy, as scipy depends on audioread which is no longer maintained
+    #  See https://github.com/beetbox/audioread/issues/144
+    with wave.open(outpath, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 2 bytes = 16-bit
+        wf.setframerate(sample_rate)
+        wf.writeframes(audio_fmt.tobytes())
+
+
 def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndarray:
     """Coerces an input type to a 2D array"""
     # Coerce list types to arrays
@@ -34,34 +70,9 @@ def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndar
     # Convert 1D arrays to 2D
     if len(array.shape) == 1:
         array = np.array([array])
+    if len(array.shape) != 2:
+        raise ValueError(f"Expected a 1- or 2D array, but got {len(array.shape)}D array")
     return array
-
-
-def foa_to_simple_stereo(audio: np.ndarray, angle: int = 0) -> np.ndarray:
-    """Simple conversion of FOA ambisonic audio to stereo. We should replace this with something more complex later!"""
-    assert audio.shape[0] == 4, "Input must be in FOA format (WXYZ)"
-    w, x, y, _ = audio
-    angle = angle * np.pi / 180
-    left = w + 0.7071 * (x * np.cos(angle) + y * np.sin(angle))
-    right = w + 0.7071 * (x * np.cos(-angle) + y * np.sin(-angle))
-    return np.vstack((left, right))
-
-
-def pad2d(iter2d: list[np.ndarray]) -> np.ndarray:
-    """Pads a list of 2D arrays to the same length"""
-    # Get the length of the longest array
-    max_length = max([ir.shape[-1] for ir in iter2d])
-    padded_iters = []
-    # Iterate over all the arrays
-    for ir in iter2d:
-        # Pad short arrays
-        if ir.shape[-1] < max_length:
-            padded = np.pad(ir, ((0, 0), (0, max_length - ir.shape[-1])), mode='constant')
-        # Truncate long ones
-        else:
-            padded = ir[:, :max_length]
-        padded_iters.append(padded)
-    return np.array(padded_iters)
 
 
 def seed_everything(seed: int = SEED) -> None:
@@ -125,3 +136,10 @@ def center_coordinates(cartesian_array: np.ndarray) -> np.ndarray:
     c_mean = np.mean(cartesian_array, axis=0)
     # Shape (n_capsules, 3)
     return cartesian_array - c_mean
+
+
+def check_all_lens_equal(*iterables) -> bool:
+    """
+    Returns True if all iterables have the same length, False otherwise
+    """
+    return len({len(i) for i in iterables}) == 1

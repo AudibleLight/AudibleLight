@@ -1,6 +1,11 @@
 # created by virtualenv automatically
 /venv
 /.idea
+/notebooks/.ipynb_checkpoints
+
+# ignore coverage files
+.coverage
+coverage.xml
 
 # ignore mesh files currently
 *.obj
@@ -10,3 +15,4 @@
 *.wav
 *.png
 *.sofa
+*.h5
