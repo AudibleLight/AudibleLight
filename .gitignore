@@ -3,6 +3,10 @@
 /.idea
 /notebooks/.ipynb_checkpoints
 
+# ignore coverage files
+.coverage
+coverage.xml
+
 # ignore mesh files currently
 *.obj
 *.glb
