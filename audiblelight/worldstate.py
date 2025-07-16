@@ -4,8 +4,9 @@
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
 import os
+from functools import wraps
 from pathlib import Path
-from typing import Union, Optional, Type
+from typing import Union, Optional, Type, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -95,32 +96,33 @@ class Emitter:
         self.alias: str = alias
         self.coordinates_absolute: np.ndarray = utils.sanitise_coordinates(coordinates_absolute)
         # These dictionaries map from {alias: position} for all other emitter and microphone array objects
-        self.coordinates_relative_cartesian: Optional[dict[str, np.ndarray]] = None
-        self.coordinates_relative_polar: Optional[dict[str, np.ndarray]] = None
+        self.coordinates_relative_cartesian: Optional[dict[str, np.ndarray]] = {}
+        self.coordinates_relative_polar: Optional[dict[str, np.ndarray]] = {}
 
     def update_coordinates(self, coordinates: dict[str, Union[Type['MicArray'], Type['Emitter']]]):
         """
         Updates coordinates of this emitter WRT a dictionary in the format {alias: MicArray | Emitter}
         """
         for alias, obj in coordinates.items():
-            # Skip over the current emitter if present in the list
+            # Add zero-arrays if the object is the current Emitter
             if alias == self.alias:
-                continue
+                self.coordinates_relative_cartesian[alias] = np.array([0., 0., 0.])
+                self.coordinates_relative_polar[alias] = np.array([0., 0., 0.])
 
-            # Grab the coordinates from the object
-            #  For micarrays, use the center of all capsules; for emitters, use the absolute position
-            #  These should all be in Cartesian, XYZ format
-            if issubclass(obj, MicArray):
-                coords = obj.coordinates_center
-            elif isinstance(obj, Emitter):
-                coords = obj.coordinates_absolute
             else:
-                raise TypeError("Cannot handle input with type {}".format(type(obj)))
+                # Grab the coordinates from the object: these should all be in Cartesian, XYZ format
+                #  For micarrays, use the center of all capsules; for emitters, use the absolute position
+                if issubclass(type(obj), MicArray):
+                    coords = obj.coordinates_center
+                elif isinstance(obj, Emitter):
+                    coords = obj.coordinates_absolute
+                else:
+                    raise TypeError("Cannot handle input with type {}".format(type(obj)))
 
-            # Express the position of the CURRENT emitter WRT the object we're considering
-            pos = utils.sanitise_coordinates(coords) - self.coordinates_absolute
-            self.coordinates_relative_cartesian[alias] = pos
-            self.coordinates_relative_polar[alias] = utils.cartesian_to_polar(pos)
+                # Express the position of the CURRENT emitter WRT the object we're considering
+                pos = self.coordinates_absolute - utils.sanitise_coordinates(coords)
+                self.coordinates_relative_cartesian[alias] = pos
+                self.coordinates_relative_polar[alias] = utils.cartesian_to_polar(pos)
 
     def __repr__(self) -> str:
         return utils.repr_as_json(self)
@@ -129,13 +131,19 @@ class Emitter:
         return f"Emitter '{self.alias}' with absolute position {self.coordinates_absolute}"
 
     def to_dict(self) -> dict:
-        # We can't dump numpy arrays to JSON format so make sure they are lists
-        coerce = lambda x: x.tolist() if isinstance(x, np.ndarray) else x
+        def coerce(inp):
+            if isinstance(inp, dict):
+                return {k: coerce(v) for k, v in inp.items()} if inp else None
+            elif isinstance(inp, np.ndarray):
+                return inp.tolist()
+            else:
+                return inp
+
         return dict(
             alias=self.alias,
             coordinates_absolute=coerce(self.coordinates_absolute),
-            coordinates_relative_cartesian={k: coerce(v) for k, v in self.coordinates_relative_cartesian.items()},
-            coordinates_relative_polar={k: coerce(v) for k, v in self.coordinates_relative_polar.items()},
+            coordinates_relative_cartesian=coerce(self.coordinates_relative_cartesian),
+            coordinates_relative_polar=coerce(self.coordinates_relative_polar),
         )
 
 
@@ -204,6 +212,44 @@ class WorldState:
         self._setup_audio_context()
 
     @staticmethod
+    def update_state(func: Callable):
+        """
+        Decorator function that will update the current state and all objects in it. Should be run after any
+        method that changes the state, e.g. `add_microphone`, `add_emitter`.
+        """
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            result = func(self, *args, **kwargs)
+            self._update()
+            return result
+        return wrapper
+
+    def _update(self) -> None:
+        """
+        Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
+        """
+        # Update the ray-tracing listeners
+        if len(self.microphones) > 0:
+            self.ctx.clear_listeners()
+            all_caps = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
+            for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
+                # Add a single listener for each individual capsule
+                self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
+                self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
+
+        # Update the ray-tracing sources
+        if len(self.emitters) > 0:
+            self.ctx.clear_sources()
+            for i, emitter in enumerate(self.emitters.values()):
+                # Update the coordinates of the emitter WRT other microphones, emitters
+                emitter.update_coordinates(self.emitters)
+                emitter.update_coordinates(self.microphones)
+                # Add the emitter to the ray-tracing engine
+                self.ctx.add_source()
+                pos = emitter.coordinates_absolute
+                self.ctx.set_source_position(i, pos.tolist() if isinstance(pos, np.ndarray) else pos)
+
+    @staticmethod
     def _parse_rlr_config(rlr_kwargs: dict) -> Config:
         """
         Parses the configuration for the ray-tracing engine
@@ -269,20 +315,6 @@ class WorldState:
         self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
         self.ctx.finalize_object_mesh(0)
 
-    def _setup_listener(self) -> None:
-        """
-        Adds a listener to the audio context and sets its position to the microphone's position.
-        """
-        # We should clear the listener list so we don't add listeners multiple times to the engine
-        self.ctx.clear_listeners()
-        # Stack the coordinates of all capsules into a single 2D array
-        all_caps = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
-        # Iterate over all the capsules
-        for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
-            # Add a single listener for each individual capsule
-            self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
-            self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
-
     def _try_add_microphone(self, mic_cls, position: Union[list, None], alias: str) -> bool:
         """
         Try to place a microphone of type mic_cls at position with given alias. Return True if successful.
@@ -311,6 +343,7 @@ class WorldState:
         self.microphones = {}
         self.ctx.clear_listeners()
 
+    @update_state
     def add_microphone(
             self,
             microphone_type: Union[str, Type['MicArray'], None] = None,
@@ -368,10 +401,8 @@ class WorldState:
                 raise ValueError(f"Position {position} invalid for microphone {sanitized_microphone.name}. "
                                 f"Consider reducing `empty_space_around` arguments.")
 
-        # Set up the listeners inside the ray-tracing engine: add one mono listener per microphone capsule
-        self._setup_listener()
 
-
+    @update_state
     def add_microphones(
             self,
             microphone_types: list[Union[str, Type['MicArray'], None]] = None,
@@ -460,9 +491,6 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
-        # Set up the listeners inside the ray-tracing engine: add one mono listener per microphone capsule
-        self._setup_listener()
-
     def get_random_position(self) -> np.ndarray:
         """
         Get a random position to place a emitter inside the mesh
@@ -511,17 +539,6 @@ class WorldState:
         """
         return bool(self.mesh.contains(utils.coerce2d(point))[0])
 
-    def _setup_emitters(self):
-        """
-        Sets the positions of sound emitters in the state.
-        """
-        # We should clear the emitter list so we don't add the same emitter multiple times
-        self.ctx.clear_sources()
-        # Now, iterate only through the valid emitters and add these to the mesh
-        for i, pos in enumerate(self.emitters.values()):
-            self.ctx.add_source()
-            self.ctx.set_source_position(i, pos.tolist() if isinstance(pos, np.ndarray) else pos)
-
     def _validate_position(self, pos_abs: np.ndarray) -> bool:
         """
         Validates a position or array of positions with respect to the mesh and objects inside it.
@@ -535,7 +552,7 @@ class WorldState:
         # Iterate over all positions
         for position in positions:
             # Check minimum distance from all emitters
-            if any(np.linalg.norm(position - src) < self.empty_space_around_emitter for src in self.emitters.values()):
+            if any(np.linalg.norm(position - src.coordinates_absolute) < self.empty_space_around_emitter for src in self.emitters.values()):
                 return False
 
             # Check minimum distance from the center of every microphone and from every individual capsule
@@ -596,7 +613,12 @@ class WorldState:
             if not all(self.path_exists_between_points(pos, self.microphones[d].coordinates_center) for d in path_between):
                 continue
             # Successfully placed: add to the emitter dictionary and return True
-            self.emitters[alias] = np.asarray(pos)
+            #  We will update the `coordinates_relative` objects in the `update_state` decorator
+            emitter = Emitter(
+                alias=alias,
+                coordinates_absolute=np.asarray(pos)
+            )
+            self.emitters[alias] = emitter
             return True
         # Cannot place: return False
         return False
@@ -674,6 +696,7 @@ class WorldState:
         else:
             raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
+    @update_state
     def add_emitter(
             self,
             position: Optional[Union[list, np.ndarray]] = None,
@@ -757,9 +780,7 @@ class WorldState:
                                  f"If this is happening frequently, consider reducing the number of `emitters`, "
                                  f"or the `empty_space_around` arguments.")
 
-        # Add the emitters to the ray-tracing engine
-        self._setup_emitters()
-
+    @update_state
     def add_emitters(
             self,
             positions: Union[list, np.ndarray, None] = None,
@@ -860,8 +881,6 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
-        # Set up the emitters in the ray-tracing engine
-        self._setup_emitters()
 
     def _simulation_sanity_check(self) -> None:
         """
@@ -934,7 +953,7 @@ class WorldState:
                 add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
         # This adds the sound emitters, with different color + radius
         for emitter in self.emitters.values():
-            add_sphere(scene, emitter, [0, 255, 0], r=emitter_radius)
+            add_sphere(scene, emitter.coordinates_absolute, [0, 255, 0], r=emitter_radius)
         return scene    # can then run `.show()` on the returned object
 
     def create_plot(self, ) -> plt.Figure:
@@ -949,7 +968,7 @@ class WorldState:
         vertices = self.mesh.vertices
         # Create a top-down view first, then a side view
         mic_positions = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
-        emitter_positions = np.vstack([v for v in self.emitters.values()])
+        emitter_positions = np.vstack([v.coordinates_absolute for v in self.emitters.values()])
         for ax_, idx, color, ylab, title in zip(ax.flatten(), [1, 2], ["red", "blue"], ["Y", "Z"], ["Top", "Side"]):
             # Scatter the vertices first
             ax_.scatter(vertices[:, 0], vertices[:, idx], c='gray', alpha=0.1, s=1)
@@ -995,7 +1014,7 @@ class WorldState:
         Returns metadata for this object as a dictionary
         """
         return dict(
-            emitters={s_alias: s.tolist() for s_alias, s in self.emitters.items()},    # need to call .tolist for JSON
+            emitters={s_alias: s.to_dict() for s_alias, s in self.emitters.items()},    # need to call .tolist for JSON
             microphones={m_alias: m.to_dict() for m_alias, m in self.microphones.items()},
             mesh=dict(
                 **self.mesh.metadata,    # this gets us the filepath, filename, and file extension of the mesh

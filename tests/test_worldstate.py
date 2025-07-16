@@ -16,7 +16,7 @@ from scipy.signal import stft
 from pyroomacoustics.doa.music import MUSIC
 
 from audiblelight import utils
-from audiblelight.worldstate import WorldState, load_mesh, repair_mesh
+from audiblelight.worldstate import WorldState, load_mesh, repair_mesh, Emitter
 from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR, MonoCapsule, sanitize_microphone_input
 
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
@@ -223,7 +223,7 @@ def test_validate_position(test_position: np.ndarray, expected: bool, oyens_spac
     [
         (None, None),    # Add random emitter with no aliases
         ([-0.1, -0.1, 0.6], "custom_alias"),    # add specific emitter with custom alias
-        ([-0.5, -0.5, 0.5], "custom_alias"),
+        (np.array([-0.5, -0.5, 0.5]), "custom_alias"),    # position as array, not list
     ]
 )
 def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
@@ -234,9 +234,22 @@ def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
     assert len(oyens_space.emitters) == 1
     # Get the desired emitter
     src = oyens_space.emitters[emitter_alias] if emitter_alias is not None else oyens_space.emitters["src000"]
-    assert len(src) == 3
+    # Should be an emitter object
+    assert isinstance(src, Emitter)
+    # Should have all the desired attributes
+    if emitter_alias is not None:
+        assert src.alias == emitter_alias
     if position is not None:
-        assert np.array_equal(src, position)
+        assert np.array_equal(src.coordinates_absolute, position)
+    # Test output dictionary
+    di = src.to_dict()
+    assert isinstance(di, dict)
+    for k in ["alias", "coordinates_absolute", "coordinates_relative_cartesian", "coordinates_relative_polar"]:
+        assert k in di.keys()
+    # Test output strings
+    assert isinstance(repr(src), str)
+    assert isinstance(str(src), str)
+    assert repr(src) != str(src)
 
 
 def test_add_emitter_invalid(oyens_space: WorldState):
@@ -323,7 +336,7 @@ def test_add_polar_emitter(emitter_position, expected_position, oyens_space: Wor
         alias="tester"
     )
     oyens_space.add_emitter(position=emitter_position, polar=True, mic="tester", keep_existing=False)
-    assert np.allclose(oyens_space.emitters["src000"], expected_position, atol=1e-4)
+    assert np.allclose(oyens_space.emitters["src000"].coordinates_absolute, expected_position, atol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -344,7 +357,7 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
         alias="tester",
         keep_existing=False
     )
-    # Trying to add a emitter that should be rejected
+    # Trying to add an emitter that should be rejected
     if not accept:
         with pytest.raises(ValueError):
             oyens_space.add_emitter(position=position, mic="tester", keep_existing=False, polar=False)
@@ -352,7 +365,14 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
         oyens_space.add_emitter(position=position, mic="tester", keep_existing=False, polar=False)
         assert len(oyens_space.emitters) == 1
         src = oyens_space.emitters["src000"]
-        assert len(src) == 3
+        assert isinstance(src, Emitter)
+        # coordinates_relative dict should be as expected
+        assert np.allclose(src.coordinates_relative_cartesian["tester"], position, atol=1e-4)
+        assert np.allclose(
+            src.coordinates_relative_polar["tester"],
+            utils.cartesian_to_polar(position),
+            atol=1e-4
+        )
 
 
 @pytest.mark.parametrize(
@@ -369,8 +389,13 @@ def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
     assert len(oyens_space.emitters) == len(positions)
     if emitter_aliases is not None:
         assert set(oyens_space.emitters.keys()) == set(emitter_aliases)
+        # Should have all the other emitters in our relative coords dict
+        for emitter in oyens_space.emitters.values():
+            assert set(emitter.coordinates_relative_cartesian.keys()) == set(emitter_aliases)
+            assert set(emitter.coordinates_relative_polar.keys()) == set(emitter_aliases)
     for emitter in oyens_space.emitters.values():
-        assert oyens_space._is_point_inside_mesh(emitter)
+        assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
+
 
 
 @pytest.mark.parametrize(
@@ -394,31 +419,50 @@ def test_add_polar_emitters(emitter_positions, expected_positions, oyens_space: 
         alias="tester"
     )
     oyens_space.add_emitters(positions=emitter_positions, polar=True, mics="tester", keep_existing=False)
-    for emitter_position, expected_position in zip(oyens_space.emitters.values(), expected_positions):
-        assert np.allclose(emitter_position, expected_position, atol=1e-4)
+    for emitter, expected_position in zip(oyens_space.emitters.values(), expected_positions):
+        assert np.allclose(emitter.coordinates_absolute, expected_position, atol=1e-4)
 
 
 @pytest.mark.parametrize(
-    "test_position,expected_shape",
+    "test_position,expected",
     [
-        (np.array([[0.1, 0.0, 0.0], [-0.2, 0.2, 0.2]]), 1),    # 1: too close to mic, so skipped, 2: fine
-        ([[-0.2, 0.2, 0.2], [-0.2, 0.3, 0.2]], 1),    # 1: fine, 2: too close to emitter 1, so skipped
-        (np.array([[-0.2, 0.2, 0.2], [0.2, -0.3, -0.2]]), 2),  # both fine
+        (np.array([[0.1, 0.0, 0.0], [-0.2, 0.2, 0.2]]), (False, True)),    # 1: too close to mic, so skipped, 2: fine
+        ([[-0.2, 0.2, 0.2], [-0.2, 0.3, 0.2]], (True, False)),    # 1: fine, 2: too close to emitter 1, so skipped
+        (np.array([[-0.2, 0.2, 0.2], [0.2, -0.3, -0.2]]), (True, True)),  # both fine
     ]
 )
-def test_add_emitters_relative_to_mic(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: WorldState):
+def test_add_emitters_relative_to_mic(test_position: np.ndarray, expected: tuple[bool], oyens_space: WorldState):
     # Clear everything out
     oyens_space._clear_microphones()
     oyens_space._clear_emitters()
     oyens_space.add_microphone(microphone_type=AmbeoVR, position=[-0.5, -0.5, 0.5], alias="testmic", keep_existing=False)
     # Add the emitters in and check that the shape of the resulting array is what we expect
     #  We set `raise_on_error=False` so we skip over raising an error for invalid emitters
+    emit_aliases = [f"test{i}" for i in range(len(test_position))]
     oyens_space.add_emitters(
-        positions=test_position, mics="testmic", keep_existing=False, raise_on_error=False, polar=False
+        positions=test_position,
+        mics="testmic",
+        keep_existing=False,
+        raise_on_error=False,
+        polar=False,
+        aliases=emit_aliases
     )
-    assert len(oyens_space.emitters) == expected_shape
-    for emitter in oyens_space.emitters.values():
-        assert oyens_space._is_point_inside_mesh(emitter)
+    assert len(oyens_space.emitters) == sum(expected)
+    for position, is_added, alias in zip(test_position, expected, emit_aliases):
+        if is_added:
+            emitter = oyens_space.emitters[alias]
+            # Relative position dictionary should be as we expect
+            assert np.allclose(
+                emitter.coordinates_relative_cartesian["testmic"],
+                position,
+                atol=1e-4
+            )
+            assert np.allclose(
+                emitter.coordinates_relative_polar["testmic"],
+                utils.cartesian_to_polar(position),
+                atol=1e-4
+            )
+            assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
 
 
 @pytest.mark.parametrize(
@@ -429,23 +473,38 @@ def test_add_n_emitters(n_emitters, oyens_space: WorldState):
     oyens_space.add_emitters(n_emitters=n_emitters, keep_existing=False, polar=False)
     assert len(oyens_space.emitters) == n_emitters
     for emitter in oyens_space.emitters.values():
-        assert oyens_space._is_point_inside_mesh(emitter)
+        assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
+        # Should update the relative position dictionary
+        assert len(emitter.coordinates_relative_polar) == n_emitters
+        assert len(emitter.coordinates_relative_cartesian) == n_emitters
+        assert isinstance(emitter.coordinates_absolute, np.ndarray)
 
 
 @pytest.mark.parametrize(
-    "test_position,expected_shape",
+    "test_position,expected",
     [
-        (np.array([[-0.4, -0.5, 0.5], [-0.1, -0.1, 0.6]]), 1),    # 1: too close to mic, 2: fine
-        (np.array([[0.5, 0.5, 0.5], [0.6, 0.4, 0.5]]), 1),    # 1: fine, 2: too close to emitter 1
-        ([[-0.1, -0.1, 0.6]], 1),
-        ([[-0.1, -0.1, 0.6], [0.5, 0.5, 0.5]], 2),
+        (np.array([[-0.4, -0.5, 0.5], [-0.1, -0.1, 0.6]]), (False, True)),    # 1: too close to mic, 2: fine
+        (np.array([[0.5, 0.5, 0.5], [0.6, 0.4, 0.5]]), (True, False)),    # 1: fine, 2: too close to emitter 1
+        ([[-0.1, -0.1, 0.6]], (True,)),
+        ([[-0.1, -0.1, 0.6], [0.5, 0.5, 0.5]], (True, True)),
     ]
 )
-def test_add_emitters_at_specific_position(test_position: np.ndarray, expected_shape: tuple[int], oyens_space: WorldState):
+def test_add_emitters_at_specific_position(test_position: np.ndarray, expected: tuple[bool], oyens_space: WorldState):
     oyens_space.add_microphone(microphone_type=AmbeoVR, position=[-0.5, -0.5, 0.5], keep_existing=False)
     # Add the emitters in and check that the shape of the resulting array is what we expect
-    oyens_space.add_emitters(positions=test_position, keep_existing=False, raise_on_error=False, polar=False)
-    assert len(oyens_space.emitters) == expected_shape
+    emit_alias = [f"emit{i}" for i in range(len(test_position))]
+    oyens_space.add_emitters(
+        positions=test_position,
+        keep_existing=False,
+        raise_on_error=False,
+        polar=False,
+        aliases=emit_alias
+    )
+    assert len(oyens_space.emitters) == sum(expected)
+    for position, is_added, alias in zip(test_position, expected, emit_alias):
+        if is_added:
+            emitter = oyens_space.emitters[alias]
+            assert np.allclose(emitter.coordinates_absolute, position, atol=1e-4)
 
 
 def test_add_emitters_invalid(oyens_space: WorldState):
@@ -613,13 +672,7 @@ def test_path_between_points(point_a: np.ndarray, point_b: np.ndarray, expected_
             [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]],
             [0, 180]
         ),
-        # Test case 3: combines 1 and 2 (four emitters at 0, 90, 180, 270 degrees)
-        # (
-        #     [2.5, 0., 0.5],     # mic placed in living room
-        #     [[1.0, 0.0, 0.0], [0.0, 0.5, 0.0], [-1.0, 0.0, 0.0], [0.0, -0.5, 0.0]],
-        #     [0, 90, 180, 270]
-        # ),
-        # Test case 4: single sound emitter at a 45-degree angle
+        # Test case 3: single sound emitter at a 45-degree angle
         (
             [2.5, -1.0, 0.5],  # mic placed in living room
             [[1.0, 1.0, 0.0]],
