@@ -148,6 +148,8 @@ def test_sanitise_coordinates(coords, expected):
         (stats.uniform(0., 1.), None),
         # Callable that returns a random value -- ok
         (lambda: np.random.uniform(0., 1.), None),
+        # Callable that will error out
+        (lambda: 1 / 0, TypeError),
         # Callable that returns a string, or just a string -- nope
         (lambda: "asdf", TypeError),
         ("asdf", TypeError)
