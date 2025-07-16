@@ -20,8 +20,8 @@ FACE_FILL_COLOR = [255, 0, 0, 255]
 
 MIN_AVG_RAY_LENGTH = 3.0
 
-EMPTY_SPACE_AROUND_SOURCE = 0.2  # Minimum distance one sound source can be from another
-EMPTY_SPACE_AROUND_MIC = 0.1    # Minimum distance one sound source can be from the mic
+EMPTY_SPACE_AROUND_EMITTER = 0.2  # Minimum distance one emitter can be from another
+EMPTY_SPACE_AROUND_MIC = 0.1    # Minimum distance one emitter can be from the mic
 EMPTY_SPACE_AROUND_SURFACE = 0.2    # Minimum distance from the nearest mesh surface
 EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual microphone capsules
 
@@ -79,9 +79,69 @@ def add_sphere(scene: trimesh.Scene, pos: np.array, color: list[int] = None, r: 
     scene.add_geometry(sphere)
 
 
+class Emitter:
+    """
+    Represents an *individual* position for a sound source within a mesh.
+
+    The `Emitter` object handles all information with respect to a single sound source at a single position. This
+    includes its absolute coordinates within the mesh, as well as its relative position (Cartesian + polar) compared
+    to all other `MicArray` and `Emitter` instances.
+
+    Note that, in the case of a static (non-moving) audio source, a single `Event` will be associated with a single
+    `Emitter`. In the case of a *moving* audio source, we will instead have multiple `Emitter` objects per `Event`.
+    """
+
+    def __init__(self, alias: str, coordinates_absolute: np.ndarray):
+        self.alias: str = alias
+        self.coordinates_absolute: np.ndarray = utils.sanitise_coordinates(coordinates_absolute)
+        # These dictionaries map from {alias: position} for all other emitter and microphone array objects
+        self.coordinates_relative_cartesian: Optional[dict[str, np.ndarray]] = None
+        self.coordinates_relative_polar: Optional[dict[str, np.ndarray]] = None
+
+    def update_coordinates(self, coordinates: dict[str, Union[Type['MicArray'], Type['Emitter']]]):
+        """
+        Updates coordinates of this emitter WRT a dictionary in the format {alias: MicArray | Emitter}
+        """
+        for alias, obj in coordinates.items():
+            # Skip over the current emitter if present in the list
+            if alias == self.alias:
+                continue
+
+            # Grab the coordinates from the object
+            #  For micarrays, use the center of all capsules; for emitters, use the absolute position
+            #  These should all be in Cartesian, XYZ format
+            if issubclass(obj, MicArray):
+                coords = obj.coordinates_center
+            elif isinstance(obj, Emitter):
+                coords = obj.coordinates_absolute
+            else:
+                raise TypeError("Cannot handle input with type {}".format(type(obj)))
+
+            # Express the position of the CURRENT emitter WRT the object we're considering
+            pos = utils.sanitise_coordinates(coords) - self.coordinates_absolute
+            self.coordinates_relative_cartesian[alias] = pos
+            self.coordinates_relative_polar[alias] = utils.cartesian_to_polar(pos)
+
+    def __repr__(self) -> str:
+        return utils.repr_as_json(self)
+
+    def __str__(self) -> str:
+        return f"Emitter '{self.alias}' with absolute position {self.coordinates_absolute}"
+
+    def to_dict(self) -> dict:
+        # We can't dump numpy arrays to JSON format so make sure they are lists
+        coerce = lambda x: x.tolist() if isinstance(x, np.ndarray) else x
+        return dict(
+            alias=self.alias,
+            coordinates_absolute=coerce(self.coordinates_absolute),
+            coordinates_relative_cartesian={k: coerce(v) for k, v in self.coordinates_relative_cartesian.items()},
+            coordinates_relative_polar={k: coerce(v) for k, v in self.coordinates_relative_polar.items()},
+        )
+
+
 class WorldState:
     """
-    Represents a 3D space defined by a mesh, microphone position(s), and sound source position(s)
+    Represents a 3D space defined by a mesh, microphone position(s), and emitter position(s)
 
     This class is capable of handling spatial operations and simulating audio propagation using the ray-tracing library.
 
@@ -89,14 +149,14 @@ class WorldState:
         mesh (str, Path): The path to the mesh on the disk.
         microphones (np.array): Position of the microphone in the mesh.
         ctx (rlr_audio_propagation.Context): The context for audio propagation simulation.
-        sources (np.array): relative positions of sound sources
+        emitters (np.array): relative positions of sound emitter
 
     """
     def __init__(
             self,
             mesh: Union[str, Path],
             empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
-            empty_space_around_source: Optional[float] = EMPTY_SPACE_AROUND_SOURCE,
+            empty_space_around_emitter: Optional[float] = EMPTY_SPACE_AROUND_EMITTER,
             empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
             empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
             repair_threshold: Optional[float] = None,
@@ -107,24 +167,24 @@ class WorldState:
 
         Args:
             mesh (str|Path): The name of the mesh file. Units will be coerced to meters when loading
-            empty_space_around_mic (float): minimum meters new sources/mics will be placed from the center of other mics
-            empty_space_around_source (float): minimum meters new sources/mics will be placed from other sources
-            empty_space_around_surface (float): minimum meters new sources/mics will be placed from mesh sources
-            empty_space_around_capsule (float): minimum meters new sources/mics will be placed from mic capsules
+            empty_space_around_mic (float): minimum meters new emitters/mics will be placed from center of other mics
+            empty_space_around_emitter (float): minimum meters new emitters/mics will be placed from other emitters
+            empty_space_around_surface (float): minimum meters new emitters/mics will be placed from mesh emitters
+            empty_space_around_capsule (float): minimum meters new emitters/mics will be placed from mic capsules
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
                 For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
         """
-        # Store source and mic positions in here to access later; these should be in ABSOLUTE form
-        self.sources = {}
+        # Store emitter and mic positions in here to access later; these should be in ABSOLUTE form
+        self.emitters = {}
         self.microphones = {}
         self._irs = None    # will be updated when calling `simulate`
 
         # Distances from objects/mesh surfaces
         self.empty_space_around_mic = empty_space_around_mic
         self.empty_space_around_surface = empty_space_around_surface
-        self.empty_space_around_source = empty_space_around_source
+        self.empty_space_around_emitter = empty_space_around_emitter
         self.empty_space_around_capsule = empty_space_around_capsule
 
         # Load in the trimesh object
@@ -163,10 +223,10 @@ class WorldState:
     @property
     def irs(self) -> dict[str, np.ndarray]:
         """
-        Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_sources, N_samples), mic001: (...)}
+        Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         """
         if self._irs is None:
-            raise AttributeError("IRs have not been simulated yet: add microphones and sources and call `simulate`.")
+            raise AttributeError("IRs have not been simulated yet: add microphones and emitters and call `simulate`.")
         else:
             return self._irs
 
@@ -405,7 +465,7 @@ class WorldState:
 
     def get_random_position(self) -> np.ndarray:
         """
-        Get a random position to place a source inside the mesh
+        Get a random position to place a emitter inside the mesh
         """
         # Get an initial microphone position
         mic_pos = self.get_random_point_inside_mesh()
@@ -435,7 +495,7 @@ class WorldState:
         """
         while True:
             point = np.random.uniform(self.mesh.bounds[0], self.mesh.bounds[1])
-            # This checks e.g. distance from surface, other sources, other mics, and that point is in-bounds
+            # This checks e.g. distance from surface, other emitters, other mics, and that point is in-bounds
             if self._validate_position(point):
                 return point
 
@@ -451,14 +511,14 @@ class WorldState:
         """
         return bool(self.mesh.contains(utils.coerce2d(point))[0])
 
-    def _setup_sources(self):
+    def _setup_emitters(self):
         """
-        Sets the positions of sound sources in the state.
+        Sets the positions of sound emitters in the state.
         """
-        # We should clear the source list so we don't add the same source multiple times
+        # We should clear the emitter list so we don't add the same emitter multiple times
         self.ctx.clear_sources()
-        # Now, iterate only through the valid sources and add these to the mesh
-        for i, pos in enumerate(self.sources.values()):
+        # Now, iterate only through the valid emitters and add these to the mesh
+        for i, pos in enumerate(self.emitters.values()):
             self.ctx.add_source()
             self.ctx.set_source_position(i, pos.tolist() if isinstance(pos, np.ndarray) else pos)
 
@@ -474,8 +534,8 @@ class WorldState:
 
         # Iterate over all positions
         for position in positions:
-            # Check minimum distance from all sources
-            if any(np.linalg.norm(position - src) < self.empty_space_around_source for src in self.sources.values()):
+            # Check minimum distance from all emitters
+            if any(np.linalg.norm(position - src) < self.empty_space_around_emitter for src in self.emitters.values()):
                 return False
 
             # Check minimum distance from the center of every microphone and from every individual capsule
@@ -500,16 +560,16 @@ class WorldState:
 
         return True
 
-    def _try_add_source(
+    def _try_add_emitter(
             self,
             position: Optional[list],
             relative_mic: Optional[Type['MicArray']],
-            source_alias: str,
+            alias: str,
             polar: bool,
             path_between: list[str]
     ) -> bool:
         """
-        Attempt to add a source at the given position with the specified alias.
+        Attempt to add a emitter at the given position with the specified alias.
         Returns True if placement is successful, otherwise False.
         """
         # True if we want a specific position, False if not
@@ -535,8 +595,8 @@ class WorldState:
             # If line-of-sight not obtained with required microphones, skip over
             if not all(self.path_exists_between_points(pos, self.microphones[d].coordinates_center) for d in path_between):
                 continue
-            # Successfully placed: add to the source dictionary and return True
-            self.sources[source_alias] = np.asarray(pos)
+            # Successfully placed: add to the emitter dictionary and return True
+            self.emitters[alias] = np.asarray(pos)
             return True
         # Cannot place: return False
         return False
@@ -550,9 +610,9 @@ class WorldState:
         else:
             return None
 
-    def _clear_sources(self) -> None:
-        """Removes all current sources"""
-        self.sources = {}
+    def _clear_emitters(self) -> None:
+        """Removes all current emitters"""
+        self.emitters = {}
         self.ctx.clear_sources()
 
     def path_exists_between_points(self, point_a: np.ndarray, point_b: np.ndarray) -> bool:
@@ -614,149 +674,149 @@ class WorldState:
         else:
             raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
-    def add_source(
+    def add_emitter(
             self,
             position: Optional[Union[list, np.ndarray]] = None,
-            source_alias: Optional[str] = None,
-            mic_alias: Optional[str] = None,
+            alias: Optional[str] = None,
+            mic: Optional[str] = None,
             keep_existing: Optional[bool] = False,
             polar: Optional[bool] = False,
             ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> None:
         """
-        Add a source to the state.
+        Add a emitter to the state.
 
-        If `mic_alias` is a key inside `microphones`, `position` is assumed to be relative to that microphone; else,
+        If `mic` is a key inside `microphones`, `position` is assumed to be relative to that microphone; else,
         it is assumed to be in absolute terms. If `polar` is True, `position` should be in the form
         (azimuth°, polar°, radius); else, it should be in cartesian coordinates in meters with the form [x, y, z].
         Note that `mic_alias` must not be None when `polar` is True.
 
         Arguments:
-            position: Location to add the source, defaults to a random, valid location.
-            source_alias: String reference to access the source inside the `self.sources` dictionary.
-            mic_alias: String reference to a microphone inside `self.microphones`;
+            position: Location to add the emitter, defaults to a random, valid location.
+            alias: String reference to access the emitter inside the `self.emitters` dictionary.
+            mic: String reference to a microphone inside `self.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
-            keep_existing (optional): Whether to keep existing sources from the mesh or remove, defaults to keep
+            keep_existing (optional): Whether to keep existing emitters from the mesh or remove, defaults to keep
             polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
                 units are [x, y, z] in absolute, cartesian terms.
-            ensure_direct_path: Whether to ensure a direct line exists between the source and given microphone(s).
-                If True, will ensure a direct line exists between the source and ALL `microphone` objects. If a list of
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
-                ensured with all of these microphones. If False, no direct line is required for a source.
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
 
         Examples:
             Create a state with a given mesh and add a microphone
             >>> spa = WorldState(mesh=...)
             >>> spa.add_microphone(alias="tester")
 
-            Add a single source with a random position
-            >>> spa.add_source()
-            >>> spa.sources["src000"]    # access with default alias
+            Add a single emitter with a random position
+            >>> spa.add_emitter()
+            >>> spa.emitters["src000"]    # access with default alias
 
-            Add source with given position and alias
-            >>> spa.add_source(position=[0.5, 0.5, 0.5], source_alias="custom")
-            >>> spa.sources["custom"]    # access using given alias
+            Add emitter with given position and alias
+            >>> spa.add_emitter(position=[0.5, 0.5, 0.5], alias="custom")
+            >>> spa.emitters["custom"]    # access using given alias
 
-            Add source relative to microphone
-            >>> spa.add_source(position=[0.1, 0.1, 0.1], source_alias="custom", mic_alias="tester")
-            >>> spa.sources["custom"]
+            Add emitter relative to microphone
+            >>> spa.add_emitter(position=[0.1, 0.1, 0.1], alias="custom", mic="tester")
+            >>> spa.emitters["custom"]
 
-            Add source with a random position that is in a direct line with the microphone we placed above
-            >>> spa.add_source(ensure_direct_path="tester")
+            Add emitter with a random position that is in a direct line with the microphone we placed above
+            >>> spa.add_emitter(ensure_direct_path="tester")
         """
-        # Remove existing sources if we wish to do this
+        # Remove existing emitters if we wish to do this
         if not keep_existing:
-            self._clear_sources()
+            self._clear_emitters()
 
         # Sanity checking
         if polar:
-            assert mic_alias is not None, "mic_alias is required for polar coordinates"
+            assert mic is not None, "mic_alias is required for polar coordinates"
 
         # Parse the list of microphone aliases that we require a direct line to
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
-        # If we want to express our sources relative to a given microphone, grab this now
-        desired_mic = self._get_mic_from_alias(mic_alias)
+        # If we want to express our emitters relative to a given microphone, grab this now
+        desired_mic = self._get_mic_from_alias(mic)
 
-        # Get the alias for this source
-        source_alias = utils.get_default_alias("src", self.sources) if source_alias is None else source_alias
+        # Get the alias for this emitter
+        alias = utils.get_default_alias("src", self.emitters) if alias is None else alias
 
         # Try and place inside the mesh: return True if placed, False if not
-        placed = self._try_add_source(position, desired_mic, source_alias, polar, direct_path_to)
+        placed = self._try_add_emitter(position, desired_mic, alias, polar, direct_path_to)
 
-        # If we can't add the source to the mesh
+        # If we can't add the emitter to the mesh
         if not placed:
             # If we were trying to add it to a random position
             if position is None:
-                raise ValueError(f"Could not place source in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                                 f"If this is happening frequently, consider reducing the number of `sources`, "
+                raise ValueError(f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                                 f"If this is happening frequently, consider reducing the number of `emitters`, "
                                  f"or the `empty_space_around` arguments.")
             # If we were trying to add it to a specific position
             else:
-                raise ValueError(f"Position {position} invalid when placing source inside the mesh! "
-                                 f"If this is happening frequently, consider reducing the number of `sources`, "
+                raise ValueError(f"Position {position} invalid when placing emitter inside the mesh! "
+                                 f"If this is happening frequently, consider reducing the number of `emitters`, "
                                  f"or the `empty_space_around` arguments.")
 
-        # Add the sources to the ray-tracing engine
-        self._setup_sources()
+        # Add the emitters to the ray-tracing engine
+        self._setup_emitters()
 
-    def add_sources(
+    def add_emitters(
             self,
             positions: Union[list, np.ndarray, None] = None,
-            source_aliases: list[str] = None,
-            mic_aliases: Union[list[str], str] = None,
-            n_sources: Optional[int] = None,
+            aliases: list[str] = None,
+            mics: Union[list[str], str] = None,
+            n_emitters: Optional[int] = None,
             keep_existing: bool = False,
             polar: bool = True,
             ensure_direct_path: Union[bool, list, str, None] = False,
             raise_on_error: bool = True,
     ) -> None:
         """
-        Add sources to the mesh.
+        Add emitters to the mesh.
 
-        This function essentially takes in lists of the arguments expected by `add_sources`. The `raise_on_error`
+        This function essentially takes in lists of the arguments expected by `add_emitters`. The `raise_on_error`
         command will skip over microphones that cannot be placed in the mesh and raise a warning in the console.
 
-        Additionally, `n_sources` can be provided instead of `positions` to choose a number of sources to add randomly.
+        Additionally, `n_emitters` can be provided instead of `positions` to choose a number of emitters to add randomly.
 
         Arguments:
-            positions: Locations to add the sources, defaults to a single random location.
-            source_aliases: String references to assign the sources inside the `sources` dictionary.
-            mic_aliases: String references to microphones inside the `microphones` dictionary.
-            keep_existing (optional): whether to keep existing sources from the mesh or remove, defaults to keep.
-            raise_on_error (optional): if True, raises an error when unable to place source, otherwise skips to next.
-            n_sources: Number of sources to add with random positions
+            positions: Locations to add the emitters, defaults to a single random location.
+            aliases: String references to assign the emitters inside the `emitters` dictionary.
+            mics: String references to microphones inside the `microphones` dictionary.
+            keep_existing (optional): whether to keep existing emitters from the mesh or remove, defaults to keep.
+            raise_on_error (optional): if True, raises an error when unable to place emitter, otherwise skips to next.
+            n_emitters: Number of emitters to add with random positions
             polar (optional): if True, `position` is expected in form [azimuth, colatitude, elevation] relative to mic
-            ensure_direct_path: Whether to ensure a direct line exists between the source and given microphone(s).
-                If True, will ensure a direct line exists between the source and ALL `microphone` objects. If a list of
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
-                ensured with all of these microphones. If False, no direct line is required for a source.
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
         """
-        # Remove existing sources if we wish to do this
+        # Remove existing emitters if we wish to do this
         if not keep_existing:
-            self.sources = {}
+            self.emitters = {}
             self.ctx.clear_sources()
 
         if polar:
-            assert mic_aliases is not None, "mic_alias is required for polar coordinates"
+            assert mics is not None, "mic_alias is required for polar coordinates"
 
         # Parse the list of microphone aliases that we require a direct line to
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
-        if positions is not None and n_sources is not None:
-            raise TypeError("Cannot specify both `n_sources` and `positions`.")
+        if positions is not None and n_emitters is not None:
+            raise TypeError("Cannot specify both `n_emitters` and `positions`.")
 
-        if n_sources is not None:
-            assert isinstance(n_sources, int), "`n_sources` must be an integer!"
-            assert n_sources > 0, "`n_sources` must be positive!"
-            positions = [None for _ in range(n_sources)]
+        if n_emitters is not None:
+            assert isinstance(n_emitters, int), "`n_emitters` must be an integer!"
+            assert n_emitters > 0, "`n_emitters` must be positive!"
+            positions = [None for _ in range(n_emitters)]
 
         # Handle cases with non-unique aliases
-        if source_aliases is not None:
-            if len(set(source_aliases)) != len(source_aliases):
+        if aliases is not None:
+            if len(set(aliases)) != len(aliases):
                 raise ValueError("Only unique aliases can be passed")
 
-        all_not_none = [l for l in [positions, source_aliases, mic_aliases]
+        all_not_none = [l for l in [positions, aliases, mics]
                         if l is not None and isinstance(l, (list, np.ndarray))]
         # Handle cases where we haven't provided an equal number of positions and aliases
         if not utils.check_all_lens_equal(*all_not_none):
@@ -765,59 +825,59 @@ class WorldState:
         # Get the index to iterate up to
         max_idx = max([len(a) for a in all_not_none]) if len(all_not_none) > 0 else 0
         # Tile the mic aliases if we've only provided a single one
-        if isinstance(mic_aliases, str):
-            mic_aliases = [mic_aliases for _ in range(max_idx)]
+        if isinstance(mics, str):
+            mics = [mics for _ in range(max_idx)]
 
-        # Iterate over all the sources we want to place
+        # Iterate over all the emitters we want to place
         for idx in range(max_idx):
             position_ = positions[idx] if positions is not None else None
-            source_alias_ = source_aliases[idx] if source_aliases is not None else None
-            mic_alias_ = mic_aliases[idx] if mic_aliases is not None else None
+            emitter_alias_ = aliases[idx] if aliases is not None else None
+            mic_alias_ = mics[idx] if mics is not None else None
 
-            # If we want to express our sources relative to a given microphone, grab this now
+            # If we want to express our emitters relative to a given microphone, grab this now
             desired_mic = self._get_mic_from_alias(mic_alias_)
 
-            # Get the source alias
-            source_alias_ = utils.get_default_alias("src", self.sources) if source_alias_ is None else source_alias_
+            # Get the emitter alias
+            emitter_alias_ = utils.get_default_alias("src", self.emitters) if emitter_alias_ is None else emitter_alias_
 
-            # Try and place the source inside the space
-            placed = self._try_add_source(position_, desired_mic, source_alias_, polar, direct_path_to)
+            # Try and place the emitter inside the space
+            placed = self._try_add_emitter(position_, desired_mic, emitter_alias_, polar, direct_path_to)
 
-            # If we can't add the source to the mesh
+            # If we can't add the emitter to the mesh
             if not placed:
                 # If we were trying to add it to a random position
                 if position_ is None:
-                    msg = (f"Could not place source in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    msg = (f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                            f"Consider reducing `empty_space_around` arguments.")
                 # If we were trying to add it to a specific position
                 else:
-                    msg = (f"Position {position_} invalid for source. "
+                    msg = (f"Position {position_} invalid for emitter. "
                            f"Consider reducing `empty_space_around` arguments.")
 
-                # Raise the error if required or just log a warning and skip to the next source
+                # Raise the error if required or just log a warning and skip to the next emitter
                 if raise_on_error:
                     raise ValueError(msg)
                 else:
                     logger.warning(msg)
 
-        # Set up the sources in the ray-tracing engine
-        self._setup_sources()
+        # Set up the emitters in the ray-tracing engine
+        self._setup_emitters()
 
     def _simulation_sanity_check(self) -> None:
         """
         Check conditions required for simulation are met
         """
-        assert len(self.sources) > 0, "Must have added valid sources to the mesh before calling `.simulate`!"
+        assert len(self.emitters) > 0, "Must have added valid emitters to the mesh before calling `.simulate`!"
         assert len(self.microphones) > 0, "Must have added valid microphones to the mesh before calling `.simulate`!"
         assert all(type(m) in MICARRAY_LIST for m in self.microphones.values()), "Non-microphone objects in microphone attribute"
         assert self.ctx.get_listener_count() > 0, "Must have listeners added to the ray tracing engine"
-        assert self.ctx.get_source_count() > 0, "Must have sources added to the ray tracing engine"
+        assert self.ctx.get_source_count() > 0, "Must have emitters added to the ray tracing engine"
 
     def simulate(self) -> None:
         """
-        Simulates audio propagation in the state with the current listener and sound source positions.
+        Simulates audio propagation in the state with the current listener and sound emitter positions.
         """
-        # Sanity check that we actually have sources and microphones in the state
+        # Sanity check that we actually have emitters and microphones in the state
         self._simulation_sanity_check()
         # Clear out any existing IRs
         self._irs = None
@@ -832,18 +892,18 @@ class WorldState:
             logger.warning(f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
                            f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
                            f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh.")
-        # Compute the IRs: this gives us shape (N_capsules, N_sources, N_channels == 1, N_samples)
+        # Compute the IRs: this gives us shape (N_capsules, N_emitters, N_channels == 1, N_samples)
         irs = self.ctx.get_audio()
-        # Format irs into a dictionary of {mic000: (N_capsules, N_sources, N_samples), mic001: (...)}
+        # Format irs into a dictionary of {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         #  with one key-value pair per microphone. We have to do this because we cannot have ragged arrays
         #  The individual arrays can then be accessed by calling `self.irs.values()`
         self._irs = self._format_irs(irs)
 
     def _format_irs(self, irs: np.ndarray) -> dict:
         """
-        Formats IRs from the ray tracing engine into a dictionary of {mic1: (N_capsules, N_sources, N_samples), ...}
+        Formats IRs from the ray tracing engine into a dictionary of {mic1: (N_capsules, N_emitters, N_samples), ...}
         """
-        # Define a counter that we can use to access the flat array of (capsules, sources, samples)
+        # Define a counter that we can use to access the flat array of (capsules, emitters, samples)
         counter = 0
         all_irs = {}
         for mic_alias, mic in self.microphones.items():
@@ -854,15 +914,15 @@ class WorldState:
                 # This just gets the mono audio for each capsule
                 capsule_ir = irs[n_capsule, :, 0, :]
                 mic_ir.append(capsule_ir)
-            # Stack to a shape of (N_capsules, N_sources, N_samples)
+            # Stack to a shape of (N_capsules, N_emitters, N_samples)
             mic.irs = np.stack(mic_ir)
             # Get the name of the mic and create a new key-value pair
             all_irs[mic_alias] = mic.irs
         return all_irs
 
-    def create_scene(self, mic_radius: float = 0.2, source_radius: float = 0.1) -> trimesh.Scene:
+    def create_scene(self, mic_radius: float = 0.2, emitter_radius: float = 0.1) -> trimesh.Scene:
         """
-        Creates a trimesh.Scene with the Space's mesh, microphone position, and sources all added
+        Creates a trimesh.Scene with the Space's mesh, microphone position, and emitters all added
 
         Returns:
             trimesh.Scene: The rendered scene, that can be shown in e.g. a notebook with the `.show()` command
@@ -872,9 +932,9 @@ class WorldState:
         for mic in self.microphones.values():
             for capsule in mic.coordinates_absolute:
                 add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
-        # This adds the sound sources, with different color + radius
-        for source in self.sources.values():
-            add_sphere(scene, source, [0, 255, 0], r=source_radius)
+        # This adds the sound emitters, with different color + radius
+        for emitter in self.emitters.values():
+            add_sphere(scene, emitter, [0, 255, 0], r=emitter_radius)
         return scene    # can then run `.show()` on the returned object
 
     def create_plot(self, ) -> plt.Figure:
@@ -889,13 +949,13 @@ class WorldState:
         vertices = self.mesh.vertices
         # Create a top-down view first, then a side view
         mic_positions = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
-        source_positions = np.vstack([v for v in self.sources.values()])
+        emitter_positions = np.vstack([v for v in self.emitters.values()])
         for ax_, idx, color, ylab, title in zip(ax.flatten(), [1, 2], ["red", "blue"], ["Y", "Z"], ["Top", "Side"]):
             # Scatter the vertices first
             ax_.scatter(vertices[:, 0], vertices[:, idx], c='gray', alpha=0.1, s=1)
-            # Then the microphone and source positions
+            # Then the microphone and emitter positions
             ax_.scatter(mic_positions[:, 0], mic_positions[:, idx], c='red', s=100, label='Microphone')
-            ax_.scatter(source_positions[:, 0], source_positions[:, idx], c='blue', s=25, alpha=0.5, label='Sources')
+            ax_.scatter(emitter_positions[:, 0], emitter_positions[:, idx], c='blue', s=25, alpha=0.5, label='Emitters')
             # These are just plot aesthetics
             ax_.set_xlabel('X')
             ax_.set_ylabel(ylab)
@@ -911,31 +971,31 @@ class WorldState:
         """
         Writes IRs to WAV audio files.
 
-        IRs will be dumped in the form `mic{i1}_capsule{i2}_source_{i3}.wav`. For instance, with two sources and two
-        mono microphones, we'd expect `mic000_capsule000_source000.wav`, `mic001_capsule_000_source_001.wav`,
-        `mic001_capsule_000_source_000.wav`, and `mic002_capsule000_source_002.wav`.
+        IRs will be dumped in the form `mic{i1}_capsule{i2}_emitter_{i3}.wav`. For instance, with two emitters and two
+        mono microphones, we'd expect `mic000_capsule000_emitter000.wav`, `mic001_capsule_000_emitter_001.wav`,
+        `mic001_capsule_000_emitter_000.wav`, and `mic002_capsule000_emitter_002.wav`.
 
         Args:
             outdir (str): IRs will be saved here.
         """
         assert self._irs is not None, f"IRs have not been created yet!"
         assert os.path.isdir(outdir), f"Output directory {outdir} does not exist!"
-        # This iterates over [sources, channels, samples]
+        # This iterates over [emitters, channels, samples]
         for mic_alias, mic in self.microphones.items():
             for caps_idx, caps in enumerate(mic.irs):
                 caps_idx = str(caps_idx).zfill(3)
-                for source_idx, source in enumerate(caps):
-                    source_idx = str(source_idx).zfill(3)
-                    fname = os.path.join(outdir, f"{mic_alias}_capsule{caps_idx}_source{source_idx}.wav")
+                for emitter_idx, emitter in enumerate(caps):
+                    emitter_idx = str(emitter_idx).zfill(3)
+                    fname = os.path.join(outdir, f"{mic_alias}_capsule{caps_idx}_emitter{emitter_idx}.wav")
                     # Dump the audio to a 16-bit PCM wav using our predefined sample rate
-                    utils.write_wav(source, fname, self.ctx.config.sample_rate)
+                    utils.write_wav(emitter, fname, self.ctx.config.sample_rate)
 
     def to_dict(self) -> dict:
         """
         Returns metadata for this object as a dictionary
         """
         return dict(
-            sources={s_alias: s.tolist() for s_alias, s in self.sources.items()},    # need to call .tolist for JSON
+            emitters={s_alias: s.tolist() for s_alias, s in self.emitters.items()},    # need to call .tolist for JSON
             microphones={m_alias: m.to_dict() for m_alias, m in self.microphones.items()},
             mesh=dict(
                 **self.mesh.metadata,    # this gets us the filepath, filename, and file extension of the mesh
@@ -943,3 +1003,16 @@ class WorldState:
                 centroid=self.mesh.centroid.tolist()
             )
         )
+
+    def __len__(self) -> int:
+        """
+        Returns the number of objects in the mesh (i.e., number of microphones + emitters)
+        """
+        return len(self.microphones) + len(self.emitters)
+
+    def __str__(self) -> str:
+        return (f"'WorldState' with mesh '{self.mesh.metadata['fpath']}' and "
+                f"{len(self)} objects ({len(self.microphones)} microphones, {len(self.emitters)} emitters)")
+
+    def __repr__(self) -> str:
+        return utils.repr_as_json(self)
