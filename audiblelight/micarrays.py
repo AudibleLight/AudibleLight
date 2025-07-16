@@ -3,6 +3,7 @@
 
 """Implements dataclasses for working with common microphone array types"""
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Type
 
@@ -101,7 +102,7 @@ class MicArray:
         return self.n_capsules
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}('n_capsules'={self.n_capsules}, 'is_spherical'={self.is_spherical})"
+        return json.dumps(self.to_dict(), indent=4, ensure_ascii=False, sort_keys=False)
 
     def __str__(self) -> str:
         return f"Microphone array '{self.__class__.__name__}' with {len(self)} capsules"
@@ -133,7 +134,7 @@ class MicArray:
         )
 
 
-@dataclass
+@dataclass(repr=False)
 class MonoCapsule(MicArray):
     """
     A single mono microphone capsule
@@ -150,7 +151,7 @@ class MonoCapsule(MicArray):
         return ["mono"]
 
 
-@dataclass
+@dataclass(repr=False)
 class AmbeoVR(MicArray):
     """
     Sennheiser AmbeoVR microphone.
@@ -180,7 +181,7 @@ class AmbeoVR(MicArray):
         return ["FLU", "FRD", "BLD", "BRU"]
 
 
-@dataclass
+@dataclass(repr=False)
 class Eigenmike32(MicArray):
     """
     Eigenmike 32 microphone.
@@ -239,7 +240,7 @@ class Eigenmike32(MicArray):
         return [str(i) for i in range(1, 33)]
 
 
-@dataclass
+@dataclass(repr=False)
 class Eigenmike64(MicArray):
     """
     Eigenmike 64 microphone.
