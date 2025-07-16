@@ -6,6 +6,7 @@
 import json
 import random
 import wave
+from functools import wraps
 from pathlib import Path
 from typing import Union, Any, Protocol, Callable
 
@@ -273,3 +274,16 @@ def repr_as_json(cls: object) -> str:
         return json.dumps(cls.to_dict(), indent=4, ensure_ascii=False, sort_keys=False)
     else:
         raise AttributeError(f"Class {cls.__name__} has no attribute 'to_dict'")
+
+
+def update_state(func: Callable):
+    """
+    Decorator function that will update a `WorldState` and all objects in it. Should be run after any
+    method that changes the state, e.g. `add_microphone`, `add_emitter`.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        self._update()
+        return result
+    return wrapper

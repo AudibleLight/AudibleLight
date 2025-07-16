@@ -4,9 +4,8 @@
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
 import os
-from functools import wraps
 from pathlib import Path
-from typing import Union, Optional, Type, Callable
+from typing import Union, Optional, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -211,19 +210,6 @@ class WorldState:
         self.ctx = Context(cfg)
         self._setup_audio_context()
 
-    @staticmethod
-    def update_state(func: Callable):
-        """
-        Decorator function that will update the current state and all objects in it. Should be run after any
-        method that changes the state, e.g. `add_microphone`, `add_emitter`.
-        """
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            result = func(self, *args, **kwargs)
-            self._update()
-            return result
-        return wrapper
-
     def _update(self) -> None:
         """
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
@@ -343,7 +329,7 @@ class WorldState:
         self.microphones = {}
         self.ctx.clear_listeners()
 
-    @update_state
+    @utils.update_state
     def add_microphone(
             self,
             microphone_type: Union[str, Type['MicArray'], None] = None,
@@ -402,7 +388,7 @@ class WorldState:
                                 f"Consider reducing `empty_space_around` arguments.")
 
 
-    @update_state
+    @utils.update_state
     def add_microphones(
             self,
             microphone_types: list[Union[str, Type['MicArray'], None]] = None,
@@ -696,7 +682,7 @@ class WorldState:
         else:
             raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
-    @update_state
+    @utils.update_state
     def add_emitter(
             self,
             position: Optional[Union[list, np.ndarray]] = None,
@@ -780,7 +766,7 @@ class WorldState:
                                  f"If this is happening frequently, consider reducing the number of `emitters`, "
                                  f"or the `empty_space_around` arguments.")
 
-    @update_state
+    @utils.update_state
     def add_emitters(
             self,
             positions: Union[list, np.ndarray, None] = None,
