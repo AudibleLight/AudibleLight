@@ -3,7 +3,6 @@
 
 """Implements dataclasses for working with common microphone array types"""
 
-import json
 from dataclasses import dataclass, field
 from typing import Any, Type
 
@@ -102,7 +101,7 @@ class MicArray:
         return self.n_capsules
 
     def __repr__(self) -> str:
-        return json.dumps(self.to_dict(), indent=4, ensure_ascii=False, sort_keys=False)
+        return utils.repr_as_json(self)
 
     def __str__(self) -> str:
         return f"Microphone array '{self.__class__.__name__}' with {len(self)} capsules"

@@ -3,6 +3,7 @@
 
 """Utility functions, variables, objects etc."""
 
+import json
 import random
 import wave
 from pathlib import Path
@@ -261,3 +262,13 @@ def get_default_alias(prefix: str, objects: dict[str, Any], zfill_ints: int = 3)
     if test_alias in objects:
         raise KeyError(f"Alias {test_alias} already exists in dictionary!")
     return test_alias
+
+
+def repr_as_json(cls: object) -> str:
+    """
+    Used for `__repr__` methods; dumps `self.to_dict()` to a nicely formatted JSON string.
+    """
+    if hasattr(cls, "to_dict") and callable(cls.to_dict):
+        return json.dumps(cls.to_dict(), indent=4, ensure_ascii=False, sort_keys=False)
+    else:
+        raise AttributeError(f"Class {cls.__name__} has no attribute 'to_dict'")
