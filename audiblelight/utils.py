@@ -122,7 +122,7 @@ def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
     z = cartesian_array[:, 2]
     # Compute radius using the classic equation
     r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    assert r > 0, f"Expected radius > 0, but got radius = {r}"
+    assert np.all(r > 0), f"Expected radius > 0, but got radius = {r}"
     # Get azimuth and polar in radians first, then convert to degrees
     azimuth = np.rad2deg(np.arctan2(y, x))  # φ, angle in x-y plane from x-axis
     polar = np.rad2deg(np.arccos(z / r))  # θ, angle from z-axis
@@ -186,6 +186,7 @@ def sanitise_coordinates(x: Any) -> Union[np.ndarray, None]:
             x = np.asarray(x)
         if x.shape != (3,):
             raise ValueError(f"Expected a shape of (3,), but got {x.shape}")
+        return x
     else:
         raise TypeError("Expected a list or array input, but got {}".format(type(x)))
 
