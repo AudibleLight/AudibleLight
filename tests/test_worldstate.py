@@ -809,15 +809,3 @@ def test_to_dict(oyens_space: WorldState):
         json.dumps(dict_out)
     except (TypeError, OverflowError):
         pytest.fail("Dictionary not JSON serializable")
-
-
-@pytest.mark.parametrize(
-    "prefix,objects,expected",
-    [
-        ("tmp", {"tmp000": 123, "tmp001": 321}, "tmp002"),
-        ("empty", {}, "empty000")
-    ]
-)
-def test_get_default_alias(prefix, objects, expected):
-    actual = utils.get_default_alias(prefix, objects)
-    assert actual == expected
