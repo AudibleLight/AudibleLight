@@ -5,7 +5,7 @@
 
 import wave
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 
 import random
 import numpy as np
@@ -143,3 +143,18 @@ def check_all_lens_equal(*iterables) -> bool:
     Returns True if all iterables have the same length, False otherwise
     """
     return len({len(i) for i in iterables}) == 1
+
+
+def list_all_directories(root_dir: str) -> List[str]:
+    """
+    Recursively return all directory paths under root_dir, including nested subdirectories.
+    """
+    root_path = Path(root_dir)
+    
+    if not root_path.exists():
+        raise ValueError(f"Directory '{root_dir}' does not exist")
+    
+    if not root_path.is_dir():
+        raise ValueError(f"'{root_dir}' is not a directory")
+    
+    return [str(p.resolve()) for p in root_path.rglob('*') if p.is_dir()]
