@@ -3,7 +3,7 @@ import numpy as np
 import json
 import soundfile as sf
 
-from utils import list_innermost_directory_names_unique
+from utils import list_deepest_directories
 
 class Scene:
     def __init__(
@@ -31,7 +31,7 @@ class Scene:
         self.max_overlap = max_overlap # time overlaps (we could include a space overlaps parameter too)
 
         # assuming path structure with audio files organized in directories per category of interest
-        self.fg_labels = list_innermost_directory_names_unique(self.fg_path) 
+        self.fg_category_paths = list_deepest_directories(self.fg_path) 
 
         self.events = []
 

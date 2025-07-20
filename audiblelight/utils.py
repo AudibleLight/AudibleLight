@@ -144,17 +144,51 @@ def check_all_lens_equal(*iterables) -> bool:
     """
     return len({len(i) for i in iterables}) == 1
 
-
 def list_all_directories(root_dir: str) -> List[str]:
     """
     Recursively return all directory paths under root_dir, including nested subdirectories.
     """
     root_path = Path(root_dir)
-    
+
     if not root_path.exists():
         raise ValueError(f"Directory '{root_dir}' does not exist")
-    
+
     if not root_path.is_dir():
         raise ValueError(f"'{root_dir}' is not a directory")
-    
+
     return [str(p.resolve()) for p in root_path.rglob('*') if p.is_dir()]
+
+def list_deepest_directories(root_dir: str) -> List[str]:
+    """
+    Return only the deepest (leaf) directories under root_dir.
+    A deepest directory is one that is not a parent of any other directory.
+    """
+    all_dirs = sorted([Path(p) for p in list_all_directories(root_dir)], key=lambda p: len(str(p)))
+    deepest_dirs = []
+
+    for d in all_dirs:
+        # If no other dir in the set starts with this path + separator, it's a leaf
+        if not any(other != d and str(other).startswith(str(d) + os.sep) for other in all_dirs):
+            deepest_dirs.append(str(d.resolve()))
+
+    return deepest_dirs
+
+def list_innermost_directory_names(root_dir: str) -> List[str]:
+    """
+    Return only the names of the innermost (leaf) directories under root_dir.
+    
+    Returns:
+        List[str]: A list of directory names (not full paths) of the deepest directories.
+    """
+    deepest_paths = list_deepest_directories(root_dir)
+    return [Path(path).name for path in deepest_paths]
+
+def list_innermost_directory_names_unique(root_dir: str) -> set:
+    """
+    Return only the unique names of the innermost (leaf) directories under root_dir.
+    
+    Returns:
+        set: A set of unique directory names (not full paths) of the deepest directories.
+    """
+    deepest_paths = list_deepest_directories(root_dir)
+    return {Path(path).name for path in deepest_paths}
