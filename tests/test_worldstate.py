@@ -232,8 +232,8 @@ def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
     oyens_space.add_emitter(position, emitter_alias, mic=None, keep_existing=False, polar=False)
     assert isinstance(oyens_space.emitters, dict)
     assert len(oyens_space.emitters) == 1
-    # Get the desired emitter
-    src = oyens_space.emitters[emitter_alias] if emitter_alias is not None else oyens_space.emitters["src000"]
+    # Get the desired emitter: should be the first element in the list
+    src = oyens_space.emitters[emitter_alias][0] if emitter_alias is not None else oyens_space.emitters["src000"][0]
     # Should be an emitter object
     assert isinstance(src, Emitter)
     # Should have all the desired attributes
@@ -336,7 +336,7 @@ def test_add_polar_emitter(emitter_position, expected_position, oyens_space: Wor
         alias="tester"
     )
     oyens_space.add_emitter(position=emitter_position, polar=True, mic="tester", keep_existing=False)
-    assert np.allclose(oyens_space.emitters["src000"].coordinates_absolute, expected_position, atol=1e-4)
+    assert np.allclose(oyens_space.emitters["src000"][0].coordinates_absolute, expected_position, atol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -364,7 +364,7 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
     else:
         oyens_space.add_emitter(position=position, mic="tester", keep_existing=False, polar=False)
         assert len(oyens_space.emitters) == 1
-        src = oyens_space.emitters["src000"]
+        src = oyens_space.emitters["src000"][0]
         assert isinstance(src, Emitter)
         # coordinates_relative dict should be as expected
         assert np.allclose(src.coordinates_relative_cartesian["tester"], position, atol=1e-4)
@@ -390,11 +390,13 @@ def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
     if emitter_aliases is not None:
         assert set(oyens_space.emitters.keys()) == set(emitter_aliases)
         # Should have all the other emitters in our relative coords dict
-        for emitter in oyens_space.emitters.values():
-            assert set(emitter.coordinates_relative_cartesian.keys()) == set(emitter_aliases)
-            assert set(emitter.coordinates_relative_polar.keys()) == set(emitter_aliases)
-    for emitter in oyens_space.emitters.values():
-        assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
+        for emitter_list in oyens_space.emitters.values():
+            for emitter in emitter_list:
+                assert set(emitter.coordinates_relative_cartesian.keys()) == set(emitter_aliases)
+                assert set(emitter.coordinates_relative_polar.keys()) == set(emitter_aliases)
+    for emitter_list in oyens_space.emitters.values():
+        for emitter in emitter_list:
+            assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
 
 
 
@@ -419,8 +421,9 @@ def test_add_polar_emitters(emitter_positions, expected_positions, oyens_space: 
         alias="tester"
     )
     oyens_space.add_emitters(positions=emitter_positions, polar=True, mics="tester", keep_existing=False)
-    for emitter, expected_position in zip(oyens_space.emitters.values(), expected_positions):
-        assert np.allclose(emitter.coordinates_absolute, expected_position, atol=1e-4)
+    for emitter_list, expected_position in zip(oyens_space.emitters.values(), expected_positions):
+        for emitter in emitter_list:
+            assert np.allclose(emitter.coordinates_absolute, expected_position, atol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -450,19 +453,20 @@ def test_add_emitters_relative_to_mic(test_position: np.ndarray, expected: tuple
     assert len(oyens_space.emitters) == sum(expected)
     for position, is_added, alias in zip(test_position, expected, emit_aliases):
         if is_added:
-            emitter = oyens_space.emitters[alias]
+            emitter_list = oyens_space.emitters[alias]
             # Relative position dictionary should be as we expect
-            assert np.allclose(
-                emitter.coordinates_relative_cartesian["testmic"],
-                position,
-                atol=1e-4
-            )
-            assert np.allclose(
-                emitter.coordinates_relative_polar["testmic"],
-                utils.cartesian_to_polar(position),
-                atol=1e-4
-            )
-            assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
+            for emitter in emitter_list:
+                assert np.allclose(
+                    emitter.coordinates_relative_cartesian["testmic"],
+                    position,
+                    atol=1e-4
+                )
+                assert np.allclose(
+                    emitter.coordinates_relative_polar["testmic"],
+                    utils.cartesian_to_polar(position),
+                    atol=1e-4
+                )
+                assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
 
 
 @pytest.mark.parametrize(
@@ -472,12 +476,13 @@ def test_add_emitters_relative_to_mic(test_position: np.ndarray, expected: tuple
 def test_add_n_emitters(n_emitters, oyens_space: WorldState):
     oyens_space.add_emitters(n_emitters=n_emitters, keep_existing=False, polar=False)
     assert len(oyens_space.emitters) == n_emitters
-    for emitter in oyens_space.emitters.values():
-        assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
-        # Should update the relative position dictionary
-        assert len(emitter.coordinates_relative_polar) == n_emitters
-        assert len(emitter.coordinates_relative_cartesian) == n_emitters
-        assert isinstance(emitter.coordinates_absolute, np.ndarray)
+    for emitter_list in oyens_space.emitters.values():
+        for emitter in emitter_list:
+            assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
+            # Should update the relative position dictionary
+            assert len(emitter.coordinates_relative_polar) == n_emitters
+            assert len(emitter.coordinates_relative_cartesian) == n_emitters
+            assert isinstance(emitter.coordinates_absolute, np.ndarray)
 
 
 @pytest.mark.parametrize(
@@ -503,8 +508,9 @@ def test_add_emitters_at_specific_position(test_position: np.ndarray, expected: 
     assert len(oyens_space.emitters) == sum(expected)
     for position, is_added, alias in zip(test_position, expected, emit_alias):
         if is_added:
-            emitter = oyens_space.emitters[alias]
-            assert np.allclose(emitter.coordinates_absolute, position, atol=1e-4)
+            emitter_list = oyens_space.emitters[alias]
+            for emitter in emitter_list:
+                assert np.allclose(emitter.coordinates_absolute, position, atol=1e-4)
 
 
 def test_add_emitters_invalid(oyens_space: WorldState):

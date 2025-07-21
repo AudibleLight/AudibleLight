@@ -98,9 +98,10 @@ class Emitter:
         self.coordinates_relative_cartesian: Optional[dict[str, np.ndarray]] = {}
         self.coordinates_relative_polar: Optional[dict[str, np.ndarray]] = {}
 
-    def update_coordinates(self, coordinates: dict[str, Union[Type['MicArray'], Type['Emitter']]]):
+    # noinspection PyUnresolvedReferences
+    def update_coordinates(self, coordinates: dict[str, Union[Type['MicArray'], list[Type['Emitter']]]]):
         """
-        Updates coordinates of this emitter WRT a dictionary in the format {alias: MicArray | Emitter}
+        Updates coordinates of this emitter WRT a dictionary in the format {alias: MicArray | list[Emitter]}
         """
         for alias, obj in coordinates.items():
             # Add zero-arrays if the object is the current Emitter
@@ -112,14 +113,18 @@ class Emitter:
                 # Grab the coordinates from the object: these should all be in Cartesian, XYZ format
                 #  For micarrays, use the center of all capsules; for emitters, use the absolute position
                 if issubclass(type(obj), MicArray):
-                    coords = obj.coordinates_center
-                elif isinstance(obj, Emitter):
-                    coords = obj.coordinates_absolute
+                    coords = utils.sanitise_coordinates(obj.coordinates_center)
+
+                elif isinstance(obj, list):
+                    assert all([isinstance(em, Emitter) for em in obj])
+                    # TODO: check that this makes sense
+                    coords = np.vstack([em.coordinates_absolute for em in obj])
+
                 else:
                     raise TypeError("Cannot handle input with type {}".format(type(obj)))
 
                 # Express the position of the CURRENT emitter WRT the object we're considering
-                pos = self.coordinates_absolute - utils.sanitise_coordinates(coords)
+                pos = self.coordinates_absolute - coords
                 self.coordinates_relative_cartesian[alias] = pos
                 self.coordinates_relative_polar[alias] = utils.cartesian_to_polar(pos)
 
@@ -226,14 +231,18 @@ class WorldState:
         # Update the ray-tracing sources
         if len(self.emitters) > 0:
             self.ctx.clear_sources()
-            for i, emitter in enumerate(self.emitters.values()):
-                # Update the coordinates of the emitter WRT other microphones, emitters
-                emitter.update_coordinates(self.emitters)
-                emitter.update_coordinates(self.microphones)
-                # Add the emitter to the ray-tracing engine
-                self.ctx.add_source()
-                pos = emitter.coordinates_absolute
-                self.ctx.set_source_position(i, pos.tolist() if isinstance(pos, np.ndarray) else pos)
+            emitter_counter = 0
+            for emitter_alias, emitter_list in self.emitters.items():
+                for emitter in emitter_list:
+                    # Update the coordinates of the emitter WRT other microphones, emitters
+                    emitter.update_coordinates(self.emitters)
+                    emitter.update_coordinates(self.microphones)
+                    # Add the emitter to the ray-tracing engine
+                    self.ctx.add_source()
+                    pos = emitter.coordinates_absolute
+                    self.ctx.set_source_position(emitter_counter, pos.tolist() if isinstance(pos, np.ndarray) else pos)
+                    # Update the counter used in the ray-tracing engine by one
+                    emitter_counter += 1
 
     @staticmethod
     def _parse_rlr_config(rlr_kwargs: dict) -> Config:
@@ -538,8 +547,10 @@ class WorldState:
         # Iterate over all positions
         for position in positions:
             # Check minimum distance from all emitters
-            if any(np.linalg.norm(position - src.coordinates_absolute) < self.empty_space_around_emitter for src in self.emitters.values()):
-                return False
+            for emitter_list in self.emitters.values():
+                for emitter in emitter_list:
+                    if np.linalg.norm(position - emitter.coordinates_absolute) < self.empty_space_around_emitter:
+                        return False
 
             # Check minimum distance from the center of every microphone and from every individual capsule
             if len(self.microphones) > 0:
@@ -604,7 +615,13 @@ class WorldState:
                 alias=alias,
                 coordinates_absolute=np.asarray(pos)
             )
-            self.emitters[alias] = emitter
+            # Add the emitter to the list created for this alias, or create the list if it doesn't exist
+            # TODO: we create a list of emitters for both static and moving sound sources
+            #  when moving, len(emitters) > 1, when static, len(emitters) == 1
+            if alias in self.emitters:
+                self.emitters[alias].append(emitter)
+            else:
+                self.emitters[alias] = [emitter]
             return True
         # Cannot place: return False
         return False
@@ -1000,7 +1017,7 @@ class WorldState:
         Returns metadata for this object as a dictionary
         """
         return dict(
-            emitters={s_alias: s.to_dict() for s_alias, s in self.emitters.items()},    # need to call .tolist for JSON
+            emitters={s_alias: [s_.to_dict() for s_ in s] for s_alias, s in self.emitters.items()},
             microphones={m_alias: m.to_dict() for m_alias, m in self.microphones.items()},
             mesh=dict(
                 **self.mesh.metadata,    # this gets us the filepath, filename, and file extension of the mesh
