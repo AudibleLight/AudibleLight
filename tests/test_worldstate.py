@@ -19,6 +19,7 @@ from audiblelight import utils
 from audiblelight.worldstate import WorldState, load_mesh, repair_mesh, Emitter
 from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR, MonoCapsule, sanitize_microphone_input
 
+
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources/meshes"
 TEST_MESHES = [TEST_RESOURCES / glb for glb in TEST_RESOURCES.glob("*.glb")]
 
@@ -52,19 +53,6 @@ def test_load_mesh_from_fpath(mesh_fpath: str):
 def test_load_broken_mesh(mesh_fpath: str, expected):
     with pytest.raises(expected):
         load_mesh(mesh_fpath)
-
-
-@pytest.fixture(scope="function")
-def oyens_space() -> WorldState:
-    """Returns a WorldState object with the Oyens mesh (Gibson)"""
-    oyens = os.path.join(utils.get_project_root(), "tests/test_resources/meshes/Oyens.glb")
-    space = WorldState(
-        oyens,
-        empty_space_around_emitter=0.2,    # all in meters
-        empty_space_around_mic=0.1,    # all in meters
-        empty_space_around_surface=0.2    # all in meters
-    )
-    return space
 
 
 @pytest.mark.parametrize(

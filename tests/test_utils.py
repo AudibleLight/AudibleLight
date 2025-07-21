@@ -3,7 +3,6 @@
 
 """Test cases for functionality inside audiblelight/utils.py"""
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +12,7 @@ from scipy import stats
 from audiblelight import utils
 
 
-EXISTING_FILE = os.path.join(utils.get_project_root(), "tests/test_resources/meshes/Oyens.glb")
+EXISTING_FILE = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
 
 
 @pytest.mark.parametrize(
