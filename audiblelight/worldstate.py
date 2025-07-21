@@ -955,8 +955,9 @@ class WorldState:
             for capsule in mic.coordinates_absolute:
                 add_sphere(scene, capsule, color=[255, 0, 0], r=mic_radius)
         # This adds the sound emitters, with different color + radius
-        for emitter in self.emitters.values():
-            add_sphere(scene, emitter.coordinates_absolute, [0, 255, 0], r=emitter_radius)
+        for emitter_list in self.emitters.values():
+            for emitter in emitter_list:
+                add_sphere(scene, emitter.coordinates_absolute, [0, 255, 0], r=emitter_radius)
         return scene    # can then run `.show()` on the returned object
 
     def create_plot(self, ) -> plt.Figure:
@@ -971,7 +972,7 @@ class WorldState:
         vertices = self.mesh.vertices
         # Create a top-down view first, then a side view
         mic_positions = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
-        emitter_positions = np.vstack([v.coordinates_absolute for v in self.emitters.values()])
+        emitter_positions = np.vstack([x.coordinates_absolute for xs in self.emitters.values() for x in xs])
         for ax_, idx, color, ylab, title in zip(ax.flatten(), [1, 2], ["red", "blue"], ["Y", "Z"], ["Top", "Side"]):
             # Scatter the vertices first
             ax_.scatter(vertices[:, 0], vertices[:, idx], c='gray', alpha=0.1, s=1)
