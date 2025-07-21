@@ -13,7 +13,7 @@ from scipy import stats
 from audiblelight import utils
 
 
-EXISTING_FILE = os.path.join(utils.get_project_root(), "tests/test_resources/Oyens.glb")
+EXISTING_FILE = os.path.join(utils.get_project_root(), "tests/test_resources/meshes/Oyens.glb")
 
 
 @pytest.mark.parametrize(
