@@ -19,7 +19,7 @@ from audiblelight import utils
 from audiblelight.worldstate import WorldState, load_mesh, repair_mesh, Emitter
 from audiblelight.micarrays import MICARRAY_LIST, AmbeoVR, MonoCapsule, sanitize_microphone_input
 
-TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
+TEST_RESOURCES = utils.get_project_root() / "tests/test_resources/meshes"
 TEST_MESHES = [TEST_RESOURCES / glb for glb in TEST_RESOURCES.glob("*.glb")]
 
 
