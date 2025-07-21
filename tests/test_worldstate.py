@@ -57,7 +57,7 @@ def test_load_broken_mesh(mesh_fpath: str, expected):
 @pytest.fixture(scope="function")
 def oyens_space() -> WorldState:
     """Returns a WorldState object with the Oyens mesh (Gibson)"""
-    oyens = os.path.join(utils.get_project_root(), "tests/test_resources/Oyens.glb")
+    oyens = os.path.join(utils.get_project_root(), "tests/test_resources/meshes/Oyens.glb")
     space = WorldState(
         oyens,
         empty_space_around_emitter=0.2,    # all in meters
