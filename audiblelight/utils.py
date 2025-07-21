@@ -299,7 +299,7 @@ def update_state(func: Callable):
     return wrapper
 
 
-def list_all_directories(root_dir: str) -> List[str]:
+def list_all_directories(root_dir: Union[str, Path]) -> List[str]:
     """
     Recursively return all directory paths under root_dir, including nested subdirectories.
     """
@@ -314,7 +314,7 @@ def list_all_directories(root_dir: str) -> List[str]:
     return [str(p.resolve()) for p in root_path.rglob('*') if p.is_dir()]
 
 
-def list_deepest_directories(root_dir: str) -> List[str]:
+def list_deepest_directories(root_dir: Union[str, Path]) -> List[str]:
     """
     Return only the deepest (leaf) directories under root_dir.
     A deepest directory is one that is not a parent of any other directory.
