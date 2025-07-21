@@ -31,6 +31,9 @@ SEED = 42
 SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
 MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
 
+NUMERIC_DTYPES = (int, float, complex, np.integer, np.floating)     # used for isinstance(x, ...) checking
+Numeric = Union[*NUMERIC_DTYPES]    # used as a typehint
+
 
 def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
     """
@@ -170,7 +173,7 @@ def sanitise_positive_number(x: Any) -> Union[float, None]:
     """
     Validate that an input is a positive numeric input and coerce to a `float`
     """
-    if isinstance(x, (int, float, complex, np.integer, np.floating)) and not isinstance(x, bool):
+    if isinstance(x, NUMERIC_DTYPES) and not isinstance(x, bool):
         if x >= 0.:
             return float(x)
         else:
@@ -200,7 +203,7 @@ class DistributionLike(Protocol):
     Must expose an `rvs()` method that returns a single random variate as a float (or float-compatible number).
     """
 
-    def rvs(self, *args: Any, **kwargs: Any) -> Union[float, int, complex]:
+    def rvs(self, *args: Any, **kwargs: Any) -> Numeric:
         ...
 
 
@@ -212,10 +215,10 @@ class DistributionWrapper:
     def __init__(self, distribution: Callable):
         self.distribution = distribution
 
-    def rvs(self, *_: Any, **__: Any) -> Union[float, int, complex]:
+    def rvs(self, *_: Any, **__: Any) -> Numeric:
         return self.distribution()
 
-    def __call__(self) -> Union[float, int, complex]:
+    def __call__(self) -> Numeric:
         """Makes the wrapper itself callable like the original."""
         return self.rvs()
 
@@ -226,9 +229,11 @@ def sanitise_distribution(x: Any) -> Union[DistributionLike, None]:
     """
     if x is None:
         return x
+
     # Otherwise, object is a scipy-like distribution
     elif hasattr(x, "rvs") and callable(x.rvs):
         return x
+
     # Otherwise, input is a function that might return random numbers
     elif callable(x):
         # Try and get a value from the function
@@ -237,10 +242,11 @@ def sanitise_distribution(x: Any) -> Union[DistributionLike, None]:
         except Exception as e:
             raise TypeError("Callable could not be evaluated during distribution validation") from e
         # If we get a numeric value back from the function, wrap it up so we have the same API as a scipy distribution
-        if isinstance(test_sample, (int, float, complex)):
+        if isinstance(test_sample, NUMERIC_DTYPES):
             return DistributionWrapper(x)
         else:
             raise TypeError("Callable must return a numeric value to be used as a distribution")
+
     # Otherwise, we cannot evaluate what the input is
     else:
         raise TypeError(f"Expected a distribution-like object or a callable returning floats, but got: {type(x)}")
@@ -253,6 +259,9 @@ def get_default_alias(prefix: str, objects: dict[str, Any], zfill_ints: int = 3)
     The alias is constructed in the form "{prefix}{idx}", where `prefix` is a required argument and `idx` is determined
     by the number of `objects` already present (e.g., the number of current microphones), left-padded with the number
     of `zfill_ints` (defaults to 3).
+
+    Returns:
+        str: the default alias
 
     Examples:
         >>> default_alias = get_default_alias("mic", {"mic000": "", "mic001": ""})
@@ -421,3 +430,23 @@ def truncate_audio(
             raise ValueError(f"Requested segment [{start:.2f}s – {end:.2f}s] exceeds duration {total_duration:.2f}s")
         # Actually do the truncation
         return audio[int(start * sr):int(end * sr)]
+
+
+def sample_distribution(
+        distribution: Union[DistributionLike, Callable, None] = None,
+        override: Union[Numeric, None] = None
+) -> float:
+    """
+    Samples from a probability distribution or returns a provided override
+    """
+    # Callable functions are wrapped such that they have a `.rvs` method
+    distribution = sanitise_distribution(distribution)
+    if distribution is None and override is None:
+        raise ValueError("Must provide either a probability distribution to sample from or an override")
+    elif override is None:
+        return distribution.rvs()
+    else:
+        if isinstance(override, NUMERIC_DTYPES):
+            return override
+        else:
+            raise TypeError(f"Expected a numeric input for `override` but got {type(override)}")
