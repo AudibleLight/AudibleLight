@@ -15,6 +15,8 @@ from audiblelight.worldstate import WorldState
 from audiblelight.micarrays import MicArray
 from audiblelight import utils
 
+from utils import list_deepest_directories
+
 
 def sample_distribution(distribution: Union[utils.DistributionLike, None], override: Union[int, float, None]) -> float:
     """
@@ -67,6 +69,9 @@ class Scene:
         self.snr_dist = utils.sanitise_distribution(snr_dist)
 
         self.max_overlap = max_overlap # time overlaps (we could include a space overlaps parameter too)
+
+        # assuming path structure with audio files organized in directories per category of interest
+        self.fg_category_paths = list_deepest_directories(self.fg_path)
 
         self.events = {}
         self.ambience_enabled = False
