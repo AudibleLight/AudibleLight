@@ -16,3 +16,6 @@ coverage.xml
 *.png
 *.sofa
 *.h5
+
+!/tests/test_resources/**/*.obj
+!/tests/test_resources/**/*.wav
