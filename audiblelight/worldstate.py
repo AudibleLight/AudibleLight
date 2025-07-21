@@ -737,15 +737,15 @@ class WorldState:
 
             Add a single emitter with a random position
             >>> spa.add_emitter()
-            >>> spa.emitters["src000"]    # access with default alias
+            >>> spa.get_emitter("src000")    # access with default alias
 
             Add emitter with given position and alias
             >>> spa.add_emitter(position=[0.5, 0.5, 0.5], alias="custom")
-            >>> spa.emitters["custom"]    # access using given alias
+            >>> spa.get_emitter("custom")    # access using given alias
 
             Add emitter relative to microphone
             >>> spa.add_emitter(position=[0.1, 0.1, 0.1], alias="custom", mic="tester")
-            >>> spa.emitters["custom"]
+            >>> spa.get_emitter("custom")
 
             Add emitter with a random position that is in a direct line with the microphone we placed above
             >>> spa.add_emitter(ensure_direct_path="tester")
@@ -1039,3 +1039,37 @@ class WorldState:
 
     def __repr__(self) -> str:
         return utils.repr_as_json(self)
+
+    def __getitem__(self, alias: str) -> list[Emitter]:
+        """
+        An alternative for `self.get_emitters(alias) or `self.emitters[alias]`
+        """
+        return self.get_emitters(alias)
+
+    def get_emitter(self, alias: str, emitter_idx: int = 0) -> Emitter:
+        """
+        Given a valid alias and index, get a single `Emitter` object, as in `self.emitters[alias][emitter_idx]`
+        """
+        emitter_list = self.get_emitters(alias)
+        try:
+            return emitter_list[emitter_idx]
+        except IndexError:
+            raise IndexError(f"Could not get idx {emitter_idx} for a list of Emitters with length {len(emitter_list)}")
+
+    def get_emitters(self, alias: str) -> list[Emitter]:
+        """
+        Given a valid alias, get a list of associated `Emitter` objects, as in `self.emitters[alias]`
+        """
+        if alias in self.emitters.keys():
+            return self.emitters[alias]
+        else:
+            raise KeyError("Emitter alias '{}' not found.".format(alias))
+
+    def get_microphone(self, alias: str) -> Type['MicArray']:
+        """
+        Given a valid alias, get an associated `Microphone` object, as in `self.microphones[alias`.
+        """
+        if alias in self.microphones.keys():
+            return self.microphones[alias]
+        else:
+            raise KeyError("Microphone alias '{}' not found.".format(alias))

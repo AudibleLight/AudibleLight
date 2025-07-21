@@ -83,9 +83,9 @@ def test_add_microphone(microphone_type, position, alias, oyens_space: WorldStat
     # Test aliases
     if alias is not None:
         assert list(oyens_space.microphones.keys())[0] == alias     # alias should be what we expect
-        mic = oyens_space.microphones[alias]
+        mic = oyens_space.get_microphone(alias)
     else:
-        mic = oyens_space.microphones["mic000"]
+        mic = oyens_space.get_microphone("mic000")
     # Should have exactly 1 listener for every microphone capsule
     n_capsules = sum([m.n_capsules for m in oyens_space.microphones.values()])
     assert n_capsules == oyens_space.ctx.get_listener_count()
@@ -221,7 +221,7 @@ def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
     assert isinstance(oyens_space.emitters, dict)
     assert len(oyens_space.emitters) == 1
     # Get the desired emitter: should be the first element in the list
-    src = oyens_space.emitters[emitter_alias][0] if emitter_alias is not None else oyens_space.emitters["src000"][0]
+    src = oyens_space.get_emitter(emitter_alias if emitter_alias is not None else "src000", 0)
     # Should be an emitter object
     assert isinstance(src, Emitter)
     # Should have all the desired attributes
@@ -323,8 +323,8 @@ def test_add_polar_emitter(emitter_position, expected_position, oyens_space: Wor
         microphone_type="monocapsule",
         alias="tester"
     )
-    oyens_space.add_emitter(position=emitter_position, polar=True, mic="tester", keep_existing=False)
-    assert np.allclose(oyens_space.emitters["src000"][0].coordinates_absolute, expected_position, atol=1e-4)
+    oyens_space.add_emitter(position=emitter_position, polar=True, mic="tester", keep_existing=False, alias="testsrc")
+    assert np.allclose(oyens_space.get_emitter("testsrc", 0).coordinates_absolute, expected_position, atol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -352,7 +352,7 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
     else:
         oyens_space.add_emitter(position=position, mic="tester", keep_existing=False, polar=False)
         assert len(oyens_space.emitters) == 1
-        src = oyens_space.emitters["src000"][0]
+        src = oyens_space.get_emitter("src000", 0)
         assert isinstance(src, Emitter)
         # coordinates_relative dict should be as expected
         assert np.allclose(src.coordinates_relative_cartesian["tester"], position, atol=1e-4)
@@ -441,7 +441,7 @@ def test_add_emitters_relative_to_mic(test_position: np.ndarray, expected: tuple
     assert len(oyens_space.emitters) == sum(expected)
     for position, is_added, alias in zip(test_position, expected, emit_aliases):
         if is_added:
-            emitter_list = oyens_space.emitters[alias]
+            emitter_list = oyens_space[alias]    # can also get emitters in this way, too :)
             # Relative position dictionary should be as we expect
             for emitter in emitter_list:
                 assert np.allclose(
@@ -496,8 +496,7 @@ def test_add_emitters_at_specific_position(test_position: np.ndarray, expected: 
     assert len(oyens_space.emitters) == sum(expected)
     for position, is_added, alias in zip(test_position, expected, emit_alias):
         if is_added:
-            emitter_list = oyens_space.emitters[alias]
-            for emitter in emitter_list:
+            for emitter in oyens_space[alias]:
                 assert np.allclose(emitter.coordinates_absolute, position, atol=1e-4)
 
 
@@ -568,7 +567,7 @@ def test_simulated_ir(n_mics: int, n_emitters: int, oyens_space: WorldState):
         assert actual_samples >= 1    # difficult to test number of samples
         total_capsules += actual_capsules
     # IRs for all microphones should have same number of emitters and samples
-    _, mic_1_emitters, mic_1_samples = oyens_space.microphones["mic000"].irs.shape
+    _, mic_1_emitters, mic_1_samples = oyens_space.get_microphone("mic000").irs.shape
     assert all([m.irs.shape[1] == mic_1_emitters for m in oyens_space.microphones.values()])
     assert all([m.irs.shape[2] == mic_1_samples for m in oyens_space.microphones.values()])
     # Number of capsules should be the same as the "raw" results of the raytracing engine
@@ -688,7 +687,7 @@ def test_simulated_doa_with_music(microphone: list, emitters: list, actual_doa: 
     output = oyens_space.irs
 
     # Create the MUSIC object
-    L = oyens_space.microphones["tester"].coordinates_absolute.T    # coordinates of our capsules for the eigenmike
+    L = oyens_space.get_microphone("tester").coordinates_absolute.T    # coordinates of our capsules for the eigenmike
     fs = int(oyens_space.ctx.config.sample_rate)
     nfft = 1024
     num_emitters = len(oyens_space.emitters)    # number of sound emitters we've added
@@ -710,7 +709,7 @@ def test_simulated_doa_with_music(microphone: list, emitters: list, actual_doa: 
         stft_signals = np.stack([stft(cs, fs=fs, nperseg=nfft, noverlap=0, boundary=None)[2] for cs in signals])
         # Sanity check the returned shape
         x, y, _ = stft_signals.shape
-        assert x == oyens_space.microphones["tester"].n_capsules
+        assert x == oyens_space.get_microphone("tester").n_capsules
         assert y == (nfft / 2) + 1
         # Run the music algorithm and get the predicted DOA
         music.locate_sources(stft_signals)
