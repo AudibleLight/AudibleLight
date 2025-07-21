@@ -17,3 +17,7 @@ This project provides a platform for generating synthetic soundscapes by simulat
 - `pip install -r requirements.txt`
 - Install pre-commit hooks: `pre-commit install`
 - Run pre-commit: `pre-commit run --all-files`
+
+## API Sketch
+
+<img width="3748" height="1454" alt="Screenshot from 2025-07-21 10-52-03" src="https://github.com/user-attachments/assets/52d3df17-126b-43c6-8e57-0a724e74e6ef" />
