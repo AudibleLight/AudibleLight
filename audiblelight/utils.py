@@ -9,7 +9,7 @@ import random
 import wave
 from functools import wraps
 from pathlib import Path
-from typing import Union, Any, Protocol, Callable, List
+from typing import Union, Any, Protocol, Callable, List, Optional
 
 import numpy as np
 import torch
@@ -170,7 +170,7 @@ def sanitise_positive_number(x: Any) -> Union[float, None]:
     """
     Validate that an input is a positive numeric input and coerce to a `float`
     """
-    if isinstance(x, (int, float, complex)) and not isinstance(x, bool):
+    if isinstance(x, (int, float, complex, np.integer, np.floating)) and not isinstance(x, bool):
         if x >= 0.:
             return float(x)
         else:
@@ -341,3 +341,83 @@ def list_innermost_directory_names_unique(root_dir: str) -> set:
     """
     deepest_paths = list_deepest_directories(root_dir)
     return {Path(path).name for path in deepest_paths}
+
+
+def validate_audio(audio: np.ndarray) -> bool:
+    """Determine whether a variable contains valid audio data.
+
+    The following conditions must be satisfied:
+
+    - `type(audio)` is ``np.ndarray``
+    - `audio.dtype` is floating-point
+    - `audio.ndim != 0` (must have at least one dimension)
+    - `np.isfinite(audio).all()` samples must be all finite values
+
+    Returns:
+        bool:
+    """
+    if not isinstance(audio, np.ndarray):
+        raise ValueError("Audio data must be of type numpy.ndarray but got {}".format(type(audio)))
+    if not np.issubdtype(audio.dtype, np.floating):
+        raise TypeError("Audio data must be floating-point but got {}".format(audio.dtype))
+    if audio.ndim == 0:
+        raise ValueError(f"Audio data must be at least one-dimensional but got {audio.ndim} dimensions")
+    if not np.isfinite(audio).all():
+        raise ValueError("Audio buffer is not finite everywhere")
+    return True
+
+
+def audio_to_mono(audio: np.ndarray) -> np.ndarray:
+    """
+    Convert an audio signal to mono by averaging samples across channels.
+
+    Returns:
+        np.ndarray: a mono-channel audio signal with one dimension.
+    """
+    validate_audio(audio)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=tuple(range(audio.ndim - 1)))
+    return audio
+
+
+def truncate_audio(
+        audio: np.ndarray,
+        sr: Optional[int] = SAMPLE_RATE,
+        start: Optional[float] = None,
+        duration: Optional[float] = None,
+) -> np.ndarray:
+    """
+    Truncate a mono audio signal to the given start and duration.
+
+    Args:
+        audio (np.ndarray): Mono audio signal.
+        sr (int): Sample rate in Hz.
+        start (float): Start time in seconds. If None, defaults to 0.
+        duration (float): Duration in seconds. If None, defaults to duration of audio.
+
+    Returns:
+        np.ndarray: A truncated audio signal.
+    """
+    validate_audio(audio)
+    if audio.ndim != 1:
+        raise TypeError("Audio must be mono, but got {} dimensions".format(audio.ndim))
+
+    total_duration = len(audio) / sr
+
+    # Get the starting time for the audio, defaulting to 0
+    if start is None:
+        start = 0.0
+    start = sanitise_positive_number(start)
+
+    # If no audio duration provided, end time is unbounded
+    if duration is None:
+        return audio[int(start * sr):]
+
+    # Otherwise, end time is bounded by the duration
+    else:
+        # Get the end time of the audio
+        end = start + sanitise_positive_number(duration)
+        if end > total_duration:
+            raise ValueError(f"Requested segment [{start:.2f}s – {end:.2f}s] exceeds duration {total_duration:.2f}s")
+        # Actually do the truncation
+        return audio[int(start * sr):int(end * sr)]

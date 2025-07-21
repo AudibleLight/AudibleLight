@@ -179,3 +179,49 @@ def test_sanitise_distribution(dist, error):
 def test_get_default_alias(prefix, objects, expected):
     actual = utils.get_default_alias(prefix, objects)
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "start, duration, expected_len, raises",
+    [
+        (None, None, utils.SAMPLE_RATE, False),      # 1.0s duration
+        (0.5, 0.5, utils.SAMPLE_RATE // 2, False),    # 0.5s duration
+        (0.25, 0.5, utils.SAMPLE_RATE // 2, False),        # 0.5s duration
+        (0.75, 0.25, utils.SAMPLE_RATE // 4, False),     # 0.25s duration
+        (0.0, 1.0, utils.SAMPLE_RATE, False),        # 1.0s duration
+        (0.0, None, utils.SAMPLE_RATE, False),       # 1.0s duration
+        (0.9, 0.2, None, ValueError),          # 0.9s + 0.2s = 1.1s > 1.0s, ValueError
+        (-0.1, 0.5, None, ValueError),         # negative start, ValueError
+        (0.0, -1.0, None, ValueError),         # negative duration, ValueError
+    ]
+)
+def test_truncate_audio(start, duration, expected_len, raises):
+    audio = np.random.rand(utils.SAMPLE_RATE)
+    if not raises:
+        output = utils.truncate_audio(audio, sr=utils.SAMPLE_RATE, start=start, duration=duration)
+        assert isinstance(output, np.ndarray)
+        assert output.ndim == 1
+        assert len(output) == expected_len
+    else:
+        with pytest.raises(raises):
+            utils.truncate_audio(audio, sr=utils.SAMPLE_RATE, start=start, duration=duration)
+
+
+@pytest.mark.parametrize("n_channels", [1, 2, 3, 4])
+def test_audio_to_mono(n_channels: int):
+    audio = np.random.rand(n_channels, utils.SAMPLE_RATE)
+    mono = utils.audio_to_mono(audio)
+    assert mono.ndim == 1
+
+
+# noinspection PyTypeChecker
+def test_validate_audio():
+    for bad in ["asdf", 0, set]:
+        with pytest.raises(ValueError):
+            _ = utils.validate_audio(bad)
+    with pytest.raises(TypeError):
+        _ = utils.validate_audio(np.array([False, False, True], dtype=bool))
+    with pytest.raises(ValueError):
+        _ = utils.validate_audio(np.array(0.0))
+    with pytest.raises(ValueError):
+        _ = utils.validate_audio(np.array([np.nan, np.nan, np.inf, np.nan, 0.0, 1.0]))
