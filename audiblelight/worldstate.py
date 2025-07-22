@@ -335,10 +335,10 @@ class WorldState:
                 break
         return False
 
+    @utils.update_state
     def _clear_microphones(self) -> None:
         """Removes all current microphones"""
         self.microphones = {}
-        self.ctx.clear_listeners()
 
     @utils.update_state
     def add_microphone(
@@ -637,10 +637,10 @@ class WorldState:
         else:
             return None
 
+    @utils.update_state
     def _clear_emitters(self) -> None:
         """Removes all current emitters"""
         self.emitters = {}
-        self.ctx.clear_sources()
 
     def path_exists_between_points(self, point_a: np.ndarray, point_b: np.ndarray) -> bool:
         """
