@@ -28,7 +28,8 @@ def oyens_space() -> WorldState:
 
 
 @pytest.fixture(scope="function")
-def oyens_scene() -> Scene:
+def oyens_scene_no_overlap() -> Scene:
+    """Returns a scene object with the Oyens mesh (Gibson), that doesn't allow for overlapping Events"""
     # Create a dummy scene
     return Scene(
         duration=50,

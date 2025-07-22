@@ -68,10 +68,10 @@ OYENS_PATH = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
         ),
     ]
 )
-def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene: Scene):
+def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap: Scene):
     # Add the event in
-    oyens_scene.clear_events()
-    oyens_scene.add_event(
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
         filepath=filepath,
         alias="test_event",
         emitter_kwargs=emitter_kws,
@@ -79,7 +79,7 @@ def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene: Scene):
     )
 
     # Get the event
-    ev = oyens_scene.get_event("test_event")
+    ev = oyens_scene_no_overlap.get_event("test_event")
     assert isinstance(ev, Event)
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
@@ -108,13 +108,13 @@ def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene: Scene):
         (SOUNDEVENT_DIR / "music/000010.mp3", 3.0, 10.0),
     ]
 )
-def test_add_overlapping_new_event(new_event_audio, new_event_start, new_event_duration, oyens_scene: Scene):
+def test_add_overlapping_new_event(new_event_audio, new_event_start, new_event_duration, oyens_scene_no_overlap: Scene):
     """
     Test adding an event that overlaps with existing ones: should be rejected
     """
     # Add the event in
-    oyens_scene.clear_events()
-    oyens_scene.add_event(
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
         filepath=SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
         event_kwargs=dict(
@@ -124,7 +124,7 @@ def test_add_overlapping_new_event(new_event_audio, new_event_start, new_event_d
     )
     # Add the tester event in: should raise an error due to overlap
     with pytest.raises(ValueError):
-        oyens_scene.add_event(
+        oyens_scene_no_overlap.add_event(
             filepath=new_event_audio,
             alias="bad_event",
             emitter_kwargs=dict(keep_existing=True),
@@ -134,9 +134,9 @@ def test_add_overlapping_new_event(new_event_audio, new_event_start, new_event_d
             )
         )
     # Should not be added to the dictionary
-    assert len(oyens_scene.events) == 1
+    assert len(oyens_scene_no_overlap.events) == 1
     with pytest.raises(KeyError):
-        _ = oyens_scene.get_event("bad_event")
+        _ = oyens_scene_no_overlap.get_event("bad_event")
 
 
 @pytest.mark.parametrize(
@@ -147,13 +147,13 @@ def test_add_overlapping_new_event(new_event_audio, new_event_start, new_event_d
         (SOUNDEVENT_DIR / "music/000010.mp3", dict(duration=5.0)),
     ]
 )
-def test_add_nonoverlapping_new_event(new_event_audio, new_event_kws, oyens_scene: Scene):
+def test_add_nonoverlapping_new_event(new_event_audio, new_event_kws, oyens_scene_no_overlap: Scene):
     """
     Test adding an acceptable event to a scene that already has events; should not be rejected
     """
     # Add the dummy event in
-    oyens_scene.clear_events()
-    oyens_scene.add_event(
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
         filepath=SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
         emitter_kwargs=dict(keep_existing=True),
@@ -163,16 +163,16 @@ def test_add_nonoverlapping_new_event(new_event_audio, new_event_kws, oyens_scen
         )
     )
     # Add the tester event in: should not raise any errors
-    oyens_scene.add_event(
+    oyens_scene_no_overlap.add_event(
         filepath=new_event_audio,
         alias="good_event",
         emitter_kwargs=dict(keep_existing=True),
         event_kwargs=new_event_kws
     )
     # Should be able to access the event class
-    assert len(oyens_scene.events) == 2
-    ev = oyens_scene.get_event("good_event")
+    assert len(oyens_scene_no_overlap.events) == 2
+    ev = oyens_scene_no_overlap.get_event("good_event")
     assert isinstance(ev, Event)
     assert ev.filepath == new_event_audio
     # Should have two emitters in the ray-tracing engine
-    assert oyens_scene.state.ctx.get_source_count() == 2
+    assert oyens_scene_no_overlap.state.ctx.get_source_count() == 2
