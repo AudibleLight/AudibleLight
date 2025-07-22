@@ -89,8 +89,11 @@ def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene: Scene):
             assert np.array_equal(desired_position, ev.start_coordinates_absolute)
 
     # Check all overrides passed correctly to the event class
-    for override_key, override_val in event_kws.items():
-        assert getattr(ev, override_key) == override_val
+    #  When we're using a random file, we cannot check these variables as they might have changed
+    #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
+    if filepath is not None:
+        for override_key, override_val in event_kws.items():
+            assert getattr(ev, override_key) == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
     for attr_ in ["event_end", "start_coordinates_absolute", "end_coordinates_relative_polar"]:
