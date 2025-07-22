@@ -220,8 +220,8 @@ class WorldState:
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
         """
         # Update the ray-tracing listeners
+        self.ctx.clear_listeners()
         if len(self.microphones) > 0:
-            self.ctx.clear_listeners()
             all_caps = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
             for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
                 # Add a single listener for each individual capsule
@@ -229,8 +229,10 @@ class WorldState:
                 self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
 
         # Update the ray-tracing sources
+        #  We have to clear sources out regardless of number of emitters because it is possible that, if we have
+        #  removed an event (e.g. `Scene.remove_event(...)`), we'll "orphan" some sources otherwise
+        self.ctx.clear_sources()
         if len(self.emitters) > 0:
-            self.ctx.clear_sources()
             emitter_counter = 0
             for emitter_alias, emitter_list in self.emitters.items():
                 for emitter in emitter_list:
