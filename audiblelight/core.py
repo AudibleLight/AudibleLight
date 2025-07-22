@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Union, Optional, Type, Any
 
 import soundfile as sf
-import numpy as np
 from scipy import stats
 
 from audiblelight.event import Event
@@ -80,8 +79,14 @@ class Scene:
         """
         Populate `self.state.microphones` list with `MicArray` objects
         """
+        def is_individual(inp: Any) -> bool:
+            return any((
+                isinstance(inp, (str, MicArray)),
+                issubclass(type(inp) if not isinstance(inp, type) else inp, MicArray)
+            ))
+
         # Coerce non-iterable types to an iterable
-        if isinstance(mic_arrays, (dict, str)) or issubclass(type(mic_arrays), MicArray):
+        if is_individual(mic_arrays) or isinstance(mic_arrays, dict):
             mic_arrays = [mic_arrays]
         elif not isinstance(mic_arrays, list):
             raise TypeError(f"Cannot handle type {type(mic_arrays)} when adding microphones to space!")
@@ -89,13 +94,10 @@ class Scene:
         for individual_mic in mic_arrays:
             # If a dictionary, try and get all the keyword arguments and use defaults if not present
             if isinstance(individual_mic, dict):
-                self.state.add_microphone(
-                    microphone_type=individual_mic.get("microphone_type", None),    # defaults to mono capsule
-                    position=individual_mic.get("position", None),    # defaults to random position
-                    alias=individual_mic.get("alias", None),    # defaults to "mic00N" alias
-                )
+                utils.validate_kwargs(self.state.add_microphone, **individual_mic)   # make sure kwargs are valid
+                self.state.add_microphone(**individual_mic)
             # Otherwise, we assume that the object relates to the type of the microphone
-            elif isinstance(individual_mic, str) or issubclass(individual_mic, MicArray):
+            elif is_individual(individual_mic):
                 self.state.add_microphone(microphone_type=individual_mic)
             # Otherwise, we don't know how to parse the input, so raise an error
             else:
@@ -104,6 +106,7 @@ class Scene:
     def add_ambience(self):
         """Add default room ambience (e.g., Brownian noise)."""
         self.ambience_enabled = True
+        # TODO: implement this
 
     def _try_add_event(self, **event_kwargs) -> bool:
         """
@@ -170,7 +173,7 @@ class Scene:
                 if i.endswith(utils.AUDIO_EXTS):
                     audios.append(fg_category_path / Path(i))
         if len(audios) == 0:
-            raise ValueError("No audio files found!")
+            raise FileNotFoundError("No audio files found!")
         return utils.sanitise_filepath(random.choice(audios))
 
 
@@ -215,7 +218,7 @@ class Scene:
             >>> scene.add_event(
             ...     filepath=...,
             ...     alias="tester",
-            ...     override_kwargs=dict(
+            ...     event_kwargs=dict(
             ...         event_start=5.0,
             ...         duration=5.0,
             ...         snr=0.0,
@@ -239,7 +242,7 @@ class Scene:
             raise ValueError("Event sample rate must be the same as the WorldState sample rate")
 
         # Ensure that we use the same alias for all emitters and events
-        emitter_kwargs["alias"] = alias
+        emitter_kwargs["alias"] = alias    # TODO: this will be a problem when we have moving events (multiple emitters)
         event_kwargs["alias"] = alias
 
         # Add the filepath into the event kwarg dictionary
@@ -275,28 +278,30 @@ class Scene:
 
     def generate(self, audio_path, metadata_path, spatial_audio_format='A'):
         """Render scene to disk."""
-        audio = render_scene_audio(
-            mesh=self.mesh,
-            mic_array=self.mic_array,
-            events=self.events,
-            duration=self.duration,
-            ambience=self.ambience_enabled,
-            ref_db=self.ref_db,
-            spatial_format=spatial_audio_format
-        )
-        sf.write(audio_path, audio, samplerate=48000) # we shouldn't hard-code this
-
-        metadata = {
-            'duration': self.duration,
-            'mesh': str(self.mesh),
-            'mic_array': self.mic_array.to_dict(),
-            'events': [e.to_dict() for e in self.events],
-            'ref_db': self.ref_db,
-            'ambience': self.ambience_enabled,
-            'spatial_format': spatial_audio_format
-        }
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
+        raise NotImplementedError()
+        # TODO: implement
+        # audio = render_scene_audio(
+        #     mesh=self.mesh,
+        #     mic_array=self.mic_array,
+        #     events=self.events,
+        #     duration=self.duration,
+        #     ambience=self.ambience_enabled,
+        #     ref_db=self.ref_db,
+        #     spatial_format=spatial_audio_format
+        # )
+        # sf.write(audio_path, audio, samplerate=48000) # we shouldn't hard-code this
+        #
+        # metadata = {
+        #     'duration': self.duration,
+        #     'mesh': str(self.mesh),
+        #     'mic_array': self.mic_array.to_dict(),
+        #     'events': [e.to_dict() for e in self.events],
+        #     'ref_db': self.ref_db,
+        #     'ambience': self.ambience_enabled,
+        #     'spatial_format': spatial_audio_format
+        # }
+        # with open(metadata_path, 'w') as f:
+        #     json.dump(metadata, f, indent=2)
 
     def __getitem__(self, alias: str) -> Event:
         return self.get_event(alias)
