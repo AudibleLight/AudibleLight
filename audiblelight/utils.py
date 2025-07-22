@@ -32,7 +32,7 @@ SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
 MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
 
 NUMERIC_DTYPES = (int, float, complex, np.integer, np.floating)     # used for isinstance(x, ...) checking
-Numeric = Union[*NUMERIC_DTYPES]    # used as a typehint
+Numeric = Union[int, float, complex, np.integer, np.floating]    # used as a typehint
 
 
 def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
