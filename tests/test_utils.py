@@ -3,6 +3,7 @@
 
 """Test cases for functionality inside audiblelight/utils.py"""
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -244,3 +245,49 @@ def test_validate_kwargs(func, kwargs, should_raise, expected_exception):
             utils.validate_kwargs(func, **kwargs)
     else:
         utils.validate_kwargs(func, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "directory,raises",
+    [
+        (utils.get_project_root() / "tests", False,),
+        ("asdfasgsfhdsh", FileNotFoundError,),
+        (utils.get_project_root() / "tests/test_utils.py", ValueError,)
+    ]
+)
+def test_list_all_directories(directory, raises):
+    if raises:
+        with pytest.raises(raises):
+            _ = utils.list_all_directories(directory)
+    else:
+        out = utils.list_all_directories(directory)
+        assert len(out) >= 1
+        for path in out:
+            assert os.path.isdir(path)
+            assert isinstance(path, str)
+
+
+@pytest.mark.parametrize(
+    "directory,expected",
+    [
+        (utils.get_project_root() / "tests", ["femaleSpeech", "music", "meshes"])
+    ]
+)
+def test_list_deepest_directories(directory, expected):
+    out = utils.list_deepest_directories(directory)
+    assert isinstance(out, list)
+    for expect in expected:
+        assert any([expect in actual for actual in out])
+
+
+@pytest.mark.parametrize(
+    "directory,expected",
+    [
+        (utils.get_project_root() / "tests", ["femaleSpeech", "music", "meshes"])
+    ]
+)
+def test_list_innermost_directory_names_unique(directory, expected):
+    out = utils.list_innermost_directory_names_unique(directory)
+    assert isinstance(out, set)
+    for expect in expected:
+        assert any([expect in actual for actual in out])

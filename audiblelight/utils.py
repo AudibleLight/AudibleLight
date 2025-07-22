@@ -309,7 +309,7 @@ def list_all_directories(root_dir: Union[str, Path]) -> List[str]:
     root_path = Path(root_dir)
 
     if not root_path.exists():
-        raise ValueError(f"Directory '{root_dir}' does not exist")
+        raise FileNotFoundError(f"Directory '{root_dir}' does not exist")
 
     if not root_path.is_dir():
         raise ValueError(f"'{root_dir}' is not a directory")
@@ -333,7 +333,7 @@ def list_deepest_directories(root_dir: Union[str, Path]) -> List[str]:
     return deepest_dirs
 
 
-def list_innermost_directory_names(root_dir: str) -> List[str]:
+def list_innermost_directory_names(root_dir: Union[str, Path]) -> List[str]:
     """
     Return only the names of the innermost (leaf) directories under root_dir.
 
@@ -344,7 +344,7 @@ def list_innermost_directory_names(root_dir: str) -> List[str]:
     return [Path(path).name for path in deepest_paths]
 
 
-def list_innermost_directory_names_unique(root_dir: str) -> set:
+def list_innermost_directory_names_unique(root_dir: Union[str, Path]) -> set:
     """
     Return only the unique names of the innermost (leaf) directories under root_dir.
 
