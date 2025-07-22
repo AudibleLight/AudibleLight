@@ -3,6 +3,7 @@
 
 """Utility functions, variables, objects etc."""
 
+import inspect
 import json
 import os
 import random
@@ -33,6 +34,8 @@ MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a sourc
 
 NUMERIC_DTYPES = (int, float, complex, np.integer, np.floating)     # used for isinstance(x, ...) checking
 Numeric = Union[int, float, complex, np.integer, np.floating]    # used as a typehint
+
+AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
 
 
 def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
@@ -152,7 +155,7 @@ def check_all_lens_equal(*iterables) -> bool:
     return len({len(i) for i in iterables}) == 1
 
 
-def sanitise_filepath(filepath: Any) -> Union[Path, None]:
+def sanitise_filepath(filepath: Any) -> Path:
     """
     Validate that a filepath exists on the disk and coerce to a `Path` object
     """
@@ -450,3 +453,31 @@ def sample_distribution(
             return override
         else:
             raise TypeError(f"Expected a numeric input for `override` but got {type(override)}")
+
+
+def validate_kwargs(func: Callable, **kwargs) -> None:
+    """
+    Validates that the given kwargs are acceptable keyword arguments for the provided function.
+    Raises AttributeError if any are invalid.
+    """
+    if not callable(func):
+        raise TypeError("`func` must be a callable")
+
+    sig = inspect.signature(func)
+    params = sig.parameters
+
+    # If function accepts arbitrary kwargs, no need to validate
+    if any(p.kind == p.VAR_KEYWORD for p in params.values()):
+        return
+
+    valid_kwargs = {
+        name for name, param in params.items()
+        if param.kind in (param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD)
+    }
+
+    if not valid_kwargs:
+        raise ValueError("`func` must have at least one named keyword argument")
+
+    for kwarg in kwargs:
+        if kwarg not in valid_kwargs:
+            raise AttributeError(f"`{kwarg}` is not a valid keyword argument for `{func.__name__}`")

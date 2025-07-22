@@ -224,3 +224,23 @@ def test_validate_audio():
         _ = utils.validate_audio(np.array(0.0))
     with pytest.raises(ValueError):
         _ = utils.validate_audio(np.array([np.nan, np.nan, np.inf, np.nan, 0.0, 1.0]))
+
+
+@pytest.mark.parametrize(
+    "func, kwargs, should_raise, expected_exception",
+    [
+        (lambda x=1, y=2: x + y, {"x": 5}, False, None),                      # Valid kwarg
+        (lambda x=1, y=2: x + y, {"z": 5}, True, AttributeError),            # Invalid kwarg
+        (lambda **kwargs: sum(kwargs.values()), {"a": 1}, False, None),     # Accepts arbitrary kwargs
+        ("not_a_function", {"x": 1}, True, TypeError),                      # Not a callable
+        (lambda x, y: x + y, {}, False, None),                               # No kwargs but valid empty call
+        (lambda *, a=1: a, {"a": 2}, False, None),                           # Keyword-only argument
+        (lambda a, b: a + b, {"c": 3}, True, AttributeError),               # Invalid kwarg
+    ]
+)
+def test_validate_kwargs(func, kwargs, should_raise, expected_exception):
+    if should_raise:
+        with pytest.raises(expected_exception):
+            utils.validate_kwargs(func, **kwargs)
+    else:
+        utils.validate_kwargs(func, **kwargs)
