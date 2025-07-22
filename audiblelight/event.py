@@ -62,8 +62,8 @@ class Event:
             filepath: Union[str, Path],
             alias: str,
             emitters: list[Emitter],
-            scene_start: Optional[float] = 0.,
-            event_start: Optional[float] = 0.,
+            scene_start: Optional[float] = None,
+            event_start: Optional[float] = None,
             duration: Optional[float] = None,
             snr: Optional[float] = None,
             sample_rate: Optional[int] = utils.SAMPLE_RATE,
@@ -109,21 +109,15 @@ class Event:
         #  Attempt to infer class ID and labels in cases where only one is provided
         self.class_id, self.class_label = _infer_dcase_class_id_labels(class_id, class_label)
 
-        # Setting start, duration times
-        self._audio_full_duration = librosa.get_duration(path=self.filepath)
-        #  The validation functions raise an error if non-numeric or not positive
-        self.scene_start = utils.sanitise_positive_number(scene_start) if scene_start is not None else scene_start
-        self.event_start = utils.sanitise_positive_number(event_start) if event_start is not None else event_start
-        if duration is not None:
-            duration = utils.sanitise_positive_number(duration)
-            if duration > self._audio_full_duration:
-                logger.warning(
-                    f"Duration {duration:.2f} is longer than audio duration {self._audio_full_duration:.2f}. "
-                    f"Falling back to using audio duration."
-                )
-                duration = self._audio_full_duration
-        self.duration = duration
-
+        # Scene start is the time the event starts in the scene
+        #  Event start is the offset from the start of the audio file
+        self.event_start = utils.sanitise_positive_number(event_start) if event_start is not None else 0.
+        self.scene_start = utils.sanitise_positive_number(scene_start) if scene_start is not None else 0.
+        # Safely parse the duration of the audio file with an optional override
+        self.duration = self._parse_duration(duration)
+        # Now we can safely get the ending time of the event
+        self.event_end = self.event_start + self.duration
+        self.scene_end = self.scene_start + self.duration
 
         # List of emitter objects associated with this event
         if isinstance(emitters, Emitter):
@@ -149,6 +143,30 @@ class Event:
             self.end_coordinates_relative_cartesian = self.start_coordinates_relative_cartesian
             self.end_coordinates_relative_polar = self.start_coordinates_relative_polar
 
+    def _parse_duration(self, duration: Optional[float]) -> float:
+        """
+        Safely handle getting the duration of an audio file, with an optional override.
+        """
+        # Get the full duration of the audio file
+        audio_full_duration = librosa.get_duration(path=self.filepath)
+        # If we haven't passed in an override, just use the full duration of the audio, minus the offset
+        if duration is None:
+            return utils.sanitise_positive_number(audio_full_duration - self.event_start)
+        else:
+            # Otherwise, check that our duration is valid
+            duration = utils.sanitise_positive_number(duration)
+            # If the duration combined with the offset time is longer than the actual audio itself
+            if self.event_start + duration > audio_full_duration:
+                logger.warning(
+                    f"Duration {duration:.2f} is longer than audio duration {audio_full_duration:.2f} with "
+                    f"given audio start time {self.event_start:.2f}. Falling back to using full audio duration."
+                )
+                # Fall back to using
+                return audio_full_duration - self.event_start
+            else:
+                return duration
+
+    # noinspection PyTypeChecker
     def load_audio(self, ignore_cache: bool = False) -> np.ndarray:
         """
         Returns the audio array of the Event.
@@ -167,25 +185,22 @@ class Event:
             self._audio_loaded = False
             self.audio = None
 
-        # If we've already loaded the audio, it should be cached and we can return straight away
-        if self._audio_loaded and isinstance(self.audio, np.ndarray):
+        # If we've already loaded the audio, and it is still valid, we can return it straight away
+        if self._audio_loaded and librosa.util.valid_audio(self.audio):
             return self.audio
 
         else:
             # Otherwise, we need to load up the audio
-            #  Using soundfile, this will resample to the desired sample rate.
-            audio, _ = librosa.load(self.filepath, sr=self.sample_rate)
-
-            # Convert the audio file to mono
-            #  By passing `always_2d` above, we ensure that the audio is always a 2D array regardless of if the
-            #  actual audio is mono or stereo (etc.), which standardises the number of dimensions
-            audio = utils.audio_to_mono(audio)
-
-            # Truncate the audio to the given start time and audio duration
-            audio = utils.truncate_audio(audio, self.sample_rate, self.event_start, self.duration)
-
-            # Set the attributes correctly
-            self.audio = audio
+            #  Using librosa, this will resample to the desired sample rate, convert to mono, set the offset to the
+            #  desired event start time, and trim the duration to the desired duration
+            self.audio, _ = librosa.load(
+                self.filepath,
+                sr=self.sample_rate,
+                mono=True,
+                offset=self.event_start,
+                duration=self.duration,
+                dtype=np.float32
+            )
             self._audio_loaded = True
 
         return self.audio
@@ -195,17 +210,20 @@ class Event:
         Returns metadata for this Event as a dictionary.
         """
         return dict(
+            # Metadata
             alias=self.alias,
             filename=self.filename,
             filepath=self.filepath,
             class_id=self.class_id,
             class_label=self.class_label,
+            # Audio stuff
             scene_start=self.scene_start,
+            scene_end = self.scene_end,
             event_start=self.event_start,
+            event_end=self.event_end,
             duration=self.duration,
-            # TODO: we need start and end timepoints for the scene + event audio
-            # end_timepoint=self.scene_end,
             snr=self.snr,
+            # Spatial stuff (inherited from Emitter objects)
             spatial_resolution=self.spatial_resolution,
             spatial_velocity=self.spatial_velocity,
             start_coordinates=dict(
