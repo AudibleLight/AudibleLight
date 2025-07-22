@@ -84,6 +84,8 @@ def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap
         emitter_kwargs=emitter_kws,
         event_kwargs=event_kws
     )
+    # Should be added to ray-tracing engine
+    assert oyens_scene_no_overlap.state.ctx.get_source_count() == 1
 
     # Get the event
     ev = oyens_scene_no_overlap.get_event("test_event")
@@ -231,6 +233,8 @@ def test_add_mic_arrays_to_state(mic_arrays, raises, oyens_scene_no_overlap: Sce
         # Position should be set properly if we've passed this
         if isinstance(mic_arrays, dict) and "position" in mic_arrays:
             assert np.array_equal(mic.coordinates_center, mic_arrays["position"])
+        # Number of listeners should all be set OK in the ray-tracing engine
+        assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4
     else:
         with pytest.raises(raises):
             oyens_scene_no_overlap._add_mic_arrays_to_state(mic_arrays)
@@ -249,3 +253,29 @@ def test_get_funcs(oyens_scene_no_overlap: Scene):
     assert isinstance(event, Event)
     event2 = oyens_scene_no_overlap["event000"]
     assert isinstance(event2, Event)
+
+    # Trying to get event that doesn't exist will raise an error
+    with pytest.raises(KeyError):
+        oyens_scene_no_overlap.get_event("not_existing")
+
+
+def test_clear_event(oyens_scene_no_overlap: Scene):
+    # Add an event
+    oyens_scene_no_overlap.add_event(alias="remover")
+    assert len(oyens_scene_no_overlap.events) == 1
+    assert len(oyens_scene_no_overlap.state.emitters) == 1
+    assert oyens_scene_no_overlap.state.ctx.get_source_count() == 1
+
+    # Remove the event and check all has been removed
+    oyens_scene_no_overlap.clear_event(alias="remover")
+    assert len(oyens_scene_no_overlap.events) == 0
+    assert len(oyens_scene_no_overlap.state.emitters) == 0
+    assert oyens_scene_no_overlap.state.ctx.get_source_count() == 0
+
+    # Trying to remove event that doesn't exist will raise an error
+    with pytest.raises(KeyError):
+        oyens_scene_no_overlap.clear_event("not_existing")
+
+    # By default, the fixture has one mic with four capsules, so check these
+    assert len(oyens_scene_no_overlap.state.microphones) == 1
+    assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4

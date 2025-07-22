@@ -4,12 +4,10 @@
 """Core modules and functions for generation and synthesis."""
 
 import os
-import json
 import random
 from pathlib import Path
 from typing import Union, Optional, Type, Any
 
-import soundfile as sf
 from scipy import stats
 
 from audiblelight.event import Event
@@ -313,7 +311,7 @@ class Scene:
         if alias in self.events.keys():
             return self.events[alias]
         else:
-            raise KeyError("Emitter alias '{}' not found.".format(alias))
+            raise KeyError("Event alias '{}' not found.".format(alias))
 
     def get_emitters(self, alias: str) -> list[Emitter]:
         """
@@ -336,7 +334,22 @@ class Scene:
     # noinspection PyProtectedMember
     def clear_events(self) -> None:
         """
-        Removes all current events and emitters
+        Removes all current events and emitters from the state
         """
         self.events = {}
         self.state._clear_emitters()
+
+    # noinspection PyProtectedMember
+    def clear_event(self, alias: str) -> None:
+        """
+        Given an alias for an event, clears the event and updates the state.
+
+        Note: simply calling `del self.events[alias]` is not enough; we also need to remove the source from the
+        ray-tracing engine by updating the `state.emitters` dictionary and calling `state._update`.
+        """
+        if alias in self.events.keys():
+            del self.events[alias]
+            del self.state.emitters[alias]
+            self.state._update()
+        else:
+            raise KeyError("Event alias '{}' not found.".format(alias))
