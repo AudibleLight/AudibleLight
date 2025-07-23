@@ -16,6 +16,8 @@ coverage.xml
 *.png
 *.sofa
 *.h5
+*.reapeaks
+*.json
 
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
