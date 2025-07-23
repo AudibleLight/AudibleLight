@@ -896,6 +896,9 @@ class WorldState:
         assert all(type(m) in MICARRAY_LIST for m in self.microphones.values()), "Non-microphone objects in microphone attribute"
         assert self.ctx.get_listener_count() > 0, "Must have listeners added to the ray tracing engine"
         assert self.ctx.get_source_count() > 0, "Must have emitters added to the ray tracing engine"
+        # Check we have the expected number of sources and listeners
+        assert len(self.emitters) == self.ctx.get_source_count()
+        assert sum(m.n_capsules for m in self.microphones.values()) == self.ctx.get_listener_count()
 
     def simulate(self) -> None:
         """
