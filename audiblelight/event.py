@@ -95,10 +95,12 @@ class Event:
         # Setting attributes for audio
         self.filepath = utils.sanitise_filepath(filepath)    # will raise an error if not found on disk, coerces to Path
         self.audio = None    # will be loaded when calling `load_audio` for the first time
-        self._audio_loaded = False
         self.snr = snr
         self.sample_rate = utils.sanitise_positive_number(sample_rate)
         self.alias = alias
+
+        # Spatial audio attributes, set in the synthesizer
+        self.spatial_audio = None
 
         # Spatial attributes
         self.spatial_resolution = spatial_resolution
@@ -109,12 +111,15 @@ class Event:
         #  Attempt to infer class ID and labels in cases where only one is provided
         self.class_id, self.class_label = _infer_dcase_class_id_labels(class_id, class_label)
 
+        # Get the full duration of the audio file
+        self.audio_full_duration = utils.sanitise_positive_number(librosa.get_duration(path=self.filepath))
+        # Event start is the offset from the start of the audio file
+        self.event_start = self._parse_audio_start(event_start)
         # Scene start is the time the event starts in the scene
-        #  Event start is the offset from the start of the audio file
-        self.event_start = utils.sanitise_positive_number(event_start) if event_start is not None else 0.
         self.scene_start = utils.sanitise_positive_number(scene_start) if scene_start is not None else 0.
         # Safely parse the duration of the audio file with an optional override
         self.duration = self._parse_duration(duration)
+
         # Now we can safely get the ending time of the event
         self.event_end = self.event_start + self.duration
         self.scene_end = self.scene_start + self.duration
@@ -122,7 +127,9 @@ class Event:
         # List of emitter objects associated with this event
         if isinstance(emitters, Emitter):
             emitters = [emitters]    # pad to a list
-        assert all(isinstance(em, Emitter) for em in emitters)
+        elif isinstance(emitters, list):
+            assert all(isinstance(em, Emitter) for em in emitters), "All objects must be of `Emitter` type"
+            assert len(emitters) >= 1, "At least one emitter must be provided"
         self.emitters = emitters
         #  If more than one emitter, the sound source is moving; if only one emitter, the sound source is stationary
         self.is_moving = len(self.emitters) > 1
@@ -143,26 +150,46 @@ class Event:
             self.end_coordinates_relative_cartesian = self.start_coordinates_relative_cartesian
             self.end_coordinates_relative_polar = self.start_coordinates_relative_polar
 
+    @property
+    def is_audio_loaded(self) -> bool:
+        """
+        Returns True if audio is loaded and valid (see `librosa.util.valid_audio` for more detail).
+        """
+        return self.audio is not None and librosa.util.valid_audio(self.audio)
+
+    def _parse_audio_start(self, audio_start: Optional[utils.Numeric]) -> float:
+        """
+        Safely handle getting the start/offset time for an audio event, with an optional override.
+        """
+        if audio_start is None:
+            event_start_ = 0.
+        # Raise a warning and revert to 0 seconds when passed start time exceeds total duration of the audio file
+        elif audio_start > self.audio_full_duration:
+            logger.warning(f"Event start time ({audio_start:.2f} seconds) exceeds duration of the audio file "
+                           f"({self.audio_full_duration:.2f} seconds). Start time will be set to 0.")
+            event_start_ = 0.
+        else:
+            event_start_ = audio_start
+        return utils.sanitise_positive_number(event_start_)
+
     def _parse_duration(self, duration: Optional[float]) -> float:
         """
         Safely handle getting the duration of an audio file, with an optional override.
         """
-        # Get the full duration of the audio file
-        audio_full_duration = librosa.get_duration(path=self.filepath)
         # If we haven't passed in an override, just use the full duration of the audio, minus the offset
         if duration is None:
-            return utils.sanitise_positive_number(audio_full_duration - self.event_start)
+            return utils.sanitise_positive_number(self.audio_full_duration - self.event_start)
         else:
             # Otherwise, check that our duration is valid
             duration = utils.sanitise_positive_number(duration)
             # If the duration combined with the offset time is longer than the actual audio itself
-            if self.event_start + duration > audio_full_duration:
+            if self.event_start + duration > self.audio_full_duration:
                 logger.warning(
-                    f"Duration {duration:.2f} is longer than audio duration {audio_full_duration:.2f} with "
+                    f"Duration {duration:.2f} is longer than audio duration {self.audio_full_duration:.2f} with "
                     f"given audio start time {self.event_start:.2f}. Falling back to using full audio duration."
                 )
                 # Fall back to using
-                return audio_full_duration - self.event_start
+                return self.audio_full_duration - self.event_start
             else:
                 return duration
 
@@ -180,13 +207,8 @@ class Event:
         Returns:
             np.ndarray: the audio array.
         """
-        # Invalidate the cache if required
-        if ignore_cache:
-            self._audio_loaded = False
-            self.audio = None
-
         # If we've already loaded the audio, and it is still valid, we can return it straight away
-        if self._audio_loaded and librosa.util.valid_audio(self.audio):
+        if self.is_audio_loaded and not ignore_cache:
             return self.audio
 
         else:
@@ -201,7 +223,6 @@ class Event:
                 duration=self.duration,
                 dtype=np.float32
             )
-            self._audio_loaded = True
 
         return self.audio
 
@@ -209,11 +230,19 @@ class Event:
         """
         Returns metadata for this Event as a dictionary.
         """
+        def coerce(inp):
+            if isinstance(inp, dict):
+                return {k: coerce(v) for k, v in inp.items()} if inp else None
+            elif isinstance(inp, np.ndarray):
+                return inp.tolist()
+            else:
+                return inp
+
         return dict(
             # Metadata
             alias=self.alias,
-            filename=self.filename,
-            filepath=self.filepath,
+            filename=str(self.filename),
+            filepath=str(self.filepath),
             class_id=self.class_id,
             class_label=self.class_label,
             # Audio stuff
@@ -227,13 +256,13 @@ class Event:
             spatial_resolution=self.spatial_resolution,
             spatial_velocity=self.spatial_velocity,
             start_coordinates=dict(
-                absolute=self.start_coordinates_absolute,
-                relative_cartesian=self.start_coordinates_relative_cartesian,
-                relative_polar=self.start_coordinates_relative_polar,
+                absolute=coerce(self.start_coordinates_absolute),
+                relative_cartesian=coerce(self.start_coordinates_relative_cartesian),
+                relative_polar=coerce(self.start_coordinates_relative_polar),
             ),
             end_coordinates=dict(
-                absolute=self.end_coordinates_absolute,
-                relative_cartesian=self.end_coordinates_relative_cartesian,
-                relative_polar=self.end_coordinates_relative_polar,
+                absolute=coerce(self.end_coordinates_absolute),
+                relative_cartesian=coerce(self.end_coordinates_relative_cartesian),
+                relative_polar=coerce(self.end_coordinates_relative_polar),
             )
         )
