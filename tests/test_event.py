@@ -62,7 +62,7 @@ def test_load_audio(audio_fpath: str, duration: Optional[float], start_time: Opt
     audio = ev.load_audio(ignore_cache=True)
     assert isinstance(audio, np.ndarray)
     assert audio.ndim == 1    # should be mono
-    assert ev._audio_loaded
+    assert ev.is_audio_loaded
     # Try and load the audio again, should be cached
     audio2 = ev.load_audio(ignore_cache=False)
     assert np.array_equal(audio, audio2)
