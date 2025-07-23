@@ -3,16 +3,19 @@
 
 """Core modules and functions for generation and synthesis."""
 
+import json
 import os
 import random
+from collections import OrderedDict
 from pathlib import Path
 from typing import Union, Optional, Type, Any
 
+import soundfile as sf
 from scipy import stats
 
 from audiblelight.event import Event
-from audiblelight.worldstate import WorldState, Emitter
 from audiblelight.micarrays import MicArray
+from audiblelight.worldstate import WorldState, Emitter
 from audiblelight import utils
 
 
@@ -70,8 +73,10 @@ class Scene:
         # Assuming path structure with audio files organized in directories per category of interest
         self.fg_category_paths = utils.list_deepest_directories(self.fg_path) if self.fg_path is not None else None
 
-        self.events = {}
+        self.events = OrderedDict()
         self.ambience_enabled = False
+
+        self.audio = None
 
     def _add_mic_arrays_to_state(self, mic_arrays: Any) -> None:
         """
@@ -274,35 +279,59 @@ class Scene:
                 intersections += 1
         return intersections >= self.max_overlap
 
-    def generate(self, audio_path, metadata_path, spatial_audio_format='A'):
-        """Render scene to disk."""
-        raise NotImplementedError()
-        # TODO: implement
-        # audio = render_scene_audio(
-        #     mesh=self.mesh,
-        #     mic_array=self.mic_array,
-        #     events=self.events,
-        #     duration=self.duration,
-        #     ambience=self.ambience_enabled,
-        #     ref_db=self.ref_db,
-        #     spatial_format=spatial_audio_format
-        # )
-        # sf.write(audio_path, audio, samplerate=48000) # we shouldn't hard-code this
-        #
-        # metadata = {
-        #     'duration': self.duration,
-        #     'mesh': str(self.mesh),
-        #     'mic_array': self.mic_array.to_dict(),
-        #     'events': [e.to_dict() for e in self.events],
-        #     'ref_db': self.ref_db,
-        #     'ambience': self.ambience_enabled,
-        #     'spatial_format': spatial_audio_format
-        # }
-        # with open(metadata_path, 'w') as f:
-        #     json.dump(metadata, f, indent=2)
+    def generate(
+            self,
+            audio_path: Union[str, Path] = None,
+            metadata_path: Union[str, Path] = None,
+            spatial_audio_format: str = "A"
+    ) -> None:
+        """
+        Render scene to disk. Currently only audio and metadata are rendered.
+
+        Arguments:
+            audio_path: Path to the audio file.
+            metadata_path: Path to the metadata file.
+            spatial_audio_format: Format to use for saving spatial audio, defaults to ambisonics "A" format
+
+        Returns:
+            None
+        """
+        from audiblelight.synthesize import render_scene_audio
+
+        # Simulate the IRs for the state
+        self.state.simulate()
+
+        # Render all the audio
+        #  This populates the `.spatial_audio` attribute inside each Event
+        #  It also populates the `audio` attribute inside this instance
+        render_scene_audio(sc)
+
+        # Write the audio output
+        sf.write(audio_path, self.audio.T, int(self.state.ctx.config.sample_rate))
+
+        # Get the metadata and add the spatial audio format in
+        metadata = self.to_dict()
+        metadata["spatial_format"] = spatial_audio_format
+
+        # Dump the metadata to a JSON
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=4, ensure_ascii=False)
 
     def __getitem__(self, alias: str) -> Event:
         return self.get_event(alias)
+
+    def to_dict(self) -> dict:
+        """
+        Returns metadata for this object as a dictionary
+        """
+        # TODO: we should probably add e.g. time, version attributes here: see how MIDITok handles this, it's good
+        return dict(
+            duration=self.duration,
+            ref_db=self.ref_db,
+            ambience=self.ambience_enabled,
+            events={k: e.to_dict() for k, e in self.events.items()},
+            state=self.state.to_dict(),
+        )
 
     def get_event(self, alias: str) -> Event:
         """
@@ -336,7 +365,7 @@ class Scene:
         """
         Removes all current events and emitters from the state
         """
-        self.events = {}
+        self.events = OrderedDict()
         self.state._clear_emitters()
 
     # noinspection PyProtectedMember
@@ -353,3 +382,24 @@ class Scene:
             self.state._update()
         else:
             raise KeyError("Event alias '{}' not found.".format(alias))
+
+
+if __name__ == "__main__":
+    from audiblelight.synthesize import render_scene_audio
+
+    sc = Scene(
+        duration=50,
+        mesh_path=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb",
+        mic_arrays=["ambeovr"],
+        # Pass some default distributions for everything
+        event_start_dist=stats.uniform(0, 10),
+        event_duration_dist=stats.uniform(0, 10),
+        event_velocity_dist=stats.uniform(0, 10),
+        event_resolution_dist=stats.uniform(0, 10),
+        snr_dist=stats.norm(5, 1),
+        fg_path=utils.get_project_root() / "tests/test_resources/soundevents",
+        max_overlap=1  # no overlapping sound events allowed
+    )
+    for i in range(5):
+        sc.add_event(emitter_kwargs=dict(keep_existing=True))
+    sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")
