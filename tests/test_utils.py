@@ -5,6 +5,7 @@
 
 import os
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import pytest
@@ -291,3 +292,25 @@ def test_list_innermost_directory_names_unique(directory, expected):
     assert isinstance(out, set)
     for expect in expected:
         assert any([expect in actual for actual in out])
+
+
+@pytest.mark.parametrize(
+    "shape_a,shape_b,raises",
+    [
+        # Matching shapes
+        ((3, 4), (3, 4), False),
+        ((5,), (5,), False),
+        ((3, 4, 5), (3, 4, 5), False),
+        # Non-matching shapes
+        ((3, 4), (3, 5), True),
+        ((3,), (4,), True),
+        ((3, 4, 5), (3, 4, 6), True),
+        ((1,), (2, 1), True),
+    ]
+)
+def test_validate_shape(shape_a: tuple[Union[int, None]], shape_b: tuple[Union[int, None]], raises: bool):
+    if raises:
+        with pytest.raises(ValueError):
+            utils.validate_shape(shape_a, shape_b)
+    else:
+        utils.validate_shape(shape_a, shape_b)

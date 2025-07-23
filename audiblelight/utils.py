@@ -458,7 +458,11 @@ def sample_distribution(
 def validate_kwargs(func: Callable, **kwargs) -> None:
     """
     Validates that the given kwargs are acceptable keyword arguments for the provided function.
-    Raises AttributeError if any are invalid.
+
+    Raises:
+        TypeError: if `func` is not callable.
+        ValueError: if `func` has no keyword arguments.
+        AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func.
     """
     if not callable(func):
         raise TypeError("`func` must be a callable")
@@ -481,3 +485,24 @@ def validate_kwargs(func: Callable, **kwargs) -> None:
     for kwarg in kwargs:
         if kwarg not in valid_kwargs:
             raise AttributeError(f"`{kwarg}` is not a valid keyword argument for `{func.__name__}`")
+
+
+def validate_shape(shape_a: tuple[int, ...], shape_b: tuple[int, ...]) -> None:
+    """
+    Compares the shapes of two arrays and validate that they are compatible.
+
+    Shapes should be a tuple of integers (i.e., returned with `np.array([]).shape`. They can be any length and are
+    implicitly padded with `None` in cases where they have a different number of dimensions.
+
+    Raises:
+        ValueError: if any corresponding non-None dimensions differ.
+    """
+    # Pad the shapes so they are the same length
+    max_len = max(len(shape_a), len(shape_b))
+    padded_a = shape_a + (None,) * (max_len - len(shape_a))
+    padded_b = shape_b + (None,) * (max_len - len(shape_b))
+
+    for i, (a, b) in enumerate(zip(padded_a, padded_b)):
+        # Implicitly skip over `None` values
+        if a is not None and b is not None and a != b:
+            raise ValueError(f"Incompatible shapes at index {i}: {a} != {b} (full shapes: {padded_a} vs {padded_b})")
