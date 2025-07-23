@@ -4,6 +4,7 @@
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
 import os
+from collections import OrderedDict
 from pathlib import Path
 from typing import Union, Optional, Type
 
@@ -95,11 +96,11 @@ class Emitter:
         self.alias: str = alias
         self.coordinates_absolute: np.ndarray = utils.sanitise_coordinates(coordinates_absolute)
         # These dictionaries map from {alias: position} for all other emitter and microphone array objects
-        self.coordinates_relative_cartesian: Optional[dict[str, np.ndarray]] = {}
-        self.coordinates_relative_polar: Optional[dict[str, np.ndarray]] = {}
+        self.coordinates_relative_cartesian: Optional[OrderedDict[str, np.ndarray]] = OrderedDict()
+        self.coordinates_relative_polar: Optional[OrderedDict[str, np.ndarray]] = OrderedDict()
 
     # noinspection PyUnresolvedReferences
-    def update_coordinates(self, coordinates: dict[str, Union[Type['MicArray'], list[Type['Emitter']]]]):
+    def update_coordinates(self, coordinates: OrderedDict[str, Union[Type['MicArray'], list[Type['Emitter']]]]):
         """
         Updates coordinates of this emitter WRT a dictionary in the format {alias: MicArray | list[Emitter]}
         """
@@ -189,8 +190,8 @@ class WorldState:
                 For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
         """
         # Store emitter and mic positions in here to access later; these should be in ABSOLUTE form
-        self.emitters = {}
-        self.microphones = {}
+        self.emitters = OrderedDict()
+        self.microphones = OrderedDict()
         self._irs = None    # will be updated when calling `simulate`
 
         # Distances from objects/mesh surfaces
@@ -338,7 +339,7 @@ class WorldState:
     @utils.update_state
     def _clear_microphones(self) -> None:
         """Removes all current microphones"""
-        self.microphones = {}
+        self.microphones = OrderedDict()
 
     @utils.update_state
     def add_microphone(
@@ -640,7 +641,7 @@ class WorldState:
     @utils.update_state
     def _clear_emitters(self) -> None:
         """Removes all current emitters"""
-        self.emitters = {}
+        self.emitters = OrderedDict()
 
     def path_exists_between_points(self, point_a: np.ndarray, point_b: np.ndarray) -> bool:
         """
@@ -820,8 +821,7 @@ class WorldState:
         """
         # Remove existing emitters if we wish to do this
         if not keep_existing:
-            self.emitters = {}
-            self.ctx.clear_sources()
+            self._clear_emitters()
 
         if polar:
             assert mics is not None, "mic_alias is required for polar coordinates"
@@ -932,7 +932,7 @@ class WorldState:
         """
         # Define a counter that we can use to access the flat array of (capsules, emitters, samples)
         counter = 0
-        all_irs = {}
+        all_irs = OrderedDict()
         for mic_alias, mic in self.microphones.items():
             mic_ir = []
             # Iterate over the capsules associated with this microphone

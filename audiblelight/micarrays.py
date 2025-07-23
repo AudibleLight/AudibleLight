@@ -3,6 +3,7 @@
 
 """Implements dataclasses for working with common microphone array types"""
 
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Type
 
@@ -112,7 +113,7 @@ class MicArray:
         """
         # Try and get all coordinate types for this microphone array
         coords = ["coordinates_absolute", "coordinates_polar", "coordinates_center", "coordinates_cartesian"]
-        coord_dict = {}
+        coord_dict = OrderedDict()
         for coord_type in coords:
             try:
                 coord_val = getattr(self, coord_type)
@@ -364,7 +365,6 @@ def sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
     # If a class contained inside MICARRAY_LIST
     elif microphone_type in MICARRAY_LIST:
         sanitized_microphone = microphone_type
-
     # Otherwise, we don't know what the microphone is
     else:
         raise TypeError(f"Could not parse microphone type {type(microphone_type)}")
