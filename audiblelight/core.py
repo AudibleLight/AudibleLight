@@ -388,7 +388,7 @@ if __name__ == "__main__":
     from audiblelight.synthesize import render_scene_audio
 
     sc = Scene(
-        duration=50,
+        duration=30,
         mesh_path=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb",
         mic_arrays=["ambeovr"],
         # Pass some default distributions for everything
@@ -398,8 +398,8 @@ if __name__ == "__main__":
         event_resolution_dist=stats.uniform(0, 10),
         snr_dist=stats.norm(5, 1),
         fg_path=utils.get_project_root() / "tests/test_resources/soundevents",
-        max_overlap=1  # no overlapping sound events allowed
+        max_overlap=3
     )
-    for i in range(5):
+    for i in range(9):
         sc.add_event(emitter_kwargs=dict(keep_existing=True))
     sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")
