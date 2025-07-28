@@ -76,7 +76,7 @@ def time_variant_convolution(audio: np.ndarray, ir_matrix: np.ndarray) -> np.nda
     raise NotImplementedError
 
 
-def _generate_scene_audio_from_events(scene: Scene) -> np.ndarray:
+def generate_scene_audio_from_events(scene: Scene) -> np.ndarray:
     """
     Given a `Scene` object, generate a single array that combines audio from all Events, at the correct position.
 
@@ -142,8 +142,6 @@ def render_scene_audio(scene: Scene, ignore_cache: bool = True) -> None:
     Returns:
         None
     """
-    # Validate the scene object
-    validate_scene(scene)
 
     # Try and grab the IRs from the WorldState, or run the synthesis if they're not present
     try:
@@ -204,7 +202,6 @@ def render_scene_audio(scene: Scene, ignore_cache: bool = True) -> None:
         emitter_counter += len(event.emitters)
 
     logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds.!")
-    scene.audio = _generate_scene_audio_from_events(scene)
 
 
 # noinspection PyProtectedMember

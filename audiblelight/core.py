@@ -309,7 +309,11 @@ class Scene:
         Returns:
             None
         """
-        from audiblelight.synthesize import render_scene_audio
+        from audiblelight.synthesize import (
+            render_scene_audio,
+            generate_scene_audio_from_events,
+            validate_scene
+        )
 
         # Simulate the IRs for the state
         self.state.simulate()
@@ -317,7 +321,9 @@ class Scene:
         # Render all the audio
         #  This populates the `.spatial_audio` attribute inside each Event
         #  It also populates the `audio` attribute inside this instance
-        render_scene_audio(sc)
+        validate_scene(self)
+        render_scene_audio(self)
+        generate_scene_audio_from_events(self)
 
         # Write the audio output
         sf.write(audio_path, self.audio.T, int(self.state.ctx.config.sample_rate))
