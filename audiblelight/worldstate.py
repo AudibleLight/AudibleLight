@@ -1206,8 +1206,3 @@ class WorldState:
             return self.microphones[alias]
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
-
-
-if __name__ == "__main__":
-    spa = WorldState(mesh=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb")
-    spa.add_microphone_and_emitter(np.array([90, 90, 0.5]), polar=True)
