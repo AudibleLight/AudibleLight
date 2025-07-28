@@ -13,6 +13,7 @@ from typing import Union, Optional, Type, Any
 import soundfile as sf
 from scipy import stats
 
+from audiblelight.ambience import Ambience
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import WorldState, Emitter
@@ -50,6 +51,7 @@ class Scene:
             state_kwargs = {}
         utils.validate_kwargs(WorldState.__init__, **state_kwargs)
         self.state = WorldState(mesh_path, **state_kwargs)
+        self.sample_rate = int(self.state.ctx.config.sample_rate)
 
         # Grab some attributes from the WorldState to make them easier to access
         self.mesh = self.state.mesh
@@ -70,7 +72,10 @@ class Scene:
         self.fg_category_paths = utils.list_deepest_directories(self.fg_path) if self.fg_path is not None else None
 
         self.events = OrderedDict()
-        self.ambience_enabled = False
+
+        # Background noise
+        #  if not None (i.e., with a call to `add_ambience`), will be added to audio when synthesising
+        self.ambience = None
 
         self.audio = None
 
@@ -119,10 +124,37 @@ class Scene:
         utils.validate_kwargs(self.state.add_emitters, **kwargs)
         self.state.add_emitters(**kwargs)
 
-    def add_ambience(self):
-        """Add default room ambience (e.g., Brownian noise)."""
-        self.ambience_enabled = True
-        # TODO: implement this
+    def add_ambience(
+            self,
+            color: Optional[str] = None,
+            exponent: Optional[utils.Numeric] = None,
+            channels: Optional[int] = None,
+            **kwargs
+    ):
+        """
+        Add ambient noise to the WorldState.
+
+        Arguments:
+            channels (int): the number of channels to generate noise for. If None, will be inferred from available mics.
+            color (str): the color of the noise, e.g. "white", "pink", "blue", must be provided if `exponent` is None
+            exponent (Numeric): the exponent of the ambient noise, must be provided if `color` is None
+            kwargs: additional keyword arguments passed to `audiblelight.ambience.powerlaw_psd_gaussian`
+        """
+        # If the number of channels is not provided, try and get this from the number of microphone capsules
+        if channels is None:
+            available_mics = [mic.n_capsules for mic in self.state.microphones.values()]
+            # Raise an error when added microphones have a different number of channels
+            if not all([a == available_mics[0] for a in available_mics]):
+                raise TypeError("Cannot infer noise channels when available microphones have different number of capsules")
+            else:
+                channels = available_mics[0]
+
+        self.ambience = Ambience(
+            shape=(channels, round(self.sample_rate * self.duration)),
+            color=color,
+            exponent=exponent,
+            **kwargs
+        )
 
     def _try_add_event(self, **event_kwargs) -> bool:
         """
@@ -254,8 +286,9 @@ class Scene:
         if event_kwargs is None:
             event_kwargs = {}
 
-        if "sample_rate" in event_kwargs.keys() and event_kwargs["sample_rate"] != self.state.ctx.config.sample_rate:
+        if "sample_rate" in event_kwargs.keys() and event_kwargs["sample_rate"] != self.sample_rate:
             raise ValueError("Event sample rate must be the same as the WorldState sample rate")
+        event_kwargs["sample_rate"] = self.sample_rate
 
         # Ensure that we use the same alias for all emitters and events
         emitter_kwargs["alias"] = alias    # TODO: this will be a problem when we have moving events (multiple emitters)
@@ -310,8 +343,8 @@ class Scene:
             None
         """
         from audiblelight.synthesize import (
-            render_scene_audio,
-            generate_scene_audio_from_events,
+            render_audio_for_all_scene_events,
+            generate_scene_audio,
             validate_scene
         )
 
@@ -319,14 +352,12 @@ class Scene:
         self.state.simulate()
 
         # Render all the audio
-        #  This populates the `.spatial_audio` attribute inside each Event
-        #  It also populates the `audio` attribute inside this instance
         validate_scene(self)
-        render_scene_audio(self)
-        generate_scene_audio_from_events(self)
+        render_audio_for_all_scene_events(self)     # this populates the `.spatial_audio` attribute inside each Event
+        generate_scene_audio(self)    # this populates the `.audio` object inside this instance
 
         # Write the audio output
-        sf.write(audio_path, self.audio.T, int(self.state.ctx.config.sample_rate))
+        sf.write(audio_path, self.audio.T, self.sample_rate)
 
         # Get the metadata and add the spatial audio format in
         metadata = self.to_dict()
@@ -346,8 +377,9 @@ class Scene:
         # TODO: we should probably add e.g. time, version attributes here: see how MIDITok handles this, it's good
         return dict(
             duration=self.duration,
+            sample_rate=self.sample_rate,
             ref_db=self.ref_db,
-            ambience=self.ambience_enabled,
+            ambience=self.ambience.to_dict() if self.ambience is not None else None,
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
         )
@@ -428,8 +460,6 @@ class Scene:
 
 
 if __name__ == "__main__":
-    from audiblelight.synthesize import render_scene_audio
-
     sc = Scene(
         duration=30,
         mesh_path=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb",
@@ -438,12 +468,20 @@ if __name__ == "__main__":
         event_duration_dist=stats.uniform(0, 10),
         event_velocity_dist=stats.uniform(0, 10),
         event_resolution_dist=stats.uniform(0, 10),
-        snr_dist=stats.norm(5, 1),
+        snr_dist=stats.uniform(loc=-10, scale=5),
         fg_path=utils.get_project_root() / "tests/test_resources/soundevents",
         max_overlap=3
     )
+
+    # Add an ambeoVR microphone to the scene
     sc.add_microphone(microphone_type="ambeovr")
 
+    # Add 9 sources to the scene
     for i in range(9):
         sc.add_event(emitter_kwargs=dict(keep_existing=True))
+
+    # Add some white noise as ambience
+    sc.add_ambience("white")
+
+    # Generate the audio
     sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")

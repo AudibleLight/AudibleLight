@@ -12,6 +12,7 @@ from scipy import signal
 from tqdm import tqdm
 
 from audiblelight import utils
+from audiblelight.ambience import Ambience
 from audiblelight.core import Scene
 
 
@@ -76,28 +77,38 @@ def time_variant_convolution(audio: np.ndarray, ir_matrix: np.ndarray) -> np.nda
     raise NotImplementedError
 
 
-def generate_scene_audio_from_events(scene: Scene) -> np.ndarray:
+def generate_scene_audio(scene: Scene) -> None:
     """
-    Given a `Scene` object, generate a single array that combines audio from all Events, at the correct position.
+    Generate complete audio from a scene, including all events and any background noise
 
-    Return:
-        np.ndarray: array of shape (n_channels, n_duration) with spatial audio from all Event objects
+    Note that this function has no direct return. Instead, the finalised audio is written to the `scene` object
+    as an attribute, and can be saved with (for instance) `librosa` or `soundfile`.
     """
-    # Get the sample rate from the ray-tracing engine
-    sample_rate = scene.state.ctx.config.sample_rate
-
     # Create empty array with shape (n_channels, n_samples)
     channels = max([ev.spatial_audio.shape[0] for ev in scene.events.values()])
-    duration = round(scene.duration * sample_rate)
+    duration = round(scene.duration * scene.sample_rate)
     scene_audio = np.zeros((channels, duration), dtype=np.float32)
 
-    # TODO: background noise/ambience gets added here
+    # If we have ambient noise for the scene, and it is valid, add it in now
+    if scene.ambience is not None:
+        if not isinstance(scene.ambience, Ambience):
+            raise TypeError("Expected scene ambient noise to be ")
+
+        ambient_noise = scene.ambience.load_ambience()
+        # TODO: ideally, we can pad/reflect cases where ambience has a different number of samples or channels
+        #  to the Scene and raise a warning that we're doing this.
+        if ambient_noise.shape != scene_audio.shape:
+            raise ValueError(f"Scene ambient noise does not match expected shape. "
+                             f"Expected {scene_audio.shape}, but got {ambient_noise.shape}.")
+
+        # TODO: ideally, we can also support adding noise with a given offset and duration
+        scene_audio += ambient_noise
 
     # Iterate over all the events
     for event in scene.events.values():
         # Compute scene time in samples
-        scene_start = max(0, round(event.scene_start * sample_rate))
-        scene_end = min(round(event.scene_end * sample_rate), duration)
+        scene_start = max(0, round(event.scene_start * scene.sample_rate))
+        scene_end = min(round(event.scene_end * scene.sample_rate), duration)
 
         # Ensure valid slice
         if scene_end <= scene_start:
@@ -120,12 +131,12 @@ def generate_scene_audio_from_events(scene: Scene) -> np.ndarray:
     librosa.util.valid_audio(scene_audio)
     utils.validate_shape(scene_audio.shape, (channels, duration))
 
-    return scene_audio
+    scene.audio = scene_audio
 
 
-def render_scene_audio(scene: Scene, ignore_cache: bool = True) -> None:
+def render_audio_for_all_scene_events(scene: Scene, ignore_cache: bool = True) -> None:
     """
-    Renders audio for a given `Scene` object.
+    Renders audio for all `Events` associated with a given `Scene` object.
 
     Audio is rendered following the following stages:
         - Generate IRs for associated microphones and emitters inside `Scene.WorldState` using ray-tracing engine
