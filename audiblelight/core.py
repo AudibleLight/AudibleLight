@@ -125,8 +125,8 @@ class Scene:
 
     def add_ambience(
             self,
-            color: Optional[str] = None,
-            exponent: Optional[utils.Numeric] = None,
+            filepath: Optional[Union[str, Path]] = None,
+            noise: Optional[Union[str, utils.Numeric]] = None,
             channels: Optional[int] = None,
             ref_db: Optional[utils.Numeric] = None,
             **kwargs
@@ -134,10 +134,15 @@ class Scene:
         """
         Add ambient noise to the WorldState.
 
+        The ambience can be either a file on the disk (in which case filepath must not be None) or a type of noise
+        "color" such as white, red, or blue (in which case noise must not be None). The number of channels can be
+        provided directly or will be inferred from the microphones added to the state, when this is possible.
+
         Arguments:
             channels (int): the number of channels to generate noise for. If None, will be inferred from available mics.
-            color (str): the color of the noise, e.g. "white", "pink", "blue", must be provided if `exponent` is None
-            exponent (Numeric): the exponent of the ambient noise, must be provided if `color` is None
+            filepath (str or Path): a path to an audio file on the disk. Must be provided when `noise` is None.
+            noise (str): either the type of noise to generate, e.g. "white", "red", or an arbitrary numeric exponent to
+                use when generating noise with `powerlaw_psd_gaussian`. Must be provided if `filepath` is None.
             ref_db (Numeric): the noise floor, in decibels
             kwargs: additional keyword arguments passed to `audiblelight.ambience.powerlaw_psd_gaussian`
         """
@@ -154,8 +159,8 @@ class Scene:
             channels=channels,
             duration=self.duration,
             sample_rate=self.sample_rate,
-            color=color,
-            exponent=exponent,
+            noise=noise,
+            filepath=filepath,
             ref_db=ref_db if ref_db is not None else self.ref_db,
             **kwargs
         )
@@ -484,7 +489,9 @@ if __name__ == "__main__":
         sc.add_event(emitter_kwargs=dict(keep_existing=True))
 
     # Add some white noise as ambience
-    sc.add_ambience("white")
+    sc.add_ambience(noise="white")
+    # Alternatively, to add an audio file (which will be tiled to match the required duration and number of channels)
+    # sc.add_ambience(filepath=utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav")
 
     # Generate the audio
     sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")

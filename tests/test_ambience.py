@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from audiblelight.ambience import powerlaw_psd_gaussian, _parse_beta, Ambience
+from audiblelight import utils
 
 
 @pytest.mark.parametrize("shape", [2, 16, 500, 1000])
@@ -74,37 +75,36 @@ def test_random_state_reproducibility():
 
 
 @pytest.mark.parametrize(
-    "color, exponent, expected",
+    "color, expected",
     [
-        ("white", None, 0),
-        ("pink", None, 1),
-        ("brown", None, 2),
-        ("not-a-color", None, KeyError),
-        (None, 1.5, 1.5),
-        (None, 0, 0),
-        (None, np.float64(2.0), 2.0),
-        (123, None, TypeError),
-        (None, "high", TypeError),
-        (None, None, TypeError),
-        ("white", -11, ValueError)   # given noise color does not have expected beta
+        ("white", 0),
+        ("pink", 1),
+        ("brown", 2),
+        ("not-a-color", KeyError),
+        (1.5, 1.5),
+        (0, 0),
+        (np.float64(2.0), 2.0),
+        (set(), TypeError)
     ]
 )
-def test_parse_beta(color, exponent, expected):
+def test_parse_beta(color, expected):
     if isinstance(expected, type) and issubclass(expected, Exception):
         with pytest.raises(expected):
-            _parse_beta(color, exponent)
+            _parse_beta(color,)
     else:
-        assert _parse_beta(color, exponent) == expected
+        assert _parse_beta(color,) == expected
 
 
 @pytest.mark.parametrize(
-    "channels, duration, color, exponent",
+    "channels, duration, noise, filepath",
     [
         (4, 2, "white", None),
-        (4, 2, None, 2.0),
+        (4, 2, 2.0, None),
+        (2, 4, None, utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav"),
+        (1, 2, None, utils.get_project_root() / "tests/test_resources/soundevents/telephone/30085.wav"),
     ]
 )
-def test_ambience_cls(channels, duration, color, exponent):
-    cls = Ambience(channels, duration, color, exponent)
+def test_ambience_cls(channels, duration, noise, filepath):
+    cls = Ambience(channels, duration, noise=noise, filepath=filepath)
     assert isinstance(cls.to_dict(), dict)
     assert cls.load_ambience().shape == (channels, round(duration * cls.sample_rate))

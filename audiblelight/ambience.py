@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Generate background noise for a Scene according to a given colour (white, pink...) or value of β.
+"""Generate background noise for a Scene according to a given colour (white, pink...), value of β, or audio file.
 
 The core functionality is adapted from [`colorednoise` by Felix Patzelt](https://github.com/felixpatzelt/colorednoise)
 which is released under a permissive MIT license.
 """
 
 from typing import Any, Union, Iterable, Optional
+from pathlib import Path
 
 import numpy as np
 import librosa
@@ -37,8 +38,8 @@ class Ambience:
             self,
             channels: int,
             duration: utils.Numeric,
-            color: Optional[str] = None,
-            exponent: Optional[utils.Numeric] = None,
+            filepath: Optional[Union[str, Path]] = None,
+            noise: Optional[Union[str, utils.Numeric]] = None,
             ref_db: Optional[utils.Numeric] = utils.REF_DB,
             sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
             **kwargs
@@ -46,16 +47,20 @@ class Ambience:
         """
         Initialises persistent, invariant background noise for a Scene object.
 
-        Currently, only "colored" forms of noise (white, blue, red, etc.) are supported, with an arbitrary channel count.
+        The audio used for ambience can be either a "colored" form of noise (e.g., white, blue, red, etc.), or a mono
+        audio file. When an audio file is provided (by setting `filepath=...`), it will be tiled in both the horizontal
+        and vertical directions to match the given number of channels and duration. Otherwise, the color of the noise
+        must be specified (by setting `color=...`).
 
         Arguments:
             channels (int): the number of channels to use when generating ambience
             duration (Numeric): the duration (in seconds) for background ambience
             sample_rate (Numeric): the sample rate to use for generated ambience
-            color (str): the type of noise to generate, e.g. "white", "red", must be provided if `exponent` is None
-            exponent (Numeric): the coefficient for the generated noise, must be provided if `color` is None
+            filepath (str or Path): a path to an audio file on the disk. Must be provided when `noise` is None.
+            noise (str): either the type of noise to generate, e.g. "white", "red", or an arbitrary numeric exponent to
+                use when generating noise with `powerlaw_psd_gaussian`. Must be provided if `filepath` is None.
             ref_db (Numeric): the noise floor for the ambience
-            kwargs: additional values passed to `powerlaw_psd_gaussian`.
+            kwargs: additional values passed to `powerlaw_psd_gaussian` when `noise` is not None.
         """
 
         # Basic attributes for the ambience, all should be numeric
@@ -63,9 +68,15 @@ class Ambience:
         self.sample_rate = utils.sanitise_positive_number(sample_rate)
         self.duration = utils.sanitise_positive_number(duration)
 
-        # Parse the exponent for the noise generation
-        #  This can either be a color (e.g., "pink", "white") or a numeric value
-        self.beta = _parse_beta(color, exponent)
+        # Parse the noise type: either an audio file, or a type of noise "color"
+        if noise is None and filepath is not None:
+            self.filepath, self.beta = utils.sanitise_filepath(filepath), None
+        elif noise is not None and filepath is None:
+            self.filepath, self.beta = None, _parse_beta(noise)
+        elif noise is not None and filepath is not None:
+            raise AttributeError("Only one of `noise` or `filepath` should be provided.")
+        else:
+            raise AttributeError("One of `noise` or `filepath` must be provided")
 
         # Validate arguments passed to noise generation function and store them
         utils.validate_kwargs(powerlaw_psd_gaussian, **kwargs)
@@ -93,22 +104,30 @@ class Ambience:
         """
         # If we've already loaded the audio, and it is still valid, we can return it straight away
         if self.is_audio_loaded and not ignore_cache:
-            out = self.audio
+            return self.audio
 
-        # Otherwise, we need to create the ambience from scratch
-        else:
+        total_samples = round(self.duration * self.sample_rate)
+
+        # We want to use a "colored" form of noise
+        if self.beta is not None:
             # This gives a matrix of shape (N_channels, N_samples)
             #  It is normalized to approximately unit variance and zero mean
-            shape = (self.channels, round(self.duration * self.sample_rate))
+            shape = (self.channels, total_samples)
             out = powerlaw_psd_gaussian(self.beta, shape, **self.noise_kwargs)
-            # Now we scale to match the desired noise floor
-            #  This is taken from SpatialScaper
-            # TODO: second arg here should be computed with RMS, but this leads to clipping
-            scaler = utils.db_to_multiplier(self.ref_db, np.mean(np.abs(out)))
-            out *= scaler
+
+        # Or, we want to use a noise file from disk
+        else:
+            ambient, _ = librosa.load(self.filepath, sr=self.sample_rate, mono=True, dtype=np.float32)
+            repeats = -(-total_samples // len(ambient))  # ceiling division
+            # Tiles along both directions to get (n_channels, n_samples)
+            out = np.tile(ambient, (self.channels, repeats))[:, :total_samples]
+
+        # Now we scale to match the desired noise floor (taken from SpatialScaper)
+        # TODO: second arg here should be computed with RMS, but this leads to clipping
+        scaler = utils.db_to_multiplier(self.ref_db, np.mean(np.abs(out)))
 
         # Set the audio to our property and return
-        self.audio = out
+        self.audio = out * scaler
         return self.audio
 
     def to_dict(self) -> dict:
@@ -117,6 +136,7 @@ class Ambience:
         """
         return dict(
             beta=self.beta,
+            filepath=str(self.filepath) if self.filepath is not None else None,
             channels=self.channels,
             sample_rate=self.sample_rate,
             duration=self.duration,
@@ -228,35 +248,22 @@ def powerlaw_psd_gaussian(
     return y
 
 
-def _parse_beta(color: Any, exponent: Any) -> float:
+def _parse_beta(noise: Any) -> float:
     """
     Parses the noise exponential term from either a string representation of a color (white) or a number.
     """
-    # Both values are provided
-    if color is not None and exponent is not None:
-        # The provided color does not have the same exponent as the provided value
-        if color in NOISE_MAPPING.keys() and NOISE_MAPPING[color] != exponent:
-            raise ValueError("Both `color` and `exponent` were provided, however the values do not match: "
-                             f"expected {NOISE_MAPPING[color]}, but got {exponent}.")
-        # else: use "color" not "exponent", but it doesn't really matter as both would give the same results
-
     # String color must be in the dictionary
-    if color is not None:
-        if color in NOISE_MAPPING.keys():
-            return NOISE_MAPPING[color]
-        elif not isinstance(color, str):
-            raise TypeError(f"`color` must be a string but got {type(color)}")
+    if isinstance(noise, str):
+        if noise in NOISE_MAPPING.keys():
+            return NOISE_MAPPING[noise]
         else:
             keys = ", ".join(k for k in NOISE_MAPPING.keys())
-            raise KeyError(f"`color` must be a string in {keys} but got {color}.")
+            raise KeyError(f"Expected a string in {keys} but got {noise}.")
 
     # Otherwise, exponent must be numeric
-    elif exponent is not None:
-        if isinstance(exponent, utils.Numeric):
-            return exponent
-        else:
-            raise TypeError(f"`exponent` must be a numeric value, but got {type(exponent)}")
+    elif isinstance(noise, utils.Numeric):
+        return noise
 
     # Must provide either a color or exponent
     else:
-        raise TypeError("Either one of `color` or `exponent` must be provided.")
+        raise TypeError(f"Expected either a string or numeric input, but got {type(noise)}.")
