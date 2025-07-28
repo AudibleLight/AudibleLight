@@ -215,7 +215,7 @@ def test_validate_position(test_position: np.ndarray, expected: bool, oyens_spac
     ]
 )
 def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
-    oyens_space._clear_microphones()
+    oyens_space.clear_microphones()
     # Add the emitters in and check that the shape of the resulting array is what we expect
     oyens_space.add_emitter(position, emitter_alias, mic=None, keep_existing=False, polar=False)
     assert isinstance(oyens_space.emitters, dict)
@@ -372,7 +372,7 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
     ]
 )
 def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
-    oyens_space._clear_microphones()
+    oyens_space.clear_microphones()
     oyens_space.add_emitters(positions, emitter_aliases, keep_existing=False, polar=False)
     assert len(oyens_space.emitters) == len(positions)
     if emitter_aliases is not None:
@@ -424,8 +424,8 @@ def test_add_polar_emitters(emitter_positions, expected_positions, oyens_space: 
 )
 def test_add_emitters_relative_to_mic(test_position: np.ndarray, expected: tuple[bool], oyens_space: WorldState):
     # Clear everything out
-    oyens_space._clear_microphones()
-    oyens_space._clear_emitters()
+    oyens_space.clear_microphones()
+    oyens_space.clear_emitters()
     oyens_space.add_microphone(microphone_type=AmbeoVR, position=[-0.5, -0.5, 0.5], alias="testmic", keep_existing=False)
     # Add the emitters in and check that the shape of the resulting array is what we expect
     #  We set `raise_on_error=False` so we skip over raising an error for invalid emitters
@@ -750,8 +750,8 @@ def test_simulated_sound_distance(closemic_position: list, farmic_position: list
     Places a emitter and two AmbeoVR microphones near and far, then checks that the sound hits the close mic before far
     """
 
-    oyens_space._clear_microphones()
-    oyens_space._clear_emitters()
+    oyens_space.clear_microphones()
+    oyens_space.clear_emitters()
     # Add the microphones and simulate the space
     oyens_space.add_microphones(
         microphone_types=["ambeovr", AmbeoVR],
