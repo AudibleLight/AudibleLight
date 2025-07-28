@@ -28,7 +28,6 @@ class Scene:
             self,
             duration: utils.Numeric,
             mesh_path: Union[str, Path],
-            mic_arrays: Union[dict, list[dict], str, list[str], Type['MicArray'], list[Type['MicArray']]],
             fg_path: Optional[Union[str, Path]] = None,
             state_kwargs: Optional[dict] = None,
             ref_db: Optional[utils.Numeric] = REF_DB,
@@ -56,9 +55,6 @@ class Scene:
         self.mesh = self.state.mesh
         # self.irs = self.state.irs
 
-        # Add the microphones to the state: note that we will add sources inside `self.add_event`
-        self._add_mic_arrays_to_state(mic_arrays)
-
         # Distributions: these function sanitise the distributions so that they are either `None` or an object
         #  with the `rvs` method. When called, the `rvs` method will return a random variate sampled from the
         #  probability distribution.
@@ -78,33 +74,41 @@ class Scene:
 
         self.audio = None
 
-    def _add_mic_arrays_to_state(self, mic_arrays: Any) -> None:
+    def add_microphone(self, **kwargs):
         """
-        Populate `self.state.microphones` list with `MicArray` objects
-        """
-        def is_individual(inp: Any) -> bool:
-            return any((
-                isinstance(inp, (str, MicArray)),
-                issubclass(type(inp) if not isinstance(inp, type) else inp, MicArray)
-            ))
+        Add a microphone to the WorldState.
 
-        # Coerce non-iterable types to an iterable
-        if is_individual(mic_arrays) or isinstance(mic_arrays, dict):
-            mic_arrays = [mic_arrays]
-        elif not isinstance(mic_arrays, list):
-            raise TypeError(f"Cannot handle type {type(mic_arrays)} when adding microphones to space!")
-        # Iterate over all the individual microphones we want to place
-        for individual_mic in mic_arrays:
-            # If a dictionary, try and get all the keyword arguments and use defaults if not present
-            if isinstance(individual_mic, dict):
-                utils.validate_kwargs(self.state.add_microphone, **individual_mic)   # make sure kwargs are valid
-                self.state.add_microphone(**individual_mic)
-            # Otherwise, we assume that the object relates to the type of the microphone
-            elif is_individual(individual_mic):
-                self.state.add_microphone(microphone_type=individual_mic)
-            # Otherwise, we don't know how to parse the input, so raise an error
-            else:
-                raise TypeError(f"Cannot handle type {type(individual_mic)} when adding microphones to scene")
+        An alias for `WorldState.add_microphone`: see that method for a full description.
+        """
+        utils.validate_kwargs(self.state.add_microphone, **kwargs)
+        self.state.add_microphone(**kwargs)
+
+    def add_microphones(self, **kwargs):
+        """
+        Add microphones to the WorldState.
+
+        An alias for `WorldState.add_microphones`: see that method for a full description.
+        """
+        utils.validate_kwargs(self.state.add_microphones, **kwargs)
+        self.state.add_microphones(**kwargs)
+
+    def add_emitter(self, **kwargs):
+        """
+        Add an emitter to the WorldState.
+
+        An alias for `WorldState.add_emitter`: see that method for a full description.
+        """
+        utils.validate_kwargs(self.state.add_emitter, **kwargs)
+        self.state.add_emitter(**kwargs)
+
+    def add_emitters(self, **kwargs):
+        """
+        Add emitters to the WorldState.
+
+        An alias for `WorldState.add_emitters`: see that method for a full description.
+        """
+        utils.validate_kwargs(self.state.add_emitters, **kwargs)
+        self.state.add_emitters(**kwargs)
 
     def add_ambience(self):
         """Add default room ambience (e.g., Brownian noise)."""
@@ -366,7 +370,7 @@ class Scene:
         Removes all current events and emitters from the state
         """
         self.events = OrderedDict()
-        self.state._clear_emitters()
+        self.state.clear_emitters()
 
     # noinspection PyProtectedMember
     def clear_event(self, alias: str) -> None:
@@ -383,6 +387,30 @@ class Scene:
         else:
             raise KeyError("Event alias '{}' not found.".format(alias))
 
+    def clear_emitters(self) -> None:
+        """
+        Alias for `WorldState.clear_emitters`.
+        """
+        self.state.clear_emitters()
+
+    def clear_microphones(self) -> None:
+        """
+        Alias for `WorldState.clear_microphones`.
+        """
+        self.state.clear_microphones()
+
+    def clear_emitter(self, alias: str) -> None:
+        """
+        Alias for `WorldState.clear_emitter`.
+        """
+        self.state.clear_emitter(alias)
+
+    def clear_microphone(self, alias: str) -> None:
+        """
+        Alias for `WorldState.clear_microphone`.
+        """
+        self.state.clear_microphone(alias)
+
 
 if __name__ == "__main__":
     from audiblelight.synthesize import render_scene_audio
@@ -390,7 +418,6 @@ if __name__ == "__main__":
     sc = Scene(
         duration=30,
         mesh_path=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb",
-        mic_arrays=["ambeovr"],
         # Pass some default distributions for everything
         event_start_dist=stats.uniform(0, 10),
         event_duration_dist=stats.uniform(0, 10),
@@ -400,6 +427,8 @@ if __name__ == "__main__":
         fg_path=utils.get_project_root() / "tests/test_resources/soundevents",
         max_overlap=3
     )
+    sc.add_microphone(microphone_type="ambeovr")
+
     for i in range(9):
         sc.add_event(emitter_kwargs=dict(keep_existing=True))
     sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")

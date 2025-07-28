@@ -31,10 +31,9 @@ def oyens_space() -> WorldState:
 def oyens_scene_no_overlap() -> Scene:
     """Returns a scene object with the Oyens mesh (Gibson), that doesn't allow for overlapping Events"""
     # Create a dummy scene
-    return Scene(
+    sc = Scene(
         duration=50,
         mesh_path=OYENS_MESH,
-        mic_arrays=["ambeovr"],
         # Pass some default distributions for everything
         event_start_dist=stats.uniform(0, 10),
         event_duration_dist=stats.uniform(0, 10),
@@ -44,3 +43,5 @@ def oyens_scene_no_overlap() -> Scene:
         fg_path=SOUNDEVENT_DIR,
         max_overlap=1    # no overlapping sound events allowed
     )
+    sc.add_microphone(microphone_type="ambeovr")
+    return sc

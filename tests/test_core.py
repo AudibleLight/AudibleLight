@@ -207,37 +207,28 @@ def test_get_random_foreground_audio(fg_path: str, raises, oyens_scene_no_overla
 
 
 @pytest.mark.parametrize(
-    "mic_arrays,raises",
+    "mic_arrays",
     [
-        ("ambeovr", False),
-        (AmbeoVR, False),
-        (dict(microphone_type="ambeovr", position=np.array([-0.5, -0.5, 0.5]), alias="mic000"), False),
-        ([dict(microphone_type="ambeovr", alias="mic000")], False),
-        (123, TypeError),
-        ([123], TypeError)
+        (dict(microphone_type="ambeovr", position=np.array([-0.5, -0.5, 0.5]), alias="mic000")),
+        (dict(microphone_type="ambeovr", alias="mic000")),
     ]
 )
-def test_add_mic_arrays_to_state(mic_arrays, raises, oyens_scene_no_overlap: Scene):
+def test_add_mic_arrays_to_state(mic_arrays, oyens_scene_no_overlap: Scene):
     # Remove anything added to the space
     oyens_scene_no_overlap.clear_events()
-    oyens_scene_no_overlap.state._clear_microphones()
-    # Add the microphone in
-    if not raises:
-        oyens_scene_no_overlap._add_mic_arrays_to_state(mic_arrays)
-        # Try and get the microphone
-        mic = oyens_scene_no_overlap.get_microphone("mic000")
-        assert issubclass(type(mic), MicArray)
-        # Should have attributes set
-        for attr_ in ["coordinates_absolute", "n_capsules"]:
-            assert hasattr(mic, attr_)
-        # Position should be set properly if we've passed this
-        if isinstance(mic_arrays, dict) and "position" in mic_arrays:
-            assert np.array_equal(mic.coordinates_center, mic_arrays["position"])
-        # Number of listeners should all be set OK in the ray-tracing engine
-        assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4
-    else:
-        with pytest.raises(raises):
-            oyens_scene_no_overlap._add_mic_arrays_to_state(mic_arrays)
+    oyens_scene_no_overlap.state.clear_microphones()
+    oyens_scene_no_overlap.add_microphone(**mic_arrays)
+    # Try and get the microphone
+    mic = oyens_scene_no_overlap.get_microphone("mic000")
+    assert issubclass(type(mic), MicArray)
+    # Should have attributes set
+    for attr_ in ["coordinates_absolute", "n_capsules"]:
+        assert hasattr(mic, attr_)
+    # Position should be set properly if we've passed this
+    if isinstance(mic_arrays, dict) and "position" in mic_arrays:
+        assert np.array_equal(mic.coordinates_center, mic_arrays["position"])
+    # Number of listeners should all be set OK in the ray-tracing engine
+    assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4
 
 
 def test_get_funcs(oyens_scene_no_overlap: Scene):

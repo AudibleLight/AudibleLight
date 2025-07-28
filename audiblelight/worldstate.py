@@ -337,11 +337,6 @@ class WorldState:
         return False
 
     @utils.update_state
-    def _clear_microphones(self) -> None:
-        """Removes all current microphones"""
-        self.microphones = OrderedDict()
-
-    @utils.update_state
     def add_microphone(
             self,
             microphone_type: Union[str, Type['MicArray'], None] = None,
@@ -377,7 +372,7 @@ class WorldState:
         # TODO: consider removing
         # Remove existing microphones if we wish to do this
         if not keep_existing:
-            self._clear_microphones()
+            self.clear_microphones()
 
         # Get the correct microphone type.
         sanitized_microphone = sanitize_microphone_input(microphone_type)
@@ -443,7 +438,7 @@ class WorldState:
 
         # Remove existing microphones if we wish to do this
         if not keep_existing:
-            self._clear_microphones()
+            self.clear_microphones()
 
         # Handle cases with non-unique aliases
         if aliases is not None:
@@ -764,11 +759,6 @@ class WorldState:
         else:
             return None
 
-    @utils.update_state
-    def _clear_emitters(self) -> None:
-        """Removes all current emitters"""
-        self.emitters = OrderedDict()
-
     def path_exists_between_points(self, point_a: np.ndarray, point_b: np.ndarray) -> bool:
         """
         Returns True if a direct point exists between point_a and point_b in the mesh, False otherwise.
@@ -883,7 +873,7 @@ class WorldState:
         """
         # Remove existing emitters if we wish to do this
         if not keep_existing:
-            self._clear_emitters()
+            self.clear_emitters()
 
         # Sanity checking
         if polar:
@@ -949,7 +939,7 @@ class WorldState:
         """
         # Remove existing emitters if we wish to do this
         if not keep_existing:
-            self._clear_emitters()
+            self.clear_emitters()
 
         if polar:
             assert mics is not None, "mic_alias is required for polar coordinates"
@@ -1200,9 +1190,43 @@ class WorldState:
 
     def get_microphone(self, alias: str) -> Type['MicArray']:
         """
-        Given a valid alias, get an associated `Microphone` object, as in `self.microphones[alias`.
+        Given a valid alias, get an associated `Microphone` object, as in `self.microphones[alias]`.
         """
         if alias in self.microphones.keys():
             return self.microphones[alias]
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
+
+    @utils.update_state
+    def clear_microphones(self) -> None:
+        """
+        Removes all current microphones.
+        """
+        self.microphones = OrderedDict()
+
+    @utils.update_state
+    def clear_emitters(self) -> None:
+        """
+        Removes all current emitters.
+        """
+        self.emitters = OrderedDict()
+
+    @utils.update_state
+    def clear_microphone(self, alias: str) -> None:
+        """
+        Given an alias for a microphone, clear that microphone if it exists and update the state.
+        """
+        if alias in self.microphones.keys():
+            del self.microphones[alias]
+        else:
+            raise KeyError("Microphone alias '{}' not found.".format(alias))
+
+    @utils.update_state
+    def clear_emitter(self, alias: str) -> None:
+        """
+        Given an alias for an emitter, clear that emitter and update the state.
+        """
+        if alias in self.emitters.keys():
+            del self.emitters[alias]
+        else:
+            raise KeyError("Emitter alias '{}' not found.".format(alias))
