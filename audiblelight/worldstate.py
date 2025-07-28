@@ -484,6 +484,132 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
+    @utils.update_state
+    def add_microphone_and_emitter(
+            self,
+            position: Optional[Union[np.ndarray, float]] = None,
+            polar: Optional[bool] = True,
+            microphone_type: Optional[Union[str, Type['MicArray']]] = None,
+            mic_alias: Optional[str] = None,
+            emitter_alias: Optional[str] = None,
+            keep_existing_mics: Optional[bool] = True,
+            keep_existing_emitters: Optional[bool] = True,
+            ensure_direct_path: Optional[bool] = True,
+            max_place_attempts: Optional[int] = utils.MAX_PLACE_ATTEMPTS
+    ) -> None:
+        """
+        Add both a microphone and emitter with specified relationship.
+
+        The microphone will be placed in a random, valid position. The emitter will then be placed relative to the
+        microphone, either in Cartesian or spherical coordinates.
+        
+        Args:
+            position (np.ndarray): Array of form [X, Y, Z]
+            polar: whether the coordinates are provided in spherical form. If True:
+                - Azimuth (X) must be between 0 and 360
+                - Colatitude (Y) must be between 0 and 180
+                - Elevation (Z) must be a positive value, measured in the same units given by the mesh.
+            microphone_type: Type of microphone to add, defaults to mono capsule
+            mic_alias: String reference for the microphone, auto-generated if None
+            emitter_alias: String reference for the emitter, auto-generated if None
+            keep_existing_mics: Whether to keep existing microphones, defaults to True
+            keep_existing_emitters: Whether to keep existing emitters, defaults to True
+            ensure_direct_path: Whether to ensure line-of-sight between mic and emitter
+            max_place_attempts: The number of times to try placing the microphone and emitter
+            
+        Raises:
+            ValueError: If unable to place microphone and emitter within the mesh
+
+        Examples:
+            # Create a state with a given mesh
+            >>> spa = WorldState(mesh=...)
+
+            # Place emitter 2 meters in front of microphone
+            >>> spa.add_microphone_and_emitter(np.array([0, 0, 2.0]))
+            
+            # Place emitter 1.5 meters to the left and slightly above
+            >>> spa.add_microphone_and_emitter(np.array([90, 30, 1.5]), mic_alias="main_mic", emitter_alias="left_source")
+            
+            # Place emitter behind and below
+            >>> spa.add_microphone_and_emitter(np.array([180, -45, 1.0]))
+        """
+
+        # Sanitise the input coordinates and microphone type
+        emitter_offset = utils.sanitise_coordinates(position)
+        sanitized_microphone = sanitize_microphone_input(microphone_type)
+
+        # Remove existing objects if requested
+        if not keep_existing_mics:
+            self._clear_microphones()
+        if not keep_existing_emitters:
+            self._clear_emitters()
+        
+        # Get aliases
+        mic_alias = utils.get_default_alias("mic", self.microphones) if mic_alias is None else mic_alias
+        emitter_alias = utils.get_default_alias("src", self.emitters) if emitter_alias is None else emitter_alias
+        
+        # Convert spherical coordinates to Cartesian offset if required
+        if polar:
+            emitter_offset = utils.polar_to_cartesian(emitter_offset)[0]    # returns a 2D array, we just want 1D
+
+        # Attempt to find valid positions for both microphone and emitter
+        for attempt in range(max_place_attempts):
+            # Get a random position for the microphone
+            mic_pos = self.get_random_position()
+            
+            # Calculate emitter position based on spherical coordinates
+            emitter_pos = mic_pos + emitter_offset
+            
+            # Create temporary microphone to test position validity
+            temp_mic = sanitized_microphone()
+            temp_mic.set_absolute_coordinates(mic_pos)
+            
+            # Validate both positions
+            mic_valid = all(self._validate_position(caps) for caps in temp_mic.coordinates_absolute)
+            emitter_valid = self._validate_position(emitter_pos)
+
+            # Check direct path if required
+            direct_path_ok = True
+            if ensure_direct_path:
+                direct_path_ok = self.path_exists_between_points(temp_mic.coordinates_center, emitter_pos)
+            
+            # If all conditions are met, place both objects
+            if mic_valid and emitter_valid and direct_path_ok:
+                # Add microphone
+                self.microphones[mic_alias] = temp_mic
+                
+                # Add emitter
+                emitter = Emitter(
+                    alias=emitter_alias,
+                    coordinates_absolute=emitter_pos
+                )
+
+                # If we already have emitters under this alias, add to the list, otherwise create a new entry
+                #  This is so we can have multiple emitters under one alias in the case of moving sound sources
+                if emitter_alias in self.emitters:
+                    self.emitters[emitter_alias].append(emitter)
+                else:
+                    self.emitters[emitter_alias] = [emitter]
+                
+                logger.info(f"Successfully placed microphone and emitter after {attempt + 1} attempts")
+                logger.info(f"Microphone '{mic_alias}' at: {mic_pos}")
+                logger.info(f"Emitter '{emitter_alias}' at: {emitter_pos}")
+                return
+            
+            # Log progress every 100 attempts
+            if (attempt + 1) % 100 == 0:
+                logger.info(f"Placement attempt {attempt + 1}/{max_place_attempts}")
+        
+        # If we reach here, we couldn't place the objects
+        raise ValueError(
+            f"Could not place microphone and emitter with specified relationship "
+            f"after {max_place_attempts} attempts. Consider:\n"
+            f"- Reducing the distance between emitter and microphone ({emitter_offset[-1]}m may be too large for the mesh)\n"
+            f"- Reducing `empty_space_around parameters`\n"
+            f"- Setting `ensure_direct_path=False` if line-of-sight is not required\n"
+            f"- Increasing `max_placement_attempts` (currently {max_place_attempts})"
+        )
+
     def get_random_position(self) -> np.ndarray:
         """
         Get a random position to place a emitter inside the mesh
@@ -642,7 +768,9 @@ class WorldState:
         point_b = np.asarray(point_b)
         for point in [point_a, point_b]:
             assert point.shape == (3, ), f"Expected an array with shape (3, ) but got {point.shape}"
-            assert self._is_point_inside_mesh(point), f"Point {point} is not inside the mesh"
+            # If a point is not inside the mesh, we shouldn't expect a direct path
+            if not self._is_point_inside_mesh(point):
+                return False
         # Calculate direction vector from points A to B
         direction = point_b - point_a
         length = np.linalg.norm(direction)
