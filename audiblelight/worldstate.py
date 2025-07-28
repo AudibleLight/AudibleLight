@@ -490,62 +490,59 @@ class WorldState:
                     logger.warning(msg)
 
     @utils.update_state
-    def add_microphone_emitter_spherical(
+    def add_microphone_and_emitter(
             self,
-            azimuth: float,
-            elevation: float,
-            distance: float,
-            microphone_type: Union[str, Type['MicArray'], None] = None,
-            mic_alias: str = None,
-            emitter_alias: str = None,
-            keep_existing_mics: bool = True,
-            keep_existing_emitters: bool = True,
-            ensure_direct_path: bool = True,
-            max_placement_attempts: int = 1000,
+            position: Optional[Union[np.ndarray, float]] = None,
+            polar: Optional[bool] = True,
+            microphone_type: Optional[Union[str, Type['MicArray']]] = None,
+            mic_alias: Optional[str] = None,
+            emitter_alias: Optional[str] = None,
+            keep_existing_mics: Optional[bool] = True,
+            keep_existing_emitters: Optional[bool] = True,
+            ensure_direct_path: Optional[bool] = True,
+            max_place_attempts: Optional[int] = utils.MAX_PLACE_ATTEMPTS
     ) -> None:
         """
-        Add a microphone and emitter with specified spherical coordinate relationship.
-        
-        The emitter will be placed relative to the microphone at the specified azimuth, elevation, 
-        and distance. The coordinate system follows:
-        - Azimuth: 0° at front, +90° at left, -90° at right (counter-clockwise positive)
-        - Elevation: 0° at horizontal, +90° at zenith, -90° at nadir
-        - Distance: radial distance in meters
+        Add both a microphone and emitter with specified relationship.
+
+        The microphone will be placed in a random, valid position. The emitter will then be placed relative to the
+        microphone, either in Cartesian or spherical coordinates.
         
         Args:
-            azimuth (float): Azimuth angle in degrees (-180 to 180)
-            elevation (float): Elevation angle in degrees (-90 to 90)
-            distance (float): Distance in meters (must be positive)
+            position (np.ndarray): Array of form [X, Y, Z]
+            polar: whether the coordinates are provided in spherical form. If True:
+                - Azimuth (X) must be between 0 and 360
+                - Colatitude (Y) must be between 0 and 180
+                - Elevation (Z) must be a positive value, measured in the same units given by the mesh.
             microphone_type: Type of microphone to add, defaults to mono capsule
             mic_alias: String reference for the microphone, auto-generated if None
             emitter_alias: String reference for the emitter, auto-generated if None
             keep_existing_mics: Whether to keep existing microphones, defaults to True
             keep_existing_emitters: Whether to keep existing emitters, defaults to True
             ensure_direct_path: Whether to ensure line-of-sight between mic and emitter
-            max_placement_attempts: Maximum attempts to find valid positions
+            max_place_attempts: The number of times to try placing the microphone and emitter
             
         Raises:
             ValueError: If unable to place microphone and emitter within the mesh
-            AssertionError: If distance is not positive or angles are out of range
-            
+
         Examples:
+            # Create a state with a given mesh
+            >>> spa = WorldState(mesh=...)
+
             # Place emitter 2 meters in front of microphone
-            >>> spa.add_microphone_emitter_spherical(0, 0, 2.0)
+            >>> spa.add_microphone_and_emitter(np.array([0, 0, 2.0]))
             
             # Place emitter 1.5 meters to the left and slightly above
-            >>> spa.add_microphone_emitter_spherical(90, 30, 1.5, mic_alias="main_mic", emitter_alias="left_source")
+            >>> spa.add_microphone_and_emitter(np.array([90, 30, 1.5]), mic_alias="main_mic", emitter_alias="left_source")
             
             # Place emitter behind and below
-            >>> spa.add_microphone_emitter_spherical(180, -45, 1.0)
+            >>> spa.add_microphone_and_emitter(np.array([180, -45, 1.0]))
         """
-        # Input validation
-        assert distance > 0, "Distance must be positive"
-        assert -180 <= azimuth <= 180, "Azimuth must be between -180 and 180 degrees"
-        assert -90 <= elevation <= 90, "Elevation must be between -90 and 90 degrees"
-        
-        # Round azimuth to nearest integer as specified
-        azimuth = round(azimuth)
-        
+
+        # Sanitise the input coordinates and microphone type
+        emitter_offset = utils.sanitise_coordinates(position)
+        sanitized_microphone = sanitize_microphone_input(microphone_type)
+
         # Remove existing objects if requested
         if not keep_existing_mics:
             self._clear_microphones()
@@ -556,32 +553,12 @@ class WorldState:
         mic_alias = utils.get_default_alias("mic", self.microphones) if mic_alias is None else mic_alias
         emitter_alias = utils.get_default_alias("src", self.emitters) if emitter_alias is None else emitter_alias
         
-        # Get microphone type
-        sanitized_microphone = sanitize_microphone_input(microphone_type)
-        
-        # Convert spherical coordinates to Cartesian offset
-        # Note: We need to convert the coordinate system to match the expected format
-        # Standard spherical coordinates: (r, θ, φ) where θ is azimuth, φ is elevation
-        azimuth_rad = np.radians(azimuth)
-        elevation_rad = np.radians(elevation)
-        
-        # Calculate Cartesian offset from microphone to emitter
-        # Using standard spherical to Cartesian conversion:
-        # x = r * cos(elevation) * cos(azimuth)  # front/back (positive = front)
-        # y = r * cos(elevation) * sin(azimuth)  # left/right (positive = left for counter-clockwise)
-        # z = r * sin(elevation)                 # up/down (positive = up)
-        offset_x = distance * np.cos(elevation_rad) * np.cos(azimuth_rad)
-        offset_y = distance * np.cos(elevation_rad) * np.sin(azimuth_rad)
-        offset_z = distance * np.sin(elevation_rad)
-        
-        emitter_offset = np.array([offset_x, offset_y, offset_z])
-        
-        logger.info(f"Attempting to place microphone and emitter with spherical relationship: "
-                    f"azimuth={azimuth}°, elevation={elevation}°, distance={distance}m")
-        logger.info(f"Cartesian offset: [{offset_x:.3f}, {offset_y:.3f}, {offset_z:.3f}]")
-        
+        # Convert spherical coordinates to Cartesian offset if required
+        if polar:
+            emitter_offset = utils.polar_to_cartesian(emitter_offset)[0]    # returns a 2D array, we just want 1D
+
         # Attempt to find valid positions for both microphone and emitter
-        for attempt in range(max_placement_attempts):
+        for attempt in range(max_place_attempts):
             # Get a random position for the microphone
             mic_pos = self.get_random_position()
             
@@ -595,19 +572,14 @@ class WorldState:
             # Validate both positions
             mic_valid = all(self._validate_position(caps) for caps in temp_mic.coordinates_absolute)
             emitter_valid = self._validate_position(emitter_pos)
-            
-            # Check if emitter is inside mesh
-            emitter_inside = self._is_point_inside_mesh(emitter_pos)
-            
+
             # Check direct path if required
             direct_path_ok = True
             if ensure_direct_path:
-                direct_path_ok = self.path_exists_between_points(
-                    temp_mic.coordinates_center, emitter_pos
-                )
+                direct_path_ok = self.path_exists_between_points(temp_mic.coordinates_center, emitter_pos)
             
             # If all conditions are met, place both objects
-            if mic_valid and emitter_valid and emitter_inside and direct_path_ok:
+            if mic_valid and emitter_valid and direct_path_ok:
                 # Add microphone
                 self.microphones[mic_alias] = temp_mic
                 
@@ -616,7 +588,9 @@ class WorldState:
                     alias=emitter_alias,
                     coordinates_absolute=emitter_pos
                 )
-                
+
+                # If we already have emitters under this alias, add to the list, otherwise create a new entry
+                #  This is so we can have multiple emitters under one alias in the case of moving sound sources
                 if emitter_alias in self.emitters:
                     self.emitters[emitter_alias].append(emitter)
                 else:
@@ -629,16 +603,16 @@ class WorldState:
             
             # Log progress every 100 attempts
             if (attempt + 1) % 100 == 0:
-                logger.info(f"Placement attempt {attempt + 1}/{max_placement_attempts}")
+                logger.info(f"Placement attempt {attempt + 1}/{max_place_attempts}")
         
         # If we reach here, we couldn't place the objects
         raise ValueError(
-            f"Could not place microphone and emitter with specified spherical relationship "
-            f"after {max_placement_attempts} attempts. Consider:\n"
-            f"- Reducing the distance ({distance}m may be too large for the mesh)\n"
-            f"- Reducing empty_space_around parameters\n"
-            f"- Setting ensure_direct_path=False if line-of-sight is not required\n"
-            f"- Increasing max_placement_attempts"
+            f"Could not place microphone and emitter with specified relationship "
+            f"after {max_place_attempts} attempts. Consider:\n"
+            f"- Reducing the distance between emitter and microphone ({emitter_offset[-1]}m may be too large for the mesh)\n"
+            f"- Reducing `empty_space_around parameters`\n"
+            f"- Setting `ensure_direct_path=False` if line-of-sight is not required\n"
+            f"- Increasing `max_placement_attempts` (currently {max_place_attempts})"
         )
 
     def get_random_position(self) -> np.ndarray:
@@ -804,7 +778,9 @@ class WorldState:
         point_b = np.asarray(point_b)
         for point in [point_a, point_b]:
             assert point.shape == (3, ), f"Expected an array with shape (3, ) but got {point.shape}"
-            assert self._is_point_inside_mesh(point), f"Point {point} is not inside the mesh"
+            # If a point is not inside the mesh, we shouldn't expect a direct path
+            if not self._is_point_inside_mesh(point):
+                return False
         # Calculate direction vector from points A to B
         direction = point_b - point_a
         length = np.linalg.norm(direction)
@@ -1230,3 +1206,8 @@ class WorldState:
             return self.microphones[alias]
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
+
+
+if __name__ == "__main__":
+    spa = WorldState(mesh=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb")
+    spa.add_microphone_and_emitter(np.array([90, 90, 0.5]), polar=True)

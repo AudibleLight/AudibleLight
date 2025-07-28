@@ -802,3 +802,54 @@ def test_to_dict(oyens_space: WorldState):
         json.dumps(dict_out)
     except (TypeError, OverflowError):
         pytest.fail("Dictionary not JSON serializable")
+
+
+@pytest.mark.parametrize(
+    "position,polar,ensure_direct_path,passes",
+    [
+        # Test with Polar and Cartesian coordinate systems
+        (np.array([0.0, 90.0, 0.2]), True, True, True),
+        (np.array([0.5, 0.5, -0.5]), False, True, True),
+        (np.array([1000, 1000, 1000]), False, False, False),
+    ]
+)
+def test_add_microphone_and_emitter(position, polar, ensure_direct_path, passes, oyens_space):
+    if not passes:
+        with pytest.raises(ValueError, match="Could not place microphone and emitter with specified"):
+            oyens_space.add_microphone_and_emitter(
+                position=position,
+                polar=polar,
+                mic_alias="main_mic",
+                emitter_alias="test_emitter",
+                keep_existing_mics=False,
+                keep_existing_emitters=False,
+                ensure_direct_path=ensure_direct_path,
+                max_place_attempts=10
+            )
+
+    else:
+        oyens_space.add_microphone_and_emitter(
+            position=position,
+            polar=polar,
+            mic_alias="main_mic",
+            emitter_alias="test_emitter",
+            keep_existing_mics=False,
+            keep_existing_emitters=False,
+            ensure_direct_path=ensure_direct_path
+        )
+
+        # Get the emitter and its relative position to the microphone, whether Polar or Cartesian
+        emitter = oyens_space.get_emitter("test_emitter")
+        if polar:
+            placed_at = emitter.coordinates_relative_polar["main_mic"]
+        else:
+            placed_at = emitter.coordinates_relative_cartesian["main_mic"]
+        if placed_at.shape[0] == 1:
+            placed_at = placed_at[0]
+
+        # Should be equivalent with what we passed in
+        assert np.allclose(placed_at, position, atol=1e-4)
+        # Should be a direct path between the emitter and mic if required
+        if ensure_direct_path:
+            mic = oyens_space.get_microphone("main_mic")
+            assert oyens_space.path_exists_between_points(emitter.coordinates_absolute, mic.coordinates_center)
