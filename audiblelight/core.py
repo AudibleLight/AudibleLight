@@ -8,7 +8,7 @@ import os
 import random
 from collections import OrderedDict
 from pathlib import Path
-from typing import Union, Optional, Type, Any
+from typing import Union, Optional, Type
 
 import soundfile as sf
 from scipy import stats
@@ -21,7 +21,6 @@ from audiblelight import utils
 
 
 MAX_OVERLAPPING_EVENTS = 3
-REF_DB = -50
 
 
 class Scene:
@@ -31,7 +30,7 @@ class Scene:
             mesh_path: Union[str, Path],
             fg_path: Optional[Union[str, Path]] = None,
             state_kwargs: Optional[dict] = None,
-            ref_db: Optional[utils.Numeric] = REF_DB,
+            ref_db: Optional[utils.Numeric] = utils.REF_DB,
             event_start_dist: Optional[utils.DistributionLike] = None,
             event_duration_dist: Optional[utils.DistributionLike] = None,
             event_velocity_dist: Optional[utils.DistributionLike] = None,
@@ -129,6 +128,7 @@ class Scene:
             color: Optional[str] = None,
             exponent: Optional[utils.Numeric] = None,
             channels: Optional[int] = None,
+            ref_db: Optional[utils.Numeric] = None,
             **kwargs
     ):
         """
@@ -138,6 +138,7 @@ class Scene:
             channels (int): the number of channels to generate noise for. If None, will be inferred from available mics.
             color (str): the color of the noise, e.g. "white", "pink", "blue", must be provided if `exponent` is None
             exponent (Numeric): the exponent of the ambient noise, must be provided if `color` is None
+            ref_db (Numeric): the noise floor, in decibels
             kwargs: additional keyword arguments passed to `audiblelight.ambience.powerlaw_psd_gaussian`
         """
         # If the number of channels is not provided, try and get this from the number of microphone capsules
@@ -149,10 +150,14 @@ class Scene:
             else:
                 channels = available_mics[0]
 
+        if ref_db is None:
+            ref_db = self.ref_db
+
         self.ambience = Ambience(
             shape=(channels, round(self.sample_rate * self.duration)),
             color=color,
             exponent=exponent,
+            ref_db=ref_db,
             **kwargs
         )
 
@@ -378,7 +383,6 @@ class Scene:
         return dict(
             duration=self.duration,
             sample_rate=self.sample_rate,
-            ref_db=self.ref_db,
             ambience=self.ambience.to_dict() if self.ambience is not None else None,
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
@@ -477,7 +481,7 @@ if __name__ == "__main__":
     sc.add_microphone(microphone_type="ambeovr")
 
     # Add 9 sources to the scene
-    for i in range(9):
+    for _ in range(9):
         sc.add_event(emitter_kwargs=dict(keep_existing=True))
 
     # Add some white noise as ambience
