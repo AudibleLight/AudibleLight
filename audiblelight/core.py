@@ -74,7 +74,7 @@ class Scene:
 
         self.audio = None
 
-    def add_microphone(self, **kwargs):
+    def add_microphone(self, **kwargs) -> None:
         """
         Add a microphone to the WorldState.
 
@@ -83,7 +83,7 @@ class Scene:
         utils.validate_kwargs(self.state.add_microphone, **kwargs)
         self.state.add_microphone(**kwargs)
 
-    def add_microphones(self, **kwargs):
+    def add_microphones(self, **kwargs) -> None:
         """
         Add microphones to the WorldState.
 
@@ -91,6 +91,15 @@ class Scene:
         """
         utils.validate_kwargs(self.state.add_microphones, **kwargs)
         self.state.add_microphones(**kwargs)
+
+    def add_microphone_and_emitter(self, **kwargs) -> None:
+        """
+        Add both a microphone and emitter with specified relationship.
+
+        An alias for `WorldState.add_microphone_and_emitter`: see that method for a full description.
+        """
+        utils.validate_kwargs(self.state.add_microphone_and_emitter, **kwargs)
+        self.state.add_microphone_and_emitter(**kwargs)
 
     def add_emitter(self, **kwargs):
         """

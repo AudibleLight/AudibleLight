@@ -540,9 +540,9 @@ class WorldState:
 
         # Remove existing objects if requested
         if not keep_existing_mics:
-            self._clear_microphones()
+            self.clear_microphones()
         if not keep_existing_emitters:
-            self._clear_emitters()
+            self.clear_emitters()
         
         # Get aliases
         mic_alias = utils.get_default_alias("mic", self.microphones) if mic_alias is None else mic_alias
