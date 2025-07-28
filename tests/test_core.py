@@ -270,3 +270,19 @@ def test_clear_event(oyens_scene_no_overlap: Scene):
     # By default, the fixture has one mic with four capsules, so check these
     assert len(oyens_scene_no_overlap.state.microphones) == 1
     assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4
+
+
+@pytest.mark.parametrize(
+    "color,exponent",
+    [
+        ("white", None),
+        (None, 2.0),
+    ]
+)
+def test_add_ambience(color, exponent, oyens_scene_no_overlap: Scene):
+    oyens_scene_no_overlap.add_ambience(color, exponent)
+    assert oyens_scene_no_overlap.ambience is not None
+    ambience_audio = oyens_scene_no_overlap.ambience.load_ambience()
+    assert isinstance(ambience_audio, np.ndarray)
+    expected_duration = oyens_scene_no_overlap.duration * oyens_scene_no_overlap.sample_rate
+    assert ambience_audio.shape == (4, expected_duration)
