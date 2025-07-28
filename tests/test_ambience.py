@@ -98,13 +98,13 @@ def test_parse_beta(color, exponent, expected):
 
 
 @pytest.mark.parametrize(
-    "shape, color, exponent",
+    "channels, duration, color, exponent",
     [
-        ((4, 2000), "white", None),
-        ((4, 2000), None, 2.0),
+        (4, 2, "white", None),
+        (4, 2, None, 2.0),
     ]
 )
-def test_ambience_cls(shape, color, exponent):
-    cls = Ambience(shape, color, exponent)
+def test_ambience_cls(channels, duration, color, exponent):
+    cls = Ambience(channels, duration, color, exponent)
     assert isinstance(cls.to_dict(), dict)
-    assert cls.load_ambience().shape == shape
+    assert cls.load_ambience().shape == (channels, round(duration * cls.sample_rate))

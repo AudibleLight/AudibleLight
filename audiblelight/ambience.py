@@ -35,10 +35,12 @@ class Ambience:
     # noinspection PyTypeChecker
     def __init__(
             self,
-            shape: tuple[int, int],
+            channels: int,
+            duration: utils.Numeric,
             color: Optional[str] = None,
             exponent: Optional[utils.Numeric] = None,
             ref_db: Optional[utils.Numeric] = utils.REF_DB,
+            sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
             **kwargs
     ):
         """
@@ -47,21 +49,23 @@ class Ambience:
         Currently, only "colored" forms of noise (white, blue, red, etc.) are supported, with an arbitrary channel count.
 
         Arguments:
-            shape (tuple): the shape of generated noise, in the form (channels, samples)
+            channels (int): the number of channels to use when generating ambience
+            duration (Numeric): the duration (in seconds) for background ambience
+            sample_rate (Numeric): the sample rate to use for generated ambience
             color (str): the type of noise to generate, e.g. "white", "red", must be provided if `exponent` is None
             exponent (Numeric): the coefficient for the generated noise, must be provided if `color` is None
             ref_db (Numeric): the noise floor for the ambience
             kwargs: additional values passed to `powerlaw_psd_gaussian`.
         """
 
+        # Basic attributes for the ambience, all should be numeric
+        self.channels = int(utils.sanitise_positive_number(channels))
+        self.sample_rate = utils.sanitise_positive_number(sample_rate)
+        self.duration = utils.sanitise_positive_number(duration)
+
         # Parse the exponent for the noise generation
         #  This can either be a color (e.g., "pink", "white") or a numeric value
         self.beta = _parse_beta(color, exponent)
-
-        # Validate shape for the noise
-        if len(shape) != 2:
-            raise ValueError(f"Expected `shape` in the form (n_channels, n_samples), but got {shape} instead!")
-        self.shape = shape
 
         # Validate arguments passed to noise generation function and store them
         utils.validate_kwargs(powerlaw_psd_gaussian, **kwargs)
@@ -94,8 +98,9 @@ class Ambience:
         # Otherwise, we need to create the ambience from scratch
         else:
             # This gives a matrix of shape (N_channels, N_samples)
-            #  It is normalized to unit variance and has a zero mean (SD ~
-            out = powerlaw_psd_gaussian(self.beta, self.shape, **self.noise_kwargs)
+            #  It is normalized to approximately unit variance and zero mean
+            shape = (self.channels, round(self.duration * self.sample_rate))
+            out = powerlaw_psd_gaussian(self.beta, shape, **self.noise_kwargs)
             # Now we scale to match the desired noise floor
             #  This is taken from SpatialScaper
             # TODO: second arg here should be computed with RMS, but this leads to clipping
@@ -112,7 +117,9 @@ class Ambience:
         """
         return dict(
             beta=self.beta,
-            shape=self.shape,
+            channels=self.channels,
+            sample_rate=self.sample_rate,
+            duration=self.duration,
             ref_db=self.ref_db,
             **self.noise_kwargs
         )

@@ -150,14 +150,13 @@ class Scene:
             else:
                 channels = available_mics[0]
 
-        if ref_db is None:
-            ref_db = self.ref_db
-
         self.ambience = Ambience(
-            shape=(channels, round(self.sample_rate * self.duration)),
+            channels=channels,
+            duration=self.duration,
+            sample_rate=self.sample_rate,
             color=color,
             exponent=exponent,
-            ref_db=ref_db,
+            ref_db=ref_db if ref_db is not None else self.ref_db,
             **kwargs
         )
 
