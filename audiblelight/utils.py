@@ -426,3 +426,18 @@ def validate_shape(shape_a: tuple[int, ...], shape_b: tuple[int, ...]) -> None:
         # Implicitly skip over `None` values
         if a is not None and b is not None and a != b:
             raise ValueError(f"Incompatible shapes at index {i}: {a} != {b} (full shapes: {padded_a} vs {padded_b})")
+
+
+def db_to_multiplier(db: Numeric, x: Numeric) -> float:
+    """
+    Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
+    reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
+
+    Arguments:
+        db (float): The target decibel change to be applied.
+        x  (float): The original amplitude of x
+
+    Returns:
+        float: The multiplier factor.
+    """
+    return 10 ** (db / 20) / x

@@ -9,7 +9,7 @@ import pytest
 from audiblelight.ambience import powerlaw_psd_gaussian, _parse_beta, Ambience
 
 
-@pytest.mark.parametrize("shape",[2, 16, 500, 1000])
+@pytest.mark.parametrize("shape", [2, 16, 500, 1000])
 def test_powerlaw_psd_gaussian_scalar_output_shape(shape):
     n = powerlaw_psd_gaussian(1, shape)
     assert n.shape == (shape,)

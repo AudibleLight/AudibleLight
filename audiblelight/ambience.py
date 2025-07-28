@@ -10,6 +10,7 @@ which is released under a permissive MIT license.
 from typing import Any, Union, Iterable, Optional
 
 import numpy as np
+import librosa
 
 from audiblelight import utils
 
@@ -29,14 +30,6 @@ NOISE_MAPPING = dict(
 class Ambience:
     """
     Represents persistent background noise for a Scene.
-
-    Currently, only "colored" forms of noise (white, blue, red, etc.) are supported, with an arbitrary channel count.
-
-    Arguments:
-        shape (tuple): the shape of generated noise, in the form (channels, samples)
-        color (str): the type of noise to generate, e.g. "white", "red", must be provided if `exponent` is None
-        exponent (Numeric): the coefficient for the generated noise, must be provided if `color` is None
-        kwargs: additional values passed to `powerlaw_psd_gaussian`.
     """
 
     # noinspection PyTypeChecker
@@ -45,8 +38,22 @@ class Ambience:
             shape: tuple[int, int],
             color: Optional[str] = None,
             exponent: Optional[utils.Numeric] = None,
+            ref_db: Optional[utils.Numeric] = utils.REF_DB,
             **kwargs
     ):
+        """
+        Initialises persistent, invariant background noise for a Scene object.
+
+        Currently, only "colored" forms of noise (white, blue, red, etc.) are supported, with an arbitrary channel count.
+
+        Arguments:
+            shape (tuple): the shape of generated noise, in the form (channels, samples)
+            color (str): the type of noise to generate, e.g. "white", "red", must be provided if `exponent` is None
+            exponent (Numeric): the coefficient for the generated noise, must be provided if `color` is None
+            ref_db (Numeric): the noise floor for the ambience
+            kwargs: additional values passed to `powerlaw_psd_gaussian`.
+        """
+
         # Parse the exponent for the noise generation
         #  This can either be a color (e.g., "pink", "white") or a numeric value
         self.beta = _parse_beta(color, exponent)
@@ -60,11 +67,44 @@ class Ambience:
         utils.validate_kwargs(powerlaw_psd_gaussian, **kwargs)
         self.noise_kwargs = kwargs
 
-    def load_ambience(self) -> np.ndarray:
+        # Validate noise floor
+        #  should be a NEGATIVE number in dB, which we can test by inverting the sign and passing to our positive
+        #  number validation function
+        utils.sanitise_positive_number(-ref_db)
+        self.ref_db = ref_db
+
+        # Will be used to hold pre-rendered ambience
+        self.audio = None
+
+    @property
+    def is_audio_loaded(self) -> bool:
+        """
+        Returns True if noise is loaded and is valid (see `librosa.util.valid_audio` for more detail)
+        """
+        return self.audio is not None and librosa.util.valid_audio(self.audio)
+
+    def load_ambience(self, ignore_cache: bool = False) -> np.ndarray:
         """
         Load the background ambience as an array with shape (channels, samples).
         """
-        return powerlaw_psd_gaussian(self.beta, self.shape, **self.noise_kwargs)
+        # If we've already loaded the audio, and it is still valid, we can return it straight away
+        if self.is_audio_loaded and not ignore_cache:
+            out = self.audio
+
+        # Otherwise, we need to create the ambience from scratch
+        else:
+            # This gives a matrix of shape (N_channels, N_samples)
+            #  It is normalized to unit variance and has a zero mean (SD ~
+            out = powerlaw_psd_gaussian(self.beta, self.shape, **self.noise_kwargs)
+            # Now we scale to match the desired noise floor
+            #  This is taken from SpatialScaper
+            # TODO: second arg here should be computed with RMS, but this leads to clipping
+            scaler = utils.db_to_multiplier(self.ref_db, np.mean(np.abs(out)))
+            out *= scaler
+
+        # Set the audio to our property and return
+        self.audio = out
+        return self.audio
 
     def to_dict(self) -> dict:
         """
@@ -73,6 +113,7 @@ class Ambience:
         return dict(
             beta=self.beta,
             shape=self.shape,
+            ref_db=self.ref_db,
             **self.noise_kwargs
         )
 
@@ -82,7 +123,6 @@ def powerlaw_psd_gaussian(
         shape: Union[int, Iterable[int]],
         fmin: Optional[utils.Numeric] = 0.0,
         seed: Optional[int] = utils.SEED,
-        normalize: bool = True
 ) -> np.ndarray:
     """Generate Gaussian (1 / f) ** β noise.
 
@@ -95,7 +135,6 @@ def powerlaw_psd_gaussian(
         fmin (float): Low-frequency cutoff. Default: 0 corresponds to original paper. The largest possible
             value is fmin = 0.5, the Nyquist frequency. The output for this value is white noise.
         seed (int): Seed to use when creating the normal distribution.
-        normalize (bool): whether to normalize to unit variance, defaults to True.
     
     Returns:
         np.ndarray: the noise samples in the shape (channels, samples)
@@ -177,8 +216,7 @@ def powerlaw_psd_gaussian(
 
     # Transform to real time series & scale to unit variance
     y = np.fft.irfft(s, n=samples, axis=-1)
-    if normalize:
-        y /= sigma
+    y /= sigma
 
     return y
 
