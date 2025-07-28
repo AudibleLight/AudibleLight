@@ -74,7 +74,7 @@ class Scene:
 
         # Background noise
         #  if not None (i.e., with a call to `add_ambience`), will be added to audio when synthesising
-        self.ambience = None
+        self.ambience = OrderedDict()
 
         self.audio = None
 
@@ -129,6 +129,7 @@ class Scene:
             noise: Optional[Union[str, utils.Numeric]] = None,
             channels: Optional[int] = None,
             ref_db: Optional[utils.Numeric] = None,
+            alias: Optional[str] = None,
             **kwargs
     ):
         """
@@ -155,12 +156,19 @@ class Scene:
             else:
                 channels = available_mics[0]
 
-        self.ambience = Ambience(
+        # Get the alias for this ambience event: either default or user-provided
+        alias = utils.get_default_alias("ambience", self.ambience) if alias is None else alias
+        if alias in self.ambience:
+            raise KeyError(f"Ambience event with alias {alias} has already been added to the scene!")
+
+        # Add the ambience to the dictionary
+        self.ambience[alias] = Ambience(
             channels=channels,
             duration=self.duration,
             sample_rate=self.sample_rate,
             noise=noise,
             filepath=filepath,
+            alias=alias,
             ref_db=ref_db if ref_db is not None else self.ref_db,
             **kwargs
         )
@@ -387,7 +395,7 @@ class Scene:
         return dict(
             duration=self.duration,
             sample_rate=self.sample_rate,
-            ambience=self.ambience.to_dict() if self.ambience is not None else None,
+            ambience={k: a.to_dict() for k, a in self.ambience.items()},
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
         )
@@ -418,6 +426,15 @@ class Scene:
         Alias for `WorldState.get_microphone`
         """
         return self.state.get_microphone(alias)
+
+    def get_ambience(self, alias) -> Ambience:
+        """
+        Given a valid alias, get an associated ambience event, as in `self.ambience[alias]`
+        """
+        if alias in self.ambience.keys():
+            return self.ambience[alias]
+        else:
+            raise KeyError("Ambience alias '{}' not found.".format(alias))
 
     # noinspection PyProtectedMember
     def clear_events(self) -> None:
@@ -466,6 +483,12 @@ class Scene:
         """
         self.state.clear_microphone(alias)
 
+    def clear_ambience(self) -> None:
+        """
+        Removes all current ambience events.
+        """
+        self.ambience = OrderedDict()
+
 
 if __name__ == "__main__":
     sc = Scene(
@@ -490,8 +513,10 @@ if __name__ == "__main__":
 
     # Add some white noise as ambience
     sc.add_ambience(noise="white")
-    # Alternatively, to add an audio file (which will be tiled to match the required duration and number of channels)
-    # sc.add_ambience(filepath=utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav")
+
+    # Also add an audio file as ambience
+    #  This will be tiled to match the required duration and number of channels
+    sc.add_ambience(filepath=utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav")
 
     # Generate the audio
     sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")

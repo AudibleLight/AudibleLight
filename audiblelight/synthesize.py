@@ -90,19 +90,18 @@ def generate_scene_audio(scene: Scene) -> None:
     scene_audio = np.zeros((channels, duration), dtype=np.float32)
 
     # If we have ambient noise for the scene, and it is valid, add it in now
-    if scene.ambience is not None:
-        if not isinstance(scene.ambience, Ambience):
-            raise TypeError("Expected scene ambient noise to be ")
+    if len(scene.ambience) > 0:
+        for ambience in scene.ambience.values():
+            if not isinstance(ambience, Ambience):
+                raise TypeError(f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!")
 
-        ambient_noise = scene.ambience.load_ambience()
-        # TODO: ideally, we can pad/reflect cases where ambience has a different number of samples or channels
-        #  to the Scene and raise a warning that we're doing this.
-        if ambient_noise.shape != scene_audio.shape:
-            raise ValueError(f"Scene ambient noise does not match expected shape. "
-                             f"Expected {scene_audio.shape}, but got {ambient_noise.shape}.")
+            ambient_noise = ambience.load_ambience()
+            if ambient_noise.shape != scene_audio.shape:
+                raise ValueError(f"Scene ambient noise does not match expected shape. "
+                                 f"Expected {scene_audio.shape}, but got {ambient_noise.shape}.")
 
-        # TODO: ideally, we can also support adding noise with a given offset and duration
-        scene_audio += ambient_noise
+            # TODO: ideally, we can also support adding noise with a given offset and duration
+            scene_audio += ambient_noise
 
     # Iterate over all the events
     for event in scene.events.values():

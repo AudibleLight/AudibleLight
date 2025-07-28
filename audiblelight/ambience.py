@@ -38,6 +38,7 @@ class Ambience:
             self,
             channels: int,
             duration: utils.Numeric,
+            alias: str,
             filepath: Optional[Union[str, Path]] = None,
             noise: Optional[Union[str, utils.Numeric]] = None,
             ref_db: Optional[utils.Numeric] = utils.REF_DB,
@@ -56,6 +57,7 @@ class Ambience:
             channels (int): the number of channels to use when generating ambience
             duration (Numeric): the duration (in seconds) for background ambience
             sample_rate (Numeric): the sample rate to use for generated ambience
+            alias: Label to refer to this Ambience by inside the Scene
             filepath (str or Path): a path to an audio file on the disk. Must be provided when `noise` is None.
             noise (str): either the type of noise to generate, e.g. "white", "red", or an arbitrary numeric exponent to
                 use when generating noise with `powerlaw_psd_gaussian`. Must be provided if `filepath` is None.
@@ -63,10 +65,11 @@ class Ambience:
             kwargs: additional values passed to `powerlaw_psd_gaussian` when `noise` is not None.
         """
 
-        # Basic attributes for the ambience, all should be numeric
+        # Basic attributes for the ambience, first three should be numeric
         self.channels = int(utils.sanitise_positive_number(channels))
         self.sample_rate = utils.sanitise_positive_number(sample_rate)
         self.duration = utils.sanitise_positive_number(duration)
+        self.alias = alias
 
         # Parse the noise type: either an audio file, or a type of noise "color"
         if noise is None and filepath is not None:
@@ -135,6 +138,7 @@ class Ambience:
         Returns metadata for this object as a dictionary
         """
         return dict(
+            alias=self.alias,
             beta=self.beta,
             filepath=str(self.filepath) if self.filepath is not None else None,
             channels=self.channels,

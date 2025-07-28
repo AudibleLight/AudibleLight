@@ -273,16 +273,18 @@ def test_clear_event(oyens_scene_no_overlap: Scene):
 
 
 @pytest.mark.parametrize(
-    "color,exponent",
+    "noise, filepath",
     [
         ("white", None),
-        (None, 2.0),
+        (2.0, None),
+        (None, utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav")
     ]
 )
-def test_add_ambience(color, exponent, oyens_scene_no_overlap: Scene):
-    oyens_scene_no_overlap.add_ambience(color, exponent)
-    assert oyens_scene_no_overlap.ambience is not None
-    ambience_audio = oyens_scene_no_overlap.ambience.load_ambience()
+def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
+    oyens_scene_no_overlap.clear_ambience()
+    oyens_scene_no_overlap.add_ambience(noise=noise, filepath=filepath, alias="tester")
+    amb = oyens_scene_no_overlap.get_ambience("tester")
+    ambience_audio = amb.load_ambience()
     assert isinstance(ambience_audio, np.ndarray)
     expected_duration = oyens_scene_no_overlap.duration * oyens_scene_no_overlap.sample_rate
     assert ambience_audio.shape == (4, expected_duration)

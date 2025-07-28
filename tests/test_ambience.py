@@ -105,6 +105,6 @@ def test_parse_beta(color, expected):
     ]
 )
 def test_ambience_cls(channels, duration, noise, filepath):
-    cls = Ambience(channels, duration, noise=noise, filepath=filepath)
+    cls = Ambience(channels, duration, noise=noise, filepath=filepath, alias="tester")
     assert isinstance(cls.to_dict(), dict)
     assert cls.load_ambience().shape == (channels, round(duration * cls.sample_rate))
