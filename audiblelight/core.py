@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Union, Optional, Type, Any
 
 import soundfile as sf
+from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
@@ -76,6 +77,41 @@ class Scene:
         self.ambience_enabled = False
 
         self.audio = None
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Compare two Scene objects for equality.
+
+        Internally, we convert both objects to a dictionary, and then use the `deepdiff` package to compare them, with
+        some additional logic to account e.g. for significant digits and values that will always be different (e.g.,
+        creation time).
+
+        Arguments:
+            other: the object to compare the current `Scene` object against
+
+        Returns:
+            bool: True if the Scene objects are equivalent, False otherwise
+        """
+
+        # Non-Scene objects are always not equal
+        if not isinstance(other, Scene):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1, d2,
+            ignore_order=True,
+            significant_digits=4,
+            exclude_paths="creation_time",
+            ignore_numeric_type_changes=True
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
 
     def add_microphone(self, **kwargs) -> None:
         """

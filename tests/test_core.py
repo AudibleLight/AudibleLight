@@ -1251,3 +1251,6 @@ def test_scene_from_dict(input_dict: input):
     assert isinstance(ev, Scene)
     assert len(ev.events) == len(input_dict["events"])
     assert len(ev.state.emitters) == len(input_dict["state"]["emitters"]) == ev.state.ctx.get_source_count()
+    # Dump the scene again, reload, and compare
+    ev2 = Scene.from_dict(ev.to_dict())
+    assert ev2 == ev
