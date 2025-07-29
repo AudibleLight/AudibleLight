@@ -244,13 +244,16 @@ def test_get_funcs(oyens_scene_no_overlap: Scene):
     assert isinstance(event, Event)
     event2 = oyens_scene_no_overlap["event000"]
     assert isinstance(event2, Event)
+    events = oyens_scene_no_overlap.get_events()
+    assert isinstance(events, list)
+    assert isinstance(events[0], Event)
 
     # Trying to get event that doesn't exist will raise an error
     with pytest.raises(KeyError):
         oyens_scene_no_overlap.get_event("not_existing")
 
 
-def test_clear_event(oyens_scene_no_overlap: Scene):
+def test_clear_funcs(oyens_scene_no_overlap: Scene):
     # Add an event
     oyens_scene_no_overlap.add_event(alias="remover")
     assert len(oyens_scene_no_overlap.events) == 1
@@ -270,3 +273,34 @@ def test_clear_event(oyens_scene_no_overlap: Scene):
     # By default, the fixture has one mic with four capsules, so check these
     assert len(oyens_scene_no_overlap.state.microphones) == 1
     assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4
+
+    oyens_scene_no_overlap.clear_emitters()
+    oyens_scene_no_overlap.clear_microphones()
+    assert len(oyens_scene_no_overlap.state.microphones) == 0
+    assert len(oyens_scene_no_overlap.state.emitters) == 0
+
+    oyens_scene_no_overlap.add_event(alias="remover")
+    oyens_scene_no_overlap.clear_emitter(alias="remover")
+    oyens_scene_no_overlap.add_event(alias="remover")
+    oyens_scene_no_overlap.clear_emitters()
+    assert len(oyens_scene_no_overlap.state.emitters) == 0
+
+    oyens_scene_no_overlap.add_microphone(alias="remover")
+    oyens_scene_no_overlap.clear_microphone(alias="remover")
+    assert len(oyens_scene_no_overlap.state.microphones) == 0
+
+
+@pytest.mark.parametrize(
+    "n_events",
+    [1, 2, 3]
+)
+def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
+    oyens_scene_no_overlap.clear_events()
+    for n_event in range(n_events):
+        oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
+
+    oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
+
+    for fout in ["tmp.wav", "tmp.json"]:
+        assert os.path.isfile(fout)
+        os.remove(fout)
