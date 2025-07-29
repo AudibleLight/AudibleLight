@@ -19,10 +19,29 @@ def apply_snr(x: np.ndarray, snr: utils.Numeric) -> np.ndarray:
     """
     Scale an audio signal to a given maximum SNR.
 
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/spatialize.py#L147)
+
     Return:
         np.ndarray: the scaled audio signal
     """
     return x * snr / np.abs(x).max(initial=1e-15)
+
+
+def db_to_multiplier(db: utils.Numeric, x: utils.Numeric) -> float:
+    """
+    Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
+    reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
+
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/utils.py#L287)
+
+    Arguments:
+        db (float): The target decibel change to be applied.
+        x  (float): The original amplitude of x
+
+    Returns:
+        float: The multiplier factor.
+    """
+    return 10 ** (db / 20) / x
 
 
 def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
@@ -76,12 +95,15 @@ def time_variant_convolution(audio: np.ndarray, ir_matrix: np.ndarray) -> np.nda
     raise NotImplementedError
 
 
-def generate_scene_audio_from_events(scene: Scene) -> np.ndarray:
+def generate_scene_audio_from_events(scene: Scene) -> None:
     """
     Given a `Scene` object, generate a single array that combines audio from all Events, at the correct position.
 
-    Return:
-        np.ndarray: array of shape (n_channels, n_duration) with spatial audio from all Event objects
+    Note that this function has no direct return. Instead, the finalised audio is written to the `scene` object
+    as an attribute, and can be saved with (for instance) `librosa` or `soundfile`.
+
+    Returns:
+        None
     """
     # Get the sample rate from the ray-tracing engine
     sample_rate = scene.state.ctx.config.sample_rate
@@ -120,7 +142,7 @@ def generate_scene_audio_from_events(scene: Scene) -> np.ndarray:
     librosa.util.valid_audio(scene_audio)
     utils.validate_shape(scene_audio.shape, (channels, duration))
 
-    return scene_audio
+    scene.audio = scene_audio
 
 
 def render_scene_audio(scene: Scene, ignore_cache: bool = True) -> None:
@@ -170,14 +192,13 @@ def render_scene_audio(scene: Scene, ignore_cache: bool = True) -> None:
         audio = event.load_audio(ignore_cache=ignore_cache)
         librosa.util.valid_audio(audio)
 
-        # Apply the SNR scaling to the audio with the event value
-        #  TODO: this is when we'd also apply any data augmentation, etc.
+        # TODO: this is when we'd also apply any data augmentation, etc.
         n_audio_samples = audio.shape[0]
-        # audio = apply_snr(audio, event.snr)
 
         # Only a single emitter (IR): we can convolve easily with scipy
         if n_emitters == 1:
-            assert not event.is_moving
+            if event.is_moving:
+                raise ValueError("Moving Event has only one emitter!")    # something has gone very wrong to hit this
             # TODO: if any emitters are not mono, this will break silently
             spatial = time_invariant_convolution(audio, event_irs[:, 0].T).T
 
@@ -187,9 +208,16 @@ def render_scene_audio(scene: Scene, ignore_cache: bool = True) -> None:
                            f"channel dimension to match the expected shape ({n_ch, n_audio_samples}).")
             spatial = np.repeat(audio[:, None], n_ch, 1).T
 
-        # Moving sound sources: need to do time-invariant convolution
+        # Moving sound sources: need to do time-variant convolution
         else:
-            spatial = time_invariant_convolution(audio, event_irs)
+            spatial = time_variant_convolution(audio, event_irs)
+
+        # Deal with amplitude: this logic is taken from SpatialScaper
+        #  This scales the audio simply to the maximum SNR
+        spatial = apply_snr(spatial, event.snr)
+        #  This scales to match the Scene's noise floor + the SNR for the Event
+        event_scale = db_to_multiplier(scene.ref_db + event.snr, np.mean(np.abs(spatial)))
+        spatial = event_scale * spatial
 
         # Validate that the spatial audio has the expected shape and it is valid audio
         utils.validate_shape(spatial.shape, (n_ch, n_audio_samples))
