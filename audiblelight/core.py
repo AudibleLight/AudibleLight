@@ -10,7 +10,7 @@ from collections import OrderedDict
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
-from typing import Union, Optional, Type
+from typing import Union, Optional, Type, Any
 
 import soundfile as sf
 from loguru import logger
@@ -352,10 +352,98 @@ class Scene:
             creation_time=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
             duration=self.duration,
             ref_db=self.ref_db,
+            max_overlap=self.max_overlap,
+            fg_path=str(self.fg_path),
             ambience=self.ambience_enabled,
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
         )
+
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate a `Scene` from a dictionary.
+
+        The new `Scene` will have the same WorldState, Emitters, Events, and Microphones as the original, serialised
+        dictionary created from `to_dict`. Ensure that any necessary files (e.g. meshes, audio files) are located in
+        the same places as specified in the dictionary.
+
+        Note that, currently, distribution objects (e.g., `Scene.event_start_dist`) cannot be loaded from a dictionary.
+
+        Arguments:
+            input_dict: Dictionary that will be used to instantiate the `Scene`.
+
+        Returns:
+            Scene instance.
+        """
+
+        # Sanitise the input
+        for expected in [
+            "audiblelight_version", "rlr_audio_propagation_version", "duration",
+            "ref_db", "ambience", "events", "state"
+        ]:
+            if expected not in input_dict:
+                raise KeyError("Missing key: '{}'".format(expected))
+
+        # Raise a warning on a version mismatch for both audiblelight and rlr_audio_propagation
+        loaded_version = input_dict["audiblelight_version"]
+        if loaded_version != __version__:
+            logger.error(f"This Scene appears to have been created using a different version of `AudibleLight`. "
+                         f"The currently installed version is v.{__version__}, but the Scene was created "
+                         f"with v.{loaded_version}. AudibleLight will attempt to load the Scene; but if you encounter "
+                         f"errors, you should try running `pip install audiblelight=={__version__}`")
+
+        loaded_rlr = input_dict["rlr_audio_propagation_version"]
+        actual_rlr = version("rlr_audio_propagation")
+        if loaded_rlr != actual_rlr:
+            logger.error(f"This Scene appears to have been created using a different version of `rlr_audio_propagation`"
+                         f". The currently installed version is v.{actual_rlr}, but the Scene was created "
+                         f"with v.{loaded_rlr}. AudibleLight will attempt to load the Scene; but if you encounter "
+                         f"errors, you should try running `pip install rlr_audio_propagation=={loaded_rlr}`")
+
+        # Instantiate the scene
+        #  TODO: figure out some way to handle loading distributions here (non trivial as Scipy distributions cannot
+        #   easily be saved to disk)
+        logger.warning("Currently, distributions cannot be loaded with `Scene.from_dict`. You will need to manually "
+                       "redefine these using, for instance, setattr(scene, 'event_start_dist', ...), repeating this "
+                       "for every distribution.")
+        instantiated_scene = cls(
+            duration=input_dict["duration"],
+            mesh_path=input_dict["state"]["mesh"]["fpath"],
+            fg_path=input_dict["fg_path"],
+            ref_db=input_dict["ref_db"],
+            max_overlap=input_dict["max_overlap"],
+        )
+
+        # Instantiate the state, which also creates all the emitters and microphones
+        instantiated_scene.state = WorldState.from_dict(input_dict["state"])
+
+        # Instantiate the events by iterating over the list
+        instantiated_scene.events = OrderedDict({k: Event.from_dict(v) for k, v in input_dict["events"].items()})
+
+        return instantiated_scene
+
+    @classmethod
+    def from_json(cls, json_fpath: Union[str, Path]):
+        """
+        Instantiate a `Scene` from a JSON file.
+
+        Arguments:
+            json_fpath: Path to the JSON file to load.
+
+        Returns:
+            Scene instance.
+        """
+
+        # Sanitise the filepath to a Path object
+        sanitised_path = utils.sanitise_filepath(json_fpath)
+
+        # Load the JSON to a dictionary
+        with open(sanitised_path, "r") as f:
+            loaded = json.load(f)
+
+        # Use our existing function to load the dictionary
+        return cls.from_dict(loaded)
 
     def get_events(self) -> list[Event]:
         """
