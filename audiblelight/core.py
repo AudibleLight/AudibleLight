@@ -7,6 +7,8 @@ import json
 import os
 import random
 from collections import OrderedDict
+from datetime import datetime
+from importlib.metadata import version
 from pathlib import Path
 from typing import Union, Optional, Type
 
@@ -17,7 +19,7 @@ from scipy import stats
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import WorldState, Emitter
-from audiblelight import utils
+from audiblelight import utils, __version__
 
 
 MAX_OVERLAPPING_EVENTS = 3
@@ -344,8 +346,10 @@ class Scene:
         """
         Returns metadata for this object as a dictionary
         """
-        # TODO: we should probably add e.g. time, version attributes here: see how MIDITok handles this, it's good
         return dict(
+            audiblelight_version=__version__,
+            rlr_audio_propagation_version=version("rlr_audio_propagation"),
+            creation_time=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
             duration=self.duration,
             ref_db=self.ref_db,
             ambience=self.ambience_enabled,
