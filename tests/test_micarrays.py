@@ -168,3 +168,102 @@ def test_sanitize_microphone_input(array_name: str, expected: object):
             _ = sanitize_microphone_input(array_name)
     else:
         assert type(expected) == type(sanitize_microphone_input(array_name))
+
+
+@pytest.mark.parametrize(
+    "input_dict",
+    [
+        {
+            "name": "ambeovr",
+            "micarray_type": "AmbeoVR",
+            "is_spherical": True,
+            "n_capsules": 4,
+            "capsule_names": [
+                "FLU",
+                "FRD",
+                "BLD",
+                "BRU"
+            ],
+            "coordinates_absolute": [
+                [
+                    2.1146615660317107,
+                    0.0029858628742159927,
+                    2.029366448659064
+                ],
+                [
+                    2.1146615660317107,
+                    -0.008598696432575392,
+                    2.0178949199320435
+                ],
+                [
+                    2.1030770067249196,
+                    0.0029858628742159927,
+                    2.0178949199320435
+                ],
+                [
+                    2.1030770067249196,
+                    -0.008598696432575392,
+                    2.029366448659064
+                ]
+            ],
+            "coordinates_polar": [
+                [
+                    45.0,
+                    55.0,
+                    0.01
+                ],
+                [
+                    315.0,
+                    125.0,
+                    0.01
+                ],
+                [
+                    135.0,
+                    125.0,
+                    0.01
+                ],
+                [
+                    225.0,
+                    55.0,
+                    0.01
+                ]
+            ],
+            "coordinates_center": [
+                2.108869286378315,
+                -0.002806416779179699,
+                2.023630684295554
+            ],
+            "coordinates_cartesian": [
+                [
+                    0.005792279653395693,
+                    0.005792279653395692,
+                    0.005735764363510461
+                ],
+                [
+                    0.00579227965339569,
+                    -0.005792279653395693,
+                    -0.005735764363510461
+                ],
+                [
+                    -0.005792279653395691,
+                    0.005792279653395692,
+                    -0.005735764363510461
+                ],
+                [
+                    -0.0057922796533956935,
+                    -0.005792279653395692,
+                    0.005735764363510461
+                ]
+            ]
+        }
+    ]
+)
+def test_micarray_from_dict(input_dict):
+    out_array = MicArray.from_dict(input_dict)
+    assert issubclass(type(out_array), MicArray)
+    out_dict = out_array.to_dict()
+    for k, v in out_dict.items():
+        # will be `pop`d and removed
+        if k == "micarray_type":
+            continue
+        assert input_dict[k] == out_dict[k]
