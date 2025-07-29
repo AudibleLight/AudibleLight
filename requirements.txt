@@ -24,3 +24,4 @@ pytest-cov
 pytest-xdist
 pyroomacoustics
 h5py
+deepdiff
