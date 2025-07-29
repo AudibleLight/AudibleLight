@@ -14,16 +14,36 @@ from tqdm import tqdm
 from audiblelight import utils
 from audiblelight.ambience import Ambience
 from audiblelight.core import Scene
+from audiblelight.event import Event
 
 
 def apply_snr(x: np.ndarray, snr: utils.Numeric) -> np.ndarray:
     """
     Scale an audio signal to a given maximum SNR.
 
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/spatialize.py#L147)
+
     Return:
         np.ndarray: the scaled audio signal
     """
     return x * snr / np.abs(x).max(initial=1e-15)
+
+
+def db_to_multiplier(db: utils.Numeric, x: utils.Numeric) -> float:
+    """
+    Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
+    reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
+
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/utils.py#L287)
+
+    Arguments:
+        db (float): The target decibel change to be applied.
+        x  (float): The original amplitude of x
+
+    Returns:
+        float: The multiplier factor.
+    """
+    return 10 ** (db / 20) / x
 
 
 def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
@@ -77,12 +97,15 @@ def time_variant_convolution(audio: np.ndarray, ir_matrix: np.ndarray) -> np.nda
     raise NotImplementedError
 
 
-def generate_scene_audio(scene: Scene) -> None:
+def generate_scene_audio_from_events(scene: Scene) -> None:
     """
     Generate complete audio from a scene, including all events and any background noise
 
-    Note that this function has no direct return. Instead, the finalised audio is written to the `scene` object
+    Note that this function has no direct return. Instead, the finalised audio is written to the `Scene` object
     as an attribute, and can be saved with (for instance) `librosa` or `soundfile`.
+
+    Returns:
+        None
     """
     # Create empty array with shape (n_channels, n_samples)
     channels = max([ev.spatial_audio.shape[0] for ev in scene.events.values()])
@@ -133,6 +156,73 @@ def generate_scene_audio(scene: Scene) -> None:
     scene.audio = scene_audio
 
 
+def render_event_audio(event: Event, irs: np.ndarray, ref_db: utils.Numeric, ignore_cache: bool = True) -> None:
+    """
+    Renders audio for a given `Event` object.
+
+    Audio is rendered following the following stages:
+        - Load audio for the `Event` object and transform according to given SNR, noise floor, effects, etc.
+        - Convolve `Event` audio with IRs from associated `Emitter` objects
+
+    Note that this function has no direct return. Instead, it simply populates the `spatial_audio` attribute of the
+    event, which can then be written using (e.g.) `librosa`, `soundfile`, etc.
+
+    Arguments:
+        event (Event): the Event object to render audio for
+        irs (np.ndarray): the IR audio array for the given event, taken from the WorldState and this event's Emitters
+        ref_db (utils.Numeric): the noise floor for the Scene
+        ignore_cache (bool): if True, any cached spatial audio from a previous call to this function will be discarded
+
+    Returns:
+        None
+    """
+    # In cases where we've already cached the spatial audio, and we want to use it, skip over
+    if event.spatial_audio is not None and not ignore_cache:
+        return
+
+    # Grab the IRs for the current event's emitters
+    #  This gets us (N_capsules, N_emitters, N_samples)
+    n_ch, n_emitters, n_ir_samples = irs.shape
+
+    # Grab the audio for the event as well and validate
+    audio = event.load_audio(ignore_cache=ignore_cache)
+    librosa.util.valid_audio(audio)
+
+    # TODO: this is when we'd also apply any data augmentation, etc.
+    n_audio_samples = audio.shape[0]
+
+    # Only a single emitter (IR): we can convolve easily with scipy
+    if n_emitters == 1:
+        if event.is_moving:
+            raise ValueError("Moving Event has only one emitter!")  # something has gone very wrong to hit this
+        # TODO: if any emitters are not mono, this will break silently
+        spatial = time_invariant_convolution(audio, irs[:, 0].T).T
+
+    # No emitters: means that audio is not spatialized
+    elif n_emitters == 0:
+        logger.warning(f"No IRs were found for Event with alias {event.alias}. Audio is being tiled along the "
+                       f"channel dimension to match the expected shape ({n_ch, n_audio_samples}).")
+        spatial = np.repeat(audio[:, None], n_ch, 1).T
+
+    # Moving sound sources: need to do time-variant convolution
+    else:
+        spatial = time_variant_convolution(audio, irs)
+
+    # Deal with amplitude: this logic is taken from SpatialScaper
+    #  This scales the audio simply to the maximum SNR
+    spatial = apply_snr(spatial, event.snr)
+    #  This scales to match the Scene's noise floor + the SNR for the Event
+    event_scale = db_to_multiplier(ref_db + event.snr, np.mean(np.abs(spatial)))
+    spatial = event_scale * spatial
+
+    # Validate that the spatial audio has the expected shape and it is valid audio
+    utils.validate_shape(spatial.shape, (n_ch, n_audio_samples))
+    librosa.util.valid_audio(spatial)
+
+    # Cast the audio as an attribute of the event, function has no direct return
+    event.spatial_audio = spatial
+
+
 def render_audio_for_all_scene_events(scene: Scene, ignore_cache: bool = True) -> None:
     """
     Renders audio for all `Events` associated with a given `Scene` object.
@@ -159,7 +249,8 @@ def render_audio_for_all_scene_events(scene: Scene, ignore_cache: bool = True) -
     except AttributeError:
         scene.state.simulate()
 
-    # IR shape is (N_capsules, N_emitters, N_channels == 1, N_samples)
+    # Grab the IRs from the entire WorldState
+    #  The expected IR shape is (N_capsules, N_emitters, N_channels (== 1), N_samples)
     irs = scene.state.ctx.get_audio()
     # TODO: probably won't work with more than one microphone!
     emitter_counter = 0
@@ -167,46 +258,14 @@ def render_audio_for_all_scene_events(scene: Scene, ignore_cache: bool = True) -
     # Iterate over each one of our Events
     start = time()
     for event_alias, event in tqdm(scene.events.items(), desc="Rendering event audio..."):
-        # In cases where we've already cached the spatial audio, and we want to use it, skip over
-        if event.spatial_audio is not None and not ignore_cache:
-            continue
 
         # Grab the IRs for the current event's emitters
         #  This gets us (N_capsules, N_emitters, N_samples)
         event_irs = irs[:, emitter_counter:len(event.emitters) + emitter_counter, 0, :]
-        n_ch, n_emitters, n_ir_samples = event_irs.shape
 
-        # Grab the audio for the event as well and validate
-        audio = event.load_audio(ignore_cache=ignore_cache)
-        librosa.util.valid_audio(audio)
-
-        # Apply the SNR scaling to the audio with the event value
-        #  TODO: this is when we'd also apply any data augmentation, etc.
-        n_audio_samples = audio.shape[0]
-        # audio = apply_snr(audio, event.snr)
-
-        # Only a single emitter (IR): we can convolve easily with scipy
-        if n_emitters == 1:
-            assert not event.is_moving
-            # TODO: if any emitters are not mono, this will break silently
-            spatial = time_invariant_convolution(audio, event_irs[:, 0].T).T
-
-        # No emitters: means that audio is not spatialized
-        elif n_emitters == 0:
-            logger.warning(f"No IRs were found for Event with alias {event.alias}. Audio is being tiled along the "
-                           f"channel dimension to match the expected shape ({n_ch, n_audio_samples}).")
-            spatial = np.repeat(audio[:, None], n_ch, 1).T
-
-        # Moving sound sources: need to do time-invariant convolution
-        else:
-            spatial = time_invariant_convolution(audio, event_irs)
-
-        # Validate that the spatial audio has the expected shape and it is valid audio
-        utils.validate_shape(spatial.shape, (n_ch, n_audio_samples))
-        librosa.util.valid_audio(spatial)
-
-        # Cast the audio as an attribute of the event
-        event.spatial_audio = spatial
+        # Render the audio for the event
+        #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
+        render_event_audio(event, event_irs, ref_db=scene.ref_db, ignore_cache=ignore_cache)
 
         # Update the counter
         emitter_counter += len(event.emitters)
