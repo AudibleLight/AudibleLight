@@ -361,7 +361,7 @@ class Scene:
         """
         from audiblelight.synthesize import (
             render_audio_for_all_scene_events,
-            generate_scene_audio,
+            generate_scene_audio_from_events,
             validate_scene
         )
 
@@ -371,7 +371,7 @@ class Scene:
         # Render all the audio
         validate_scene(self)
         render_audio_for_all_scene_events(self)     # this populates the `.spatial_audio` attribute inside each Event
-        generate_scene_audio(self)    # this populates the `.audio` object inside this instance
+        generate_scene_audio_from_events(self)    # this populates the `.audio` object inside this instance
 
         # Write the audio output
         sf.write(audio_path, self.audio.T, self.sample_rate)

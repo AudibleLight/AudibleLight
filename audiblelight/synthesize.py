@@ -134,7 +134,7 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
 
         # Ensure valid slice
         if scene_end <= scene_start:
-            print(f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}")
+            logger.warning(f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}")
             continue
 
         num_samples = scene_end - scene_start
