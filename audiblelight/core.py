@@ -8,9 +8,10 @@ import os
 import random
 from collections import OrderedDict
 from pathlib import Path
-from typing import Union, Optional, Type, Any
+from typing import Union, Optional, Type
 
 import soundfile as sf
+from loguru import logger
 from scipy import stats
 
 from audiblelight.event import Event
@@ -352,6 +353,12 @@ class Scene:
             state=self.state.to_dict(),
         )
 
+    def get_events(self) -> list[Event]:
+        """
+        Return a list of all events for this scene, as in `self.events.values()`
+        """
+        return list(self.events.values())
+
     def get_event(self, alias: str) -> Event:
         """
         Given a valid alias, get an associated event, as in `self.events[alias]`
@@ -406,6 +413,10 @@ class Scene:
         """
         Alias for `WorldState.clear_emitters`.
         """
+        # Raise a warning when we might orphan events
+        if len(self.events) > 0:
+            logger.warning(f"Clearing emitters from a scene may orphan its associated events. It is recommended to "
+                           f"call `Scene.clear_events()`, rather than this function.")
         self.state.clear_emitters()
 
     def clear_microphones(self) -> None:
@@ -418,6 +429,10 @@ class Scene:
         """
         Alias for `WorldState.clear_emitter`.
         """
+        # Raise a warning when we might orphan an event
+        if len(self.events) > 0 and alias in self.events:
+            logger.warning(f"Clearing emitters with the alias '{alias}' will orphan an event. It is recommended to "
+                           f"instead call `Scene.clear_event(alias)` to remove this event, rather than this function.")
         self.state.clear_emitter(alias)
 
     def clear_microphone(self, alias: str) -> None:
