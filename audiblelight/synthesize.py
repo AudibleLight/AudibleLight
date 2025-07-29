@@ -233,11 +233,15 @@ def render_scene_audio(scene: Scene, ignore_cache: bool = True) -> None:
         None
     """
 
-    # Try and grab the IRs from the WorldState, or run the synthesis if they're not present
-    try:
-        _ = scene.state.irs
-    except AttributeError:
+    # If we're invalidating the cache, always re-simulate the IRs whenever calling this function
+    if ignore_cache:
         scene.state.simulate()
+    # Otherwise, only run the synthesis if this hasn't already been done
+    else:
+        try:
+            _ = scene.state.irs
+        except AttributeError:
+            scene.state.simulate()
 
     # Grab the IRs from the entire WorldState
     #  The expected IR shape is (N_capsules, N_emitters, N_channels (== 1), N_samples)
