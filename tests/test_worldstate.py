@@ -2515,3 +2515,11 @@ def test_worldstate_from_dict(input_dict: dict):
     # Should have the correct number of emitters and microphones
     assert wstate.ctx.get_source_count() == len(wstate.emitters) == len(input_dict["emitters"])
     assert wstate.ctx.get_listener_count() == sum(ws.n_capsules for ws in wstate.microphones.values())
+
+
+def test_magic_methods(oyens_space):
+    for method in ["__len__", "__str__", "__getitem__", "__repr__"]:
+        assert hasattr(oyens_space, method)
+        _ = getattr(oyens_space, method)
+    # Compare equality
+    assert oyens_space == WorldState.from_dict(oyens_space.to_dict())

@@ -1328,6 +1328,43 @@ def test_scene_from_dict(input_dict: input):
     assert isinstance(ev, Scene)
     assert len(ev.events) == len(input_dict["events"])
     assert len(ev.state.emitters) == len(input_dict["state"]["emitters"]) == ev.state.ctx.get_source_count()
+
+
+@pytest.mark.parametrize(
+    "filepath, emitter_kws, event_kws",
+    [
+        # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
+        (
+                SOUNDEVENT_DIR / "music/000010.mp3",
+                dict(
+                    position=np.array([-0.5, -0.5, 0.5]),
+                    polar=False,
+                    ensure_direct_path=False
+                ),
+                dict(
+                    duration=5,
+                    event_start=5,
+                    scene_start=5
+                )
+        ),
+    ]
+)
+def test_magic_methods(filepath, emitter_kws, event_kws, oyens_scene_no_overlap):
+    # Add the event in
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
+        filepath=filepath,
+        alias="test_event",
+        emitter_kwargs=emitter_kws,
+        event_kwargs=event_kws
+    )
+    # Creating an iterator
+    for event in oyens_scene_no_overlap:
+        assert isinstance(event, Event)
+    # Testing remaining dunders
+    for att in ["__len__", "__str__", "__repr__", "__getitem__"]:
+        assert hasattr(oyens_scene_no_overlap, att)
+        _ = getattr(oyens_scene_no_overlap, att)
     # Dump the scene again, reload, and compare
-    ev2 = Scene.from_dict(ev.to_dict())
-    assert ev2 == ev
+    ev2 = Scene.from_dict(oyens_scene_no_overlap.to_dict())
+    assert ev2 == oyens_scene_no_overlap

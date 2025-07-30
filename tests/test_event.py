@@ -967,3 +967,15 @@ def test_event_from_dict(input_dict: dict):
     out_dict = ev.to_dict()
     for k, v in out_dict.items():
         assert input_dict[k] == out_dict[k]
+
+
+@pytest.mark.parametrize("audio_fpath", TEST_AUDIOS[:5])
+def test_magic_methods(audio_fpath: str, oyens_space):
+    oyens_space.add_emitter(alias="test_emitter")
+    emitter = oyens_space.get_emitters("test_emitter")
+    ev = Event(audio_fpath, "test_event", emitters=emitter)
+    # Iterate over all the magic methods that return strings
+    for att in ["__str__", "__repr__"]:
+        assert isinstance(getattr(ev, att), str)
+    # Check the __eq__ comparison for identical objects
+    assert ev == Event.from_dict(ev.to_dict())

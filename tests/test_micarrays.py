@@ -267,3 +267,18 @@ def test_micarray_from_dict(input_dict):
         if k == "micarray_type":
             continue
         assert input_dict[k] == out_dict[k]
+
+
+@pytest.mark.parametrize(
+    "mictype",
+    MICARRAY_LIST
+)
+def test_magic_methods(mictype):
+    instant = mictype()
+    instant.set_absolute_coordinates([-0.5, -0.5, 0.5])
+    for at in ["__len__", "__repr__", "__str__", ]:
+        assert hasattr(instant, at)
+        _ = getattr(instant, at)
+    # Compare equality
+    instant2 = mictype.from_dict(instant.to_dict())
+    assert instant == instant2
