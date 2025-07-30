@@ -2523,3 +2523,42 @@ def test_magic_methods(oyens_space):
         _ = getattr(oyens_space, method)
     # Compare equality
     assert oyens_space == WorldState.from_dict(oyens_space.to_dict())
+
+
+@pytest.mark.parametrize(
+    "starting_position,ending_position,n_points,raises",
+    [
+        # Test 1: don't define a starting position or ending position
+        (None, None, 10, False),
+        # Test 2: define a valid starting position, don't define an ending position
+        (np.array([1.6, -5.1,  1.7]), None, 3, False),
+        # Test 3: define a valid ending position, don't define a starting position
+        (None, np.array([2.9, -1.0, 2.2]), 3, False),
+        # Test 4: define an INVALID starting and ending position
+        (np.array([-1000, 1000, -1000]), np.array([-1000, -1000, 1000]), 100, True),
+    ]
+)
+@pytest.mark.parametrize(
+    "shape",
+    # Repeat all test cases with every type of trajectory shape
+    ["linear", "circular"]
+)
+def test_define_trajectory(starting_position, ending_position, n_points, raises, shape, oyens_space):
+    if not raises:
+        trajectory = oyens_space.define_trajectory(
+            starting_position, ending_position, n_points, shape, max_place_attempts=10000
+        )
+        assert isinstance(trajectory, np.ndarray)
+        assert oyens_space._validate_position(trajectory)
+        # Check the shape: expecting (n_points, xyz == 3)
+        n_points_actual, n_coords = trajectory.shape
+        assert n_points_actual == n_points
+        assert n_coords == 3
+        # If we've explicitly provided a starting and ending position, these should be maintained in the trajectory
+        if starting_position is not None:
+            assert np.allclose(trajectory[0, :], starting_position, atol=1e-4)
+        if ending_position is not None:
+            assert np.allclose(trajectory[-1, :], ending_position, atol=1e-4)
+    else:
+        with pytest.raises(ValueError):
+            _ = oyens_space.define_trajectory(starting_position, ending_position, n_points, shape)

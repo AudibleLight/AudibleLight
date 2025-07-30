@@ -30,6 +30,8 @@ EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual micropho
 
 WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
 
+MOVING_EMITTER_N_POINTS = 10
+
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     """
@@ -1086,6 +1088,95 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
+    def define_trajectory(
+            self,
+            starting_position: Optional[Union[np.ndarray, list]] = None,
+            ending_position: Optional[Union[np.ndarray, list]] = None,
+            n_points: Optional[utils.Numeric] = MOVING_EMITTER_N_POINTS,
+            shape: Optional[str] = "linear",
+            max_place_attempts: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
+            # TODO: add `max_distance`, `max_speed` parameters
+    ):
+        """
+        Defines a trajectory for a moving sound event within specified spatial bounds, adhering to a given shape.
+
+        This method calculates a series of XYZ coordinates that outline the path of a sound event, based on the
+        specified trajectory shape, the number of points to define the trajectory, and the confines of the mesh.
+        It generates a starting point and an end point that comply with these conditions, and then interpolates
+        between these points according to the trajectory's shape.
+
+        Arguments:
+            starting_position (np.ndarray): the starting position for the trajectory. If not provided, a random valid
+                position within the mesh will be selected.
+            ending_position (np.ndarray): the ending position for the trajectory. If not provided, a random valid
+                position within the mesh that has line-of-sight with `starting_position` will be selected.
+            n_points (int): the number of points to use in the trajectory
+            shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
+            max_place_attempts (int): the number of times to try and create the trajectory.
+
+        Raises:
+            ValueError: if a trajectory cannot be defined after `max_place_attempts`
+
+        Returns:
+            np.ndarray: the sanitised trajectory, with shape (n_points, 3)
+        """
+
+        # If we've provided BOTH a starting and ending position, we should only try and define the trajectory once
+        #  This is because the trajectory will always be deterministic (same on every attempt) with a known start/end,
+        #  and we don't want to continue iterating unnecessarily when the outcome is already known
+        actual_place_attempts = max_place_attempts if starting_position is None or ending_position is None else 1
+        actual_place_attempts = int(utils.sanitise_positive_number(actual_place_attempts))
+
+        # Sanitise provided shape
+        accepteds = ["linear", "circular"]
+        if shape not in accepteds:
+            raise ValueError(f"`shape` must be one of {', '.join(accepteds)} but got '{shape}'")
+
+        # Must have a positive number of points to define the trajectory with
+        n_points = int(utils.sanitise_positive_number(n_points))
+
+        # TODO: consider speed limit. This is currently a bit difficult, as it requires knowledge of the duration
+        #  of the event audio. Currently, we create `Event` objects *after* creating `Emitter`s, so we might need to
+        #  refactor some of this logic.
+
+        # Try and create the trajectory a specified number of times
+        for attempt in range(actual_place_attempts):
+
+            # Use random starting and ending positions if not defined already: ending position assumes LOS with start
+            start_attempt = self.get_random_position() if starting_position is None else starting_position
+            end_attempt = self.get_random_position() if ending_position is None else ending_position
+
+            # Sanitise starting and ending position
+            start_attempt = utils.sanitise_coordinates(start_attempt)
+            end_attempt = utils.sanitise_coordinates(end_attempt)
+
+            # Continue if either starting or ending position is invalid
+            if not all((self._validate_position(start_attempt), self._validate_position(end_attempt))):
+                continue
+
+            # Continue if no LOS exists between starting and ending position
+            # TODO: do we want to do this?
+            if not self.path_exists_between_points(start_attempt, end_attempt):
+                continue
+
+            # Compute the trajectory with the utility function
+            if shape == "linear":
+                trajectory = utils.generate_linear_trajectory(start_attempt, end_attempt, n_points)
+            else:
+                trajectory = utils.generate_circular_trajectory(start_attempt, end_attempt, n_points)
+
+            # Validate that all the positions in the trajectory are acceptable
+            #  (in bounds of mesh, not too close to a microphone or another placed emitter, etc.)
+            if self._validate_position(trajectory):
+                return trajectory
+
+        # If we reach here, we couldn't create the trajectory
+        raise ValueError(
+            f"Could not define a valid movement trajectory after {utils.MAX_PLACE_ATTEMPTS} attempts. Consider:\n"
+            f"- Reducing `empty_space_around parameters`\n"
+            f"- Decreasing `n_points` in the trajectory (currently {n_points})\n"
+            f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
+        )
 
     def _simulation_sanity_check(self) -> None:
         """
