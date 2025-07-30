@@ -155,6 +155,17 @@ def check_all_lens_equal(*iterables) -> bool:
     return len({len(i) for i in iterables}) == 1
 
 
+def sanitise_ref_db(ref_db: Any) -> int:
+    """
+    Validate noise floor, in dB, and raise warnings when non-negative.
+    """
+    if not isinstance(ref_db, Numeric):
+        raise TypeError(f"Expected `ref_db` to be numeric, but got {type(ref_db)}")
+    elif ref_db > 0:
+        logger.error(f"Provided noise floor is positive; expect clipping to occur (ref_db={ref_db:.2f})")
+    return int(ref_db)
+
+
 def sanitise_filepath(filepath: Any) -> Path:
     """
     Validate that a filepath exists on the disk and coerce to a `Path` object
@@ -165,11 +176,30 @@ def sanitise_filepath(filepath: Any) -> Path:
             filepath = Path(filepath)
         # Raise a nicer error when the file can't be found
         if not filepath.is_file():
-            raise FileNotFoundError(f"Cannot find file at {filepath}, does it exist?")
+            raise FileNotFoundError(f"Cannot find file at {str(filepath)}, does it exist?")
         else:
             return filepath
     else:
         raise TypeError(f"Expected filepath to be either a string or Path object, but got {type(filepath)}")
+
+
+def sanitise_directory(directory: Any) -> Path:
+    """
+    Validate that a directory exists on the disk and coerce to a `Path` object
+    """
+    if isinstance(directory, (str, Path)):
+        # Coerce string types to Path
+        if isinstance(directory, str):
+            directory = Path(directory)
+        # Raise a nicer error when the file can't be found
+        if not directory.is_dir():
+            raise FileNotFoundError(f"Cannot find file at {str(directory)}, does it exist?")
+        else:
+            if not any(directory.iterdir()):
+                logger.warning(f"Directory {str(directory)} does not contain any files!")
+            return directory
+    else:
+        raise TypeError(f"Expected filepath to be either a string or Path object, but got {type(directory)}")
 
 
 def sanitise_positive_number(x: Any) -> Union[float, None]:
@@ -226,7 +256,7 @@ class DistributionWrapper:
         return self.rvs()
 
 
-def sanitise_distribution(x: Any) -> Union[DistributionLike, None]:
+def sanitise_distribution(x: Any) -> Optional[Union[DistributionLike, DistributionWrapper]]:
     """
     Validate that an input is a scipy distribution-like object, a callable returning floats, or None.
     """
@@ -379,10 +409,17 @@ def validate_kwargs(func: Callable, **kwargs) -> None:
     """
     Validates that the given kwargs are acceptable keyword arguments for the provided function.
 
+    Note that this function assumes that `func` takes in an arbitrary number of keyword arguments. It is not designed
+    to be used in cases where (for instance) `func` accepts only positional arguments or `*args`.
+
+    Arguments:
+        func: a function to call
+        kwargs: keyword arguments to validate for `func`
+
     Raises:
         TypeError: if `func` is not callable.
         ValueError: if `func` has no keyword arguments.
-        AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func.
+        AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func`.
     """
     if not callable(func):
         raise TypeError("`func` must be a callable")

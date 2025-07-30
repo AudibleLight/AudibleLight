@@ -25,6 +25,7 @@ from audiblelight import utils, __version__
 
 MAX_OVERLAPPING_EVENTS = 3
 REF_DB = -50
+WARN_WHEN_DURATION_LOWER_THAN = 5
 
 
 class Scene:
@@ -44,10 +45,17 @@ class Scene:
     ):
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
-        self.fg_path = fg_path
-        self.ref_db = ref_db
+        # Raise a warning when the duration is very short.
+        if self.duration < WARN_WHEN_DURATION_LOWER_THAN:
+            logger.warning(f"The duration for this Scene is very short ({duration:.2f} seconds). "
+                           f"You may encounter issues with Events overlapping or being truncated to fit the "
+                           f"duration of the Scene. It is recommended to increase the duration to at least "
+                           f"{WARN_WHEN_DURATION_LOWER_THAN} seconds.")
+
+        self.fg_path = utils.sanitise_directory(fg_path) if fg_path is not None else None
+        self.ref_db = utils.sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
-        self.max_overlap = utils.sanitise_positive_number(max_overlap)
+        self.max_overlap = int(utils.sanitise_positive_number(max_overlap))
 
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
         if state_kwargs is None:
