@@ -7,17 +7,20 @@ import json
 import os
 import random
 from collections import OrderedDict
+from datetime import datetime
+from importlib.metadata import version
 from pathlib import Path
-from typing import Union, Optional, Type
+from typing import Union, Optional, Type, Any
 
 import soundfile as sf
+from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import WorldState, Emitter
-from audiblelight import utils
+from audiblelight import utils, __version__
 
 
 MAX_OVERLAPPING_EVENTS = 3
@@ -74,6 +77,41 @@ class Scene:
         self.ambience_enabled = False
 
         self.audio = None
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Compare two Scene objects for equality.
+
+        Internally, we convert both objects to a dictionary, and then use the `deepdiff` package to compare them, with
+        some additional logic to account e.g. for significant digits and values that will always be different (e.g.,
+        creation time).
+
+        Arguments:
+            other: the object to compare the current `Scene` object against
+
+        Returns:
+            bool: True if the Scene objects are equivalent, False otherwise
+        """
+
+        # Non-Scene objects are always not equal
+        if not isinstance(other, Scene):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1, d2,
+            ignore_order=True,
+            significant_digits=4,
+            exclude_paths="creation_time",
+            ignore_numeric_type_changes=True
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
 
     def add_microphone(self, **kwargs) -> None:
         """
@@ -344,14 +382,104 @@ class Scene:
         """
         Returns metadata for this object as a dictionary
         """
-        # TODO: we should probably add e.g. time, version attributes here: see how MIDITok handles this, it's good
         return dict(
+            audiblelight_version=__version__,
+            rlr_audio_propagation_version=version("rlr_audio_propagation"),
+            creation_time=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
             duration=self.duration,
             ref_db=self.ref_db,
+            max_overlap=self.max_overlap,
+            fg_path=str(self.fg_path),
             ambience=self.ambience_enabled,
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
         )
+
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate a `Scene` from a dictionary.
+
+        The new `Scene` will have the same WorldState, Emitters, Events, and Microphones as the original, serialised
+        dictionary created from `to_dict`. Ensure that any necessary files (e.g. meshes, audio files) are located in
+        the same places as specified in the dictionary.
+
+        Note that, currently, distribution objects (e.g., `Scene.event_start_dist`) cannot be loaded from a dictionary.
+
+        Arguments:
+            input_dict: Dictionary that will be used to instantiate the `Scene`.
+
+        Returns:
+            Scene instance.
+        """
+
+        # Sanitise the input
+        for expected in [
+            "audiblelight_version", "rlr_audio_propagation_version", "duration",
+            "ref_db", "ambience", "events", "state"
+        ]:
+            if expected not in input_dict:
+                raise KeyError("Missing key: '{}'".format(expected))
+
+        # Raise a warning on a version mismatch for both audiblelight and rlr_audio_propagation
+        loaded_version = input_dict["audiblelight_version"]
+        if loaded_version != __version__:
+            logger.error(f"This Scene appears to have been created using a different version of `AudibleLight`. "
+                         f"The currently installed version is v.{__version__}, but the Scene was created "
+                         f"with v.{loaded_version}. AudibleLight will attempt to load the Scene; but if you encounter "
+                         f"errors, you should try running `pip install audiblelight=={__version__}`")
+
+        loaded_rlr = input_dict["rlr_audio_propagation_version"]
+        actual_rlr = version("rlr_audio_propagation")
+        if loaded_rlr != actual_rlr:
+            logger.error(f"This Scene appears to have been created using a different version of `rlr_audio_propagation`"
+                         f". The currently installed version is v.{actual_rlr}, but the Scene was created "
+                         f"with v.{loaded_rlr}. AudibleLight will attempt to load the Scene; but if you encounter "
+                         f"errors, you should try running `pip install rlr_audio_propagation=={loaded_rlr}`")
+
+        # Instantiate the scene
+        #  TODO: figure out some way to handle loading distributions here (non trivial as Scipy distributions cannot
+        #   easily be saved to disk)
+        logger.warning("Currently, distributions cannot be loaded with `Scene.from_dict`. You will need to manually "
+                       "redefine these using, for instance, setattr(scene, 'event_start_dist', ...), repeating this "
+                       "for every distribution.")
+        instantiated_scene = cls(
+            duration=input_dict["duration"],
+            mesh_path=input_dict["state"]["mesh"]["fpath"],
+            fg_path=input_dict["fg_path"],
+            ref_db=input_dict["ref_db"],
+            max_overlap=input_dict["max_overlap"],
+        )
+
+        # Instantiate the state, which also creates all the emitters and microphones
+        instantiated_scene.state = WorldState.from_dict(input_dict["state"])
+
+        # Instantiate the events by iterating over the list
+        instantiated_scene.events = OrderedDict({k: Event.from_dict(v) for k, v in input_dict["events"].items()})
+
+        return instantiated_scene
+
+    @classmethod
+    def from_json(cls, json_fpath: Union[str, Path]):
+        """
+        Instantiate a `Scene` from a JSON file.
+
+        Arguments:
+            json_fpath: Path to the JSON file to load.
+
+        Returns:
+            Scene instance.
+        """
+
+        # Sanitise the filepath to a Path object
+        sanitised_path = utils.sanitise_filepath(json_fpath)
+
+        # Load the JSON to a dictionary
+        with open(sanitised_path, "r") as f:
+            loaded = json.load(f)
+
+        # Use our existing function to load the dictionary
+        return cls.from_dict(loaded)
 
     def get_events(self) -> list[Event]:
         """

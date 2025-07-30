@@ -4,7 +4,7 @@
 """Provides classes and functions for placing audio files within Space and Scene objects"""
 
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, Any, Self
 
 import librosa
 import numpy as np
@@ -61,7 +61,7 @@ class Event:
             self,
             filepath: Union[str, Path],
             alias: str,
-            emitters: list[Emitter],
+            emitters: Union[list[Emitter], Emitter, list[dict]],
             scene_start: Optional[float] = None,
             event_start: Optional[float] = None,
             duration: Optional[float] = None,
@@ -124,13 +124,7 @@ class Event:
         self.event_end = self.event_start + self.duration
         self.scene_end = self.scene_start + self.duration
 
-        # List of emitter objects associated with this event
-        if isinstance(emitters, Emitter):
-            emitters = [emitters]    # pad to a list
-        elif isinstance(emitters, list):
-            assert all(isinstance(em, Emitter) for em in emitters), "All objects must be of `Emitter` type"
-            assert len(emitters) >= 1, "At least one emitter must be provided"
-        self.emitters = emitters
+        self.emitters = self._parse_emitters(emitters)
         #  If more than one emitter, the sound source is moving; if only one emitter, the sound source is stationary
         self.is_moving = len(self.emitters) > 1
 
@@ -156,6 +150,33 @@ class Event:
         Returns True if audio is loaded and valid (see `librosa.util.valid_audio` for more detail).
         """
         return self.audio is not None and librosa.util.valid_audio(self.audio)
+
+    @staticmethod
+    def _parse_emitters(emitters: Union[Emitter, list[Emitter], list[dict]]) -> list[Emitter]:
+        """
+        Safely handle coercing objects to a list of `Emitter`s
+        """
+        # List of emitter objects associated with this event
+        if isinstance(emitters, Emitter):
+            return [emitters]  # pad to a list
+
+        elif isinstance(emitters, list):
+            if len(emitters) < 1:
+                raise ValueError("At least one emitter must be provided")
+
+            # Parse list of dictionaries
+            elif all(isinstance(em, dict) for em in emitters):
+                emitters: list[dict]
+                return [Emitter.from_dict(dic) for dic in emitters]
+
+            elif not all(isinstance(em, Emitter) for em in emitters):
+                raise TypeError("Cannot parse emitter with type {}".format(type(emitters[0])))
+
+            else:
+                return emitters
+
+        else:
+            raise TypeError("Cannot parse emitters with type {}".format(type(emitters)))
 
     def _parse_audio_start(self, audio_start: Optional[utils.Numeric]) -> float:
         """
@@ -252,6 +273,7 @@ class Event:
             event_end=self.event_end,
             duration=self.duration,
             snr=self.snr,
+            sample_rate=self.sample_rate,
             # Spatial stuff (inherited from Emitter objects)
             spatial_resolution=self.spatial_resolution,
             spatial_velocity=self.spatial_velocity,
@@ -264,5 +286,40 @@ class Event:
                 absolute=coerce(self.end_coordinates_absolute),
                 relative_cartesian=coerce(self.end_coordinates_relative_cartesian),
                 relative_polar=coerce(self.end_coordinates_relative_polar),
-            )
+            ),
+            # Include the actual emitters as well, to enable unserialisation
+            emitters=[v.to_dict() for v in self.emitters]
+        )
+
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate a `Event` from a dictionary.
+
+        Arguments:
+            input_dict: Dictionary that will be used to instantiate the `Event`.
+
+        Returns:
+            Event instance.
+        """
+
+        # Sanitise inputs
+        for k in ["alias", "filepath", "emitters", "snr", "duration", "event_start", "scene_start", "scene_end"]:
+            if k not in input_dict:
+                raise KeyError(f"Missing key: '{k}'")
+
+        # Instantiate the event and return
+        return cls(
+            alias=input_dict["alias"],
+            filepath=input_dict["filepath"],
+            emitters=input_dict["emitters"],
+            scene_start=input_dict["scene_start"],
+            event_start=input_dict["event_start"],
+            duration=input_dict["duration"],
+            snr=input_dict["snr"],
+            sample_rate=input_dict["sample_rate"],
+            class_id=input_dict["class_id"],
+            class_label=input_dict["class_label"],
+            spatial_resolution=input_dict["spatial_resolution"],
+            spatial_velocity=input_dict["spatial_velocity"],
         )

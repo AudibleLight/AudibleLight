@@ -127,11 +127,60 @@ class MicArray:
             coord_dict[coord_type] = coord_val
         return dict(
             name=self.name,
+            micarray_type=self.__class__.__name__,
             is_spherical=self.is_spherical,
             n_capsules=self.n_capsules,
             capsule_names=self.capsule_names,
             **coord_dict
         )
+
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate a `MicArray` from a dictionary.
+
+        Arguments:
+            input_dict: Dictionary that will be used to instantiate the `MicArray`.
+
+        Returns:
+            MicArray instance.
+        """
+        # Get the class type of the desired microphone
+        desired_mic = input_dict.pop("micarray_type", "mic")
+        if desired_mic not in MICARRAY_CLASS_MAPPING:
+            raise ValueError(f"{desired_mic} is not a valid microphone array type! "
+                             f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}")
+
+        # Instantiate the microphone and set its coordinates
+        mic_class = MICARRAY_CLASS_MAPPING[desired_mic]()
+        mic_class.set_absolute_coordinates(input_dict["coordinates_center"])
+
+        # Set any other valid parameters for the microphone as well
+        for k, v in input_dict.items():
+
+            # "de-serialise" lists back to arrays, ignoring strings
+            if isinstance(v, list) and not isinstance(v[0], str):
+                v = np.asarray(v)
+
+            # Try and set the attribute
+            if hasattr(mic_class, k):
+                try:
+                    setattr(mic_class, k, v)
+
+                # We can't always set some dataclass attributes, but we should check that the default value is
+                #  equivalent to what has been passed in
+                except AttributeError:
+                    expected = getattr(mic_class, k)
+                    # Need to use different equality comparisons for arrays vs non-arrays
+                    eq = np.isclose(expected, v, atol=1e-4).all() if isinstance(v, np.ndarray) else expected == v
+
+                    if not eq:
+                        raise AttributeError(f"Expected attribute {k} to have value {expected}, but got {v}!")
+                    else:
+                        continue
+
+        return mic_class
+
 
 
 @dataclass(repr=False)
@@ -341,6 +390,7 @@ MICARRAY_LIST = [
     AmbeoVR,
     MonoCapsule
 ]
+MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 
 def sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:

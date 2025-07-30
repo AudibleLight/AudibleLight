@@ -5,8 +5,9 @@
 
 import os
 from collections import OrderedDict
+from copy import deepcopy
 from pathlib import Path
-from typing import Union, Optional, Type
+from typing import Union, Optional, Type, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -151,6 +152,45 @@ class Emitter:
             coordinates_relative_polar=coerce(self.coordinates_relative_polar),
         )
 
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate an `Emitter` from a dictionary.
+
+        Arguments:
+            input_dict: Dictionary that will be used to instantiate the `Emitter`.
+
+        Returns:
+            Emitter instance.
+        """
+        # Don't modify the input dictionary
+        copied_dict = deepcopy(input_dict)
+
+        def unserialise(inp: Any) -> Any:
+            if isinstance(inp, dict):
+                return {k_: unserialise(v) for k_, v in inp.items()} if inp else None
+            elif isinstance(inp, list):
+                return np.asarray(inp)
+            else:
+                return inp
+
+        # Sanity check the keys are correct
+        for k in ["alias", "coordinates_absolute", "coordinates_relative_cartesian", "coordinates_relative_polar"]:
+            if k not in copied_dict:
+                raise KeyError(f"Missing key '{k}'")
+
+            # Need to convert lists back to arrays
+            copied_dict[k] = unserialise(copied_dict[k])
+
+        # Instantiate the class with the correct alias and absolute coordinates
+        instantiated = cls(alias=copied_dict["alias"], coordinates_absolute=copied_dict["coordinates_absolute"])
+
+        # Set the relative coordinates correctly
+        setattr(instantiated, "coordinates_relative_cartesian", copied_dict["coordinates_relative_cartesian"])
+        setattr(instantiated, "coordinates_relative_polar", copied_dict["coordinates_relative_polar"])
+
+        return instantiated
+
 
 class WorldState:
     """
@@ -204,7 +244,8 @@ class WorldState:
         self.mesh = load_mesh(mesh)
 
         # If we want to try and repair the mesh, and if it actually needs repairing
-        if repair_threshold is not None and not self.mesh.is_watertight:
+        self.repair_threshold = repair_threshold
+        if self.repair_threshold is not None and not self.mesh.is_watertight:
             # Get the idxs of faces in the mesh that break the watertight status
             broken_faces = get_broken_faces(self.mesh)    # this uses copies so nothing will be set in-place
             # If the proportion of broken faces is below the desired threshold, do the repair in-place
@@ -1147,8 +1188,57 @@ class WorldState:
                 **self.mesh.metadata,    # this gets us the filepath, filename, and file extension of the mesh
                 bounds=self.mesh.bounds.tolist(),
                 centroid=self.mesh.centroid.tolist()
-            )
+            ),
+            # Get all the keywords from the ray-tracing configuration
+            rlr_config={
+                name: getattr(self.ctx.config, name) for name in dir(self.ctx.config)
+                if not name.startswith('__') and not callable(getattr(self.ctx.config, name))
+            },
+            empty_space_around_mic=self.empty_space_around_mic,
+            empty_space_around_emitter=self.empty_space_around_emitter,
+            empty_space_around_surface=self.empty_space_around_surface,
+            empty_space_around_capsule=self.empty_space_around_capsule,
+            repair_threshold=self.repair_threshold,
         )
+
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate a `WorldState` from a dictionary.
+
+        Arguments:
+            input_dict: Dictionary that will be used to instantiate the `WorldState`.
+
+        Returns:
+            WorldState instance.
+        """
+
+        # Validate the input
+        for k in ["emitters", "microphones", "mesh", "rlr_config"]:
+            if k not in input_dict:
+                raise KeyError(f"Missing key: '{k}'")
+
+        # Instantiate the state
+        state = cls(
+            mesh=input_dict["mesh"]["fpath"],
+            empty_space_around_mic=input_dict["empty_space_around_mic"],
+            empty_space_around_emitter=input_dict["empty_space_around_emitter"],
+            empty_space_around_surface=input_dict["empty_space_around_surface"],
+            empty_space_around_capsule=input_dict["empty_space_around_capsule"],
+            repair_threshold=input_dict["repair_threshold"],
+            rlr_kwargs=input_dict["rlr_config"]
+        )
+
+        # Instantiate the microphones and emitters from their dictionaries
+        state.microphones = OrderedDict({a: MicArray.from_dict(v) for a, v in input_dict["microphones"].items()})
+        state.emitters = OrderedDict(
+            {a: [Emitter.from_dict(v_) for v_ in v] for a, v in input_dict["emitters"].items()}
+        )
+
+        # Update the state so we add everything in to the ray-tracing engine
+        state._update()
+
+        return state
 
     def __len__(self) -> int:
         """
