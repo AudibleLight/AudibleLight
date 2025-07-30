@@ -9,6 +9,7 @@ import pytest
 
 import audiblelight.synthesize as syn
 from audiblelight import utils
+from tests.conftest import oyens_scene_no_overlap
 
 
 @pytest.mark.parametrize(
@@ -59,3 +60,89 @@ def test_apply_snr(x, snr, expected_max):
     result = syn.apply_snr(x, snr)
     actual_max = np.max(np.abs(result))
     assert np.isclose(actual_max, expected_max, rtol=1e-5), f"Expected max {expected_max}, got {actual_max}"
+
+
+@pytest.mark.parametrize(
+    "n_events",
+    [1, 2,]
+)
+def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_overlap):
+    oyens_scene_no_overlap.clear_events()
+    # Add static sources in
+    for n_event in range(n_events):
+        oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
+
+    syn.validate_scene(oyens_scene_no_overlap)
+    syn.render_scene_audio(oyens_scene_no_overlap)
+    assert len(oyens_scene_no_overlap.events) == n_events
+
+    for event_alias, event in oyens_scene_no_overlap.events.items():
+        assert isinstance(event.spatial_audio, np.ndarray)
+        n_channels, n_samples = event.spatial_audio.shape
+        # Number of channels should be same as microphone, number of samples should be same as audio
+        assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
+        assert n_samples == event.audio.shape[-1]
+
+
+@pytest.mark.parametrize(
+    "n_events",
+    [1, 2, ]
+)
+def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap):
+    oyens_scene_no_overlap.clear_events()
+    for n_event in range(n_events):
+        oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
+
+    # Render the scene audio
+    syn.validate_scene(oyens_scene_no_overlap)
+    syn.render_scene_audio(oyens_scene_no_overlap)
+
+    # Now, try generating the full scene audio
+    syn.generate_scene_audio_from_events(oyens_scene_no_overlap)
+    assert isinstance(oyens_scene_no_overlap.audio, np.ndarray)
+
+    # Audio should have the expected number of channels and duration
+    channels, duration = oyens_scene_no_overlap.audio.shape
+    assert channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
+    expected = round(oyens_scene_no_overlap.state.ctx.config.sample_rate * oyens_scene_no_overlap.duration)
+    assert duration == expected
+
+
+def test_validate_scene(oyens_scene_factory):
+    # Test with no emitters
+    scn = oyens_scene_factory()
+    scn.clear_emitters()    # 1 microphone, 0 emitters, 0 events
+    with pytest.raises(ValueError, match="WorldState has no emitters!"):
+        syn.validate_scene(scn)
+
+    # Test with no mics
+    scn = oyens_scene_factory()
+    scn.add_event()
+    scn.clear_microphones()    # 1 emitter, 1 event, 0 microphones
+    with pytest.raises(ValueError, match="WorldState has no microphones!"):
+        syn.validate_scene(scn)
+
+    # Test with no events
+    scn = oyens_scene_factory()
+    scn.state.add_emitter()    # 1 emitter, 1 mic, 0 events
+    with pytest.raises(ValueError, match="Scene has no events!"):
+        syn.validate_scene(scn)
+
+    # Increase number of events so it does not match number of emitters/ray-tracing sources
+    scn = oyens_scene_factory()
+    scn.add_event()
+    scn.events["asdfasdf"] = 123    # 2 events, 1 emitter, 1 source
+    with pytest.raises(ValueError, match="Mismatching number of emitters"):
+        syn.validate_scene(scn)
+
+    # Do the same for the capsules
+    class TempMic:
+        @property
+        def n_capsules(self):
+            return 5
+
+    scn = oyens_scene_factory()
+    scn.add_event()
+    scn.state.microphones["asdf"] = TempMic()
+    with pytest.raises(ValueError, match="Mismatching number of microphones"):
+        syn.validate_scene(scn)

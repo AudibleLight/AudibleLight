@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 import numpy as np
+import scipy.stats as stats
 
 from audiblelight import utils
 from audiblelight.core import Scene
@@ -17,7 +18,8 @@ from audiblelight.worldstate import Emitter
 
 
 SOUNDEVENT_DIR = utils.get_project_root() / "tests/test_resources/soundevents"
-OYENS_PATH = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
+MESH_DIR = utils.get_project_root() / "tests/test_resources/meshes"
+OYENS_PATH = MESH_DIR / "Oyens.glb"
 
 
 # @pytest.mark.parametrize(
@@ -244,13 +246,16 @@ def test_get_funcs(oyens_scene_no_overlap: Scene):
     assert isinstance(event, Event)
     event2 = oyens_scene_no_overlap["event000"]
     assert isinstance(event2, Event)
+    events = oyens_scene_no_overlap.get_events()
+    assert isinstance(events, list)
+    assert isinstance(events[0], Event)
 
     # Trying to get event that doesn't exist will raise an error
     with pytest.raises(KeyError):
         oyens_scene_no_overlap.get_event("not_existing")
 
 
-def test_clear_event(oyens_scene_no_overlap: Scene):
+def test_clear_funcs(oyens_scene_no_overlap: Scene):
     # Add an event
     oyens_scene_no_overlap.add_event(alias="remover")
     assert len(oyens_scene_no_overlap.events) == 1
@@ -270,3 +275,75 @@ def test_clear_event(oyens_scene_no_overlap: Scene):
     # By default, the fixture has one mic with four capsules, so check these
     assert len(oyens_scene_no_overlap.state.microphones) == 1
     assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4
+
+    oyens_scene_no_overlap.clear_emitters()
+    oyens_scene_no_overlap.clear_microphones()
+    assert len(oyens_scene_no_overlap.state.microphones) == 0
+    assert len(oyens_scene_no_overlap.state.emitters) == 0
+
+    oyens_scene_no_overlap.add_event(alias="remover")
+    oyens_scene_no_overlap.clear_emitter(alias="remover")
+    oyens_scene_no_overlap.add_event(alias="remover")
+    oyens_scene_no_overlap.clear_emitters()
+    assert len(oyens_scene_no_overlap.state.emitters) == 0
+
+    oyens_scene_no_overlap.add_microphone(alias="remover")
+    oyens_scene_no_overlap.clear_microphone(alias="remover")
+    assert len(oyens_scene_no_overlap.state.microphones) == 0
+
+
+@pytest.mark.parametrize(
+    "n_events",
+    [1, 2, 3]
+)
+def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
+    oyens_scene_no_overlap.clear_events()
+    for n_event in range(n_events):
+        oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
+
+    oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
+
+    for fout in ["tmp.wav", "tmp.json"]:
+        assert os.path.isfile(fout)
+        os.remove(fout)
+
+
+@pytest.mark.parametrize(
+    "mesh_fpath",
+    [MESH_DIR / mesh for mesh in os.listdir(MESH_DIR)]    # run on every mesh we have in the test directory
+)
+@pytest.mark.parametrize(
+    "mic_type",
+    ["ambeovr", "eigenmike32"]
+)
+@pytest.mark.parametrize(
+    "n_events, duration, max_overlap",
+    [(1, 30, 3), (9, 50, 6)]
+)
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
+def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
+    """
+    This function tests the whole pipeline, from generating a Scene with a given mesh, adding events, and creating audio
+    """
+    # Create the scene
+    sc = Scene(
+        duration=duration,
+        mesh_path=mesh_fpath,
+        # Pass some default distributions for everything
+        event_start_dist=stats.uniform(0, 10),
+        event_duration_dist=stats.uniform(0, 10),
+        event_velocity_dist=stats.uniform(0, 10),
+        event_resolution_dist=stats.uniform(0, 10),
+        snr_dist=stats.norm(5, 1),
+        fg_path=SOUNDEVENT_DIR,
+        max_overlap=max_overlap
+    )
+    # Add the desired microphone type and number of events
+    sc.add_microphone(microphone_type=mic_type)
+    for i in range(n_events):
+        sc.add_event(emitter_kwargs=dict(keep_existing=True))
+    # Generate everything and check the files exist
+    sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")
+    for path in ["audio_out.wav", "metadata_out.json"]:
+        assert os.path.isfile(path)
+        os.remove(path)

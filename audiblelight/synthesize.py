@@ -292,7 +292,8 @@ def validate_scene(scene: Scene) -> None:
         raise ValueError("Scene has no events!")
 
     # Validate across all parts of the library, e.g. WorldState, Scene, ray-tracing engine
-    if len(scene.events) != len(scene.state.emitters) != scene.state.ctx.get_source_count():
+    vals = len(scene.events), len(scene.state.emitters), scene.state.ctx.get_source_count()
+    if not all(v == vals[0] for v in vals):
         raise ValueError(f"Mismatching number of emitters, events, and sources! "
                          f"Got {len(scene.events)} events, {len(scene.state.emitters)} emitters, "
                          f"{scene.state.ctx.get_source_count()} sources.")

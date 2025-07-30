@@ -404,8 +404,7 @@ class Scene:
         """
         if alias in self.events.keys():
             del self.events[alias]
-            del self.state.emitters[alias]
-            self.state._update()
+            self.state.clear_emitter(alias)    # this calls state._update for us
         else:
             raise KeyError("Event alias '{}' not found.".format(alias))
 
@@ -416,7 +415,8 @@ class Scene:
         # Raise a warning when we might orphan events
         if len(self.events) > 0:
             logger.warning(f"Clearing emitters from a scene may orphan its associated events. It is recommended to "
-                           f"call `Scene.clear_events()`, rather than this function.")
+                           f"call `Scene.clear_events()` to clear all events and their associated emitters, "
+                           f"rather than this function.")
         self.state.clear_emitters()
 
     def clear_microphones(self) -> None:
@@ -432,7 +432,8 @@ class Scene:
         # Raise a warning when we might orphan an event
         if len(self.events) > 0 and alias in self.events:
             logger.warning(f"Clearing emitters with the alias '{alias}' will orphan an event. It is recommended to "
-                           f"instead call `Scene.clear_event(alias)` to remove this event, rather than this function.")
+                           f"instead call `Scene.clear_event(alias)` to remove this event and its associated emitters, "
+                           f"rather than calling this function.")
         self.state.clear_emitter(alias)
 
     def clear_microphone(self, alias: str) -> None:

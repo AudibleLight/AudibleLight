@@ -4,7 +4,9 @@
 """Test cases for functionality inside audiblelight/utils.py"""
 
 import os
+import wave
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Union
 
 import numpy as np
@@ -182,6 +184,10 @@ def test_get_default_alias(prefix, objects, expected):
     assert actual == expected
 
 
+def _tmp(*_):
+    return
+
+
 @pytest.mark.parametrize(
     "func, kwargs, should_raise, expected_exception",
     [
@@ -192,6 +198,7 @@ def test_get_default_alias(prefix, objects, expected):
         (lambda x, y: x + y, {}, False, None),                               # No kwargs but valid empty call
         (lambda *, a=1: a, {"a": 2}, False, None),                           # Keyword-only argument
         (lambda a, b: a + b, {"c": 3}, True, AttributeError),               # Invalid kwarg
+        (_tmp, {"a": 1}, True, ValueError)                                   # does not take kwargs
     ]
 )
 def test_validate_kwargs(func, kwargs, should_raise, expected_exception):
@@ -235,6 +242,20 @@ def test_list_deepest_directories(directory, expected):
         assert any([expect in actual for actual in out])
 
 
+
+@pytest.mark.parametrize(
+    "directory,expected",
+    [
+        (utils.get_project_root() / "tests", ["femaleSpeech", "music", "meshes"])
+    ]
+)
+def test_list_innermost_directory_names(directory, expected):
+    out = utils.list_innermost_directory_names(directory)
+    assert isinstance(out, list)
+    for expect in expected:
+        assert any([expect in actual for actual in out])
+
+
 @pytest.mark.parametrize(
     "directory,expected",
     [
@@ -268,3 +289,116 @@ def test_validate_shape(shape_a: tuple[Union[int, None]], shape_b: tuple[Union[i
             utils.validate_shape(shape_a, shape_b)
     else:
         utils.validate_shape(shape_a, shape_b)
+
+
+@pytest.mark.parametrize(
+    "distribution,override,raises",
+    [
+        (lambda: 1, None, False),
+        (lambda: 1, 2, False),
+        (None, None, ValueError),
+        (None, "asdf", TypeError)
+    ]
+)
+def test_sample_distribution(distribution, override, raises):
+    if not raises:
+        out = utils.sample_distribution(distribution, override)
+        assert isinstance(out, utils.Numeric)
+    else:
+        with pytest.raises(raises):
+            _ = utils.sample_distribution(distribution, override)
+
+
+@pytest.mark.parametrize(
+    "seed", [utils.SEED, 111, 123, 156]
+)
+def test_seed_everything(seed):
+    utils.seed_everything(seed)
+    in1 = np.random.rand(10)
+    utils.seed_everything(seed)
+    in2 = np.random.rand(10)
+    assert np.array_equal(in1, in2)
+
+
+@pytest.mark.parametrize(
+    "iterables,expected",
+    [
+        [[[1, 2, 3], [3, 2, 1], [10, 10, 10]], True],
+        [["asdf", "fdsa", [1, 2, 3, 4]], True],
+        [["asdf", "ds"], False],
+        [[{1, 2, 3}, "asd", [1, 2, 3]], True],
+        [["asdf", [3, 3], range(5)], False]
+    ]
+)
+def test_check_all_lens_equal(iterables, expected):
+    assert utils.check_all_lens_equal(*iterables) == expected
+
+
+class Tmp:
+    @staticmethod
+    def to_dict():
+        return {"asdf": 1}
+
+
+@pytest.mark.parametrize(
+    "cls, raises",
+    [
+        (Tmp, False),
+        (str, True),
+        (int, True),
+    ]
+)
+def test_repr_as_json(cls, raises):
+    if raises:
+        with pytest.raises(AttributeError):
+            _ = utils.repr_as_json(cls)
+    else:
+        out = utils.repr_as_json(cls)
+        assert isinstance(out, str)
+
+
+@pytest.mark.parametrize(
+    "prefix, objects, expected, raises",
+    [
+        ("test", {"test000": 123}, "test001", False),
+        ("test", {"test000": 123, "test001": 321}, "test002", False),
+        ("test", {"test001": 123}, None, True)
+    ]
+)
+def test_get_default_alias(prefix, objects, expected, raises):
+    if raises:
+        with pytest.raises(KeyError):
+            _ = utils.get_default_alias(prefix, objects)
+    else:
+        out = utils.get_default_alias(prefix, objects)
+        assert out == expected
+
+
+@pytest.mark.parametrize("audio_input, expect_warning, expect_normalized", [
+    (np.array([0.0, 0.5, -0.5]), False, False),  # Normal audio, within range
+    (np.array([1.0, -1.0, 0.999]), False, False),  # Edge values, no normalization
+])
+def test_write_wav(audio_input, expect_warning, expect_normalized, caplog):
+    with TemporaryDirectory() as tmpdir:
+        outpath = Path(tmpdir) / "test.wav"
+
+        # Capture logging output
+        with caplog.at_level("WARNING"):
+            utils.write_wav(audio_input, str(outpath))
+
+        # Check if output file was created
+        assert outpath.exists()
+
+        # Check warning presence
+        if expect_warning:
+            assert any("warning" in rec.levelname.lower() for rec in caplog.records)
+        else:
+            assert all("warning" not in rec.levelname.lower() for rec in caplog.records)
+
+        # Read back WAV and check normalization
+        with wave.open(str(outpath), 'rb') as wf:
+            frames = wf.readframes(wf.getnframes())
+            data = np.frombuffer(frames, dtype=np.int16)
+
+        if expect_normalized:
+            assert np.max(np.abs(data)) == 32767
