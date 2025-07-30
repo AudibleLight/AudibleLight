@@ -12,6 +12,7 @@ from typing import Union, Optional, Type, Any
 import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
+from deepdiff import DeepDiff
 from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
 from loguru import logger
 
@@ -131,13 +132,53 @@ class Emitter:
                 self.coordinates_relative_polar[alias] = utils.cartesian_to_polar(pos)
 
     def __repr__(self) -> str:
+        """
+        Returns a JSON-formatted string representation of the Emitter
+        """
         return utils.repr_as_json(self)
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the Emitter
+        """
         return f"Emitter '{self.alias}' with absolute position {self.coordinates_absolute}"
 
+    def __eq__(self, other: Any):
+        """
+        Compare two Emitter objects for equality.
+
+        Returns:
+            bool: True if two Emitter objects are equal, False otherwise
+        """
+
+        # Non-Emitter objects are always not equal
+        if not isinstance(other, Emitter):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1, d2,
+            ignore_order=True,
+            significant_digits=4,
+            ignore_numeric_type_changes=True
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
+
     def to_dict(self) -> dict:
-        def coerce(inp):
+        """
+        Returns a dictionary representation of the Emitter
+
+        Returns:
+            dict
+        """
+        def coerce(inp: Any) -> Any:
+            """Coerce dtypes for JSON serialisation"""
             if isinstance(inp, dict):
                 return {k: coerce(v) for k, v in inp.items()} if inp else None
             elif isinstance(inp, np.ndarray):
@@ -1247,10 +1288,16 @@ class WorldState:
         return len(self.microphones) + len(self.emitters)
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the WorldState
+        """
         return (f"'WorldState' with mesh '{self.mesh.metadata['fpath']}' and "
                 f"{len(self)} objects ({len(self.microphones)} microphones, {len(self.emitters)} emitters)")
 
     def __repr__(self) -> str:
+        """
+        Returns a JSON-formatted string representation of the WorldState
+        """
         return utils.repr_as_json(self)
 
     def __getitem__(self, alias: str) -> list[Emitter]:
@@ -1258,6 +1305,33 @@ class WorldState:
         An alternative for `self.get_emitters(alias) or `self.emitters[alias]`
         """
         return self.get_emitters(alias)
+
+    def __eq__(self, other: Any):
+        """
+        Compare two WorldState objects for equality.
+
+        Returns:
+            bool: True if two WorldState objects are equal, False otherwise
+        """
+
+        # Non-Event objects are always not equal
+        if not isinstance(other, WorldState):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1, d2,
+            ignore_order=True,
+            significant_digits=4,
+            ignore_numeric_type_changes=True
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
 
     def get_emitter(self, alias: str, emitter_idx: int = 0) -> Emitter:
         """

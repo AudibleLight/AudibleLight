@@ -10,7 +10,7 @@ from collections import OrderedDict
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
-from typing import Union, Optional, Type, Any
+from typing import Union, Optional, Type, Any, Iterator
 
 import soundfile as sf
 from deepdiff import DeepDiff
@@ -112,6 +112,44 @@ class Scene:
 
         # If there is no difference, there should be no keys in the deepdiff object
         return len(diff) == 0
+
+    def __len__(self) -> int:
+        """
+        Returns the number of events in the scene
+        """
+        return len(self.events)
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the scene
+        """
+        return (f"'Scene' with mesh '{self.state.mesh.metadata['fpath']}': "
+                f"{len(self)} events, {len(self.state.microphones)} microphones, {len(self.state.emitters)} emitters.")
+
+    def __repr__(self) -> str:
+        """
+        Returns representation of the scene as a JSON
+        """
+        return utils.repr_as_json(self)
+
+    def __getitem__(self, alias: str) -> Event:
+        """
+        An alternative for `self.get_event(alias) or `self.events[alias]`
+        """
+        return self.get_event(alias)
+
+    def __iter__(self) -> Iterator[Event]:
+        """
+        Yields an iterator of Event objects from the current scene
+
+        Examples:
+            >>> test_scene = Scene(...)
+            >>> for n in range(9):
+            >>>     test_scene.add_event(...)
+            >>> for ev in test_scene:
+            >>>     assert isinstance(ev, Event)
+        """
+        yield from self.get_events()
 
     def add_microphone(self, **kwargs) -> None:
         """

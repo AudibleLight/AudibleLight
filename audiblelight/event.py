@@ -4,10 +4,11 @@
 """Provides classes and functions for placing audio files within Space and Scene objects"""
 
 from pathlib import Path
-from typing import Union, Optional, Any, Self
+from typing import Union, Optional, Any
 
 import librosa
 import numpy as np
+from deepdiff import DeepDiff
 from loguru import logger
 
 from audiblelight.worldstate import Emitter
@@ -143,6 +144,47 @@ class Event:
             self.end_coordinates_absolute = self.start_coordinates_absolute
             self.end_coordinates_relative_cartesian = self.start_coordinates_relative_cartesian
             self.end_coordinates_relative_polar = self.start_coordinates_relative_polar
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the scene
+        """
+        loaded = "loaded" if self.is_moving else "unloaded"
+        return f"'Event' with alias '{self.alias}' and audio file '{self.filepath}' (currently {loaded})."
+
+    def __repr__(self) -> str:
+        """
+        Returns representation of the scene as a JSON
+        """
+        return utils.repr_as_json(self)
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Compare two Event objects for equality.
+
+        Returns:
+            bool: True if two Event objects are equal, False otherwise
+        """
+
+        # Non-Event objects are always not equal
+        if not isinstance(other, Event):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1, d2,
+            ignore_order=True,
+            significant_digits=4,
+            exclude_paths="emitters",
+            ignore_numeric_type_changes=True
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
 
     @property
     def is_audio_loaded(self) -> bool:

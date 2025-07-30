@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any, Type
 
 import numpy as np
+from deepdiff import DeepDiff
 from loguru import logger
 
 from audiblelight import utils
@@ -23,7 +24,7 @@ __all__ = [
 ]
 
 
-@dataclass
+@dataclass(eq=False)
 class MicArray:
     """
     This is the base class for all microphone array types.
@@ -99,13 +100,49 @@ class MicArray:
         return self._coordinates_absolute
 
     def __len__(self) -> int:
+        """
+        Return the number of capsules associated with this microphone
+        """
         return self.n_capsules
 
     def __repr__(self) -> str:
+        """
+        Return a JSON-formatted string representation of this microphone array
+        """
         return utils.repr_as_json(self)
 
     def __str__(self) -> str:
+        """
+        Return a string representation of this microphone array
+        """
         return f"Microphone array '{self.__class__.__name__}' with {len(self)} capsules"
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Compare two MicArray objects for equality.
+
+        Returns:
+            bool: True if the MicArray objects are identical, False otherwise
+        """
+
+        # Non-MicArray objects are always not equal
+        if not isinstance(other, MicArray):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1, d2,
+            ignore_order=True,
+            significant_digits=4,
+            ignore_numeric_type_changes=True
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
 
     def to_dict(self) -> dict:
         """
@@ -163,7 +200,12 @@ class MicArray:
                 v = np.asarray(v)
 
             # Try and set the attribute
-            if hasattr(mic_class, k):
+            try:
+                hasat = hasattr(mic_class, k)    # need to be defensive, can sometimes hit NotImplementedError
+            except NotImplementedError:
+                continue
+
+            if hasat:
                 try:
                     setattr(mic_class, k, v)
 
@@ -182,8 +224,7 @@ class MicArray:
         return mic_class
 
 
-
-@dataclass(repr=False)
+@dataclass(repr=False, eq=False)
 class MonoCapsule(MicArray):
     """
     A single mono microphone capsule
@@ -200,7 +241,7 @@ class MonoCapsule(MicArray):
         return ["mono"]
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, eq=False)
 class AmbeoVR(MicArray):
     """
     Sennheiser AmbeoVR microphone.
@@ -230,7 +271,7 @@ class AmbeoVR(MicArray):
         return ["FLU", "FRD", "BLD", "BRU"]
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, eq=False)
 class Eigenmike32(MicArray):
     """
     Eigenmike 32 microphone.
@@ -289,7 +330,7 @@ class Eigenmike32(MicArray):
         return [str(i) for i in range(1, 33)]
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, eq=False)
 class Eigenmike64(MicArray):
     """
     Eigenmike 64 microphone.
