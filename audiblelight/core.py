@@ -192,6 +192,8 @@ class Scene:
 
         An alias for `WorldState.add_emitter`: see that method for a full description.
         """
+        logger.warning("Adding an Emitter directly to the WorldState is not recommended. Instead, use "
+                       "`Scene.add_event`, which will create an Event and add any required Emitters to the WorldState.")
         utils.validate_kwargs(self.state.add_emitter, **kwargs)
         self.state.add_emitter(**kwargs)
 
@@ -201,6 +203,8 @@ class Scene:
 
         An alias for `WorldState.add_emitters`: see that method for a full description.
         """
+        logger.warning("Adding Emitters directly to the WorldState is not recommended. Instead, use "
+                       "`Scene.add_event`, which will create Events and add any required Emitters to the WorldState.")
         utils.validate_kwargs(self.state.add_emitters, **kwargs)
         self.state.add_emitters(**kwargs)
 
