@@ -463,3 +463,47 @@ def validate_shape(shape_a: tuple[int, ...], shape_b: tuple[int, ...]) -> None:
         # Implicitly skip over `None` values
         if a is not None and b is not None and a != b:
             raise ValueError(f"Incompatible shapes at index {i}: {a} != {b} (full shapes: {padded_a} vs {padded_b})")
+
+
+def generate_linear_trajectory(xyz_start: np.ndarray, xyz_end: np.ndarray, n_points: int) -> np.ndarray:
+    """
+    Generate a linear trajectory between a start and end coordinate given a particular number of points
+    """
+    return np.array([list(np.linspace(xyz_start, xyz_end, n_points)[i]) for i in range(n_points)])
+
+
+def generate_circular_trajectory(xyz_start: np.ndarray, xyz_end: np.ndarray, n_points: int) -> np.ndarray:
+    """
+    Generate a circular trajectory between a start and end coordinate given a particular number of points
+    """
+    # Vector from start to end
+    start_to_end_vec = xyz_end - xyz_start
+    midpoint = xyz_start + start_to_end_vec / 2
+
+    # Radius of the circle
+    radius = np.linalg.norm(start_to_end_vec) / 2
+
+    # Normal vector to the plane containing the circle
+    matches: np.ndarray = (start_to_end_vec == [0, 0, 0])
+    if matches.all():
+        normal_vector = np.array([1, 0, 0])  # default normal vector
+    else:
+        normal_vector = np.array([1, 0, 0])  # initial guess
+        if np.cross(normal_vector, start_to_end_vec).any():
+            normal_vector = np.cross(start_to_end_vec, normal_vector)
+        else:
+            normal_vector = np.cross(start_to_end_vec, [0, 1, 0])
+    normal_vector /= np.linalg.norm(normal_vector)
+
+    # Finding two orthogonal unit vectors in the plane of the circle
+    vec1 = start_to_end_vec / (2 * radius)
+    vec2 = np.cross(normal_vector, vec1)
+
+    # Generate points on the semicircle
+    angle_range = np.linspace(np.pi, 0, n_points)  # Reversed angle range
+    circle_points = []
+    for angle in angle_range:
+        point = midpoint + radius * (np.cos(angle) * vec1 + np.sin(angle) * vec2)
+        circle_points.append(list(point))
+
+    return np.array(circle_points)
