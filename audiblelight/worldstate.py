@@ -1281,9 +1281,14 @@ class WorldState:
             )
 
         # Compute the number of samples based on duration and resolution
-        n_points = int(
+        n_points = round(
             utils.sanitise_positive_number(duration * temporal_resolution) + 1
         )
+        if n_points < 2:
+            raise ValueError(
+                "Cannot create a moving trajectory comprised of fewer than two points"
+            )
+
         max_distance = utils.sanitise_positive_number(max_speed * duration)
 
         # Compute the distance that we can travel in a single step
@@ -1391,7 +1396,9 @@ class WorldState:
             self.ctx.get_source_count() > 0
         ), "Must have emitters added to the ray tracing engine"
         # Check we have the expected number of sources and listeners
-        assert len(self.emitters) == self.ctx.get_source_count()
+        assert (
+            sum(len(em) for em in self.emitters.values()) == self.ctx.get_source_count()
+        )
         assert (
             sum(m.n_capsules for m in self.microphones.values())
             == self.ctx.get_listener_count()

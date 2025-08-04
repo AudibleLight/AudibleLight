@@ -481,11 +481,13 @@ class Scene:
         # Add the emitters to the state with the desired aliases
         #  We do not want to raise errors here. This is because the positions in the trajectory
         #  have "pre-validated" during define_trajectory, and
+        # TODO: sort out how kwargs are handled here
         self.state.add_emitters(
             positions=trajectory,
             aliases=aliases_tiled,
             polar=False,
             raise_on_error=False,
+            keep_existing=True,
         )
 
         # Grab the emitters we just created and register them with the event
