@@ -1354,6 +1354,10 @@ class WorldState:
             if np.any(deltas > step_limit + 1e-4):
                 continue
 
+            # Ensure we have at least two steps in the trajectory
+            if len(trajectory) < 2:
+                continue
+
             # Validate that all the positions in the trajectory are acceptable
             #  (in bounds of mesh, not too close to a microphone or another placed emitter, etc.)
             if self._validate_position(trajectory):
