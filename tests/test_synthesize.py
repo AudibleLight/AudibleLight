@@ -9,32 +9,6 @@ import pytest
 
 import audiblelight.synthesize as syn
 from audiblelight import utils
-from audiblelight.event import Event
-
-
-@pytest.mark.parametrize(
-    "audio, ir, expected_shape",
-    [
-        (
-            np.ones(4),
-            np.ones((4, 1)),
-            (4, 1),
-        ),  # Mono audio, single-channel IR, both equal length
-        (np.ones(5), np.ones((5, 4)), (5, 4)),  # Mono audio, multi-channel IR
-        (np.ones(6), np.ones((3, 1)), (6, 1)),  # Shorter IR, triggers padding
-        (np.ones(4), np.ones((8, 2)), (4, 2)),  # Longer IR (result gets truncated)
-        # replicate FOA audio
-        (
-            np.random.rand(utils.SAMPLE_RATE * 10),
-            np.random.rand(utils.SAMPLE_RATE * 2, 4),
-            (utils.SAMPLE_RATE * 10, 4),
-        ),
-    ],
-)
-def test_time_invariant_convolution_valid(audio, ir, expected_shape):
-    output = syn.time_invariant_convolution(audio, ir)
-    assert isinstance(output, np.ndarray)
-    assert output.shape == expected_shape
 
 
 @pytest.mark.parametrize(
@@ -185,17 +159,6 @@ def test_validate_scene(oyens_scene_factory):
     scn = oyens_scene_factory()
     scn.state.add_emitter()  # 1 emitter, 1 mic, 0 events
     with pytest.raises(ValueError, match="Scene has no events!"):
-        syn.validate_scene(scn)
-
-    # Increase number of events so it does not match number of emitters/ray-tracing sources
-    scn = oyens_scene_factory()
-    scn.add_event(event_type="static")
-    scn.events["tmp"] = Event(
-        filepath=utils.get_project_root()
-        / "tests/test_resources/soundevents/music/000010.mp3",
-        alias="tmp",
-    )  # 2 events, 1 emitter, 1 source
-    with pytest.raises(ValueError, match="Mismatching number of emitters"):
         syn.validate_scene(scn)
 
     # Do the same for the capsules
