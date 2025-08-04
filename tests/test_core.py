@@ -21,13 +21,6 @@ MESH_DIR = utils.get_project_root() / "tests/test_resources/meshes"
 OYENS_PATH = MESH_DIR / "Oyens.glb"
 
 
-# @pytest.mark.parametrize(
-#     "mesh_path,mic_arrays"
-# )
-# def test_create_scene(mesh_path, mic_arrays, ):
-#     pass
-
-
 @pytest.mark.parametrize(
     "filepath,emitter_kws,event_kws",
     [
@@ -57,12 +50,13 @@ OYENS_PATH = MESH_DIR / "Oyens.glb"
         (None, None, None),
     ],
 )
-def test_add_event(
+def test_add_event_static(
     filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap: Scene
 ):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
+        event_type="static",
         filepath=filepath,
         alias="test_event",
         emitter_kwargs=emitter_kws,
@@ -74,6 +68,9 @@ def test_add_event(
     # Get the event
     ev = oyens_scene_no_overlap.get_event("test_event")
     assert isinstance(ev, Event)
+    assert not ev.is_moving
+    assert ev.has_emitters
+    assert len(ev.emitters) == 1
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     if isinstance(emitter_kws, dict):
@@ -95,6 +92,74 @@ def test_add_event(
         "end_coordinates_relative_polar",
     ]:
         assert hasattr(ev, attr_)
+
+
+@pytest.mark.parametrize(
+    "filepath,emitter_kws,event_kws",
+    [
+        # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
+        (
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(starting_position=np.array([1.6, -5.1, 1.7])),
+            dict(duration=5, event_start=5, scene_start=5),
+        ),
+        # Test 2: explicit event keywords and filepath, but no emitter keywords
+        (SOUNDEVENT_DIR / "music/001666.mp3", None, dict(snr=5, spatial_velocity=5)),
+        # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
+        (
+            None,
+            dict(starting_position=np.array([1.6, -5.1, 1.7])),
+            dict(duration=5, event_start=5, scene_start=5, snr=5, spatial_velocity=5),
+        ),
+        # Test 4: no path, no kwargs
+        (None, None, None),
+    ],
+)
+def test_add_moving_event(
+    filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap: Scene
+):
+    # Add the event in
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
+        event_type="moving",
+        filepath=filepath,
+        alias="test_event",
+        emitter_kwargs=emitter_kws,
+        event_kwargs=event_kws,
+    )
+
+    # Should have added exactly one event
+    assert len(oyens_scene_no_overlap.events) == 1
+
+    # Get the event
+    ev = oyens_scene_no_overlap.get_event("test_event")
+    assert isinstance(ev, Event)
+    assert ev.is_moving
+    assert ev.has_emitters
+    assert len(ev.emitters) >= 2
+
+    # Should have correct number of sources added to the ray-tracing engine
+    assert oyens_scene_no_overlap.state.ctx.get_source_count() == len(ev.emitters)
+
+    # Check all overrides passed correctly to the event class
+    #  When we're using a random file, we cannot check these variables as they might have changed
+    #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
+    if filepath is not None and event_kws is not None:
+        for override_key, override_val in event_kws.items():
+            assert getattr(ev, override_key) == override_val
+
+    # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
+    for attr_ in [
+        "event_end",
+        "start_coordinates_absolute",
+        "end_coordinates_relative_polar",
+    ]:
+        assert hasattr(ev, attr_)
+
+    # Starting and ending coordinates should be different
+    assert not np.array_equal(
+        ev.start_coordinates_absolute, ev.end_coordinates_absolute
+    )
 
 
 @pytest.mark.parametrize(
@@ -131,6 +196,7 @@ def test_add_bad_event(
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
+        event_type="static",
         filepath=SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
         event_kwargs=dict(scene_start=5.0, duration=5.0),
@@ -138,6 +204,7 @@ def test_add_bad_event(
     # Add the tester event in: should raise an error
     with pytest.raises(raises):
         oyens_scene_no_overlap.add_event(
+            event_type="static",
             filepath=new_event_audio,
             alias="bad_event",
             emitter_kwargs=dict(keep_existing=True),
@@ -147,6 +214,16 @@ def test_add_bad_event(
     assert len(oyens_scene_no_overlap.events) == 1
     with pytest.raises(KeyError):
         _ = oyens_scene_no_overlap.get_event("bad_event")
+
+    # Test adding an event with an invalid event type
+    with pytest.raises(ValueError):
+        oyens_scene_no_overlap.add_event(
+            event_type="will_fail",
+            filepath=new_event_audio,
+            alias="bad_event",
+            emitter_kwargs=dict(keep_existing=True),
+            event_kwargs=event_kwargs,
+        )
 
 
 @pytest.mark.parametrize(
@@ -173,6 +250,7 @@ def test_add_acceptable_event(
     # Add the dummy event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
+        event_type="static",
         filepath=SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
         emitter_kwargs=dict(keep_existing=True),
@@ -180,6 +258,7 @@ def test_add_acceptable_event(
     )
     # Add the tester event in: should not raise any errors
     oyens_scene_no_overlap.add_event(
+        event_type="static",
         filepath=new_event_audio,
         alias="good_event",
         emitter_kwargs=dict(keep_existing=True),
@@ -254,7 +333,7 @@ def test_add_mic_arrays_to_state(mic_arrays, oyens_scene_no_overlap: Scene):
 
 
 def test_get_funcs(oyens_scene_no_overlap: Scene):
-    oyens_scene_no_overlap.add_event()
+    oyens_scene_no_overlap.add_event(event_type="static")
     # Test all the get functions
     mic = oyens_scene_no_overlap.get_microphone("mic000")
     assert issubclass(type(mic), MicArray)
@@ -277,7 +356,7 @@ def test_get_funcs(oyens_scene_no_overlap: Scene):
 
 def test_clear_funcs(oyens_scene_no_overlap: Scene):
     # Add an event
-    oyens_scene_no_overlap.add_event(alias="remover")
+    oyens_scene_no_overlap.add_event(event_type="static", alias="remover")
     assert len(oyens_scene_no_overlap.events) == 1
     assert len(oyens_scene_no_overlap.state.emitters) == 1
     assert oyens_scene_no_overlap.state.ctx.get_source_count() == 1
@@ -301,9 +380,9 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
     assert len(oyens_scene_no_overlap.state.microphones) == 0
     assert len(oyens_scene_no_overlap.state.emitters) == 0
 
-    oyens_scene_no_overlap.add_event(alias="remover")
+    oyens_scene_no_overlap.add_event(event_type="static", alias="remover")
     oyens_scene_no_overlap.clear_emitter(alias="remover")
-    oyens_scene_no_overlap.add_event(alias="remover")
+    oyens_scene_no_overlap.add_event(event_type="static", alias="remover")
     oyens_scene_no_overlap.clear_emitters()
     assert len(oyens_scene_no_overlap.state.emitters) == 0
 
@@ -316,7 +395,9 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
 def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):
-        oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
+        oyens_scene_no_overlap.add_event(
+            event_type="static", emitter_kwargs=dict(keep_existing=True)
+        )
 
     oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
 
@@ -354,7 +435,7 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
     # Add the desired microphone type and number of events
     sc.add_microphone(microphone_type=mic_type)
     for i in range(n_events):
-        sc.add_event(emitter_kwargs=dict(keep_existing=True))
+        sc.add_event(event_type="static", emitter_kwargs=dict(keep_existing=True))
     # Generate everything and check the files exist
     sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")
     for path in ["audio_out.wav", "metadata_out.json"]:
@@ -1219,6 +1300,7 @@ def test_magic_methods(filepath, emitter_kws, event_kws, oyens_scene_no_overlap)
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
+        event_type="static",
         filepath=filepath,
         alias="test_event",
         emitter_kwargs=emitter_kws,
