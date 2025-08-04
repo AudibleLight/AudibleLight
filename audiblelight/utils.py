@@ -10,30 +10,38 @@ import random
 import wave
 from functools import wraps
 from pathlib import Path
-from typing import Union, Any, Protocol, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Protocol, Union
 
 import numpy as np
 import torch
 from loguru import logger
 
-MESH_UNITS = "meters"    # will convert to this if
+MESH_UNITS = "meters"  # will convert to this if
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 FOREGROUND_DIR = "FSD50K_FMA_SMALL"
 RIR_DIR = None
-FORMAT = 'foa'    # First-order ambisonics by default
+FORMAT = "foa"  # First-order ambisonics by default
 N_EVENTS_MEAN = 15  # Mean number of foreground events in a soundscape
 N_EVENTS_STD = 6  # Standard deviation of the number of foreground events
 DURATION = 60.0  # Duration in seconds of each soundscape
 SR = 24000  # SpatialScaper default sampling rate for the audio files
 OUTPUT_DIR = "output"  # Directory to store the generated soundscapes
-REF_DB = -65  # Reference decibel level for the background ambient noise. Try making this random too!
+REF_DB = (
+    -65
+)  # Reference decibel level for the background ambient noise. Try making this random too!
 NSCAPES = 20
 SEED = 42
-SAMPLE_RATE = 44100    # Default to 44.1kHz sample rate
-MAX_PLACE_ATTEMPTS = 100    # Max number of times we'll attempt to place a source or microphone before giving up
+SAMPLE_RATE = 44100  # Default to 44.1kHz sample rate
+MAX_PLACE_ATTEMPTS = 100  # Max number of times we'll attempt to place a source or microphone before giving up
 
-NUMERIC_DTYPES = (int, float, complex, np.integer, np.floating)     # used for isinstance(x, ...) checking
-Numeric = Union[int, float, complex, np.integer, np.floating]    # used as a typehint
+NUMERIC_DTYPES = (
+    int,
+    float,
+    complex,
+    np.integer,
+    np.floating,
+)  # used for isinstance(x, ...) checking
+Numeric = Union[int, float, complex, np.integer, np.floating]  # used as a typehint
 
 AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
 
@@ -53,10 +61,12 @@ def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -
     # Check if normalization is needed
     max_val = np.max(np.abs(audio))
     if max_val > 1.0:
-        logger.warning(f"Audio file absolute max exceeds 1.0 ({round(max_val, 3)}), normalizing...")
+        logger.warning(
+            f"Audio file absolute max exceeds 1.0 ({round(max_val, 3)}), normalizing..."
+        )
         audio = audio / max_val
     # Catch cases where silent audio would lead to dividing by zero
-    elif max_val == 0.:
+    elif max_val == 0.0:
         logger.warning("Audio is completely silent.")
     # Convert to 16-bit PCM
     audio_int16 = (audio * 32767).astype(np.int16)
@@ -65,7 +75,7 @@ def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -
     # Write to WAV using wave module
     #  We use wave for dumping wav files, not scipy, as scipy depends on audioread which is no longer maintained
     #  See https://github.com/beetbox/audioread/issues/144
-    with wave.open(outpath, 'wb') as wf:
+    with wave.open(outpath, "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)  # 2 bytes = 16-bit
         wf.setframerate(sample_rate)
@@ -81,7 +91,9 @@ def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndar
     if len(array.shape) == 1:
         array = np.array([array])
     if len(array.shape) != 2:
-        raise ValueError(f"Expected a 1- or 2D array, but got {len(array.shape)}D array")
+        raise ValueError(
+            f"Expected a 1- or 2D array, but got {len(array.shape)}D array"
+        )
     return array
 
 
@@ -98,7 +110,13 @@ def get_project_root() -> Path:
     # Possibly the root directory, but doesn't always work when running from the CLI for some reason
     poss_path = Path(__file__).parent.parent
     # The root directory should always have these files (this is pretty hacky)
-    expected_files = ["audiblelight", "notebooks", "resources", "tests", "setup.py"]
+    expected_files = [
+        "audiblelight",
+        "notebooks",
+        "resources",
+        "tests",
+        "pyproject.toml",
+    ]
     if all((poss_path / fp).exists() for fp in expected_files):
         return poss_path
     else:
@@ -110,7 +128,7 @@ def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
     spherical_array = coerce2d(spherical_array)
     # Convert azimuth + elevation to radians
     azimuth_rad = np.deg2rad(spherical_array[:, 0])  # phi
-    polar_rad = np.deg2rad(spherical_array[:, 1])    # theta, polar angle from z-axis
+    polar_rad = np.deg2rad(spherical_array[:, 1])  # theta, polar angle from z-axis
     # No need to do this for radius
     r = spherical_array[:, 2]
     # Express everything in cartesian form
@@ -129,7 +147,7 @@ def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
     y = cartesian_array[:, 1]
     z = cartesian_array[:, 2]
     # Compute radius using the classic equation
-    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    r = np.sqrt(x**2 + y**2 + z**2)
     assert np.all(r > 0), f"Expected radius > 0, but got radius = {r}"
     # Get azimuth and polar in radians first, then convert to degrees
     azimuth = np.rad2deg(np.arctan2(y, x))  # φ, angle in x-y plane from x-axis
@@ -162,7 +180,9 @@ def sanitise_ref_db(ref_db: Any) -> int:
     if not isinstance(ref_db, Numeric):
         raise TypeError(f"Expected `ref_db` to be numeric, but got {type(ref_db)}")
     elif ref_db > 0:
-        logger.error(f"Provided noise floor is positive; expect clipping to occur (ref_db={ref_db:.2f})")
+        logger.error(
+            f"Provided noise floor is positive; expect clipping to occur (ref_db={ref_db:.2f})"
+        )
     return int(ref_db)
 
 
@@ -176,11 +196,15 @@ def sanitise_filepath(filepath: Any) -> Path:
             filepath = Path(filepath)
         # Raise a nicer error when the file can't be found
         if not filepath.is_file():
-            raise FileNotFoundError(f"Cannot find file at {str(filepath)}, does it exist?")
+            raise FileNotFoundError(
+                f"Cannot find file at {str(filepath)}, does it exist?"
+            )
         else:
             return filepath
     else:
-        raise TypeError(f"Expected filepath to be either a string or Path object, but got {type(filepath)}")
+        raise TypeError(
+            f"Expected filepath to be either a string or Path object, but got {type(filepath)}"
+        )
 
 
 def sanitise_directory(directory: Any) -> Path:
@@ -193,13 +217,19 @@ def sanitise_directory(directory: Any) -> Path:
             directory = Path(directory)
         # Raise a nicer error when the file can't be found
         if not directory.is_dir():
-            raise FileNotFoundError(f"Cannot find file at {str(directory)}, does it exist?")
+            raise FileNotFoundError(
+                f"Cannot find file at {str(directory)}, does it exist?"
+            )
         else:
             if not any(directory.iterdir()):
-                logger.warning(f"Directory {str(directory)} does not contain any files!")
+                logger.warning(
+                    f"Directory {str(directory)} does not contain any files!"
+                )
             return directory
     else:
-        raise TypeError(f"Expected filepath to be either a string or Path object, but got {type(directory)}")
+        raise TypeError(
+            f"Expected filepath to be either a string or Path object, but got {type(directory)}"
+        )
 
 
 def sanitise_positive_number(x: Any) -> Union[float, None]:
@@ -207,7 +237,7 @@ def sanitise_positive_number(x: Any) -> Union[float, None]:
     Validate that an input is a positive numeric input and coerce to a `float`
     """
     if isinstance(x, NUMERIC_DTYPES) and not isinstance(x, bool):
-        if x >= 0.:
+        if x >= 0.0:
             return float(x)
         else:
             raise ValueError(f"Expected a positive numeric input, but got {x}")
@@ -237,7 +267,7 @@ class DistributionLike(Protocol):
     """
 
     def rvs(self, *args: Any, **kwargs: Any) -> Numeric:
-        ...
+        pass
 
 
 class DistributionWrapper:
@@ -256,7 +286,9 @@ class DistributionWrapper:
         return self.rvs()
 
 
-def sanitise_distribution(x: Any) -> Optional[Union[DistributionLike, DistributionWrapper]]:
+def sanitise_distribution(
+    x: Any,
+) -> Optional[Union[DistributionLike, DistributionWrapper]]:
     """
     Validate that an input is a scipy distribution-like object, a callable returning floats, or None.
     """
@@ -273,16 +305,22 @@ def sanitise_distribution(x: Any) -> Optional[Union[DistributionLike, Distributi
         try:
             test_sample = x()
         except Exception as e:
-            raise TypeError("Callable could not be evaluated during distribution validation") from e
+            raise TypeError(
+                "Callable could not be evaluated during distribution validation"
+            ) from e
         # If we get a numeric value back from the function, wrap it up so we have the same API as a scipy distribution
         if isinstance(test_sample, NUMERIC_DTYPES):
             return DistributionWrapper(x)
         else:
-            raise TypeError("Callable must return a numeric value to be used as a distribution")
+            raise TypeError(
+                "Callable must return a numeric value to be used as a distribution"
+            )
 
     # Otherwise, we cannot evaluate what the input is
     else:
-        raise TypeError(f"Expected a distribution-like object or a callable returning floats, but got: {type(x)}")
+        raise TypeError(
+            f"Expected a distribution-like object or a callable returning floats, but got: {type(x)}"
+        )
 
 
 def get_default_alias(prefix: str, objects: dict[str, Any], zfill_ints: int = 3) -> str:
@@ -324,11 +362,13 @@ def update_state(func: Callable):
     Decorator function that will update a `WorldState` and all objects in it. Should be run after any
     method that changes the state, e.g. `add_microphone`, `add_emitter`.
     """
+
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         result = func(self, *args, **kwargs)
         self._update()
         return result
+
     return wrapper
 
 
@@ -344,7 +384,7 @@ def list_all_directories(root_dir: Union[str, Path]) -> List[str]:
     if not root_path.is_dir():
         raise ValueError(f"'{root_dir}' is not a directory")
 
-    return [str(p.resolve()) for p in root_path.rglob('*') if p.is_dir()]
+    return [str(p.resolve()) for p in root_path.rglob("*") if p.is_dir()]
 
 
 def list_deepest_directories(root_dir: Union[str, Path]) -> List[str]:
@@ -352,12 +392,16 @@ def list_deepest_directories(root_dir: Union[str, Path]) -> List[str]:
     Return only the deepest (leaf) directories under root_dir.
     A deepest directory is one that is not a parent of any other directory.
     """
-    all_dirs = sorted([Path(p) for p in list_all_directories(root_dir)], key=lambda p: len(str(p)))
+    all_dirs = sorted(
+        [Path(p) for p in list_all_directories(root_dir)], key=lambda p: len(str(p))
+    )
     deepest_dirs = []
 
     for d in all_dirs:
         # If no other dir in the set starts with this path + separator, it's a leaf
-        if not any(other != d and str(other).startswith(str(d) + os.sep) for other in all_dirs):
+        if not any(
+            other != d and str(other).startswith(str(d) + os.sep) for other in all_dirs
+        ):
             deepest_dirs.append(str(d.resolve()))
 
     return deepest_dirs
@@ -386,8 +430,8 @@ def list_innermost_directory_names_unique(root_dir: Union[str, Path]) -> set:
 
 
 def sample_distribution(
-        distribution: Union[DistributionLike, Callable, None] = None,
-        override: Union[Numeric, None] = None
+    distribution: Union[DistributionLike, Callable, None] = None,
+    override: Union[Numeric, None] = None,
 ) -> float:
     """
     Samples from a probability distribution or returns a provided override
@@ -395,14 +439,18 @@ def sample_distribution(
     # Callable functions are wrapped such that they have a `.rvs` method
     distribution = sanitise_distribution(distribution)
     if distribution is None and override is None:
-        raise ValueError("Must provide either a probability distribution to sample from or an override")
+        raise ValueError(
+            "Must provide either a probability distribution to sample from or an override"
+        )
     elif override is None:
         return distribution.rvs()
     else:
         if isinstance(override, NUMERIC_DTYPES):
             return override
         else:
-            raise TypeError(f"Expected a numeric input for `override` but got {type(override)}")
+            raise TypeError(
+                f"Expected a numeric input for `override` but got {type(override)}"
+            )
 
 
 def validate_kwargs(func: Callable, **kwargs) -> None:
@@ -432,7 +480,8 @@ def validate_kwargs(func: Callable, **kwargs) -> None:
         return
 
     valid_kwargs = {
-        name for name, param in params.items()
+        name
+        for name, param in params.items()
         if param.kind in (param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD)
     }
 
@@ -441,7 +490,9 @@ def validate_kwargs(func: Callable, **kwargs) -> None:
 
     for kwarg in kwargs:
         if kwarg not in valid_kwargs:
-            raise AttributeError(f"`{kwarg}` is not a valid keyword argument for `{func.__name__}`")
+            raise AttributeError(
+                f"`{kwarg}` is not a valid keyword argument for `{func.__name__}`"
+            )
 
 
 def validate_shape(shape_a: tuple[int, ...], shape_b: tuple[int, ...]) -> None:
@@ -462,4 +513,6 @@ def validate_shape(shape_a: tuple[int, ...], shape_b: tuple[int, ...]) -> None:
     for i, (a, b) in enumerate(zip(padded_a, padded_b)):
         # Implicitly skip over `None` values
         if a is not None and b is not None and a != b:
-            raise ValueError(f"Incompatible shapes at index {i}: {a} != {b} (full shapes: {padded_a} vs {padded_b})")
+            raise ValueError(
+                f"Incompatible shapes at index {i}: {a} != {b} (full shapes: {padded_a} vs {padded_b})"
+            )
