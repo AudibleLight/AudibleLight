@@ -7,14 +7,14 @@ import os
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-from typing import Union, Optional, Type, Any
+from typing import Any, Optional, Type, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
 from deepdiff import DeepDiff
-from rlr_audio_propagation import Config, Context, ChannelLayout, ChannelLayoutType
 from loguru import logger
+from rlr_audio_propagation import ChannelLayout, ChannelLayoutType, Config, Context
 
 from audiblelight import utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
@@ -24,11 +24,15 @@ FACE_FILL_COLOR = [255, 0, 0, 255]
 MIN_AVG_RAY_LENGTH = 3.0
 
 EMPTY_SPACE_AROUND_EMITTER = 0.2  # Minimum distance one emitter can be from another
-EMPTY_SPACE_AROUND_MIC = 0.1    # Minimum distance one emitter can be from the mic
-EMPTY_SPACE_AROUND_SURFACE = 0.2    # Minimum distance from the nearest mesh surface
-EMPTY_SPACE_AROUND_CAPSULE = 0.05    # Minimum distance from individual microphone capsules
+EMPTY_SPACE_AROUND_MIC = 0.1  # Minimum distance one emitter can be from the mic
+EMPTY_SPACE_AROUND_SURFACE = 0.2  # Minimum distance from the nearest mesh surface
+EMPTY_SPACE_AROUND_CAPSULE = (
+    0.05  # Minimum distance from individual microphone capsules
+)
 
-WARN_WHEN_EFFICIENCY_BELOW = 0.5    # when the ray efficiency is below this value, raise a warning in .simulate
+WARN_WHEN_EFFICIENCY_BELOW = (
+    0.5  # when the ray efficiency is below this value, raise a warning in .simulate
+)
 
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
@@ -38,12 +42,18 @@ def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     # Load up in trimesh, setting the metadata dictionary nicely
     #  This just allows us to access the filename, etc., later
     mesh_fpath = utils.sanitise_filepath(mesh_fpath)
-    metadata = dict(fname=mesh_fpath.stem, ftype=mesh_fpath.suffix, fpath=str(mesh_fpath))
+    metadata = dict(
+        fname=mesh_fpath.stem, ftype=mesh_fpath.suffix, fpath=str(mesh_fpath)
+    )
     # noinspection PyTypeChecker
-    loaded_mesh = trimesh.load_mesh(mesh_fpath, file_type=mesh_fpath.suffix, metadata=metadata)
+    loaded_mesh = trimesh.load_mesh(
+        mesh_fpath, file_type=mesh_fpath.suffix, metadata=metadata
+    )
     # Convert the units of the mesh to meters, if this is not provided
     if loaded_mesh.units != utils.MESH_UNITS:
-        logger.warning(f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}")
+        logger.warning(
+            f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}"
+        )
         loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
     return loaded_mesh
 
@@ -72,7 +82,9 @@ def repair_mesh(mesh: trimesh.Trimesh) -> None:
     logger.info(f"Broken faces after repair: {len(broken_faces_new)}")
 
 
-def add_sphere(scene: trimesh.Scene, pos: np.array, color: list[int] = None, r: float = 0.2) -> None:
+def add_sphere(
+    scene: trimesh.Scene, pos: np.array, color: list[int] = None, r: float = 0.2
+) -> None:
     """Adds a sphere object to a scene with given position, color, and radius"""
     if color is None:
         color = [0, 0, 0]
@@ -96,21 +108,30 @@ class Emitter:
 
     def __init__(self, alias: str, coordinates_absolute: np.ndarray):
         self.alias: str = alias
-        self.coordinates_absolute: np.ndarray = utils.sanitise_coordinates(coordinates_absolute)
+        self.coordinates_absolute: np.ndarray = utils.sanitise_coordinates(
+            coordinates_absolute
+        )
         # These dictionaries map from {alias: position} for all other emitter and microphone array objects
-        self.coordinates_relative_cartesian: Optional[OrderedDict[str, np.ndarray]] = OrderedDict()
-        self.coordinates_relative_polar: Optional[OrderedDict[str, np.ndarray]] = OrderedDict()
+        self.coordinates_relative_cartesian: Optional[OrderedDict[str, np.ndarray]] = (
+            OrderedDict()
+        )
+        self.coordinates_relative_polar: Optional[OrderedDict[str, np.ndarray]] = (
+            OrderedDict()
+        )
 
     # noinspection PyUnresolvedReferences
-    def update_coordinates(self, coordinates: OrderedDict[str, Union[Type['MicArray'], list[Type['Emitter']]]]):
+    def update_coordinates(
+        self,
+        coordinates: OrderedDict[str, Union[Type["MicArray"], list[Type["Emitter"]]]],
+    ):
         """
         Updates coordinates of this emitter WRT a dictionary in the format {alias: MicArray | list[Emitter]}
         """
         for alias, obj in coordinates.items():
             # Add zero-arrays if the object is the current Emitter
             if alias == self.alias:
-                self.coordinates_relative_cartesian[alias] = np.array([0., 0., 0.])
-                self.coordinates_relative_polar[alias] = np.array([0., 0., 0.])
+                self.coordinates_relative_cartesian[alias] = np.array([0.0, 0.0, 0.0])
+                self.coordinates_relative_polar[alias] = np.array([0.0, 0.0, 0.0])
 
             else:
                 # Grab the coordinates from the object: these should all be in Cartesian, XYZ format
@@ -124,7 +145,9 @@ class Emitter:
                     coords = np.vstack([em.coordinates_absolute for em in obj])
 
                 else:
-                    raise TypeError("Cannot handle input with type {}".format(type(obj)))
+                    raise TypeError(
+                        "Cannot handle input with type {}".format(type(obj))
+                    )
 
                 # Express the position of the CURRENT emitter WRT the object we're considering
                 pos = self.coordinates_absolute - coords
@@ -141,7 +164,9 @@ class Emitter:
         """
         Returns a string representation of the Emitter
         """
-        return f"Emitter '{self.alias}' with absolute position {self.coordinates_absolute}"
+        return (
+            f"Emitter '{self.alias}' with absolute position {self.coordinates_absolute}"
+        )
 
     def __eq__(self, other: Any):
         """
@@ -161,10 +186,11 @@ class Emitter:
 
         # Compute the deepdiff between both dictionaries
         diff = DeepDiff(
-            d1, d2,
+            d1,
+            d2,
             ignore_order=True,
             significant_digits=4,
-            ignore_numeric_type_changes=True
+            ignore_numeric_type_changes=True,
         )
 
         # If there is no difference, there should be no keys in the deepdiff object
@@ -177,6 +203,7 @@ class Emitter:
         Returns:
             dict
         """
+
         def coerce(inp: Any) -> Any:
             """Coerce dtypes for JSON serialisation"""
             if isinstance(inp, dict):
@@ -216,7 +243,12 @@ class Emitter:
                 return inp
 
         # Sanity check the keys are correct
-        for k in ["alias", "coordinates_absolute", "coordinates_relative_cartesian", "coordinates_relative_polar"]:
+        for k in [
+            "alias",
+            "coordinates_absolute",
+            "coordinates_relative_cartesian",
+            "coordinates_relative_polar",
+        ]:
             if k not in copied_dict:
                 raise KeyError(f"Missing key '{k}'")
 
@@ -224,11 +256,22 @@ class Emitter:
             copied_dict[k] = unserialise(copied_dict[k])
 
         # Instantiate the class with the correct alias and absolute coordinates
-        instantiated = cls(alias=copied_dict["alias"], coordinates_absolute=copied_dict["coordinates_absolute"])
+        instantiated = cls(
+            alias=copied_dict["alias"],
+            coordinates_absolute=copied_dict["coordinates_absolute"],
+        )
 
         # Set the relative coordinates correctly
-        setattr(instantiated, "coordinates_relative_cartesian", copied_dict["coordinates_relative_cartesian"])
-        setattr(instantiated, "coordinates_relative_polar", copied_dict["coordinates_relative_polar"])
+        setattr(
+            instantiated,
+            "coordinates_relative_cartesian",
+            copied_dict["coordinates_relative_cartesian"],
+        )
+        setattr(
+            instantiated,
+            "coordinates_relative_polar",
+            copied_dict["coordinates_relative_polar"],
+        )
 
         return instantiated
 
@@ -246,15 +289,16 @@ class WorldState:
         emitters (np.array): relative positions of sound emitter
 
     """
+
     def __init__(
-            self,
-            mesh: Union[str, Path],
-            empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
-            empty_space_around_emitter: Optional[float] = EMPTY_SPACE_AROUND_EMITTER,
-            empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
-            empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
-            repair_threshold: Optional[float] = None,
-            rlr_kwargs: Optional[dict] = None,
+        self,
+        mesh: Union[str, Path],
+        empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
+        empty_space_around_emitter: Optional[float] = EMPTY_SPACE_AROUND_EMITTER,
+        empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
+        empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
+        repair_threshold: Optional[float] = None,
+        rlr_kwargs: Optional[dict] = None,
     ):
         """
         Initializes the WorldState with a mesh and sets up the audio context.
@@ -273,7 +317,7 @@ class WorldState:
         # Store emitter and mic positions in here to access later; these should be in ABSOLUTE form
         self.emitters = OrderedDict()
         self.microphones = OrderedDict()
-        self._irs = None    # will be updated when calling `simulate`
+        self._irs = None  # will be updated when calling `simulate`
 
         # Distances from objects/mesh surfaces
         self.empty_space_around_mic = empty_space_around_mic
@@ -288,7 +332,9 @@ class WorldState:
         self.repair_threshold = repair_threshold
         if self.repair_threshold is not None and not self.mesh.is_watertight:
             # Get the idxs of faces in the mesh that break the watertight status
-            broken_faces = get_broken_faces(self.mesh)    # this uses copies so nothing will be set in-place
+            broken_faces = get_broken_faces(
+                self.mesh
+            )  # this uses copies so nothing will be set in-place
             # If the proportion of broken faces is below the desired threshold, do the repair in-place
             if len(broken_faces) / self.mesh.faces.shape[0] < repair_threshold:
                 repair_mesh(self.mesh)
@@ -305,7 +351,9 @@ class WorldState:
         # Update the ray-tracing listeners
         self.ctx.clear_listeners()
         if len(self.microphones) > 0:
-            all_caps = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
+            all_caps = np.vstack(
+                [m.coordinates_absolute for m in self.microphones.values()]
+            )
             for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
                 # Add a single listener for each individual capsule
                 self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
@@ -325,7 +373,10 @@ class WorldState:
                     # Add the emitter to the ray-tracing engine
                     self.ctx.add_source()
                     pos = emitter.coordinates_absolute
-                    self.ctx.set_source_position(emitter_counter, pos.tolist() if isinstance(pos, np.ndarray) else pos)
+                    self.ctx.set_source_position(
+                        emitter_counter,
+                        pos.tolist() if isinstance(pos, np.ndarray) else pos,
+                    )
                     # Update the counter used in the ray-tracing engine by one
                     emitter_counter += 1
 
@@ -352,11 +403,15 @@ class WorldState:
         Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         """
         if self._irs is None:
-            raise AttributeError("IRs have not been simulated yet: add microphones and emitters and call `simulate`.")
+            raise AttributeError(
+                "IRs have not been simulated yet: add microphones and emitters and call `simulate`."
+            )
         else:
             return self._irs
 
-    def calculate_weighted_average_ray_length(self, point: np.ndarray, num_rays: int = 100) -> float:
+    def calculate_weighted_average_ray_length(
+        self, point: np.ndarray, num_rays: int = 100
+    ) -> float:
         """
         Calculate the weighted average length of rays cast from a point into a mesh.
         """
@@ -365,11 +420,13 @@ class WorldState:
         # Generate random elevation angles for each ray
         elevations = np.random.uniform(-np.pi / 2, np.pi / 2, num_rays)
         # Convert spherical coordinates (angles, elevations) to  Cartesian 3D direction vectors
-        directions = np.column_stack([
-            np.cos(elevations) * np.cos(angles),  # X component
-            np.cos(elevations) * np.sin(angles),  # Y component
-            np.sin(elevations)  # Z component
-        ])
+        directions = np.column_stack(
+            [
+                np.cos(elevations) * np.cos(angles),  # X component
+                np.cos(elevations) * np.sin(angles),  # Y component
+                np.sin(elevations),  # Z component
+            ]
+        )
         # Repeat the origin point for each ray so rays start from the same position
         origins = np.tile(point, (num_rays, 1))
         # Cast rays from the origin in the computed directions and find the longest intersection distances with the mesh
@@ -377,10 +434,12 @@ class WorldState:
         # We can get `inf` values here, likely due to holes in the mesh causing a ray never to intersect
         if any(np.isinf(distances)):
             # For simplicity, we can just remove these here but raise a warning
-            logger.warning(f"Some rays cast from point {point} have infinite distances: is the mesh watertight?")
+            logger.warning(
+                f"Some rays cast from point {point} have infinite distances: is the mesh watertight?"
+            )
             distances = distances[distances != np.inf]
         # Compute weights by squaring the distances to give more importance to longer rays
-        weights = distances ** 2
+        weights = distances**2
         # Calculate weighted average of the distances using the computed weights
         weighted_average = np.sum(distances * weights) / np.sum(weights)
         # Return the weighted average ray length
@@ -395,7 +454,9 @@ class WorldState:
         self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
         self.ctx.finalize_object_mesh(0)
 
-    def _try_add_microphone(self, mic_cls, position: Union[list, None], alias: str) -> bool:
+    def _try_add_microphone(
+        self, mic_cls, position: Union[list, None], alias: str
+    ) -> bool:
         """
         Try to place a microphone of type mic_cls at position with given alias. Return True if successful.
         """
@@ -420,11 +481,11 @@ class WorldState:
 
     @utils.update_state
     def add_microphone(
-            self,
-            microphone_type: Union[str, Type['MicArray'], None] = None,
-            position: Union[list, np.ndarray, None] = None,
-            alias: str = None,
-            keep_existing: bool = True,
+        self,
+        microphone_type: Union[str, Type["MicArray"], None] = None,
+        position: Union[list, np.ndarray, None] = None,
+        alias: str = None,
+        keep_existing: bool = True,
     ) -> None:
         """
         Add a microphone to the space.
@@ -460,7 +521,9 @@ class WorldState:
         sanitized_microphone = sanitize_microphone_input(microphone_type)
 
         # Get the microphone alias
-        alias = utils.get_default_alias("mic", self.microphones) if alias is None else alias
+        alias = (
+            utils.get_default_alias("mic", self.microphones) if alias is None else alias
+        )
 
         # Try and place the microphone inside the space
         placed = self._try_add_microphone(sanitized_microphone, position, alias)
@@ -469,22 +532,25 @@ class WorldState:
         if not placed:
             # If we were trying to add it to a random position
             if position is None:
-                raise ValueError(f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                                 f"Consider reducing `empty_space_around` arguments.")
+                raise ValueError(
+                    f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Consider reducing `empty_space_around` arguments."
+                )
             # If we were trying to add it to a specific position
             else:
-                raise ValueError(f"Position {position} invalid for microphone {sanitized_microphone.name}. "
-                                f"Consider reducing `empty_space_around` arguments.")
-
+                raise ValueError(
+                    f"Position {position} invalid for microphone {sanitized_microphone.name}. "
+                    f"Consider reducing `empty_space_around` arguments."
+                )
 
     @utils.update_state
     def add_microphones(
-            self,
-            microphone_types: list[Union[str, Type['MicArray'], None]] = None,
-            positions: list[Union[list, np.ndarray, None]] = None,
-            aliases: list[str] = None,
-            keep_existing: bool = True,
-            raise_on_error: bool = True,
+        self,
+        microphone_types: list[Union[str, Type["MicArray"], None]] = None,
+        positions: list[Union[list, np.ndarray, None]] = None,
+        aliases: list[str] = None,
+        keep_existing: bool = True,
+        raise_on_error: bool = True,
     ) -> None:
         """
         Add multiple microphones to the mesh.
@@ -527,7 +593,9 @@ class WorldState:
             if len(set(aliases)) != len(aliases):
                 raise ValueError("Only unique aliases can be passed")
 
-        all_not_none = [l for l in [microphone_types, positions, aliases] if l is not None]
+        all_not_none = [
+            l_ for l_ in [microphone_types, positions, aliases] if l_ is not None
+        ]
         # Handle cases where we haven't provided an equal number of mic types, positions, and aliases
         if not utils.check_all_lens_equal(*all_not_none):
             raise ValueError("Expected all inputs to have equal length")
@@ -536,7 +604,9 @@ class WorldState:
         max_idx = max([len(a) for a in all_not_none]) if len(all_not_none) > 0 else 0
         # Iterate over all the microphones we want to place
         for idx in range(max_idx):
-            microphone_type_ = microphone_types[idx] if microphone_types is not None else None
+            microphone_type_ = (
+                microphone_types[idx] if microphone_types is not None else None
+            )
             position_ = positions[idx] if positions is not None else None
             alias_ = aliases[idx] if aliases is not None else None
 
@@ -544,7 +614,11 @@ class WorldState:
             sanitized_microphone = sanitize_microphone_input(microphone_type_)
 
             # Get the microphone alias
-            alias_ = utils.get_default_alias("mic", self.microphones) if alias_ is None else alias_
+            alias_ = (
+                utils.get_default_alias("mic", self.microphones)
+                if alias_ is None
+                else alias_
+            )
 
             # Try and place the microphone inside the space
             placed = self._try_add_microphone(sanitized_microphone, position_, alias_)
@@ -553,12 +627,16 @@ class WorldState:
             if not placed:
                 # If we were trying to add it to a random position
                 if position_ is None:
-                    msg = (f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                           f"Consider reducing `empty_space_around` arguments.")
+                    msg = (
+                        f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Consider reducing `empty_space_around` arguments."
+                    )
                 # If we were trying to add it to a specific position
                 else:
-                    msg = (f"Position {position_} invalid for microphone {sanitized_microphone.name}. "
-                           f"Consider reducing `empty_space_around` arguments.")
+                    msg = (
+                        f"Position {position_} invalid for microphone {sanitized_microphone.name}. "
+                        f"Consider reducing `empty_space_around` arguments."
+                    )
 
                 # Raise the error if required or just log a warning and skip to the next microphone
                 if raise_on_error:
@@ -568,23 +646,23 @@ class WorldState:
 
     @utils.update_state
     def add_microphone_and_emitter(
-            self,
-            position: Optional[Union[np.ndarray, float]] = None,
-            polar: Optional[bool] = True,
-            microphone_type: Optional[Union[str, Type['MicArray']]] = None,
-            mic_alias: Optional[str] = None,
-            emitter_alias: Optional[str] = None,
-            keep_existing_mics: Optional[bool] = True,
-            keep_existing_emitters: Optional[bool] = True,
-            ensure_direct_path: Optional[bool] = True,
-            max_place_attempts: Optional[int] = utils.MAX_PLACE_ATTEMPTS
+        self,
+        position: Optional[Union[np.ndarray, float]] = None,
+        polar: Optional[bool] = True,
+        microphone_type: Optional[Union[str, Type["MicArray"]]] = None,
+        mic_alias: Optional[str] = None,
+        emitter_alias: Optional[str] = None,
+        keep_existing_mics: Optional[bool] = True,
+        keep_existing_emitters: Optional[bool] = True,
+        ensure_direct_path: Optional[bool] = True,
+        max_place_attempts: Optional[int] = utils.MAX_PLACE_ATTEMPTS,
     ) -> None:
         """
         Add both a microphone and emitter with specified relationship.
 
         The microphone will be placed in a random, valid position. The emitter will then be placed relative to the
         microphone, either in Cartesian or spherical coordinates.
-        
+
         Args:
             position (np.ndarray): Array of form [X, Y, Z]
             polar: whether the coordinates are provided in spherical form. If True:
@@ -598,7 +676,7 @@ class WorldState:
             keep_existing_emitters: Whether to keep existing emitters, defaults to True
             ensure_direct_path: Whether to ensure line-of-sight between mic and emitter
             max_place_attempts: The number of times to try placing the microphone and emitter
-            
+
         Raises:
             ValueError: If unable to place microphone and emitter within the mesh
 
@@ -608,10 +686,10 @@ class WorldState:
 
             # Place emitter 2 meters in front of microphone
             >>> spa.add_microphone_and_emitter(np.array([0, 0, 2.0]))
-            
+
             # Place emitter 1.5 meters to the left and slightly above
             >>> spa.add_microphone_and_emitter(np.array([90, 30, 1.5]), mic_alias="main_mic", emitter_alias="left_source")
-            
+
             # Place emitter behind and below
             >>> spa.add_microphone_and_emitter(np.array([180, -45, 1.0]))
         """
@@ -625,46 +703,57 @@ class WorldState:
             self.clear_microphones()
         if not keep_existing_emitters:
             self.clear_emitters()
-        
+
         # Get aliases
-        mic_alias = utils.get_default_alias("mic", self.microphones) if mic_alias is None else mic_alias
-        emitter_alias = utils.get_default_alias("src", self.emitters) if emitter_alias is None else emitter_alias
-        
+        mic_alias = (
+            utils.get_default_alias("mic", self.microphones)
+            if mic_alias is None
+            else mic_alias
+        )
+        emitter_alias = (
+            utils.get_default_alias("src", self.emitters)
+            if emitter_alias is None
+            else emitter_alias
+        )
+
         # Convert spherical coordinates to Cartesian offset if required
         if polar:
-            emitter_offset = utils.polar_to_cartesian(emitter_offset)[0]    # returns a 2D array, we just want 1D
+            emitter_offset = utils.polar_to_cartesian(emitter_offset)[
+                0
+            ]  # returns a 2D array, we just want 1D
 
         # Attempt to find valid positions for both microphone and emitter
         for attempt in range(max_place_attempts):
             # Get a random position for the microphone
             mic_pos = self.get_random_position()
-            
+
             # Calculate emitter position based on spherical coordinates
             emitter_pos = mic_pos + emitter_offset
-            
+
             # Create temporary microphone to test position validity
             temp_mic = sanitized_microphone()
             temp_mic.set_absolute_coordinates(mic_pos)
-            
+
             # Validate both positions
-            mic_valid = all(self._validate_position(caps) for caps in temp_mic.coordinates_absolute)
+            mic_valid = all(
+                self._validate_position(caps) for caps in temp_mic.coordinates_absolute
+            )
             emitter_valid = self._validate_position(emitter_pos)
 
             # Check direct path if required
             direct_path_ok = True
             if ensure_direct_path:
-                direct_path_ok = self.path_exists_between_points(temp_mic.coordinates_center, emitter_pos)
-            
+                direct_path_ok = self.path_exists_between_points(
+                    temp_mic.coordinates_center, emitter_pos
+                )
+
             # If all conditions are met, place both objects
             if mic_valid and emitter_valid and direct_path_ok:
                 # Add microphone
                 self.microphones[mic_alias] = temp_mic
-                
+
                 # Add emitter
-                emitter = Emitter(
-                    alias=emitter_alias,
-                    coordinates_absolute=emitter_pos
-                )
+                emitter = Emitter(alias=emitter_alias, coordinates_absolute=emitter_pos)
 
                 # If we already have emitters under this alias, add to the list, otherwise create a new entry
                 #  This is so we can have multiple emitters under one alias in the case of moving sound sources
@@ -672,16 +761,18 @@ class WorldState:
                     self.emitters[emitter_alias].append(emitter)
                 else:
                     self.emitters[emitter_alias] = [emitter]
-                
-                logger.info(f"Successfully placed microphone and emitter after {attempt + 1} attempts")
+
+                logger.info(
+                    f"Successfully placed microphone and emitter after {attempt + 1} attempts"
+                )
                 logger.info(f"Microphone '{mic_alias}' at: {mic_pos}")
                 logger.info(f"Emitter '{emitter_alias}' at: {emitter_pos}")
                 return
-            
+
             # Log progress every 100 attempts
             if (attempt + 1) % 100 == 0:
                 logger.info(f"Placement attempt {attempt + 1}/{max_place_attempts}")
-        
+
         # If we reach here, we couldn't place the objects
         raise ValueError(
             f"Could not place microphone and emitter with specified relationship "
@@ -711,8 +802,10 @@ class WorldState:
                 mic_pos = self.get_random_point_inside_mesh()
         # If we haven't found an acceptable position, log this and use the most recent one.
         else:
-            logger.error(f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                         f"Using the last attempted position, which is {mic_pos}.")
+            logger.error(
+                f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Using the last attempted position, which is {mic_pos}."
+            )
         return mic_pos
 
     def get_random_point_inside_mesh(self) -> np.ndarray:
@@ -755,7 +848,10 @@ class WorldState:
             # Check minimum distance from all emitters
             for emitter_list in self.emitters.values():
                 for emitter in emitter_list:
-                    if np.linalg.norm(position - emitter.coordinates_absolute) < self.empty_space_around_emitter:
+                    if (
+                        np.linalg.norm(position - emitter.coordinates_absolute)
+                        < self.empty_space_around_emitter
+                    ):
                         return False
 
             # Check minimum distance from the center of every microphone and from every individual capsule
@@ -763,15 +859,20 @@ class WorldState:
                 for attr, thresh in zip(
                     # check mic centers first, check mic capsules second
                     ["coordinates_center", "coordinates_absolute"],
-                    [self.empty_space_around_mic, self.empty_space_around_capsule]
+                    [self.empty_space_around_mic, self.empty_space_around_capsule],
                 ):
-                    coordinates = np.vstack([getattr(mic, attr) for mic in self.microphones.values()])
+                    coordinates = np.vstack(
+                        [getattr(mic, attr) for mic in self.microphones.values()]
+                    )
                     distances = np.linalg.norm(position - coordinates, axis=1)
                     if np.any(distances < thresh):
                         return False
 
             # Check minimum distance from mesh surface
-            if self.mesh.nearest.on_surface([position])[1][0] < self.empty_space_around_surface:
+            if (
+                self.mesh.nearest.on_surface([position])[1][0]
+                < self.empty_space_around_surface
+            ):
                 return False
 
             # Check if the position is inside the mesh
@@ -781,12 +882,12 @@ class WorldState:
         return True
 
     def _try_add_emitter(
-            self,
-            position: Optional[list],
-            relative_mic: Optional[Type['MicArray']],
-            alias: str,
-            polar: bool,
-            path_between: list[str]
+        self,
+        position: Optional[list],
+        relative_mic: Optional[Type["MicArray"]],
+        alias: str,
+        polar: bool,
+        path_between: list[str],
     ) -> bool:
         """
         Attempt to add a emitter at the given position with the specified alias.
@@ -804,7 +905,9 @@ class WorldState:
             # Convert to Cartesian if position is in polar coordinates
             if polar:
                 if not relative_mic or not position_is_assigned:
-                    raise ValueError("Polar coordinates require a relative mic and a fixed position")
+                    raise ValueError(
+                        "Polar coordinates require a relative mic and a fixed position"
+                    )
                 pos = utils.polar_to_cartesian(pos)[0]
             # Adjust position relative to the mic array if provided
             if relative_mic:
@@ -813,14 +916,16 @@ class WorldState:
             if not self._validate_position(pos):
                 continue
             # If line-of-sight not obtained with required microphones, skip over
-            if not all(self.path_exists_between_points(pos, self.microphones[d].coordinates_center) for d in path_between):
+            if not all(
+                self.path_exists_between_points(
+                    pos, self.microphones[d].coordinates_center
+                )
+                for d in path_between
+            ):
                 continue
             # Successfully placed: add to the emitter dictionary and return True
             #  We will update the `coordinates_relative` objects in the `update_state` decorator
-            emitter = Emitter(
-                alias=alias,
-                coordinates_absolute=np.asarray(pos)
-            )
+            emitter = Emitter(alias=alias, coordinates_absolute=np.asarray(pos))
             # Add the emitter to the list created for this alias, or create the list if it doesn't exist
             # TODO: we create a list of emitters for both static and moving sound sources
             #  when moving, len(emitters) > 1, when static, len(emitters) == 1
@@ -832,7 +937,9 @@ class WorldState:
         # Cannot place: return False
         return False
 
-    def _get_mic_from_alias(self, mic_alias: Optional[str]) -> Optional[Type['MicArray']]:
+    def _get_mic_from_alias(
+        self, mic_alias: Optional[str]
+    ) -> Optional[Type["MicArray"]]:
         """Get a given `MicArray` object from its alias"""
         if mic_alias is not None:
             if mic_alias not in self.microphones:
@@ -841,7 +948,9 @@ class WorldState:
         else:
             return None
 
-    def path_exists_between_points(self, point_a: np.ndarray, point_b: np.ndarray) -> bool:
+    def path_exists_between_points(
+        self, point_a: np.ndarray, point_b: np.ndarray
+    ) -> bool:
         """
         Returns True if a direct point exists between point_a and point_b in the mesh, False otherwise.
         """
@@ -849,7 +958,9 @@ class WorldState:
         point_a = np.asarray(point_a)
         point_b = np.asarray(point_b)
         for point in [point_a, point_b]:
-            assert point.shape == (3, ), f"Expected an array with shape (3, ) but got {point.shape}"
+            assert point.shape == (
+                3,
+            ), f"Expected an array with shape (3, ) but got {point.shape}"
             # If a point is not inside the mesh, we shouldn't expect a direct path
             if not self._is_point_inside_mesh(point):
                 return False
@@ -860,7 +971,7 @@ class WorldState:
         # Cast ray from A towards B and get intersections (locations and indices)
         locations, index_ray, index_tri = self.mesh.ray.intersects_location(
             ray_origins=utils.coerce2d(point_a),  # trimesh expecting 2D arrays?
-            ray_directions=utils.coerce2d(direction_unit)
+            ray_directions=utils.coerce2d(direction_unit),
         )
         # Check if any intersection is closer than B
         if len(locations) > 0:
@@ -873,8 +984,7 @@ class WorldState:
         return True
 
     def _parse_valid_microphone_aliases(
-            self,
-            aliases: Union[bool, list, str, None]
+        self, aliases: Union[bool, list, str, None]
     ) -> list[str]:
         """
         Get valid microphone aliases from an input
@@ -892,7 +1002,9 @@ class WorldState:
             # Sanity check that all the provided aliases exist in our dictionary
             not_in = [e for e in aliases if e not in self.microphones.keys()]
             if len(not_in) > 0:
-                raise KeyError(f"Some provided microphone aliases were not found: {', '.join(not_in)}")
+                raise KeyError(
+                    f"Some provided microphone aliases were not found: {', '.join(not_in)}"
+                )
             # Remove duplicates from the list
             return list(set(aliases))
         # If False or None, return an empty list (which we'll skip over later)
@@ -904,13 +1016,13 @@ class WorldState:
 
     @utils.update_state
     def add_emitter(
-            self,
-            position: Optional[Union[list, np.ndarray]] = None,
-            alias: Optional[str] = None,
-            mic: Optional[str] = None,
-            keep_existing: Optional[bool] = False,
-            polar: Optional[bool] = False,
-            ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        self,
+        position: Optional[Union[list, np.ndarray]] = None,
+        alias: Optional[str] = None,
+        mic: Optional[str] = None,
+        keep_existing: Optional[bool] = False,
+        polar: Optional[bool] = False,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> None:
         """
         Add a emitter to the state.
@@ -968,35 +1080,43 @@ class WorldState:
         desired_mic = self._get_mic_from_alias(mic)
 
         # Get the alias for this emitter
-        alias = utils.get_default_alias("src", self.emitters) if alias is None else alias
+        alias = (
+            utils.get_default_alias("src", self.emitters) if alias is None else alias
+        )
 
         # Try and place inside the mesh: return True if placed, False if not
-        placed = self._try_add_emitter(position, desired_mic, alias, polar, direct_path_to)
+        placed = self._try_add_emitter(
+            position, desired_mic, alias, polar, direct_path_to
+        )
 
         # If we can't add the emitter to the mesh
         if not placed:
             # If we were trying to add it to a random position
             if position is None:
-                raise ValueError(f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                                 f"If this is happening frequently, consider reducing the number of `emitters`, "
-                                 f"or the `empty_space_around` arguments.")
+                raise ValueError(
+                    f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"If this is happening frequently, consider reducing the number of `emitters`, "
+                    f"or the `empty_space_around` arguments."
+                )
             # If we were trying to add it to a specific position
             else:
-                raise ValueError(f"Position {position} invalid when placing emitter inside the mesh! "
-                                 f"If this is happening frequently, consider reducing the number of `emitters`, "
-                                 f"or the `empty_space_around` arguments.")
+                raise ValueError(
+                    f"Position {position} invalid when placing emitter inside the mesh! "
+                    f"If this is happening frequently, consider reducing the number of `emitters`, "
+                    f"or the `empty_space_around` arguments."
+                )
 
     @utils.update_state
     def add_emitters(
-            self,
-            positions: Union[list, np.ndarray, None] = None,
-            aliases: list[str] = None,
-            mics: Union[list[str], str] = None,
-            n_emitters: Optional[int] = None,
-            keep_existing: bool = False,
-            polar: bool = True,
-            ensure_direct_path: Union[bool, list, str, None] = False,
-            raise_on_error: bool = True,
+        self,
+        positions: Union[list, np.ndarray, None] = None,
+        aliases: list[str] = None,
+        mics: Union[list[str], str] = None,
+        n_emitters: Optional[int] = None,
+        keep_existing: bool = False,
+        polar: bool = True,
+        ensure_direct_path: Union[bool, list, str, None] = False,
+        raise_on_error: bool = True,
     ) -> None:
         """
         Add emitters to the mesh.
@@ -1042,8 +1162,11 @@ class WorldState:
             if len(set(aliases)) != len(aliases):
                 raise ValueError("Only unique aliases can be passed")
 
-        all_not_none = [l for l in [positions, aliases, mics]
-                        if l is not None and isinstance(l, (list, np.ndarray))]
+        all_not_none = [
+            l_
+            for l_ in [positions, aliases, mics]
+            if l_ is not None and isinstance(l_, (list, np.ndarray))
+        ]
         # Handle cases where we haven't provided an equal number of positions and aliases
         if not utils.check_all_lens_equal(*all_not_none):
             raise ValueError("Expected all inputs to have equal length")
@@ -1064,21 +1187,31 @@ class WorldState:
             desired_mic = self._get_mic_from_alias(mic_alias_)
 
             # Get the emitter alias
-            emitter_alias_ = utils.get_default_alias("src", self.emitters) if emitter_alias_ is None else emitter_alias_
+            emitter_alias_ = (
+                utils.get_default_alias("src", self.emitters)
+                if emitter_alias_ is None
+                else emitter_alias_
+            )
 
             # Try and place the emitter inside the space
-            placed = self._try_add_emitter(position_, desired_mic, emitter_alias_, polar, direct_path_to)
+            placed = self._try_add_emitter(
+                position_, desired_mic, emitter_alias_, polar, direct_path_to
+            )
 
             # If we can't add the emitter to the mesh
             if not placed:
                 # If we were trying to add it to a random position
                 if position_ is None:
-                    msg = (f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                           f"Consider reducing `empty_space_around` arguments.")
+                    msg = (
+                        f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Consider reducing `empty_space_around` arguments."
+                    )
                 # If we were trying to add it to a specific position
                 else:
-                    msg = (f"Position {position_} invalid for emitter. "
-                           f"Consider reducing `empty_space_around` arguments.")
+                    msg = (
+                        f"Position {position_} invalid for emitter. "
+                        f"Consider reducing `empty_space_around` arguments."
+                    )
 
                 # Raise the error if required or just log a warning and skip to the next emitter
                 if raise_on_error:
@@ -1086,19 +1219,31 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
-
     def _simulation_sanity_check(self) -> None:
         """
         Check conditions required for simulation are met
         """
-        assert len(self.emitters) > 0, "Must have added valid emitters to the mesh before calling `.simulate`!"
-        assert len(self.microphones) > 0, "Must have added valid microphones to the mesh before calling `.simulate`!"
-        assert all(type(m) in MICARRAY_LIST for m in self.microphones.values()), "Non-microphone objects in microphone attribute"
-        assert self.ctx.get_listener_count() > 0, "Must have listeners added to the ray tracing engine"
-        assert self.ctx.get_source_count() > 0, "Must have emitters added to the ray tracing engine"
+        assert (
+            len(self.emitters) > 0
+        ), "Must have added valid emitters to the mesh before calling `.simulate`!"
+        assert (
+            len(self.microphones) > 0
+        ), "Must have added valid microphones to the mesh before calling `.simulate`!"
+        assert all(
+            type(m) in MICARRAY_LIST for m in self.microphones.values()
+        ), "Non-microphone objects in microphone attribute"
+        assert (
+            self.ctx.get_listener_count() > 0
+        ), "Must have listeners added to the ray tracing engine"
+        assert (
+            self.ctx.get_source_count() > 0
+        ), "Must have emitters added to the ray tracing engine"
         # Check we have the expected number of sources and listeners
         assert len(self.emitters) == self.ctx.get_source_count()
-        assert sum(m.n_capsules for m in self.microphones.values()) == self.ctx.get_listener_count()
+        assert (
+            sum(m.n_capsules for m in self.microphones.values())
+            == self.ctx.get_listener_count()
+        )
 
     def simulate(self) -> None:
         """
@@ -1114,11 +1259,15 @@ class WorldState:
         # Log the ray efficiency: outdoor would have a very low value, e.g. < 0.05.
         #  A closed indoor room would have >0.95, and a room with some holes might be in the 0.1-0.8 range.
         #  If the ray efficiency is low for an indoor environment, it indicates a lot of ray leak from holes.
-        logger.info(f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}")
+        logger.info(
+            f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}"
+        )
         if efficiency < WARN_WHEN_EFFICIENCY_BELOW:
-            logger.warning(f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
-                           f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
-                           f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh.")
+            logger.warning(
+                f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
+                f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
+                f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh."
+            )
         # Compute the IRs: this gives us shape (N_capsules, N_emitters, N_channels == 1, N_samples)
         irs = self.ctx.get_audio()
         # Format irs into a dictionary of {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
@@ -1147,7 +1296,9 @@ class WorldState:
             all_irs[mic_alias] = mic.irs
         return all_irs
 
-    def create_scene(self, mic_radius: float = 0.2, emitter_radius: float = 0.1) -> trimesh.Scene:
+    def create_scene(
+        self, mic_radius: float = 0.2, emitter_radius: float = 0.1
+    ) -> trimesh.Scene:
         """
         Creates a trimesh.Scene with the Space's mesh, microphone position, and emitters all added
 
@@ -1162,10 +1313,14 @@ class WorldState:
         # This adds the sound emitters, with different color + radius
         for emitter_list in self.emitters.values():
             for emitter in emitter_list:
-                add_sphere(scene, emitter.coordinates_absolute, [0, 255, 0], r=emitter_radius)
-        return scene    # can then run `.show()` on the returned object
+                add_sphere(
+                    scene, emitter.coordinates_absolute, [0, 255, 0], r=emitter_radius
+                )
+        return scene  # can then run `.show()` on the returned object
 
-    def create_plot(self, ) -> plt.Figure:
+    def create_plot(
+        self,
+    ) -> plt.Figure:
         """
         Creates a matplotlib.Figure object corresponding to top-down and side-views of the scene
 
@@ -1176,24 +1331,43 @@ class WorldState:
         fig, ax = plt.subplots(1, 2, figsize=(20, 10))
         vertices = self.mesh.vertices
         # Create a top-down view first, then a side view
-        mic_positions = np.vstack([m.coordinates_absolute for m in self.microphones.values()])
-        emitter_positions = np.vstack([x.coordinates_absolute for xs in self.emitters.values() for x in xs])
-        for ax_, idx, color, ylab, title in zip(ax.flatten(), [1, 2], ["red", "blue"], ["Y", "Z"], ["Top", "Side"]):
+        mic_positions = np.vstack(
+            [m.coordinates_absolute for m in self.microphones.values()]
+        )
+        emitter_positions = np.vstack(
+            [x.coordinates_absolute for xs in self.emitters.values() for x in xs]
+        )
+        for ax_, idx, color, ylab, title in zip(
+            ax.flatten(), [1, 2], ["red", "blue"], ["Y", "Z"], ["Top", "Side"]
+        ):
             # Scatter the vertices first
-            ax_.scatter(vertices[:, 0], vertices[:, idx], c='gray', alpha=0.1, s=1)
+            ax_.scatter(vertices[:, 0], vertices[:, idx], c="gray", alpha=0.1, s=1)
             # Then the microphone and emitter positions
-            ax_.scatter(mic_positions[:, 0], mic_positions[:, idx], c='red', s=100, label='Microphone')
-            ax_.scatter(emitter_positions[:, 0], emitter_positions[:, idx], c='blue', s=25, alpha=0.5, label='Emitters')
+            ax_.scatter(
+                mic_positions[:, 0],
+                mic_positions[:, idx],
+                c="red",
+                s=100,
+                label="Microphone",
+            )
+            ax_.scatter(
+                emitter_positions[:, 0],
+                emitter_positions[:, idx],
+                c="blue",
+                s=25,
+                alpha=0.5,
+                label="Emitters",
+            )
             # These are just plot aesthetics
-            ax_.set_xlabel('X')
+            ax_.set_xlabel("X")
             ax_.set_ylabel(ylab)
             ax_.set_title(f'{title} view of {self.mesh.metadata["fpath"]}')
             ax_.legend()
-            ax_.axis('equal')
+            ax_.axis("equal")
             ax_.grid(True)
         # Return the matplotlib figure object
         fig.tight_layout()
-        return fig    # can be used with plt.show, fig.savefig, etc.
+        return fig  # can be used with plt.show, fig.savefig, etc.
 
     def save_irs_to_wav(self, outdir: str) -> None:
         """
@@ -1206,7 +1380,7 @@ class WorldState:
         Args:
             outdir (str): IRs will be saved here.
         """
-        assert self._irs is not None, f"IRs have not been created yet!"
+        assert self._irs is not None, "IRs have not been created yet!"
         assert os.path.isdir(outdir), f"Output directory {outdir} does not exist!"
         # This iterates over [emitters, channels, samples]
         for mic_alias, mic in self.microphones.items():
@@ -1214,7 +1388,10 @@ class WorldState:
                 caps_idx = str(caps_idx).zfill(3)
                 for emitter_idx, emitter in enumerate(caps):
                     emitter_idx = str(emitter_idx).zfill(3)
-                    fname = os.path.join(outdir, f"{mic_alias}_capsule{caps_idx}_emitter{emitter_idx}.wav")
+                    fname = os.path.join(
+                        outdir,
+                        f"{mic_alias}_capsule{caps_idx}_emitter{emitter_idx}.wav",
+                    )
                     # Dump the audio to a 16-bit PCM wav using our predefined sample rate
                     utils.write_wav(emitter, fname, self.ctx.config.sample_rate)
 
@@ -1223,17 +1400,24 @@ class WorldState:
         Returns metadata for this object as a dictionary
         """
         return dict(
-            emitters={s_alias: [s_.to_dict() for s_ in s] for s_alias, s in self.emitters.items()},
-            microphones={m_alias: m.to_dict() for m_alias, m in self.microphones.items()},
+            emitters={
+                s_alias: [s_.to_dict() for s_ in s]
+                for s_alias, s in self.emitters.items()
+            },
+            microphones={
+                m_alias: m.to_dict() for m_alias, m in self.microphones.items()
+            },
             mesh=dict(
-                **self.mesh.metadata,    # this gets us the filepath, filename, and file extension of the mesh
+                **self.mesh.metadata,  # this gets us the filepath, filename, and file extension of the mesh
                 bounds=self.mesh.bounds.tolist(),
-                centroid=self.mesh.centroid.tolist()
+                centroid=self.mesh.centroid.tolist(),
             ),
             # Get all the keywords from the ray-tracing configuration
             rlr_config={
-                name: getattr(self.ctx.config, name) for name in dir(self.ctx.config)
-                if not name.startswith('__') and not callable(getattr(self.ctx.config, name))
+                name: getattr(self.ctx.config, name)
+                for name in dir(self.ctx.config)
+                if not name.startswith("__")
+                and not callable(getattr(self.ctx.config, name))
             },
             empty_space_around_mic=self.empty_space_around_mic,
             empty_space_around_emitter=self.empty_space_around_emitter,
@@ -1267,13 +1451,18 @@ class WorldState:
             empty_space_around_surface=input_dict["empty_space_around_surface"],
             empty_space_around_capsule=input_dict["empty_space_around_capsule"],
             repair_threshold=input_dict["repair_threshold"],
-            rlr_kwargs=input_dict["rlr_config"]
+            rlr_kwargs=input_dict["rlr_config"],
         )
 
         # Instantiate the microphones and emitters from their dictionaries
-        state.microphones = OrderedDict({a: MicArray.from_dict(v) for a, v in input_dict["microphones"].items()})
+        state.microphones = OrderedDict(
+            {a: MicArray.from_dict(v) for a, v in input_dict["microphones"].items()}
+        )
         state.emitters = OrderedDict(
-            {a: [Emitter.from_dict(v_) for v_ in v] for a, v in input_dict["emitters"].items()}
+            {
+                a: [Emitter.from_dict(v_) for v_ in v]
+                for a, v in input_dict["emitters"].items()
+            }
         )
 
         # Update the state so we add everything in to the ray-tracing engine
@@ -1291,8 +1480,10 @@ class WorldState:
         """
         Returns a string representation of the WorldState
         """
-        return (f"'WorldState' with mesh '{self.mesh.metadata['fpath']}' and "
-                f"{len(self)} objects ({len(self.microphones)} microphones, {len(self.emitters)} emitters)")
+        return (
+            f"'WorldState' with mesh '{self.mesh.metadata['fpath']}' and "
+            f"{len(self)} objects ({len(self.microphones)} microphones, {len(self.emitters)} emitters)"
+        )
 
     def __repr__(self) -> str:
         """
@@ -1324,10 +1515,11 @@ class WorldState:
 
         # Compute the deepdiff between both dictionaries
         diff = DeepDiff(
-            d1, d2,
+            d1,
+            d2,
             ignore_order=True,
             significant_digits=4,
-            ignore_numeric_type_changes=True
+            ignore_numeric_type_changes=True,
         )
 
         # If there is no difference, there should be no keys in the deepdiff object
@@ -1341,7 +1533,9 @@ class WorldState:
         try:
             return emitter_list[emitter_idx]
         except IndexError:
-            raise IndexError(f"Could not get idx {emitter_idx} for a list of Emitters with length {len(emitter_list)}")
+            raise IndexError(
+                f"Could not get idx {emitter_idx} for a list of Emitters with length {len(emitter_list)}"
+            )
 
     def get_emitters(self, alias: str) -> list[Emitter]:
         """
@@ -1352,7 +1546,7 @@ class WorldState:
         else:
             raise KeyError("Emitter alias '{}' not found.".format(alias))
 
-    def get_microphone(self, alias: str) -> Type['MicArray']:
+    def get_microphone(self, alias: str) -> Type["MicArray"]:
         """
         Given a valid alias, get an associated `Microphone` object, as in `self.microphones[alias]`.
         """

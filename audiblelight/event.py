@@ -4,15 +4,15 @@
 """Provides classes and functions for placing audio files within Space and Scene objects"""
 
 from pathlib import Path
-from typing import Union, Optional, Any
+from typing import Any, Optional, Union
 
 import librosa
 import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
 
-from audiblelight.worldstate import Emitter
 from audiblelight import utils
+from audiblelight.worldstate import Emitter
 
 # Mapping from sound events to labels used in DCASE challenge
 DCASE_SOUND_EVENT_CLASSES = {
@@ -34,8 +34,7 @@ _DCASE_SOUND_EVENT_CLASSES_INV = {v: k for v, k in DCASE_SOUND_EVENT_CLASSES.ite
 
 
 def _infer_dcase_class_id_labels(
-    class_id: Optional[int],
-    class_label: Optional[str]
+    class_id: Optional[int], class_label: Optional[str]
 ) -> tuple[Optional[int], Optional[str]]:
     """
     Infers missing DCASE class ID or label if only one is provided.
@@ -59,19 +58,19 @@ class Event:
     """
 
     def __init__(
-            self,
-            filepath: Union[str, Path],
-            alias: str,
-            emitters: Union[list[Emitter], Emitter, list[dict]],
-            scene_start: Optional[float] = None,
-            event_start: Optional[float] = None,
-            duration: Optional[float] = None,
-            snr: Optional[float] = None,
-            sample_rate: Optional[int] = utils.SAMPLE_RATE,
-            class_id: Optional[int] = None,
-            class_label: Optional[str] = None,
-            spatial_resolution: Optional[Union[int, float]] = None,
-            spatial_velocity: Optional[Union[int, float]] = None,
+        self,
+        filepath: Union[str, Path],
+        alias: str,
+        emitters: Union[list[Emitter], Emitter, list[dict]],
+        scene_start: Optional[float] = None,
+        event_start: Optional[float] = None,
+        duration: Optional[float] = None,
+        snr: Optional[float] = None,
+        sample_rate: Optional[int] = utils.SAMPLE_RATE,
+        class_id: Optional[int] = None,
+        class_label: Optional[str] = None,
+        spatial_resolution: Optional[Union[int, float]] = None,
+        spatial_velocity: Optional[Union[int, float]] = None,
     ):
         """
         Initializes the Event object, representing a single audio event taking place inside a Scene.
@@ -94,8 +93,10 @@ class Event:
                 If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
         """
         # Setting attributes for audio
-        self.filepath = utils.sanitise_filepath(filepath)    # will raise an error if not found on disk, coerces to Path
-        self.audio = None    # will be loaded when calling `load_audio` for the first time
+        self.filepath = utils.sanitise_filepath(
+            filepath
+        )  # will raise an error if not found on disk, coerces to Path
+        self.audio = None  # will be loaded when calling `load_audio` for the first time
         self.snr = snr
         self.sample_rate = utils.sanitise_positive_number(sample_rate)
         self.alias = alias
@@ -110,14 +111,22 @@ class Event:
         # Metadata attributes
         self.filename = self.filepath.name
         #  Attempt to infer class ID and labels in cases where only one is provided
-        self.class_id, self.class_label = _infer_dcase_class_id_labels(class_id, class_label)
+        self.class_id, self.class_label = _infer_dcase_class_id_labels(
+            class_id, class_label
+        )
 
         # Get the full duration of the audio file
-        self.audio_full_duration = utils.sanitise_positive_number(librosa.get_duration(path=self.filepath))
+        self.audio_full_duration = utils.sanitise_positive_number(
+            librosa.get_duration(path=self.filepath)
+        )
         # Event start is the offset from the start of the audio file
         self.event_start = self._parse_audio_start(event_start)
         # Scene start is the time the event starts in the scene
-        self.scene_start = utils.sanitise_positive_number(scene_start) if scene_start is not None else 0.
+        self.scene_start = (
+            utils.sanitise_positive_number(scene_start)
+            if scene_start is not None
+            else 0.0
+        )
         # Safely parse the duration of the audio file with an optional override
         self.duration = self._parse_duration(duration)
 
@@ -132,17 +141,27 @@ class Event:
         # We presume that the list of emitter objects is "sorted"
         #  i.e., that the first emitter corresponds to the start position and the last to the end
         self.start_coordinates_absolute = self.emitters[0].coordinates_absolute
-        self.start_coordinates_relative_cartesian = self.emitters[0].coordinates_relative_cartesian
-        self.start_coordinates_relative_polar = self.emitters[0].coordinates_relative_polar
+        self.start_coordinates_relative_cartesian = self.emitters[
+            0
+        ].coordinates_relative_cartesian
+        self.start_coordinates_relative_polar = self.emitters[
+            0
+        ].coordinates_relative_polar
 
         # Set the ending coordinates: if the object is not moving, these are the same as the starting coordinates.
         if self.is_moving:
             self.end_coordinates_absolute = self.emitters[-1].coordinates_absolute
-            self.end_coordinates_relative_cartesian = self.emitters[-1].coordinates_relative_cartesian
-            self.end_coordinates_relative_polar = self.emitters[-1].coordinates_relative_polar
+            self.end_coordinates_relative_cartesian = self.emitters[
+                -1
+            ].coordinates_relative_cartesian
+            self.end_coordinates_relative_polar = self.emitters[
+                -1
+            ].coordinates_relative_polar
         else:
             self.end_coordinates_absolute = self.start_coordinates_absolute
-            self.end_coordinates_relative_cartesian = self.start_coordinates_relative_cartesian
+            self.end_coordinates_relative_cartesian = (
+                self.start_coordinates_relative_cartesian
+            )
             self.end_coordinates_relative_polar = self.start_coordinates_relative_polar
 
     def __str__(self) -> str:
@@ -176,11 +195,12 @@ class Event:
 
         # Compute the deepdiff between both dictionaries
         diff = DeepDiff(
-            d1, d2,
+            d1,
+            d2,
             ignore_order=True,
             significant_digits=4,
             exclude_paths="emitters",
-            ignore_numeric_type_changes=True
+            ignore_numeric_type_changes=True,
         )
 
         # If there is no difference, there should be no keys in the deepdiff object
@@ -194,7 +214,9 @@ class Event:
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
     @staticmethod
-    def _parse_emitters(emitters: Union[Emitter, list[Emitter], list[dict]]) -> list[Emitter]:
+    def _parse_emitters(
+        emitters: Union[Emitter, list[Emitter], list[dict]]
+    ) -> list[Emitter]:
         """
         Safely handle coercing objects to a list of `Emitter`s
         """
@@ -212,7 +234,9 @@ class Event:
                 return [Emitter.from_dict(dic) for dic in emitters]
 
             elif not all(isinstance(em, Emitter) for em in emitters):
-                raise TypeError("Cannot parse emitter with type {}".format(type(emitters[0])))
+                raise TypeError(
+                    "Cannot parse emitter with type {}".format(type(emitters[0]))
+                )
 
             else:
                 return emitters
@@ -225,12 +249,14 @@ class Event:
         Safely handle getting the start/offset time for an audio event, with an optional override.
         """
         if audio_start is None:
-            event_start_ = 0.
+            event_start_ = 0.0
         # Raise a warning and revert to 0 seconds when passed start time exceeds total duration of the audio file
         elif audio_start > self.audio_full_duration:
-            logger.warning(f"Event start time ({audio_start:.2f} seconds) exceeds duration of the audio file "
-                           f"({self.audio_full_duration:.2f} seconds). Start time will be set to 0.")
-            event_start_ = 0.
+            logger.warning(
+                f"Event start time ({audio_start:.2f} seconds) exceeds duration of the audio file "
+                f"({self.audio_full_duration:.2f} seconds). Start time will be set to 0."
+            )
+            event_start_ = 0.0
         else:
             event_start_ = audio_start
         return utils.sanitise_positive_number(event_start_)
@@ -241,7 +267,9 @@ class Event:
         """
         # If we haven't passed in an override, just use the full duration of the audio, minus the offset
         if duration is None:
-            return utils.sanitise_positive_number(self.audio_full_duration - self.event_start)
+            return utils.sanitise_positive_number(
+                self.audio_full_duration - self.event_start
+            )
         else:
             # Otherwise, check that our duration is valid
             duration = utils.sanitise_positive_number(duration)
@@ -284,7 +312,7 @@ class Event:
                 mono=True,
                 offset=self.event_start,
                 duration=self.duration,
-                dtype=np.float32
+                dtype=np.float32,
             )
 
         return self.audio
@@ -293,6 +321,7 @@ class Event:
         """
         Returns metadata for this Event as a dictionary.
         """
+
         def coerce(inp):
             if isinstance(inp, dict):
                 return {k: coerce(v) for k, v in inp.items()} if inp else None
@@ -310,7 +339,7 @@ class Event:
             class_label=self.class_label,
             # Audio stuff
             scene_start=self.scene_start,
-            scene_end = self.scene_end,
+            scene_end=self.scene_end,
             event_start=self.event_start,
             event_end=self.event_end,
             duration=self.duration,
@@ -330,7 +359,7 @@ class Event:
                 relative_polar=coerce(self.end_coordinates_relative_polar),
             ),
             # Include the actual emitters as well, to enable unserialisation
-            emitters=[v.to_dict() for v in self.emitters]
+            emitters=[v.to_dict() for v in self.emitters],
         )
 
     @classmethod
@@ -346,7 +375,16 @@ class Event:
         """
 
         # Sanitise inputs
-        for k in ["alias", "filepath", "emitters", "snr", "duration", "event_start", "scene_start", "scene_end"]:
+        for k in [
+            "alias",
+            "filepath",
+            "emitters",
+            "snr",
+            "duration",
+            "event_start",
+            "scene_start",
+            "scene_end",
+        ]:
             if k not in input_dict:
                 raise KeyError(f"Missing key: '{k}'")
 
