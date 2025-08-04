@@ -6,8 +6,8 @@
 import os
 from pathlib import Path
 
-import pytest
 import numpy as np
+import pytest
 import scipy.stats as stats
 
 from audiblelight import utils
@@ -15,7 +15,6 @@ from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter
-
 
 SOUNDEVENT_DIR = utils.get_project_root() / "tests/test_resources/soundevents"
 MESH_DIR = utils.get_project_root() / "tests/test_resources/meshes"
@@ -38,53 +37,36 @@ OYENS_PATH = MESH_DIR / "Oyens.glb"
             dict(
                 position=np.array([-0.5, -0.5, 0.5]),
                 polar=False,
-                ensure_direct_path=False
+                ensure_direct_path=False,
             ),
-            dict(
-                duration=5,
-                event_start=5,
-                scene_start=5
-            )
+            dict(duration=5, event_start=5, scene_start=5),
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
-        (
-            SOUNDEVENT_DIR / "music/001666.mp3",
-            None,
-            dict(
-                snr=5,
-                spatial_velocity=5
-            )
-        ),
+        (SOUNDEVENT_DIR / "music/001666.mp3", None, dict(snr=5, spatial_velocity=5)),
         # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
         (
             None,
             dict(
                 position=np.array([-0.5, -0.5, 0.5]),
                 polar=False,
-                ensure_direct_path=False
+                ensure_direct_path=False,
             ),
-            dict(
-                duration=5,
-                event_start=5,
-                scene_start=5,
-                snr=5,
-                spatial_velocity=5
-            )
+            dict(duration=5, event_start=5, scene_start=5, snr=5, spatial_velocity=5),
         ),
         # Test 4: no path, no kwargs
-        (
-            None, None, None
-        ),
-    ]
+        (None, None, None),
+    ],
 )
-def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap: Scene):
+def test_add_event(
+    filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap: Scene
+):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
         filepath=filepath,
         alias="test_event",
         emitter_kwargs=emitter_kws,
-        event_kwargs=event_kws
+        event_kwargs=event_kws,
     )
     # Should be added to ray-tracing engine
     assert oyens_scene_no_overlap.state.ctx.get_source_count() == 1
@@ -107,20 +89,42 @@ def test_add_event(filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap
             assert getattr(ev, override_key) == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
-    for attr_ in ["event_end", "start_coordinates_absolute", "end_coordinates_relative_polar"]:
+    for attr_ in [
+        "event_end",
+        "start_coordinates_absolute",
+        "end_coordinates_relative_polar",
+    ]:
         assert hasattr(ev, attr_)
 
 
 @pytest.mark.parametrize(
     "new_event_audio,event_kwargs,raises",
     [
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict(scene_start=6.0, duration=1.0), ValueError),
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict(scene_start=9.0, duration=10.0), ValueError),
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict(scene_start=3.0, duration=10.0), ValueError),
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict(sample_rate=12345), ValueError),    # sample rate different to state
-    ]
+        (
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(scene_start=6.0, duration=1.0),
+            ValueError,
+        ),
+        (
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(scene_start=9.0, duration=10.0),
+            ValueError,
+        ),
+        (
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(scene_start=3.0, duration=10.0),
+            ValueError,
+        ),
+        (
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(sample_rate=12345),
+            ValueError,
+        ),  # sample rate different to state
+    ],
 )
-def test_add_bad_event(new_event_audio, event_kwargs, raises, oyens_scene_no_overlap: Scene):
+def test_add_bad_event(
+    new_event_audio, event_kwargs, raises, oyens_scene_no_overlap: Scene
+):
     """
     Test adding an event that should be rejected
     """
@@ -129,10 +133,7 @@ def test_add_bad_event(new_event_audio, event_kwargs, raises, oyens_scene_no_ove
     oyens_scene_no_overlap.add_event(
         filepath=SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
-        event_kwargs=dict(
-            scene_start=5.0,
-            duration=5.0
-        )
+        event_kwargs=dict(scene_start=5.0, duration=5.0),
     )
     # Add the tester event in: should raise an error
     with pytest.raises(raises):
@@ -140,7 +141,7 @@ def test_add_bad_event(new_event_audio, event_kwargs, raises, oyens_scene_no_ove
             filepath=new_event_audio,
             alias="bad_event",
             emitter_kwargs=dict(keep_existing=True),
-            event_kwargs=event_kwargs
+            event_kwargs=event_kwargs,
         )
     # Should not be added to the dictionary
     assert len(oyens_scene_no_overlap.events) == 1
@@ -151,13 +152,21 @@ def test_add_bad_event(new_event_audio, event_kwargs, raises, oyens_scene_no_ove
 @pytest.mark.parametrize(
     "new_event_audio,new_event_kws",
     [
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict()),    # no custom event_start/duration, should be set automatically
+        (
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(),
+        ),  # no custom event_start/duration, should be set automatically
         (SOUNDEVENT_DIR / "music/000010.mp3", dict(event_start=15, duration=20)),
         (SOUNDEVENT_DIR / "music/000010.mp3", dict(duration=5.0)),
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict(scene_start=10.0, duration=5.0, event_start=5.0)),   # no overlap
-    ]
+        (
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(scene_start=10.0, duration=5.0, event_start=5.0),
+        ),  # no overlap
+    ],
 )
-def test_add_acceptable_event(new_event_audio, new_event_kws, oyens_scene_no_overlap: Scene):
+def test_add_acceptable_event(
+    new_event_audio, new_event_kws, oyens_scene_no_overlap: Scene
+):
     """
     Test adding an acceptable event to a scene that already has events; should not be rejected
     """
@@ -167,17 +176,14 @@ def test_add_acceptable_event(new_event_audio, new_event_kws, oyens_scene_no_ove
         filepath=SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
         emitter_kwargs=dict(keep_existing=True),
-        event_kwargs=dict(
-            scene_start=5.0,
-            duration=5.0
-        )
+        event_kwargs=dict(scene_start=5.0, duration=5.0),
     )
     # Add the tester event in: should not raise any errors
     oyens_scene_no_overlap.add_event(
         filepath=new_event_audio,
         alias="good_event",
         emitter_kwargs=dict(keep_existing=True),
-        event_kwargs=new_event_kws
+        event_kwargs=new_event_kws,
     )
     # Should be able to access the event class
     assert len(oyens_scene_no_overlap.events) == 2
@@ -191,12 +197,20 @@ def test_add_acceptable_event(new_event_audio, new_event_kws, oyens_scene_no_ove
 @pytest.mark.parametrize(
     "fg_path,raises",
     [
-        ([SOUNDEVENT_DIR / "music"], False),    # this folder has some audio files inside it, so it's all good
-        (None, ValueError),    # as if we've not provided `fp_path` to `Scene.__init__`
-        ([utils.get_project_root() / "tests"], FileNotFoundError)    # no audio files inside this folder!
+        (
+            [SOUNDEVENT_DIR / "music"],
+            False,
+        ),  # this folder has some audio files inside it, so it's all good
+        (None, ValueError),  # as if we've not provided `fp_path` to `Scene.__init__`
+        (
+            [utils.get_project_root() / "tests"],
+            FileNotFoundError,
+        ),  # no audio files inside this folder!
     ],
 )
-def test_get_random_foreground_audio(fg_path: str, raises, oyens_scene_no_overlap: Scene):
+def test_get_random_foreground_audio(
+    fg_path: str, raises, oyens_scene_no_overlap: Scene
+):
     setattr(oyens_scene_no_overlap, "fg_category_paths", fg_path)
     if not raises:
         out = oyens_scene_no_overlap._get_random_foreground_audio()
@@ -211,9 +225,15 @@ def test_get_random_foreground_audio(fg_path: str, raises, oyens_scene_no_overla
 @pytest.mark.parametrize(
     "mic_arrays",
     [
-        (dict(microphone_type="ambeovr", position=np.array([-0.5, -0.5, 0.5]), alias="mic000")),
+        (
+            dict(
+                microphone_type="ambeovr",
+                position=np.array([-0.5, -0.5, 0.5]),
+                alias="mic000",
+            )
+        ),
         (dict(microphone_type="ambeovr", alias="mic000")),
-    ]
+    ],
 )
 def test_add_mic_arrays_to_state(mic_arrays, oyens_scene_no_overlap: Scene):
     # Remove anything added to the space
@@ -292,10 +312,7 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
     assert len(oyens_scene_no_overlap.state.microphones) == 0
 
 
-@pytest.mark.parametrize(
-    "n_events",
-    [1, 2, 3]
-)
+@pytest.mark.parametrize("n_events", [1, 2, 3])
 def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):
@@ -310,16 +327,12 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
 
 @pytest.mark.parametrize(
     "mesh_fpath",
-    [MESH_DIR / mesh for mesh in os.listdir(MESH_DIR)]    # run on every mesh we have in the test directory
+    [
+        MESH_DIR / mesh for mesh in os.listdir(MESH_DIR)
+    ],  # run on every mesh we have in the test directory
 )
-@pytest.mark.parametrize(
-    "mic_type",
-    ["ambeovr", "eigenmike32"]
-)
-@pytest.mark.parametrize(
-    "n_events, duration, max_overlap",
-    [(1, 30, 3), (9, 50, 6)]
-)
+@pytest.mark.parametrize("mic_type", ["ambeovr", "eigenmike32"])
+@pytest.mark.parametrize("n_events, duration, max_overlap", [(1, 30, 3), (9, 50, 6)])
 @pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
     """
@@ -336,7 +349,7 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
         event_resolution_dist=stats.uniform(0, 10),
         snr_dist=stats.norm(5, 1),
         fg_path=SOUNDEVENT_DIR,
-        max_overlap=max_overlap
+        max_overlap=max_overlap,
     )
     # Add the desired microphone type and number of events
     sc.add_microphone(microphone_type=mic_type)
@@ -359,13 +372,18 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
             "duration": 30.0,
             "ref_db": -50,
             "max_overlap": 3.0,
-            "fg_path": str(utils.get_project_root() / "tests/test_resources/soundevents"),
+            "fg_path": str(
+                utils.get_project_root() / "tests/test_resources/soundevents"
+            ),
             "ambience": False,
             "events": {
                 "event000": {
                     "alias": "event000",
                     "filename": "000010.mp3",
-                    "filepath": str(utils.get_project_root() / "tests/test_resources/soundevents/music/000010.mp3"),
+                    "filepath": str(
+                        utils.get_project_root()
+                        / "tests/test_resources/soundevents/music/000010.mp3"
+                    ),
                     "class_id": None,
                     "class_label": None,
                     "scene_start": 3.3414165656885886,
@@ -381,123 +399,107 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                         "absolute": [
                             3.138291668058967,
                             0.038534063951257025,
-                            2.0482037990906727
+                            2.0482037990906727,
                         ],
                         "relative_cartesian": {
-                            "event000": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event000": [0.0, 0.0, 0.0],
                             "mic000": [
                                 -0.8859426619553759,
                                 2.9534221529206377,
-                                0.36002469289039984
+                                0.36002469289039984,
                             ],
                             "event001": [
                                 [
                                     -2.2333563194364796,
                                     -1.4665946631472622,
-                                    0.3130778986929861
+                                    0.3130778986929861,
                                 ]
                             ],
                             "event002": [
                                 [
                                     -1.7106695658740882,
                                     5.0752318593323515,
-                                    -0.07563942967148884
+                                    -0.07563942967148884,
                                 ]
-                            ]
+                            ],
                         },
                         "relative_polar": {
-                            "event000": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event000": [0.0, 0.0, 0.0],
                             "mic000": [
                                 [
                                     106.69774947852416,
                                     83.3402562971731,
-                                    3.104386347271515
+                                    3.104386347271515,
                                 ]
                             ],
                             "event001": [
                                 [
                                     213.29200206063442,
                                     83.31675945948695,
-                                    2.6901297601024576
+                                    2.6901297601024576,
                                 ]
                             ],
                             "event002": [
                                 [
                                     108.62702433583053,
                                     90.80913196273397,
-                                    5.356313108184676
+                                    5.356313108184676,
                                 ]
-                            ]
-                        }
+                            ],
+                        },
                     },
                     "end_coordinates": {
                         "absolute": [
                             3.138291668058967,
                             0.038534063951257025,
-                            2.0482037990906727
+                            2.0482037990906727,
                         ],
                         "relative_cartesian": {
-                            "event000": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event000": [0.0, 0.0, 0.0],
                             "mic000": [
                                 -0.8859426619553759,
                                 2.9534221529206377,
-                                0.36002469289039984
+                                0.36002469289039984,
                             ],
                             "event001": [
                                 [
                                     -2.2333563194364796,
                                     -1.4665946631472622,
-                                    0.3130778986929861
+                                    0.3130778986929861,
                                 ]
                             ],
                             "event002": [
                                 [
                                     -1.7106695658740882,
                                     5.0752318593323515,
-                                    -0.07563942967148884
+                                    -0.07563942967148884,
                                 ]
-                            ]
+                            ],
                         },
                         "relative_polar": {
-                            "event000": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event000": [0.0, 0.0, 0.0],
                             "mic000": [
                                 [
                                     106.69774947852416,
                                     83.3402562971731,
-                                    3.104386347271515
+                                    3.104386347271515,
                                 ]
                             ],
                             "event001": [
                                 [
                                     213.29200206063442,
                                     83.31675945948695,
-                                    2.6901297601024576
+                                    2.6901297601024576,
                                 ]
                             ],
                             "event002": [
                                 [
                                     108.62702433583053,
                                     90.80913196273397,
-                                    5.356313108184676
+                                    5.356313108184676,
                                 ]
-                            ]
-                        }
+                            ],
+                        },
                     },
                     "emitters": [
                         {
@@ -505,69 +507,64 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                             "coordinates_absolute": [
                                 3.138291668058967,
                                 0.038534063951257025,
-                                2.0482037990906727
+                                2.0482037990906727,
                             ],
                             "coordinates_relative_cartesian": {
-                                "event000": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event000": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     -0.8859426619553759,
                                     2.9534221529206377,
-                                    0.36002469289039984
+                                    0.36002469289039984,
                                 ],
                                 "event001": [
                                     [
                                         -2.2333563194364796,
                                         -1.4665946631472622,
-                                        0.3130778986929861
+                                        0.3130778986929861,
                                     ]
                                 ],
                                 "event002": [
                                     [
                                         -1.7106695658740882,
                                         5.0752318593323515,
-                                        -0.07563942967148884
+                                        -0.07563942967148884,
                                     ]
-                                ]
+                                ],
                             },
                             "coordinates_relative_polar": {
-                                "event000": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event000": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     [
                                         106.69774947852416,
                                         83.3402562971731,
-                                        3.104386347271515
+                                        3.104386347271515,
                                     ]
                                 ],
                                 "event001": [
                                     [
                                         213.29200206063442,
                                         83.31675945948695,
-                                        2.6901297601024576
+                                        2.6901297601024576,
                                     ]
                                 ],
                                 "event002": [
                                     [
                                         108.62702433583053,
                                         90.80913196273397,
-                                        5.356313108184676
+                                        5.356313108184676,
                                     ]
-                                ]
-                            }
+                                ],
+                            },
                         }
-                    ]
+                    ],
                 },
                 "event001": {
                     "alias": "event001",
                     "filename": "431669.wav",
-                    "filepath": str(utils.get_project_root() / "tests/test_resources/soundevents/telephone/431669.wav"),
+                    "filepath": str(
+                        utils.get_project_root()
+                        / "tests/test_resources/soundevents/telephone/431669.wav"
+                    ),
                     "class_id": None,
                     "class_label": None,
                     "scene_start": 17.921930748109894,
@@ -583,123 +580,99 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                         "absolute": [
                             5.371647987495447,
                             1.5051287270985192,
-                            1.7351259003976867
+                            1.7351259003976867,
                         ],
                         "relative_cartesian": {
                             "event000": [
                                 [
                                     2.2333563194364796,
                                     1.4665946631472622,
-                                    -0.3130778986929861
+                                    -0.3130778986929861,
                                 ]
                             ],
-                            "event001": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event001": [0.0, 0.0, 0.0],
                             "mic000": [
                                 1.3474136574811038,
                                 4.4200168160679,
-                                0.046946794197413766
+                                0.046946794197413766,
                             ],
                             "event002": [
                                 [
                                     0.5226867535623914,
                                     6.541826522479614,
-                                    -0.3887173283644749
+                                    -0.3887173283644749,
                                 ]
-                            ]
+                            ],
                         },
                         "relative_polar": {
                             "event000": [
                                 [
                                     33.29200206063442,
                                     96.68324054051307,
-                                    2.6901297601024576
+                                    2.6901297601024576,
                                 ]
                             ],
-                            "event001": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event001": [0.0, 0.0, 0.0],
                             "mic000": [
-                                [
-                                    73.04649501893131,
-                                    89.41790533787594,
-                                    4.62106873138401
-                                ]
+                                [73.04649501893131, 89.41790533787594, 4.62106873138401]
                             ],
                             "event002": [
                                 [
                                     85.43181705637195,
                                     93.38975691121261,
-                                    6.574176515270801
+                                    6.574176515270801,
                                 ]
-                            ]
-                        }
+                            ],
+                        },
                     },
                     "end_coordinates": {
                         "absolute": [
                             5.371647987495447,
                             1.5051287270985192,
-                            1.7351259003976867
+                            1.7351259003976867,
                         ],
                         "relative_cartesian": {
                             "event000": [
                                 [
                                     2.2333563194364796,
                                     1.4665946631472622,
-                                    -0.3130778986929861
+                                    -0.3130778986929861,
                                 ]
                             ],
-                            "event001": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event001": [0.0, 0.0, 0.0],
                             "mic000": [
                                 1.3474136574811038,
                                 4.4200168160679,
-                                0.046946794197413766
+                                0.046946794197413766,
                             ],
                             "event002": [
                                 [
                                     0.5226867535623914,
                                     6.541826522479614,
-                                    -0.3887173283644749
+                                    -0.3887173283644749,
                                 ]
-                            ]
+                            ],
                         },
                         "relative_polar": {
                             "event000": [
                                 [
                                     33.29200206063442,
                                     96.68324054051307,
-                                    2.6901297601024576
+                                    2.6901297601024576,
                                 ]
                             ],
-                            "event001": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event001": [0.0, 0.0, 0.0],
                             "mic000": [
-                                [
-                                    73.04649501893131,
-                                    89.41790533787594,
-                                    4.62106873138401
-                                ]
+                                [73.04649501893131, 89.41790533787594, 4.62106873138401]
                             ],
                             "event002": [
                                 [
                                     85.43181705637195,
                                     93.38975691121261,
-                                    6.574176515270801
+                                    6.574176515270801,
                                 ]
-                            ]
-                        }
+                            ],
+                        },
                     },
                     "emitters": [
                         {
@@ -707,69 +680,64 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                             "coordinates_absolute": [
                                 5.371647987495447,
                                 1.5051287270985192,
-                                1.7351259003976867
+                                1.7351259003976867,
                             ],
                             "coordinates_relative_cartesian": {
                                 "event000": [
                                     [
                                         2.2333563194364796,
                                         1.4665946631472622,
-                                        -0.3130778986929861
+                                        -0.3130778986929861,
                                     ]
                                 ],
-                                "event001": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event001": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     1.3474136574811038,
                                     4.4200168160679,
-                                    0.046946794197413766
+                                    0.046946794197413766,
                                 ],
                                 "event002": [
                                     [
                                         0.5226867535623914,
                                         6.541826522479614,
-                                        -0.3887173283644749
+                                        -0.3887173283644749,
                                     ]
-                                ]
+                                ],
                             },
                             "coordinates_relative_polar": {
                                 "event000": [
                                     [
                                         33.29200206063442,
                                         96.68324054051307,
-                                        2.6901297601024576
+                                        2.6901297601024576,
                                     ]
                                 ],
-                                "event001": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event001": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     [
                                         73.04649501893131,
                                         89.41790533787594,
-                                        4.62106873138401
+                                        4.62106873138401,
                                     ]
                                 ],
                                 "event002": [
                                     [
                                         85.43181705637195,
                                         93.38975691121261,
-                                        6.574176515270801
+                                        6.574176515270801,
                                     ]
-                                ]
-                            }
+                                ],
+                            },
                         }
-                    ]
+                    ],
                 },
                 "event002": {
                     "alias": "event002",
                     "filename": "93899.wav",
-                    "filepath": str(utils.get_project_root() / "tests/test_resources/soundevents/maleSpeech/93899.wav"),
+                    "filepath": str(
+                        utils.get_project_root()
+                        / "tests/test_resources/soundevents/maleSpeech/93899.wav"
+                    ),
                     "class_id": None,
                     "class_label": None,
                     "scene_start": 15.273160864969604,
@@ -785,123 +753,99 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                         "absolute": [
                             4.848961233933055,
                             -5.0366977953810945,
-                            2.1238432287621616
+                            2.1238432287621616,
                         ],
                         "relative_cartesian": {
                             "event000": [
                                 [
                                     1.7106695658740882,
                                     -5.0752318593323515,
-                                    0.07563942967148884
+                                    0.07563942967148884,
                                 ]
                             ],
                             "event001": [
                                 [
                                     -0.5226867535623914,
                                     -6.541826522479614,
-                                    0.3887173283644749
+                                    0.3887173283644749,
                                 ]
                             ],
-                            "event002": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event002": [0.0, 0.0, 0.0],
                             "mic000": [
                                 0.8247269039187124,
                                 -2.121809706411714,
-                                0.4356641225618887
-                            ]
+                                0.4356641225618887,
+                            ],
                         },
                         "relative_polar": {
                             "event000": [
                                 [
                                     288.6270243358305,
                                     89.19086803726604,
-                                    5.356313108184676
+                                    5.356313108184676,
                                 ]
                             ],
                             "event001": [
-                                [
-                                    265.431817056372,
-                                    86.6102430887874,
-                                    6.574176515270801
-                                ]
+                                [265.431817056372, 86.6102430887874, 6.574176515270801]
                             ],
-                            "event002": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event002": [0.0, 0.0, 0.0],
                             "mic000": [
                                 [
                                     291.24062250983945,
                                     79.16583571951304,
-                                    2.317769212833307
+                                    2.317769212833307,
                                 ]
-                            ]
-                        }
+                            ],
+                        },
                     },
                     "end_coordinates": {
                         "absolute": [
                             4.848961233933055,
                             -5.0366977953810945,
-                            2.1238432287621616
+                            2.1238432287621616,
                         ],
                         "relative_cartesian": {
                             "event000": [
                                 [
                                     1.7106695658740882,
                                     -5.0752318593323515,
-                                    0.07563942967148884
+                                    0.07563942967148884,
                                 ]
                             ],
                             "event001": [
                                 [
                                     -0.5226867535623914,
                                     -6.541826522479614,
-                                    0.3887173283644749
+                                    0.3887173283644749,
                                 ]
                             ],
-                            "event002": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event002": [0.0, 0.0, 0.0],
                             "mic000": [
                                 0.8247269039187124,
                                 -2.121809706411714,
-                                0.4356641225618887
-                            ]
+                                0.4356641225618887,
+                            ],
                         },
                         "relative_polar": {
                             "event000": [
                                 [
                                     288.6270243358305,
                                     89.19086803726604,
-                                    5.356313108184676
+                                    5.356313108184676,
                                 ]
                             ],
                             "event001": [
-                                [
-                                    265.431817056372,
-                                    86.6102430887874,
-                                    6.574176515270801
-                                ]
+                                [265.431817056372, 86.6102430887874, 6.574176515270801]
                             ],
-                            "event002": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
+                            "event002": [0.0, 0.0, 0.0],
                             "mic000": [
                                 [
                                     291.24062250983945,
                                     79.16583571951304,
-                                    2.317769212833307
+                                    2.317769212833307,
                                 ]
-                            ]
-                        }
+                            ],
+                        },
                     },
                     "emitters": [
                         {
@@ -909,65 +853,57 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                             "coordinates_absolute": [
                                 4.848961233933055,
                                 -5.0366977953810945,
-                                2.1238432287621616
+                                2.1238432287621616,
                             ],
                             "coordinates_relative_cartesian": {
                                 "event000": [
                                     [
                                         1.7106695658740882,
                                         -5.0752318593323515,
-                                        0.07563942967148884
+                                        0.07563942967148884,
                                     ]
                                 ],
                                 "event001": [
                                     [
                                         -0.5226867535623914,
                                         -6.541826522479614,
-                                        0.3887173283644749
+                                        0.3887173283644749,
                                     ]
                                 ],
-                                "event002": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event002": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     0.8247269039187124,
                                     -2.121809706411714,
-                                    0.4356641225618887
-                                ]
+                                    0.4356641225618887,
+                                ],
                             },
                             "coordinates_relative_polar": {
                                 "event000": [
                                     [
                                         288.6270243358305,
                                         89.19086803726604,
-                                        5.356313108184676
+                                        5.356313108184676,
                                     ]
                                 ],
                                 "event001": [
                                     [
                                         265.431817056372,
                                         86.6102430887874,
-                                        6.574176515270801
+                                        6.574176515270801,
                                     ]
                                 ],
-                                "event002": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event002": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     [
                                         291.24062250983945,
                                         79.16583571951304,
-                                        2.317769212833307
+                                        2.317769212833307,
                                     ]
-                                ]
-                            }
+                                ],
+                            },
                         }
-                    ]
-                }
+                    ],
+                },
             },
             "state": {
                 "emitters": {
@@ -977,62 +913,54 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                             "coordinates_absolute": [
                                 3.138291668058967,
                                 0.038534063951257025,
-                                2.0482037990906727
+                                2.0482037990906727,
                             ],
                             "coordinates_relative_cartesian": {
-                                "event000": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event000": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     -0.8859426619553759,
                                     2.9534221529206377,
-                                    0.36002469289039984
+                                    0.36002469289039984,
                                 ],
                                 "event001": [
                                     [
                                         -2.2333563194364796,
                                         -1.4665946631472622,
-                                        0.3130778986929861
+                                        0.3130778986929861,
                                     ]
                                 ],
                                 "event002": [
                                     [
                                         -1.7106695658740882,
                                         5.0752318593323515,
-                                        -0.07563942967148884
+                                        -0.07563942967148884,
                                     ]
-                                ]
+                                ],
                             },
                             "coordinates_relative_polar": {
-                                "event000": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event000": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     [
                                         106.69774947852416,
                                         83.3402562971731,
-                                        3.104386347271515
+                                        3.104386347271515,
                                     ]
                                 ],
                                 "event001": [
                                     [
                                         213.29200206063442,
                                         83.31675945948695,
-                                        2.6901297601024576
+                                        2.6901297601024576,
                                     ]
                                 ],
                                 "event002": [
                                     [
                                         108.62702433583053,
                                         90.80913196273397,
-                                        5.356313108184676
+                                        5.356313108184676,
                                     ]
-                                ]
-                            }
+                                ],
+                            },
                         }
                     ],
                     "event001": [
@@ -1041,62 +969,54 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                             "coordinates_absolute": [
                                 5.371647987495447,
                                 1.5051287270985192,
-                                1.7351259003976867
+                                1.7351259003976867,
                             ],
                             "coordinates_relative_cartesian": {
                                 "event000": [
                                     [
                                         2.2333563194364796,
                                         1.4665946631472622,
-                                        -0.3130778986929861
+                                        -0.3130778986929861,
                                     ]
                                 ],
-                                "event001": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event001": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     1.3474136574811038,
                                     4.4200168160679,
-                                    0.046946794197413766
+                                    0.046946794197413766,
                                 ],
                                 "event002": [
                                     [
                                         0.5226867535623914,
                                         6.541826522479614,
-                                        -0.3887173283644749
+                                        -0.3887173283644749,
                                     ]
-                                ]
+                                ],
                             },
                             "coordinates_relative_polar": {
                                 "event000": [
                                     [
                                         33.29200206063442,
                                         96.68324054051307,
-                                        2.6901297601024576
+                                        2.6901297601024576,
                                     ]
                                 ],
-                                "event001": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event001": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     [
                                         73.04649501893131,
                                         89.41790533787594,
-                                        4.62106873138401
+                                        4.62106873138401,
                                     ]
                                 ],
                                 "event002": [
                                     [
                                         85.43181705637195,
                                         93.38975691121261,
-                                        6.574176515270801
+                                        6.574176515270801,
                                     ]
-                                ]
-                            }
+                                ],
+                            },
                         }
                     ],
                     "event002": [
@@ -1105,64 +1025,56 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                             "coordinates_absolute": [
                                 4.848961233933055,
                                 -5.0366977953810945,
-                                2.1238432287621616
+                                2.1238432287621616,
                             ],
                             "coordinates_relative_cartesian": {
                                 "event000": [
                                     [
                                         1.7106695658740882,
                                         -5.0752318593323515,
-                                        0.07563942967148884
+                                        0.07563942967148884,
                                     ]
                                 ],
                                 "event001": [
                                     [
                                         -0.5226867535623914,
                                         -6.541826522479614,
-                                        0.3887173283644749
+                                        0.3887173283644749,
                                     ]
                                 ],
-                                "event002": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event002": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     0.8247269039187124,
                                     -2.121809706411714,
-                                    0.4356641225618887
-                                ]
+                                    0.4356641225618887,
+                                ],
                             },
                             "coordinates_relative_polar": {
                                 "event000": [
                                     [
                                         288.6270243358305,
                                         89.19086803726604,
-                                        5.356313108184676
+                                        5.356313108184676,
                                     ]
                                 ],
                                 "event001": [
                                     [
                                         265.431817056372,
                                         86.6102430887874,
-                                        6.574176515270801
+                                        6.574176515270801,
                                     ]
                                 ],
-                                "event002": [
-                                    0.0,
-                                    0.0,
-                                    0.0
-                                ],
+                                "event002": [0.0, 0.0, 0.0],
                                 "mic000": [
                                     [
                                         291.24062250983945,
                                         79.16583571951304,
-                                        2.317769212833307
+                                        2.317769212833307,
                                     ]
-                                ]
-                            }
+                                ],
+                            },
                         }
-                    ]
+                    ],
                 },
                 "microphones": {
                     "mic000": {
@@ -1170,110 +1082,76 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                         "micarray_type": "AmbeoVR",
                         "is_spherical": True,
                         "n_capsules": 4,
-                        "capsule_names": [
-                            "FLU",
-                            "FRD",
-                            "BLD",
-                            "BRU"
-                        ],
+                        "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                         "coordinates_absolute": [
-                            [
-                                4.030026609667739,
-                                -2.909095809315985,
-                                1.6939148705637834
-                            ],
+                            [4.030026609667739, -2.909095809315985, 1.6939148705637834],
                             [
                                 4.030026609667739,
                                 -2.9206803686227762,
-                                1.6824433418367624
+                                1.6824433418367624,
                             ],
-                            [
-                                4.018442050360947,
-                                -2.909095809315985,
-                                1.6824433418367624
-                            ],
+                            [4.018442050360947, -2.909095809315985, 1.6824433418367624],
                             [
                                 4.018442050360947,
                                 -2.9206803686227762,
-                                1.6939148705637834
-                            ]
+                                1.6939148705637834,
+                            ],
                         ],
                         "coordinates_polar": [
-                            [
-                                45.0,
-                                55.0,
-                                0.01
-                            ],
-                            [
-                                315.0,
-                                125.0,
-                                0.01
-                            ],
-                            [
-                                135.0,
-                                125.0,
-                                0.01
-                            ],
-                            [
-                                225.0,
-                                55.0,
-                                0.01
-                            ]
+                            [45.0, 55.0, 0.01],
+                            [315.0, 125.0, 0.01],
+                            [135.0, 125.0, 0.01],
+                            [225.0, 55.0, 0.01],
                         ],
                         "coordinates_center": [
                             4.024234330014343,
                             -2.9148880889693807,
-                            1.688179106200273
+                            1.688179106200273,
                         ],
                         "coordinates_cartesian": [
                             [
                                 0.005792279653395693,
                                 0.005792279653395692,
-                                0.005735764363510461
+                                0.005735764363510461,
                             ],
                             [
                                 0.00579227965339569,
                                 -0.005792279653395693,
-                                -0.005735764363510461
+                                -0.005735764363510461,
                             ],
                             [
                                 -0.005792279653395691,
                                 0.005792279653395692,
-                                -0.005735764363510461
+                                -0.005735764363510461,
                             ],
                             [
                                 -0.0057922796533956935,
                                 -0.005792279653395692,
-                                0.005735764363510461
-                            ]
-                        ]
+                                0.005735764363510461,
+                            ],
+                        ],
                     }
                 },
                 "mesh": {
                     "fname": "Oyens",
                     "ftype": ".glb",
-                    "fpath": str(utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"),
+                    "fpath": str(
+                        utils.get_project_root()
+                        / "tests/test_resources/meshes/Oyens.glb"
+                    ),
                     "units": "meters",
                     "from_gltf_primitive": False,
                     "name": "defaultobject",
                     "node": "defaultobject",
                     "bounds": [
-                        [
-                            -3.0433080196380615,
-                            -10.448445320129395,
-                            -1.1850370168685913
-                        ],
-                        [
-                            5.973234176635742,
-                            2.101027011871338,
-                            2.4577369689941406
-                        ]
+                        [-3.0433080196380615, -10.448445320129395, -1.1850370168685913],
+                        [5.973234176635742, 2.101027011871338, 2.4577369689941406],
                     ],
                     "centroid": [
                         1.527919030159762,
                         -4.550817438070386,
-                        1.162934397641578
-                    ]
+                        1.162934397641578,
+                    ],
                 },
                 "rlr_config": {
                     "diffraction": 1,
@@ -1282,21 +1160,9 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                     "direct_sh_order": 3,
                     "frequency_bands": 4,
                     "global_volume": 1.0,
-                    "hrtf_back": [
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "hrtf_right": [
-                        1.0,
-                        0.0,
-                        0.0
-                    ],
-                    "hrtf_up": [
-                        0.0,
-                        1.0,
-                        0.0
-                    ],
+                    "hrtf_back": [0.0, 0.0, 1.0],
+                    "hrtf_right": [1.0, 0.0, 0.0],
+                    "hrtf_up": [0.0, 1.0, 0.0],
                     "indirect": 1,
                     "indirect_ray_count": 5000,
                     "indirect_ray_depth": 200,
@@ -1311,23 +1177,27 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                     "temporal_coherence": 0,
                     "thread_count": 1,
                     "transmission": 1,
-                    "unit_scale": 1.0
+                    "unit_scale": 1.0,
                 },
                 "empty_space_around_mic": 0.1,
                 "empty_space_around_emitter": 0.2,
                 "empty_space_around_surface": 0.2,
                 "empty_space_around_capsule": 0.05,
-                "repair_threshold": None
+                "repair_threshold": None,
             },
-            "spatial_format": "A"
+            "spatial_format": "A",
         }
-    ]
+    ],
 )
 def test_scene_from_dict(input_dict: input):
     ev = Scene.from_dict(input_dict)
     assert isinstance(ev, Scene)
     assert len(ev.events) == len(input_dict["events"])
-    assert len(ev.state.emitters) == len(input_dict["state"]["emitters"]) == ev.state.ctx.get_source_count()
+    assert (
+        len(ev.state.emitters)
+        == len(input_dict["state"]["emitters"])
+        == ev.state.ctx.get_source_count()
+    )
 
 
 @pytest.mark.parametrize(
@@ -1335,19 +1205,15 @@ def test_scene_from_dict(input_dict: input):
     [
         # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
         (
-                SOUNDEVENT_DIR / "music/000010.mp3",
-                dict(
-                    position=np.array([-0.5, -0.5, 0.5]),
-                    polar=False,
-                    ensure_direct_path=False
-                ),
-                dict(
-                    duration=5,
-                    event_start=5,
-                    scene_start=5
-                )
+            SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(
+                position=np.array([-0.5, -0.5, 0.5]),
+                polar=False,
+                ensure_direct_path=False,
+            ),
+            dict(duration=5, event_start=5, scene_start=5),
         ),
-    ]
+    ],
 )
 def test_magic_methods(filepath, emitter_kws, event_kws, oyens_scene_no_overlap):
     # Add the event in
@@ -1356,7 +1222,7 @@ def test_magic_methods(filepath, emitter_kws, event_kws, oyens_scene_no_overlap)
         filepath=filepath,
         alias="test_event",
         emitter_kwargs=emitter_kws,
-        event_kwargs=event_kws
+        event_kwargs=event_kws,
     )
     # Creating an iterator
     for event in oyens_scene_no_overlap:

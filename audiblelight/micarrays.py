@@ -20,7 +20,7 @@ __all__ = [
     "Eigenmike64",
     "MonoCapsule",
     "AmbeoVR",
-    "MICARRAY_LIST"
+    "MICARRAY_LIST",
 ]
 
 
@@ -45,12 +45,15 @@ class MicArray:
         capsule_names (list[str]): the names of the microphone capsules
     """
 
+    # TODO: note that we assume that colatitude is measured from 0 -> 180. In reality, users may want/expect to use
+    #  elevation, where 0 == straight ahead, 90 == straight up, -90 straight down. We should add support for this.
+
     name: str = ""
     is_spherical: bool = False
     irs: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_absolute: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_center: np.ndarray = field(default=None, init=False, repr=False)
-    
+
     @property
     def coordinates_polar(self) -> np.ndarray:
         raise NotImplementedError
@@ -84,7 +87,7 @@ class MicArray:
     @property
     def n_capsules(self) -> int:
         return len(self.capsule_names)
-    
+
     @property
     def capsule_names(self) -> list[str]:
         return []
@@ -96,7 +99,9 @@ class MicArray:
         The center should be in cartesian coordinates with the form (XYZ), with units in meters.
         """
         self._coordinates_center = mic_center
-        self._coordinates_absolute = self.coordinates_cartesian + utils.coerce2d(self._coordinates_center)
+        self._coordinates_absolute = self.coordinates_cartesian + utils.coerce2d(
+            self._coordinates_center
+        )
         return self._coordinates_absolute
 
     def __len__(self) -> int:
@@ -135,10 +140,11 @@ class MicArray:
 
         # Compute the deepdiff between both dictionaries
         diff = DeepDiff(
-            d1, d2,
+            d1,
+            d2,
             ignore_order=True,
             significant_digits=4,
-            ignore_numeric_type_changes=True
+            ignore_numeric_type_changes=True,
         )
 
         # If there is no difference, there should be no keys in the deepdiff object
@@ -149,7 +155,12 @@ class MicArray:
         Returns metadata for this MicArray as a dictionary.
         """
         # Try and get all coordinate types for this microphone array
-        coords = ["coordinates_absolute", "coordinates_polar", "coordinates_center", "coordinates_cartesian"]
+        coords = [
+            "coordinates_absolute",
+            "coordinates_polar",
+            "coordinates_center",
+            "coordinates_cartesian",
+        ]
         coord_dict = OrderedDict()
         for coord_type in coords:
             try:
@@ -168,8 +179,81 @@ class MicArray:
             is_spherical=self.is_spherical,
             n_capsules=self.n_capsules,
             capsule_names=self.capsule_names,
-            **coord_dict
+            **coord_dict,
         )
+
+    @staticmethod
+    def _get_mic_class(input_dict: dict[str, Any]) -> Type["MicArray"]:
+        """
+        Given a dictionary, get the desired MicArray class.
+
+        Arguments:
+            input_dict (dict[str, Any]): dictionary to instantiate MicArray class
+
+        Returns:
+            MicArray object
+        """
+        # Get the class type of the desired microphone
+        desired_mic = input_dict.pop("micarray_type", "mic")
+        if desired_mic not in MICARRAY_CLASS_MAPPING:
+            raise ValueError(
+                f"{desired_mic} is not a valid microphone array type! "
+                f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}"
+            )
+        # Instantiate the microphone and set its coordinates
+        return MICARRAY_CLASS_MAPPING[desired_mic]
+
+    def _set_attribute(self, attr_name: str, value: Any) -> None:
+        """
+        Set an attribute on the MicArray object.
+
+        Arguments:
+            attr_name (str): name of the attribute to set
+            value (Any): value to set
+
+        Returns:
+            None
+
+        Raises:
+            AttributeError: if the value for an attribute does not match the default, when already set
+        """
+        # "de-serialise" lists back to arrays, ignoring strings
+        if isinstance(value, list) and not isinstance(value[0], str):
+            value = np.asarray(value)
+
+        # Try and set the attribute
+        try:
+            hasat = hasattr(
+                self, attr_name
+            )  # need to be defensive, can sometimes hit NotImplementedError
+        except NotImplementedError:
+            return
+
+        if hasat:
+            try:
+                setattr(self, attr_name, value)
+
+            # We can't always set some dataclass attributes, but we should check that the default value is
+            #  equivalent to what has been passed in
+            except AttributeError:
+                expected = getattr(self, attr_name)
+                # Need to use different equality comparisons for arrays vs non-arrays
+                eq = (
+                    np.isclose(expected, value, atol=1e-4).all()
+                    if isinstance(value, np.ndarray)
+                    else expected == value
+                )
+
+                if not eq:
+                    raise AttributeError(
+                        f"Expected attribute {attr_name} to have value {expected}, but got {value}!"
+                    )
+                else:
+                    return
+
+        # Ignore cases where there is no attribute
+        else:
+            return
 
     @classmethod
     def from_dict(cls, input_dict: dict[str, Any]):
@@ -182,44 +266,12 @@ class MicArray:
         Returns:
             MicArray instance.
         """
-        # Get the class type of the desired microphone
-        desired_mic = input_dict.pop("micarray_type", "mic")
-        if desired_mic not in MICARRAY_CLASS_MAPPING:
-            raise ValueError(f"{desired_mic} is not a valid microphone array type! "
-                             f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}")
-
-        # Instantiate the microphone and set its coordinates
-        mic_class = MICARRAY_CLASS_MAPPING[desired_mic]()
+        mic_class = cls._get_mic_class(input_dict)()
         mic_class.set_absolute_coordinates(input_dict["coordinates_center"])
 
         # Set any other valid parameters for the microphone as well
         for k, v in input_dict.items():
-
-            # "de-serialise" lists back to arrays, ignoring strings
-            if isinstance(v, list) and not isinstance(v[0], str):
-                v = np.asarray(v)
-
-            # Try and set the attribute
-            try:
-                hasat = hasattr(mic_class, k)    # need to be defensive, can sometimes hit NotImplementedError
-            except NotImplementedError:
-                continue
-
-            if hasat:
-                try:
-                    setattr(mic_class, k, v)
-
-                # We can't always set some dataclass attributes, but we should check that the default value is
-                #  equivalent to what has been passed in
-                except AttributeError:
-                    expected = getattr(mic_class, k)
-                    # Need to use different equality comparisons for arrays vs non-arrays
-                    eq = np.isclose(expected, v, atol=1e-4).all() if isinstance(v, np.ndarray) else expected == v
-
-                    if not eq:
-                        raise AttributeError(f"Expected attribute {k} to have value {expected}, but got {v}!")
-                    else:
-                        continue
+            mic_class._set_attribute(k, v)
 
         return mic_class
 
@@ -229,12 +281,13 @@ class MonoCapsule(MicArray):
     """
     A single mono microphone capsule
     """
+
     name: str = "monocapsule"
     is_spherical: bool = False
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
-        return np.array([[0., 0., 0.]])
+        return np.array([[0.0, 0.0, 0.0]])
 
     @property
     def capsule_names(self) -> list[str]:
@@ -254,18 +307,15 @@ class AmbeoVR(MicArray):
 
     @property
     def coordinates_polar(self) -> np.ndarray:
-        return np.array([
-            [45, 55, 0.01],
-            [315, 125, 0.01],
-            [135, 125, 0.01],
-            [225, 55, 0.01]
-        ])
+        return np.array(
+            [[45, 55, 0.01], [315, 125, 0.01], [135, 125, 0.01], [225, 55, 0.01]]
+        )
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
         """The positions of the capsules in Cartesian coordinates, i.e. as meters from the center of the array."""
         return utils.polar_to_cartesian(self.coordinates_polar)
-    
+
     @property
     def capsule_names(self) -> list[str]:
         return ["FLU", "FRD", "BLD", "BRU"]
@@ -285,46 +335,48 @@ class Eigenmike32(MicArray):
     @property
     def coordinates_polar(self) -> np.ndarray:
         # Adapted from Section 4.5 (pages 27--28) of official documentation
-        return np.array([
-            [0,    69, 0.042],
-            [32,   90, 0.042],
-            [0,   111, 0.042],
-            [328,  90, 0.042],
-            [0,    32, 0.042],
-            [45,   55, 0.042],
-            [69,   90, 0.042],
-            [45,  125, 0.042],
-            [0,   148, 0.042],
-            [315, 125, 0.042],
-            [291,  90, 0.042],
-            [315,  55, 0.042],
-            [91,   21, 0.042],
-            [90,   58, 0.042],
-            [90,  121, 0.042],
-            [89,  159, 0.042],
-            [180,  69, 0.042],
-            [212,  90, 0.042],
-            [180, 111, 0.042],
-            [148,  90, 0.042],
-            [180,  32, 0.042],
-            [225,  55, 0.042],
-            [249,  90, 0.042],
-            [225, 125, 0.042],
-            [180, 148, 0.042],
-            [135, 125, 0.042],
-            [111,  90, 0.042],
-            [135,  55, 0.042],
-            [269,  21, 0.042],
-            [270,  58, 0.042],
-            [270, 122, 0.042],
-            [271, 159, 0.042]
-        ])
+        return np.array(
+            [
+                [0, 69, 0.042],
+                [32, 90, 0.042],
+                [0, 111, 0.042],
+                [328, 90, 0.042],
+                [0, 32, 0.042],
+                [45, 55, 0.042],
+                [69, 90, 0.042],
+                [45, 125, 0.042],
+                [0, 148, 0.042],
+                [315, 125, 0.042],
+                [291, 90, 0.042],
+                [315, 55, 0.042],
+                [91, 21, 0.042],
+                [90, 58, 0.042],
+                [90, 121, 0.042],
+                [89, 159, 0.042],
+                [180, 69, 0.042],
+                [212, 90, 0.042],
+                [180, 111, 0.042],
+                [148, 90, 0.042],
+                [180, 32, 0.042],
+                [225, 55, 0.042],
+                [249, 90, 0.042],
+                [225, 125, 0.042],
+                [180, 148, 0.042],
+                [135, 125, 0.042],
+                [111, 90, 0.042],
+                [135, 55, 0.042],
+                [269, 21, 0.042],
+                [270, 58, 0.042],
+                [270, 122, 0.042],
+                [271, 159, 0.042],
+            ]
+        )
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
         """The positions of the capsules in Cartesian coordinates, i.e. as meters from the center of the array."""
         return utils.polar_to_cartesian(self.coordinates_polar)
-    
+
     @property
     def capsule_names(self) -> list[str]:
         return [str(i) for i in range(1, 33)]
@@ -346,95 +398,92 @@ class Eigenmike64(MicArray):
         # These coordinates are obtained from the official Eigenmike 64 documentation (pages 27--29, Table 1)
         # Values for theta/phi are rounded to nearest integer
         # We assume a radius of 4.2 cm given the stated diameter of 8.4 cm
-        return np.array([
-            # Theta, Phi, Mic Z
-            [197, 17, 0.042],
-            [116, 22, 0.042],
-            [82, 42, 0.042],
-            [313, 13, 0.042],
-            [43, 23, 0.042],
-            [47, 53, 0.042],
-            [336, 38, 0.042],
-            [15, 43, 0.042],
-            [204, 46, 0.042],
-            [207, 70, 0.042],
-            [247, 33, 0.042],
-            [234, 60, 0.042],
-            [265, 56, 0.042],
-            [100, 67, 0.042],
-            [105, 93, 0.042],
-            [121, 48, 0.042],
-            [127, 78, 0.042],
-            [148, 62, 0.042],
-            [163, 38, 0.042],
-            [179, 64, 0.042],
-            [21, 70, 0.042],
-            [26, 96, 0.042],
-            [48, 81, 0.042],
-            [56, 106, 0.042],
-            [71, 68, 0.042],
-            [78, 92, 0.042],
-            [293, 40, 0.042],
-            [291, 41, 0.042],
-            [318, 59, 0.042],
-            [334, 82, 0.042],
-            [352, 63, 0.042],
-            [0, 90, 0.042],
-            [174, 138, 0.042],
-            [213, 140, 0.042],
-            [252, 135, 0.042],
-            [151, 109, 0.042],
-            [241, 108, 0.042],
-            [293, 142, 0.042],
-            [331, 111, 0.042],
-            [61, 109, 0.042],
-            [227, 115, 0.042],
-            [234, 86, 0.042],
-            [194, 116, 0.042],
-            [210, 95, 0.042],
-            [183, 90, 0.042],
-            [164, 111, 0.042],
-            [157, 75, 0.042],
-            [139, 80, 0.042],
-            [136, 102, 0.042],
-            [102, 53, 0.042],
-            [113, 28, 0.042],
-            [83, 27, 0.042],
-            [308, 55, 0.042],
-            [309, 0, 0.042],
-            [278, 24, 0.042],
-            [283, 49, 0.042],
-            [253, 36, 0.042],
-            [260, 61, 0.042],
-            [60, 46, 0.042],
-            [14, 54, 0.042],
-            [32, 35, 0.042],
-            [334, 46, 0.042],
-            [2, 26, 0.042],
-            [335, 35, 0.042],
-        ])
+        return np.array(
+            [
+                # Theta, Phi, Mic Z
+                [197, 17, 0.042],
+                [116, 22, 0.042],
+                [82, 42, 0.042],
+                [313, 13, 0.042],
+                [43, 23, 0.042],
+                [47, 53, 0.042],
+                [336, 38, 0.042],
+                [15, 43, 0.042],
+                [204, 46, 0.042],
+                [207, 70, 0.042],
+                [247, 33, 0.042],
+                [234, 60, 0.042],
+                [265, 56, 0.042],
+                [100, 67, 0.042],
+                [105, 93, 0.042],
+                [121, 48, 0.042],
+                [127, 78, 0.042],
+                [148, 62, 0.042],
+                [163, 38, 0.042],
+                [179, 64, 0.042],
+                [21, 70, 0.042],
+                [26, 96, 0.042],
+                [48, 81, 0.042],
+                [56, 106, 0.042],
+                [71, 68, 0.042],
+                [78, 92, 0.042],
+                [293, 40, 0.042],
+                [291, 41, 0.042],
+                [318, 59, 0.042],
+                [334, 82, 0.042],
+                [352, 63, 0.042],
+                [0, 90, 0.042],
+                [174, 138, 0.042],
+                [213, 140, 0.042],
+                [252, 135, 0.042],
+                [151, 109, 0.042],
+                [241, 108, 0.042],
+                [293, 142, 0.042],
+                [331, 111, 0.042],
+                [61, 109, 0.042],
+                [227, 115, 0.042],
+                [234, 86, 0.042],
+                [194, 116, 0.042],
+                [210, 95, 0.042],
+                [183, 90, 0.042],
+                [164, 111, 0.042],
+                [157, 75, 0.042],
+                [139, 80, 0.042],
+                [136, 102, 0.042],
+                [102, 53, 0.042],
+                [113, 28, 0.042],
+                [83, 27, 0.042],
+                [308, 55, 0.042],
+                [309, 0, 0.042],
+                [278, 24, 0.042],
+                [283, 49, 0.042],
+                [253, 36, 0.042],
+                [260, 61, 0.042],
+                [60, 46, 0.042],
+                [14, 54, 0.042],
+                [32, 35, 0.042],
+                [334, 46, 0.042],
+                [2, 26, 0.042],
+                [335, 35, 0.042],
+            ]
+        )
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
         """The positions of the capsules in Cartesian coordinates, i.e. as meters from the center of the array."""
         return utils.polar_to_cartesian(self.coordinates_polar)
-    
+
     @property
     def capsule_names(self) -> list[str]:
         return [str(i) for i in range(1, 65)]
 
 
 # A list of all mic array objects
-MICARRAY_LIST = [
-    Eigenmike32,
-    Eigenmike64,
-    AmbeoVR,
-    MonoCapsule
-]
+MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule]
 MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 
-def sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
+def sanitize_microphone_input(microphone_type: Any) -> Type["MicArray"]:
     """
     Sanitizes any microphone input into the correct 'MicArray' class.
 
@@ -445,7 +494,9 @@ def sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
     # Parsing the microphone type
     # If None, get a random microphone and use a randomized position
     if microphone_type is None:
-        logger.warning(f"No microphone type provided, using a mono microphone capsule in a random position!")
+        logger.warning(
+            "No microphone type provided, using a mono microphone capsule in a random position!"
+        )
         # Get a random microphone class
         sanitized_microphone = MonoCapsule
 
@@ -463,13 +514,16 @@ def sanitize_microphone_input(microphone_type: Any) -> Type['MicArray']:
     return sanitized_microphone
 
 
-def get_micarray_from_string(micarray_name: str) -> Type['MicArray']:
+def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
     """
     Given a string representation of a microphone array (e.g., `eigenmike32`), return the correct MicArray object
     """
     # These are the name attributes for all valid microphone arrays
     acceptable_values = [ma().name for ma in MICARRAY_LIST]
     if micarray_name not in acceptable_values:
-        raise ValueError(f"Cannot find array {micarray_name}: expected one of {','.join(acceptable_values)}")
+        raise ValueError(
+            f"Cannot find array {micarray_name}: expected one of {','.join(acceptable_values)}"
+        )
     else:
-        return [ma for ma in MICARRAY_LIST if ma.name == micarray_name][0]
+        # Using `next` avoids having to build the whole list
+        return next(ma for ma in MICARRAY_LIST if ma.name == micarray_name)

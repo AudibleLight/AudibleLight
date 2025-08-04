@@ -1,6 +1,8 @@
-import audiblelight as al
-import numpy as np
 import os
+
+import numpy as np
+
+import audiblelight as al
 
 # OUTPUT DIRECTORY
 outfolder = 'spatial_scenes'
@@ -26,7 +28,7 @@ ref_db = -50
 
 # Generate scenes
 for i in range(n_scenes):
-    print(f'Generating spatial scene: {i+1}/{n_scenes}')
+    print(f'Generating spatial scene: {i + 1}/{n_scenes}')
 
     # Create a scene object with global configuration
     scene = al.Scene(

@@ -10,18 +10,17 @@ from collections import OrderedDict
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
-from typing import Union, Optional, Type, Any, Iterator
+from typing import Any, Iterator, Optional, Type, Union
 
 import soundfile as sf
 from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
+from audiblelight import __version__, utils
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
-from audiblelight.worldstate import WorldState, Emitter
-from audiblelight import utils, __version__
-
+from audiblelight.worldstate import Emitter, WorldState
 
 MAX_OVERLAPPING_EVENTS = 3
 REF_DB = -50
@@ -30,29 +29,33 @@ WARN_WHEN_DURATION_LOWER_THAN = 5
 
 class Scene:
     def __init__(
-            self,
-            duration: utils.Numeric,
-            mesh_path: Union[str, Path],
-            fg_path: Optional[Union[str, Path]] = None,
-            state_kwargs: Optional[dict] = None,
-            ref_db: Optional[utils.Numeric] = REF_DB,
-            event_start_dist: Optional[utils.DistributionLike] = None,
-            event_duration_dist: Optional[utils.DistributionLike] = None,
-            event_velocity_dist: Optional[utils.DistributionLike] = None,
-            event_resolution_dist: Optional[utils.DistributionLike] = None,
-            snr_dist: Optional[utils.DistributionLike] = None,
-            max_overlap: Optional[utils.Numeric] = MAX_OVERLAPPING_EVENTS,
+        self,
+        duration: utils.Numeric,
+        mesh_path: Union[str, Path],
+        fg_path: Optional[Union[str, Path]] = None,
+        state_kwargs: Optional[dict] = None,
+        ref_db: Optional[utils.Numeric] = REF_DB,
+        event_start_dist: Optional[utils.DistributionLike] = None,
+        event_duration_dist: Optional[utils.DistributionLike] = None,
+        event_velocity_dist: Optional[utils.DistributionLike] = None,
+        event_resolution_dist: Optional[utils.DistributionLike] = None,
+        snr_dist: Optional[utils.DistributionLike] = None,
+        max_overlap: Optional[utils.Numeric] = MAX_OVERLAPPING_EVENTS,
     ):
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
         # Raise a warning when the duration is very short.
         if self.duration < WARN_WHEN_DURATION_LOWER_THAN:
-            logger.warning(f"The duration for this Scene is very short ({duration:.2f} seconds). "
-                           f"You may encounter issues with Events overlapping or being truncated to fit the "
-                           f"duration of the Scene. It is recommended to increase the duration to at least "
-                           f"{WARN_WHEN_DURATION_LOWER_THAN} seconds.")
+            logger.warning(
+                f"The duration for this Scene is very short ({duration:.2f} seconds). "
+                f"You may encounter issues with Events overlapping or being truncated to fit the "
+                f"duration of the Scene. It is recommended to increase the duration to at least "
+                f"{WARN_WHEN_DURATION_LOWER_THAN} seconds."
+            )
 
-        self.fg_path = utils.sanitise_directory(fg_path) if fg_path is not None else None
+        self.fg_path = (
+            utils.sanitise_directory(fg_path) if fg_path is not None else None
+        )
         self.ref_db = utils.sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
         self.max_overlap = int(utils.sanitise_positive_number(max_overlap))
@@ -71,7 +74,7 @@ class Scene:
         #  with the `rvs` method. When called, the `rvs` method will return a random variate sampled from the
         #  probability distribution.
         # TODO: these all need to be checked
-        self.scene_start_dist = stats.uniform(0., self.duration)
+        self.scene_start_dist = stats.uniform(0.0, self.duration)
         self.event_start_dist = utils.sanitise_distribution(event_start_dist)
         self.event_duration_dist = utils.sanitise_distribution(event_duration_dist)
         self.event_velocity_dist = utils.sanitise_distribution(event_velocity_dist)
@@ -79,7 +82,11 @@ class Scene:
         self.snr_dist = utils.sanitise_distribution(snr_dist)
 
         # Assuming path structure with audio files organized in directories per category of interest
-        self.fg_category_paths = utils.list_deepest_directories(self.fg_path) if self.fg_path is not None else None
+        self.fg_category_paths = (
+            utils.list_deepest_directories(self.fg_path)
+            if self.fg_path is not None
+            else None
+        )
 
         self.events = OrderedDict()
         self.ambience_enabled = False
@@ -111,11 +118,12 @@ class Scene:
 
         # Compute the deepdiff between both dictionaries
         diff = DeepDiff(
-            d1, d2,
+            d1,
+            d2,
             ignore_order=True,
             significant_digits=4,
             exclude_paths="creation_time",
-            ignore_numeric_type_changes=True
+            ignore_numeric_type_changes=True,
         )
 
         # If there is no difference, there should be no keys in the deepdiff object
@@ -131,8 +139,10 @@ class Scene:
         """
         Returns a string representation of the scene
         """
-        return (f"'Scene' with mesh '{self.state.mesh.metadata['fpath']}': "
-                f"{len(self)} events, {len(self.state.microphones)} microphones, {len(self.state.emitters)} emitters.")
+        return (
+            f"'Scene' with mesh '{self.state.mesh.metadata['fpath']}': "
+            f"{len(self)} events, {len(self.state.microphones)} microphones, {len(self.state.emitters)} emitters."
+        )
 
     def __repr__(self) -> str:
         """
@@ -192,8 +202,10 @@ class Scene:
 
         An alias for `WorldState.add_emitter`: see that method for a full description.
         """
-        logger.warning("Adding an Emitter directly to the WorldState is not recommended. Instead, use "
-                       "`Scene.add_event`, which will create an Event and add any required Emitters to the WorldState.")
+        logger.warning(
+            "Adding an Emitter directly to the WorldState is not recommended. Instead, use "
+            "`Scene.add_event`, which will create an Event and add any required Emitters to the WorldState."
+        )
         utils.validate_kwargs(self.state.add_emitter, **kwargs)
         self.state.add_emitter(**kwargs)
 
@@ -203,8 +215,10 @@ class Scene:
 
         An alias for `WorldState.add_emitters`: see that method for a full description.
         """
-        logger.warning("Adding Emitters directly to the WorldState is not recommended. Instead, use "
-                       "`Scene.add_event`, which will create Events and add any required Emitters to the WorldState.")
+        logger.warning(
+            "Adding Emitters directly to the WorldState is not recommended. Instead, use "
+            "`Scene.add_event`, which will create Events and add any required Emitters to the WorldState."
+        )
         utils.validate_kwargs(self.state.add_emitters, **kwargs)
         self.state.add_emitters(**kwargs)
 
@@ -224,7 +238,9 @@ class Scene:
         alias = event_kwargs["alias"]
 
         # Use only 1 placement attempt if all overrides are present
-        has_overrides = all(k in event_kwargs for k in ("scene_start", "event_start", "duration"))
+        has_overrides = all(
+            k in event_kwargs for k in ("scene_start", "event_start", "duration")
+        )
         max_place_attempts = utils.MAX_PLACE_ATTEMPTS if not has_overrides else 1
 
         # Get emitters from internal state
@@ -245,19 +261,31 @@ class Scene:
             current_kws = event_kwargs.copy()
 
             # Sample values (with fallback to override if provided)
-            current_kws.update({
-                "scene_start": utils.sample_distribution(self.scene_start_dist, overrides["scene_start"]),
-                "event_start": utils.sample_distribution(self.event_start_dist, overrides["event_start"]),
-                "duration": utils.sample_distribution(self.event_duration_dist, overrides["duration"]),
-                "snr": utils.sample_distribution(self.snr_dist, overrides["snr"]),
-                "spatial_velocity": utils.sample_distribution(self.event_velocity_dist, overrides["spatial_velocity"]),
-                "spatial_resolution": utils.sample_distribution(
-                    self.event_resolution_dist, overrides["spatial_resolution"]
-                ),
-            })
+            current_kws.update(
+                {
+                    "scene_start": utils.sample_distribution(
+                        self.scene_start_dist, overrides["scene_start"]
+                    ),
+                    "event_start": utils.sample_distribution(
+                        self.event_start_dist, overrides["event_start"]
+                    ),
+                    "duration": utils.sample_distribution(
+                        self.event_duration_dist, overrides["duration"]
+                    ),
+                    "snr": utils.sample_distribution(self.snr_dist, overrides["snr"]),
+                    "spatial_velocity": utils.sample_distribution(
+                        self.event_velocity_dist, overrides["spatial_velocity"]
+                    ),
+                    "spatial_resolution": utils.sample_distribution(
+                        self.event_resolution_dist, overrides["spatial_resolution"]
+                    ),
+                }
+            )
 
             # Reject this attempt if overlap would be exceeded
-            if self._would_exceed_temporal_overlap(current_kws["scene_start"], current_kws["duration"]):
+            if self._would_exceed_temporal_overlap(
+                current_kws["scene_start"], current_kws["duration"]
+            ):
                 continue
 
             # Attempt to create and store the event
@@ -281,13 +309,12 @@ class Scene:
             raise FileNotFoundError("No audio files found!")
         return utils.sanitise_filepath(random.choice(audios))
 
-
     def add_event(
-            self,
-            filepath: Optional[Union[str, Path]] = None,
-            alias: Optional[str] = None,
-            emitter_kwargs: Optional[dict] = None,
-            event_kwargs: Optional[dict] = None,
+        self,
+        filepath: Optional[Union[str, Path]] = None,
+        alias: Optional[str] = None,
+        emitter_kwargs: Optional[dict] = None,
+        event_kwargs: Optional[dict] = None,
     ) -> None:
         """
         Add a foreground event with optional overrides.
@@ -331,7 +358,9 @@ class Scene:
         """
 
         # Get the alias we'll be using to refer to this event by
-        alias = utils.get_default_alias("event", self.events) if alias is None else alias
+        alias = (
+            utils.get_default_alias("event", self.events) if alias is None else alias
+        )
 
         # If we haven't provided a filepath, try and sample one from the foreground audio path
         if filepath is None:
@@ -343,11 +372,18 @@ class Scene:
         if event_kwargs is None:
             event_kwargs = {}
 
-        if "sample_rate" in event_kwargs.keys() and event_kwargs["sample_rate"] != self.state.ctx.config.sample_rate:
-            raise ValueError("Event sample rate must be the same as the WorldState sample rate")
+        if (
+            "sample_rate" in event_kwargs.keys()
+            and event_kwargs["sample_rate"] != self.state.ctx.config.sample_rate
+        ):
+            raise ValueError(
+                "Event sample rate must be the same as the WorldState sample rate"
+            )
 
         # Ensure that we use the same alias for all emitters and events
-        emitter_kwargs["alias"] = alias    # TODO: this will be a problem when we have moving events (multiple emitters)
+        emitter_kwargs["alias"] = (
+            alias  # TODO: this will be a problem when we have moving events (multiple emitters)
+        )
         event_kwargs["alias"] = alias
 
         # Add the filepath into the event kwarg dictionary
@@ -365,10 +401,14 @@ class Scene:
 
         # Raise an error if we can't place the event correctly
         if not placed:
-            raise ValueError(f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                             f"Consider increasing the value of `max_overlap`.")
+            raise ValueError(
+                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Consider increasing the value of `max_overlap`."
+            )
 
-    def _would_exceed_temporal_overlap(self, new_event_start: float, new_event_duration: float) -> bool:
+    def _would_exceed_temporal_overlap(
+        self, new_event_start: float, new_event_duration: float
+    ) -> bool:
         """
         Determine whether an event is overlapping with other events more than `max_overlap` times.
         """
@@ -382,10 +422,10 @@ class Scene:
         return intersections >= self.max_overlap
 
     def generate(
-            self,
-            audio_path: Union[str, Path] = None,
-            metadata_path: Union[str, Path] = None,
-            spatial_audio_format: str = "A"
+        self,
+        audio_path: Union[str, Path] = None,
+        metadata_path: Union[str, Path] = None,
+        spatial_audio_format: str = "A",
     ) -> None:
         """
         Render scene to disk. Currently only audio and metadata are rendered.
@@ -399,9 +439,9 @@ class Scene:
             None
         """
         from audiblelight.synthesize import (
-            render_scene_audio,
             generate_scene_audio_from_events,
-            validate_scene
+            render_scene_audio,
+            validate_scene,
         )
 
         # Simulate the IRs for the state
@@ -424,9 +464,6 @@ class Scene:
         # Dump the metadata to a JSON
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=4, ensure_ascii=False)
-
-    def __getitem__(self, alias: str) -> Event:
-        return self.get_event(alias)
 
     def to_dict(self) -> dict:
         """
@@ -465,8 +502,13 @@ class Scene:
 
         # Sanitise the input
         for expected in [
-            "audiblelight_version", "rlr_audio_propagation_version", "duration",
-            "ref_db", "ambience", "events", "state"
+            "audiblelight_version",
+            "rlr_audio_propagation_version",
+            "duration",
+            "ref_db",
+            "ambience",
+            "events",
+            "state",
         ]:
             if expected not in input_dict:
                 raise KeyError("Missing key: '{}'".format(expected))
@@ -474,25 +516,31 @@ class Scene:
         # Raise a warning on a version mismatch for both audiblelight and rlr_audio_propagation
         loaded_version = input_dict["audiblelight_version"]
         if loaded_version != __version__:
-            logger.error(f"This Scene appears to have been created using a different version of `AudibleLight`. "
-                         f"The currently installed version is v.{__version__}, but the Scene was created "
-                         f"with v.{loaded_version}. AudibleLight will attempt to load the Scene; but if you encounter "
-                         f"errors, you should try running `pip install audiblelight=={__version__}`")
+            logger.error(
+                f"This Scene appears to have been created using a different version of `AudibleLight`. "
+                f"The currently installed version is v.{__version__}, but the Scene was created "
+                f"with v.{loaded_version}. AudibleLight will attempt to load the Scene; but if you encounter "
+                f"errors, you should try running `pip install audiblelight=={__version__}`"
+            )
 
         loaded_rlr = input_dict["rlr_audio_propagation_version"]
         actual_rlr = version("rlr_audio_propagation")
         if loaded_rlr != actual_rlr:
-            logger.error(f"This Scene appears to have been created using a different version of `rlr_audio_propagation`"
-                         f". The currently installed version is v.{actual_rlr}, but the Scene was created "
-                         f"with v.{loaded_rlr}. AudibleLight will attempt to load the Scene; but if you encounter "
-                         f"errors, you should try running `pip install rlr_audio_propagation=={loaded_rlr}`")
+            logger.error(
+                f"This Scene appears to have been created using a different version of `rlr_audio_propagation`"
+                f". The currently installed version is v.{actual_rlr}, but the Scene was created "
+                f"with v.{loaded_rlr}. AudibleLight will attempt to load the Scene; but if you encounter "
+                f"errors, you should try running `pip install rlr_audio_propagation=={loaded_rlr}`"
+            )
 
         # Instantiate the scene
         #  TODO: figure out some way to handle loading distributions here (non trivial as Scipy distributions cannot
         #   easily be saved to disk)
-        logger.warning("Currently, distributions cannot be loaded with `Scene.from_dict`. You will need to manually "
-                       "redefine these using, for instance, setattr(scene, 'event_start_dist', ...), repeating this "
-                       "for every distribution.")
+        logger.warning(
+            "Currently, distributions cannot be loaded with `Scene.from_dict`. You will need to manually "
+            "redefine these using, for instance, setattr(scene, 'event_start_dist', ...), repeating this "
+            "for every distribution."
+        )
         instantiated_scene = cls(
             duration=input_dict["duration"],
             mesh_path=input_dict["state"]["mesh"]["fpath"],
@@ -505,7 +553,9 @@ class Scene:
         instantiated_scene.state = WorldState.from_dict(input_dict["state"])
 
         # Instantiate the events by iterating over the list
-        instantiated_scene.events = OrderedDict({k: Event.from_dict(v) for k, v in input_dict["events"].items()})
+        instantiated_scene.events = OrderedDict(
+            {k: Event.from_dict(v) for k, v in input_dict["events"].items()}
+        )
 
         return instantiated_scene
 
@@ -558,7 +608,7 @@ class Scene:
         """
         return self.state.get_emitter(alias, emitter_idx)
 
-    def get_microphone(self, alias: str) -> Type['MicArray']:
+    def get_microphone(self, alias: str) -> Type["MicArray"]:
         """
         Alias for `WorldState.get_microphone`
         """
@@ -582,7 +632,7 @@ class Scene:
         """
         if alias in self.events.keys():
             del self.events[alias]
-            self.state.clear_emitter(alias)    # this calls state._update for us
+            self.state.clear_emitter(alias)  # this calls state._update for us
         else:
             raise KeyError("Event alias '{}' not found.".format(alias))
 
@@ -592,9 +642,11 @@ class Scene:
         """
         # Raise a warning when we might orphan events
         if len(self.events) > 0:
-            logger.warning(f"Clearing emitters from a scene may orphan its associated events. It is recommended to "
-                           f"call `Scene.clear_events()` to clear all events and their associated emitters, "
-                           f"rather than this function.")
+            logger.warning(
+                "Clearing emitters from a scene may orphan its associated events. It is recommended to "
+                "call `Scene.clear_events()` to clear all events and their associated emitters, "
+                "rather than this function."
+            )
         self.state.clear_emitters()
 
     def clear_microphones(self) -> None:
@@ -609,9 +661,11 @@ class Scene:
         """
         # Raise a warning when we might orphan an event
         if len(self.events) > 0 and alias in self.events:
-            logger.warning(f"Clearing emitters with the alias '{alias}' will orphan an event. It is recommended to "
-                           f"instead call `Scene.clear_event(alias)` to remove this event and its associated emitters, "
-                           f"rather than calling this function.")
+            logger.warning(
+                f"Clearing emitters with the alias '{alias}' will orphan an event. It is recommended to "
+                f"instead call `Scene.clear_event(alias)` to remove this event and its associated emitters, "
+                f"rather than calling this function."
+            )
         self.state.clear_emitter(alias)
 
     def clear_microphone(self, alias: str) -> None:
@@ -622,8 +676,6 @@ class Scene:
 
 
 if __name__ == "__main__":
-    from audiblelight.synthesize import render_scene_audio
-
     sc = Scene(
         duration=30,
         mesh_path=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb",
@@ -634,7 +686,7 @@ if __name__ == "__main__":
         event_resolution_dist=stats.uniform(0, 10),
         snr_dist=stats.norm(5, 1),
         fg_path=utils.get_project_root() / "tests/test_resources/soundevents",
-        max_overlap=3
+        max_overlap=3,
     )
     sc.add_microphone(microphone_type="ambeovr")
 
