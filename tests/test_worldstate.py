@@ -687,6 +687,7 @@ def test_get_random_position(test_num: int, oyens_space: WorldState):
 @pytest.mark.parametrize(
     "n_mics,n_emitters", [(m, s) for m, s in zip(list(range(1, 5))[::-1], range(1, 5))]
 )
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_simulated_ir(n_mics: int, n_emitters: int, oyens_space: WorldState):
     # For reproducible results
     utils.seed_everything(n_emitters)
@@ -745,6 +746,7 @@ def test_create_scene(oyens_space):
     assert len(scene.geometry) > len(oyens_space.mesh.scene().geometry)
 
 
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_save_wavs(oyens_space: WorldState):
     # Add some microphones and emitters
     oyens_space.add_microphone(
@@ -821,6 +823,7 @@ def test_path_between_points(
         ),
     ],
 )
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_simulated_doa_with_music(
     microphone: list, emitters: list, actual_doa: list[int], oyens_space: WorldState
 ):
@@ -907,6 +910,7 @@ def test_simulated_doa_with_music(
         ),
     ],
 )
+@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
 def test_simulated_sound_distance(
     closemic_position: list, farmic_position: list, emitter_position: list, oyens_space
 ):
