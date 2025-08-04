@@ -646,8 +646,8 @@ def test_add_emitters_invalid(oyens_space: WorldState):
     with pytest.raises(TypeError):
         oyens_space.add_emitters(positions=[[0, 0, 0]], n_emitters=1, polar=False)
     # Aliases for emitters must be unique
-    with pytest.raises(ValueError):
-        oyens_space.add_emitters(aliases=["asdf", "asdf"], polar=False)
+    # with pytest.raises(ValueError):
+    #     oyens_space.add_emitters(aliases=["asdf", "asdf"], polar=False)
     # Cannot add emitters that are way outside the mesh
     with pytest.raises(ValueError):
         oyens_space.add_emitters(

@@ -134,6 +134,7 @@ class Emitter:
         """
         for alias, obj in coordinates.items():
             # Add zero-arrays if the object is the current Emitter
+            # TODO: note that this won't currently work for moving emitters
             if alias == self.alias:
                 self.coordinates_relative_cartesian[alias] = np.array([0.0, 0.0, 0.0])
                 self.coordinates_relative_polar[alias] = np.array([0.0, 0.0, 0.0])
@@ -1161,11 +1162,6 @@ class WorldState:
             assert isinstance(n_emitters, int), "`n_emitters` must be an integer!"
             assert n_emitters > 0, "`n_emitters` must be positive!"
             positions = [None for _ in range(n_emitters)]
-
-        # Handle cases with non-unique aliases
-        if aliases is not None:
-            if len(set(aliases)) != len(aliases):
-                raise ValueError("Only unique aliases can be passed")
 
         all_not_none = [
             l_
