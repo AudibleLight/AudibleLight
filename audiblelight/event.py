@@ -244,6 +244,17 @@ class Event:
         # If there is no difference, there should be no keys in the deepdiff object
         return len(diff) == 0
 
+    def __len__(self) -> int:
+        """
+        Get the number of Emitters registered to this Event, alias for `len(Event.emitters)`.
+        """
+        if self.has_emitters:
+            return len(self.emitters)
+        else:
+            raise ValueError(
+                "Cannot get length of an Event object without registered emitters."
+            )
+
     @property
     def has_emitters(self) -> bool:
         """
