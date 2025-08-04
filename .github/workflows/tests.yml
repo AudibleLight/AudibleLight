@@ -48,5 +48,11 @@ jobs:
         run: |
           poetry install --no-interaction --no-root
 
+      - name: Style check with flake8
+        shell: bash -l {0}
+        run: poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Info about error codes: https://pycodestyle.pycqa.org/en/latest/intro.html#error-codes
+        # and https://flake8.pycqa.org/en/latest/user/error-codes.html
+
       - name: Run tests
         run: poetry run pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
