@@ -2466,47 +2466,88 @@ def test_magic_methods(oyens_space):
 
 
 @pytest.mark.parametrize(
-    "starting_position,ending_position,n_points,raises",
+    "starting_position,ending_position,duration,max_speed,temporal_resolution,raises",
     [
         # Test 1: don't define a starting position or ending position
-        (None, None, 10, False),
+        (None, None, 5.0, 1.0, 4, False),
         # Test 2: define a valid starting position, don't define an ending position
-        (np.array([1.6, -5.1, 1.7]), None, 3, False),
+        (np.array([1.6, -5.1, 1.7]), None, 10.0, 2.0, 2, False),
         # Test 3: define a valid ending position, don't define a starting position
-        (None, np.array([2.9, -1.0, 2.2]), 3, False),
+        (None, np.array([2.9, -1.0, 2.2]), 3.0, 1.0, 6, False),
         # Test 4: define an INVALID starting and ending position
-        (np.array([-1000, 1000, -1000]), np.array([-1000, -1000, 1000]), 100, True),
+        (
+            np.array([-1000, 1000, -1000]),
+            np.array([-1000, -1000, 1000]),
+            5.0,
+            1.0,
+            4,
+            True,
+        ),
+        # Test 5: defined start, random end
+        ([4.73, -0.72, 0.96], None, 2.0, 2.0, 10, False),
     ],
 )
 @pytest.mark.parametrize(
     "shape",
-    # Repeat all test cases with every type of trajectory shape
-    ["linear", "circular"],
+    # TODO: Repeat all test cases with every type of trajectory shape
+    [
+        "linear",
+    ],
 )
 def test_define_trajectory(
-    starting_position, ending_position, n_points, raises, shape, oyens_space
+    starting_position,
+    ending_position,
+    duration,
+    max_speed,
+    temporal_resolution,
+    raises,
+    shape,
+    oyens_space,
 ):
     if not raises:
         trajectory = oyens_space.define_trajectory(
-            starting_position,
-            ending_position,
-            n_points,
-            shape,
-            max_place_attempts=10000,
+            duration=duration,
+            starting_position=starting_position,
+            ending_position=ending_position,
+            shape=shape,
+            max_speed=max_speed,
+            temporal_resolution=temporal_resolution,
         )
         assert isinstance(trajectory, np.ndarray)
         assert oyens_space._validate_position(trajectory)
+
         # Check the shape: expecting (n_points, xyz == 3)
         n_points_actual, n_coords = trajectory.shape
-        assert n_points_actual == n_points
         assert n_coords == 3
+
         # If we've explicitly provided a starting and ending position, these should be maintained in the trajectory
         if starting_position is not None:
             assert np.allclose(trajectory[0, :], starting_position, atol=1e-4)
         if ending_position is not None:
             assert np.allclose(trajectory[-1, :], ending_position, atol=1e-4)
+
+        # Temporal resolution adherence
+        n_points_expected = int(np.floor(duration * temporal_resolution) + 1)
+        assert (
+            n_points_actual == n_points_expected
+        ), f"Expected {n_points_expected} points, got {n_points_actual}"
+
+        # Check that speed constraints are never violated between points
+        deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
+        max_segment_distance = max_speed / temporal_resolution
+        assert np.all(deltas <= max_segment_distance + 1e-5)
+
+        # Check distance between starting and ending point
+        total_distance = np.linalg.norm(trajectory[-1, :] - trajectory[0, :])
+        assert total_distance <= (max_speed * duration)
+
     else:
         with pytest.raises(ValueError):
             _ = oyens_space.define_trajectory(
-                starting_position, ending_position, n_points, shape
+                duration=duration,
+                starting_position=starting_position,
+                ending_position=ending_position,
+                shape=shape,
+                max_speed=max_speed,
+                temporal_resolution=temporal_resolution,
             )

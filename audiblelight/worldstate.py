@@ -34,7 +34,10 @@ WARN_WHEN_EFFICIENCY_BELOW = (
     0.5  # when the ray efficiency is below this value, raise a warning in .simulate
 )
 
-MOVING_EMITTER_N_POINTS = 10
+MOVING_EMITTER_MAX_SPEED = 1  # meters per second
+MOVING_EMITTER_TEMPORAL_RESOLUTION = (
+    4  # number of IRs created per second for a moving emitter
+)
 
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
@@ -1223,29 +1226,34 @@ class WorldState:
 
     def define_trajectory(
         self,
+        duration: Optional[utils.Numeric],
         starting_position: Optional[Union[np.ndarray, list]] = None,
         ending_position: Optional[Union[np.ndarray, list]] = None,
-        n_points: Optional[utils.Numeric] = MOVING_EMITTER_N_POINTS,
+        max_speed: Optional[utils.Numeric] = MOVING_EMITTER_MAX_SPEED,
+        temporal_resolution: Optional[
+            utils.Numeric
+        ] = MOVING_EMITTER_TEMPORAL_RESOLUTION,
         shape: Optional[str] = "linear",
         max_place_attempts: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
-        # TODO: add `max_distance`, `max_speed` parameters
     ):
         """
-        Defines a trajectory for a moving sound event within specified spatial bounds, adhering to a given shape.
+        Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
 
         This method calculates a series of XYZ coordinates that outline the path of a sound event, based on the
-        specified trajectory shape, the number of points to define the trajectory, and the confines of the mesh.
-        It generates a starting point and an end point that comply with these conditions, and then interpolates
-        between these points according to the trajectory's shape.
+        specified trajectory shape, the confines of the mesh, and the duration of the event. It generates a starting
+        point and an end point that comply with these conditions, and then interpolates between these points according
+        to the trajectory's shape.
 
         Arguments:
+            duration (Numeric): the length of time it should take to traverse from starting to ending position
             starting_position (np.ndarray): the starting position for the trajectory. If not provided, a random valid
                 position within the mesh will be selected.
             ending_position (np.ndarray): the ending position for the trajectory. If not provided, a random valid
                 position within the mesh that has line-of-sight with `starting_position` will be selected.
-            n_points (int): the number of points to use in the trajectory
+            max_speed (Numeric): the speed limit for the trajectory, in meters per second
+            temporal_resolution (Numeric): the number of emitters created per second
             shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
-            max_place_attempts (int): the number of times to try and create the trajectory.
+            max_place_attempts (Numeric): the number of times to try and create the trajectory.
 
         Raises:
             ValueError: if a trajectory cannot be defined after `max_place_attempts`
@@ -1267,21 +1275,37 @@ class WorldState:
         )
 
         # Sanitise provided shape
-        accepteds = ["linear", "circular"]
+        #  Only accept a linear shape for now
+        accepteds = [
+            "linear",
+        ]
         if shape not in accepteds:
             raise ValueError(
                 f"`shape` must be one of {', '.join(accepteds)} but got '{shape}'"
             )
 
-        # Must have a positive number of points to define the trajectory with
-        n_points = int(utils.sanitise_positive_number(n_points))
+        # Compute the number of samples based on duration and resolution
+        n_points = int(
+            utils.sanitise_positive_number(duration * temporal_resolution) + 1
+        )
+        max_distance = utils.sanitise_positive_number(max_speed * duration)
 
-        # TODO: consider speed limit. This is currently a bit difficult, as it requires knowledge of the duration
-        #  of the event audio. Currently, we create `Event` objects *after* creating `Emitter`s, so we might need to
-        #  refactor some of this logic.
+        # Compute the distance that we can travel in a single step
+        step_limit = max_speed / temporal_resolution
+
+        if max_distance < 1.0:
+            logger.warning(
+                f"Maximum trajectory distance is small ({max_distance:.2f} m). "
+                f"If a valid trajectory cannot be created, consider increasing the duration, max_speed, "
+                f"or relaxing spatial constraints."
+            )
 
         # Try and create the trajectory a specified number of times
         for attempt in range(actual_place_attempts):
+
+            # Log progress every 100 attempts
+            if (attempt + 1) % 100 == 0:
+                logger.info(f"Trajectory attempt {attempt + 1}/{actual_place_attempts}")
 
             # Use random starting and ending positions if not defined already: ending position assumes LOS with start
             start_attempt = (
@@ -1308,9 +1332,15 @@ class WorldState:
             ):
                 continue
 
-            # Continue if no LOS exists between starting and ending position
-            # TODO: do we want to do this?
-            if not self.path_exists_between_points(start_attempt, end_attempt):
+            # Reject if ending point is too far away from starting point
+            distance = np.linalg.norm(end_attempt - start_attempt)
+            if distance > max_distance:
+                continue
+
+            # Continue if no LOS exists between starting and ending position for a linear trajectory
+            if shape == "linear" and not self.path_exists_between_points(
+                start_attempt, end_attempt
+            ):
                 continue
 
             # Compute the trajectory with the utility function
@@ -1323,6 +1353,11 @@ class WorldState:
                     start_attempt, end_attempt, n_points
                 )
 
+            # Ensure no step exceeds max_speed / temporal_resolution
+            deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
+            if np.any(deltas > step_limit + 1e-4):
+                continue
+
             # Validate that all the positions in the trajectory are acceptable
             #  (in bounds of mesh, not too close to a microphone or another placed emitter, etc.)
             if self._validate_position(trajectory):
@@ -1330,9 +1365,9 @@ class WorldState:
 
         # If we reach here, we couldn't create the trajectory
         raise ValueError(
-            f"Could not define a valid movement trajectory after {utils.MAX_PLACE_ATTEMPTS} attempts. Consider:\n"
+            f"Could not define a valid movement trajectory after {actual_place_attempts} attempt(s). Consider:\n"
             f"- Reducing `empty_space_around parameters`\n"
-            f"- Decreasing `n_points` in the trajectory (currently {n_points})\n"
+            f"- Decreasing `temporal_resolution` (currently {temporal_resolution})\n"
             f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
         )
 
