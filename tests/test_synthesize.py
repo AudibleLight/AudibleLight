@@ -9,6 +9,7 @@ import pytest
 
 import audiblelight.synthesize as syn
 from audiblelight import utils
+from audiblelight.event import Event
 
 
 @pytest.mark.parametrize(
@@ -82,7 +83,9 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
     oyens_scene_no_overlap.clear_events()
     # Add static sources in
     for n_event in range(n_events):
-        oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
+        oyens_scene_no_overlap.add_event(
+            event_type="static", emitter_kwargs=dict(keep_existing=True)
+        )
 
     syn.validate_scene(oyens_scene_no_overlap)
     syn.render_scene_audio(oyens_scene_no_overlap)
@@ -106,7 +109,9 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
 def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):
-        oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
+        oyens_scene_no_overlap.add_event(
+            event_type="static", emitter_kwargs=dict(keep_existing=True)
+        )
 
     # Render the scene audio
     syn.validate_scene(oyens_scene_no_overlap)
@@ -135,7 +140,7 @@ def test_validate_scene(oyens_scene_factory):
 
     # Test with no mics
     scn = oyens_scene_factory()
-    scn.add_event()
+    scn.add_event(event_type="static")
     scn.clear_microphones()  # 1 emitter, 1 event, 0 microphones
     with pytest.raises(ValueError, match="WorldState has no microphones!"):
         syn.validate_scene(scn)
@@ -148,8 +153,12 @@ def test_validate_scene(oyens_scene_factory):
 
     # Increase number of events so it does not match number of emitters/ray-tracing sources
     scn = oyens_scene_factory()
-    scn.add_event()
-    scn.events["asdfasdf"] = 123  # 2 events, 1 emitter, 1 source
+    scn.add_event(event_type="static")
+    scn.events["tmp"] = Event(
+        filepath=utils.get_project_root()
+        / "tests/test_resources/soundevents/music/000010.mp3",
+        alias="tmp",
+    )  # 2 events, 1 emitter, 1 source
     with pytest.raises(ValueError, match="Mismatching number of emitters"):
         syn.validate_scene(scn)
 
@@ -160,7 +169,7 @@ def test_validate_scene(oyens_scene_factory):
             return 5
 
     scn = oyens_scene_factory()
-    scn.add_event()
+    scn.add_event(event_type="static")
     scn.state.microphones["asdf"] = TempMic()
     with pytest.raises(ValueError, match="Mismatching number of microphones"):
         syn.validate_scene(scn)

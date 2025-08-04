@@ -317,8 +317,6 @@ def validate_scene(scene: Scene) -> None:
     # Validate Events
     if len(scene.events) == 0:
         raise ValueError("Scene has no events!")
-    if any(not ev.has_emitters for ev in scene.events.values()):
-        raise ValueError("Some events have no emitters registered to them!")
 
     # Validate across all parts of the library, e.g. WorldState, Scene, ray-tracing engine
     vals = (
@@ -339,3 +337,6 @@ def validate_scene(scene: Scene) -> None:
             f"Mismatching number of microphones and listeners! "
             f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners."
         )
+
+    if any(not ev.has_emitters for ev in scene.events.values()):
+        raise ValueError("Some events have no emitters registered to them!")
