@@ -106,11 +106,47 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
         2,
     ],
 )
+def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_overlap):
+    oyens_scene_no_overlap.clear_events()
+    # Add static sources in
+    for n_event in range(n_events):
+        oyens_scene_no_overlap.add_event(
+            filepath=utils.get_project_root()
+            / "tests/test_resources/soundevents/music/000010.mp3",
+            event_type="moving",
+            event_kwargs=dict(duration=2, spatial_resolution=1, spatial_velocity=4),
+        )
+
+    syn.validate_scene(oyens_scene_no_overlap)
+    syn.render_scene_audio(oyens_scene_no_overlap)
+    assert len(oyens_scene_no_overlap.events) == n_events
+
+    for event_alias, event in oyens_scene_no_overlap.events.items():
+        assert event.is_moving
+        assert isinstance(event.spatial_audio, np.ndarray)
+        n_channels, n_samples = event.spatial_audio.shape
+        # Number of channels should be same as microphone, number of samples should be same as audio
+        assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
+        assert n_samples == event.load_audio().shape[-1]
+
+
+@pytest.mark.parametrize(
+    "n_events",
+    [
+        1,
+        2,
+    ],
+)
 def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap):
     oyens_scene_no_overlap.clear_events()
+    # Add both N static and N moving events
     for n_event in range(n_events):
         oyens_scene_no_overlap.add_event(
             event_type="static", emitter_kwargs=dict(keep_existing=True)
+        )
+        oyens_scene_no_overlap.add_event(
+            event_type="moving",
+            event_kwargs=dict(duration=2, spatial_resolution=2, spatial_velocity=4),
         )
 
     # Render the scene audio
