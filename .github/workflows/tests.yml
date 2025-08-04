@@ -49,4 +49,4 @@ jobs:
           poetry install --no-interaction --no-root
 
       - name: Run tests
-        run: pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        run: poetry run pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
