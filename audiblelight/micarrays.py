@@ -45,6 +45,9 @@ class MicArray:
         capsule_names (list[str]): the names of the microphone capsules
     """
 
+    # TODO: note that we assume that colatitude is measured from 0 -> 180. In reality, users may want/expect to use
+    #  elevation, where 0 == straight ahead, 90 == straight up, -90 straight down. We should add support for this.
+
     name: str = ""
     is_spherical: bool = False
     irs: np.ndarray = field(default=None, init=False, repr=False)
@@ -179,6 +182,79 @@ class MicArray:
             **coord_dict,
         )
 
+    @staticmethod
+    def _get_mic_class(input_dict: dict[str, Any]) -> Type["MicArray"]:
+        """
+        Given a dictionary, get the desired MicArray class.
+
+        Arguments:
+            input_dict (dict[str, Any]): dictionary to instantiate MicArray class
+
+        Returns:
+            MicArray object
+        """
+        # Get the class type of the desired microphone
+        desired_mic = input_dict.pop("micarray_type", "mic")
+        if desired_mic not in MICARRAY_CLASS_MAPPING:
+            raise ValueError(
+                f"{desired_mic} is not a valid microphone array type! "
+                f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}"
+            )
+        # Instantiate the microphone and set its coordinates
+        return MICARRAY_CLASS_MAPPING[desired_mic]
+
+    def _set_attribute(self, attr_name: str, value: Any) -> None:
+        """
+        Set an attribute on the MicArray object.
+
+        Arguments:
+            attr_name (str): name of the attribute to set
+            value (Any): value to set
+
+        Returns:
+            None
+
+        Raises:
+            AttributeError: if the value for an attribute does not match the default, when already set
+        """
+        # "de-serialise" lists back to arrays, ignoring strings
+        if isinstance(value, list) and not isinstance(value[0], str):
+            value = np.asarray(value)
+
+        # Try and set the attribute
+        try:
+            hasat = hasattr(
+                self, attr_name
+            )  # need to be defensive, can sometimes hit NotImplementedError
+        except NotImplementedError:
+            return
+
+        if hasat:
+            try:
+                setattr(self, attr_name, value)
+
+            # We can't always set some dataclass attributes, but we should check that the default value is
+            #  equivalent to what has been passed in
+            except AttributeError:
+                expected = getattr(self, attr_name)
+                # Need to use different equality comparisons for arrays vs non-arrays
+                eq = (
+                    np.isclose(expected, value, atol=1e-4).all()
+                    if isinstance(value, np.ndarray)
+                    else expected == value
+                )
+
+                if not eq:
+                    raise AttributeError(
+                        f"Expected attribute {attr_name} to have value {expected}, but got {value}!"
+                    )
+                else:
+                    return
+
+        # Ignore cases where there is no attribute
+        else:
+            return
+
     @classmethod
     def from_dict(cls, input_dict: dict[str, Any]):
         """
@@ -190,54 +266,12 @@ class MicArray:
         Returns:
             MicArray instance.
         """
-        # Get the class type of the desired microphone
-        desired_mic = input_dict.pop("micarray_type", "mic")
-        if desired_mic not in MICARRAY_CLASS_MAPPING:
-            raise ValueError(
-                f"{desired_mic} is not a valid microphone array type! "
-                f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}"
-            )
-
-        # Instantiate the microphone and set its coordinates
-        mic_class = MICARRAY_CLASS_MAPPING[desired_mic]()
+        mic_class = cls._get_mic_class(input_dict)()
         mic_class.set_absolute_coordinates(input_dict["coordinates_center"])
 
         # Set any other valid parameters for the microphone as well
         for k, v in input_dict.items():
-
-            # "de-serialise" lists back to arrays, ignoring strings
-            if isinstance(v, list) and not isinstance(v[0], str):
-                v = np.asarray(v)
-
-            # Try and set the attribute
-            try:
-                hasat = hasattr(
-                    mic_class, k
-                )  # need to be defensive, can sometimes hit NotImplementedError
-            except NotImplementedError:
-                continue
-
-            if hasat:
-                try:
-                    setattr(mic_class, k, v)
-
-                # We can't always set some dataclass attributes, but we should check that the default value is
-                #  equivalent to what has been passed in
-                except AttributeError:
-                    expected = getattr(mic_class, k)
-                    # Need to use different equality comparisons for arrays vs non-arrays
-                    eq = (
-                        np.isclose(expected, v, atol=1e-4).all()
-                        if isinstance(v, np.ndarray)
-                        else expected == v
-                    )
-
-                    if not eq:
-                        raise AttributeError(
-                            f"Expected attribute {k} to have value {expected}, but got {v}!"
-                        )
-                    else:
-                        continue
+            mic_class._set_attribute(k, v)
 
         return mic_class
 
@@ -491,4 +525,5 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
             f"Cannot find array {micarray_name}: expected one of {','.join(acceptable_values)}"
         )
     else:
-        return [ma for ma in MICARRAY_LIST if ma.name == micarray_name][0]
+        # Using `next` avoids having to build the whole list
+        return next(ma for ma in MICARRAY_LIST if ma.name == micarray_name)
