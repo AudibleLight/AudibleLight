@@ -877,18 +877,31 @@ class WorldState:
 
         return mic_pos
 
-    def get_random_point_inside_mesh(self) -> np.ndarray:
+    def get_random_point_inside_mesh(self, batch_size: int = 10) -> np.ndarray:
         """
         Generates a random valid point inside the mesh.
+
+        N positions will be generated in batches and a whole batch will be checked at once to take advantage of
+        `numpy` vectorisation. In initial experiments, using a batch size of 10 resulted in a speed-up of 1.5x over
+        a batch size of 1 (i.e., no batching). Improvements level off and decrease after, with a batch size of 100
+        resulting in 2x worse performance than no batching.
+
+        Arguments:
+            batch_size (int): number of points to generate in a single batch, defaults to 10
 
         Returns:
             np.array: A valid point within the mesh in XYZ format
         """
+        min_bound, max_bound = self.mesh.bounds
+        # Keep iterating until we get at least one valid point
         while True:
-            point = np.random.uniform(self.mesh.bounds[0], self.mesh.bounds[1])
-            # This checks e.g. distance from surface, other emitters, other mics, and that point is in-bounds
-            if self._validate_position(point):
-                return point
+            points = np.random.uniform(min_bound, max_bound, size=(batch_size, 3))
+            # Returns a boolean mask of shape (batch_size,)
+            mask = self._get_valid_positions_mask(points)
+            # Index and get a random element from the valid items in the batch
+            if np.any(mask):
+                valids = np.flatnonzero(mask)
+                return points[np.random.choice(valids)]
 
     def _is_point_inside_mesh(self, point: Union[np.array, list]) -> bool:
         """
@@ -1355,7 +1368,6 @@ class WorldState:
             choice = np.random.choice(only_valids_idxs)
             return samples[choice, :]
 
-    # '@utils.timer("validate trajectory")
     def _validate_trajectory(
         self,
         trajectory: np.ndarray,
@@ -1409,6 +1421,7 @@ class WorldState:
         # Validate all positions in the trajectory WRT the rest of the mesh
         return self._validate_position(trajectory)
 
+    @utils.timer("define trajectory")
     def define_trajectory(
         self,
         duration: Optional[utils.Numeric],
