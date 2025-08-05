@@ -1462,9 +1462,13 @@ class WorldState:
 
         # Compute the number of samples based on duration and resolution
         n_points = round(utils.sanitise_positive_number(duration * resolution) + 1)
+        # Clamp `n_points` to 2, so we will always be able to create a moving trajectory
         if n_points < 2:
-            raise ValueError(
-                "Cannot create a moving trajectory comprised of fewer than two points"
+            n_points = 2
+            logger.warning(
+                f"Number of points in trajectory ({n_points}) is smaller than 2, so it is being clamped to "
+                f"2 internally. If this is happening frequently, consider increasing `resolution` "
+                f"(currently {resolution:.3f})."
             )
 
         # Sanitise the maximum distance that we'll travel in the trajectory
@@ -1473,13 +1477,10 @@ class WorldState:
         # Compute the distance that we can travel in a single step
         step_limit = velocity / resolution
 
-        # Raise an error if distance is too small
-        if max_distance < self.empty_space_around_emitter:
-            raise ValueError(
-                f"Trajectory distance is smaller than minimum allowed ({max_distance:.3f}m). "
-                f"Consider increasing `empty_space_around_emitter` argument "
-                f"(currently {self.empty_space_around_emitter:.3f}m)"
-            )
+        # We no longer raise an error if max_distance < self.empty_space_around_emitter
+        #  This is because (I think) this should parameter should only relate to emitters
+        #  associated with *separate* events. We do not care if two emitters related to the
+        #  *same* event are closer than this distance to each other.
 
         # If we've provided a starting position, sanitise and validate it before entering the loop
         if starting_position is not None:
