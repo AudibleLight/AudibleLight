@@ -2485,7 +2485,7 @@ def test_magic_methods(oyens_space):
         # Test 5: high resolution, small duration + velocity
         (None, 1.0, 0.25, 4.0, False),
         # Test 6: small resolution, high duration + velocity
-        (None, 10.0, 2.0, 1.0, False),
+        (None, 5.0, 2.0, 1.0, False),
     ],
 )
 @pytest.mark.parametrize(

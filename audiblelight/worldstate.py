@@ -1285,8 +1285,17 @@ class WorldState:
         Returns:
             bool: whether the trajectory is valid
         """
-        # Get the starting and ending positions from the trajectory
-        start_attempt, end_attempt = trajectory[0, :], trajectory[-1, :]
+        # Get the starting position from the trajectory
+        start_attempt = trajectory[0, :]
+
+        # Get the coordinate that is the furthest away from the starting position
+        #  For a linear/circular trajectory, this should just be the last coordinate
+        #  However, for a random walk, it technically be another coordinate
+        #  If, for instance, we begin by moving far away from the origin, then move back towards it
+        differences = trajectory[1:, :] - start_attempt
+        distances = np.linalg.norm(differences, axis=1)
+        max_idx = np.argmax(distances)
+        end_attempt = trajectory[1:, :][max_idx]
 
         # Trajectory must have more than 1 coordinate
         if len(trajectory) < 2:
