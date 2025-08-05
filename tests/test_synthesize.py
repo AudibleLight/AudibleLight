@@ -87,8 +87,9 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
         oyens_scene_no_overlap.add_event(
             filepath=utils.get_project_root()
             / "tests/test_resources/soundevents/music/000010.mp3",
+            # Use predefined kwargs so rendering doesn't take ages
             event_type="moving",
-            event_kwargs=dict(duration=2, spatial_resolution=1, spatial_velocity=4),
+            event_kwargs=dict(spatial_resolution=2, duration=1, spatial_velocity=1),
         )
 
     syn.validate_scene(oyens_scene_no_overlap)
@@ -118,9 +119,10 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
         oyens_scene_no_overlap.add_event(
             event_type="static", emitter_kwargs=dict(keep_existing=True)
         )
+        # Predefined kwargs so rendering doesn't take ages
         oyens_scene_no_overlap.add_event(
             event_type="moving",
-            event_kwargs=dict(duration=2, spatial_resolution=2, spatial_velocity=4),
+            event_kwargs=dict(spatial_resolution=2, duration=1, spatial_velocity=1),
         )
 
     # Render the scene audio
