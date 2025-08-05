@@ -96,15 +96,17 @@ def test_add_event_static(
 @pytest.mark.parametrize(
     "filepath,emitter_kws,event_kws",
     [
-        # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
+        # Predefine a starting position for speedups
         (
             SOUNDEVENT_DIR / "music/000010.mp3",
             dict(starting_position=np.array([1.6, -5.1, 1.7])),
             dict(duration=5, event_start=5, scene_start=5),
         ),
-        # Test 2: explicit event keywords and filepath, but no emitter keywords
-        (SOUNDEVENT_DIR / "music/001666.mp3", None, dict(snr=5, spatial_velocity=1)),
-        # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
+        (
+            SOUNDEVENT_DIR / "music/001666.mp3",
+            dict(starting_position=np.array([1.6, -5.1, 1.7])),
+            dict(snr=5, spatial_velocity=1),
+        ),
         (
             None,
             dict(starting_position=np.array([1.6, -5.1, 1.7])),
@@ -117,8 +119,6 @@ def test_add_event_static(
                 spatial_resolution=2,
             ),
         ),
-        # Test 4: no path, no kwargs
-        # (None, None, None),
     ],
 )
 def test_add_moving_event(
