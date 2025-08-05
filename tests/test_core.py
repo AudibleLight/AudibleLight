@@ -8,7 +8,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import scipy.stats as stats
 
 from audiblelight import utils
 from audiblelight.core import Scene
@@ -104,12 +103,19 @@ def test_add_event_static(
             dict(duration=5, event_start=5, scene_start=5),
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
-        (SOUNDEVENT_DIR / "music/001666.mp3", None, dict(snr=5, spatial_velocity=5)),
+        (SOUNDEVENT_DIR / "music/001666.mp3", None, dict(snr=5, spatial_velocity=1)),
         # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
         (
             None,
             dict(starting_position=np.array([1.6, -5.1, 1.7])),
-            dict(duration=5, event_start=5, scene_start=5, snr=5, spatial_velocity=5),
+            dict(
+                duration=5,
+                event_start=5,
+                scene_start=5,
+                snr=5,
+                spatial_velocity=1,
+                spatial_resolution=2,
+            ),
         ),
         # Test 4: no path, no kwargs
         (None, None, None),
@@ -423,12 +429,7 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
     sc = Scene(
         duration=duration,
         mesh_path=mesh_fpath,
-        # Pass some default distributions for everything
-        event_start_dist=stats.uniform(0, 10),
-        event_duration_dist=stats.uniform(0, 10),
-        event_velocity_dist=stats.uniform(0, 10),
-        event_resolution_dist=stats.uniform(0, 10),
-        snr_dist=stats.norm(5, 1),
+        # Use default distributions for everything
         fg_path=SOUNDEVENT_DIR,
         max_overlap=max_overlap,
     )

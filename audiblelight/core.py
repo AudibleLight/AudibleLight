@@ -35,6 +35,7 @@ class Scene:
         fg_path: Optional[Union[str, Path]] = None,
         state_kwargs: Optional[dict] = None,
         ref_db: Optional[utils.Numeric] = REF_DB,
+        scene_start_dist: Optional[utils.DistributionLike] = None,
         event_start_dist: Optional[utils.DistributionLike] = None,
         event_duration_dist: Optional[utils.DistributionLike] = None,
         event_velocity_dist: Optional[utils.DistributionLike] = None,
@@ -70,11 +71,30 @@ class Scene:
         self.mesh = self.state.mesh
         # self.irs = self.state.irs
 
+        # Define defaults for all distributions
+        #  Events can start any time within the duration of the scene, minus some padding
+        if scene_start_dist is None:
+            scene_start_dist = stats.uniform(0.0, self.duration - 1)
+        #  Events can start any time up to 5 seconds through their duration
+        if event_start_dist is None:
+            event_start_dist = stats.uniform(0.0, 5.0)
+        #  Events can last between 0 and 10 seconds
+        if event_duration_dist is None:
+            event_duration_dist = stats.uniform(0.0, 10.0)
+        #  Events move between 0.25 and 2.0 metres per second
+        if event_velocity_dist is None:
+            event_velocity_dist = stats.uniform(0.25, 2.0)
+        #  Events have a resolution of between 1-4 Hz (i.e., number of IRs per second)
+        if event_resolution_dist is None:
+            event_resolution_dist = stats.uniform(1.0, 4.0)
+        #  Events have an SNR with a mean of 5, SD of 1, and boundary between 2 and 8
+        if snr_dist is None:
+            snr_dist = stats.truncnorm(a=-3, b=3, loc=5, scale=1)
+
         # Distributions: these function sanitise the distributions so that they are either `None` or an object
         #  with the `rvs` method. When called, the `rvs` method will return a random variate sampled from the
         #  probability distribution.
-        # TODO: these all need to be checked
-        self.scene_start_dist = stats.uniform(0.0, self.duration)
+        self.scene_start_dist = utils.sanitise_distribution(scene_start_dist)
         self.event_start_dist = utils.sanitise_distribution(event_start_dist)
         self.event_duration_dist = utils.sanitise_distribution(event_duration_dist)
         self.event_velocity_dist = utils.sanitise_distribution(event_velocity_dist)
