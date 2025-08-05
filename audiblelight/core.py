@@ -67,6 +67,8 @@ class Scene:
         utils.validate_kwargs(WorldState.__init__, **state_kwargs)
         self.state = WorldState(mesh_path, **state_kwargs)
 
+        self.sample_rate = self.state.ctx.config.sample_rate
+
         # Grab some attributes from the WorldState to make them easier to access
         self.mesh = self.state.mesh
         # self.irs = self.state.irs
@@ -497,7 +499,7 @@ class Scene:
         """
         from audiblelight.synthesize import (
             generate_scene_audio_from_events,
-            render_scene_audio,
+            render_audio_for_all_scene_events,
             validate_scene,
         )
 
@@ -508,7 +510,7 @@ class Scene:
         #  This populates the `.spatial_audio` attribute inside each Event
         #  It also populates the `audio` attribute inside this instance
         validate_scene(self)
-        render_scene_audio(self)
+        render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
 
         # Write the audio output

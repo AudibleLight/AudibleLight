@@ -7,25 +7,18 @@ The core functionality is adapted from [`colorednoise` by Felix Patzelt](https:/
 which is released under a permissive MIT license.
 """
 
-from typing import Any, Union, Iterable, Optional
 from pathlib import Path
+from typing import Any, Iterable, Optional, Union
 
-import numpy as np
 import librosa
+import numpy as np
 
 from audiblelight import utils
-
+from audiblelight.synthesize import db_to_multiplier
 
 # This dictionary maps popular "names" to β values for generating noise
 #  In general, higher β values cause more energy in high frequency parts of the power spectral density
-NOISE_MAPPING = dict(
-    pink=1,
-    brown=2,
-    red=2,
-    blue=-1,
-    white=0,
-    violet=-2
-)
+NOISE_MAPPING = dict(pink=1, brown=2, red=2, blue=-1, white=0, violet=-2)
 
 
 class Ambience:
@@ -35,15 +28,15 @@ class Ambience:
 
     # noinspection PyTypeChecker
     def __init__(
-            self,
-            channels: int,
-            duration: utils.Numeric,
-            alias: str,
-            filepath: Optional[Union[str, Path]] = None,
-            noise: Optional[Union[str, utils.Numeric]] = None,
-            ref_db: Optional[utils.Numeric] = utils.REF_DB,
-            sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-            **kwargs
+        self,
+        channels: int,
+        duration: utils.Numeric,
+        alias: str,
+        filepath: Optional[Union[str, Path]] = None,
+        noise: Optional[Union[str, utils.Numeric]] = None,
+        ref_db: Optional[utils.Numeric] = utils.REF_DB,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        **kwargs,
     ):
         """
         Initialises persistent, invariant background noise for a Scene object.
@@ -77,7 +70,9 @@ class Ambience:
         elif noise is not None and filepath is None:
             self.filepath, self.beta = None, _parse_beta(noise)
         elif noise is not None and filepath is not None:
-            raise AttributeError("Only one of `noise` or `filepath` should be provided.")
+            raise AttributeError(
+                "Only one of `noise` or `filepath` should be provided."
+            )
         else:
             raise AttributeError("One of `noise` or `filepath` must be provided")
 
@@ -120,14 +115,16 @@ class Ambience:
 
         # Or, we want to use a noise file from disk
         else:
-            ambient, _ = librosa.load(self.filepath, sr=self.sample_rate, mono=True, dtype=np.float32)
+            ambient, _ = librosa.load(
+                self.filepath, sr=self.sample_rate, mono=True, dtype=np.float32
+            )
             repeats = -(-total_samples // len(ambient))  # ceiling division
             # Tiles along both directions to get (n_channels, n_samples)
             out = np.tile(ambient, (self.channels, repeats))[:, :total_samples]
 
         # Now we scale to match the desired noise floor (taken from SpatialScaper)
         # TODO: second arg here should be computed with RMS, but this leads to clipping
-        scaler = utils.db_to_multiplier(self.ref_db, np.mean(np.abs(out)))
+        scaler = db_to_multiplier(self.ref_db, np.mean(np.abs(out)))
 
         # Set the audio to our property and return
         self.audio = out * scaler
@@ -145,15 +142,15 @@ class Ambience:
             sample_rate=self.sample_rate,
             duration=self.duration,
             ref_db=self.ref_db,
-            **self.noise_kwargs
+            **self.noise_kwargs,
         )
 
 
 def powerlaw_psd_gaussian(
-        beta: utils.Numeric,
-        shape: Union[int, Iterable[int]],
-        fmin: Optional[utils.Numeric] = 0.0,
-        seed: Optional[int] = utils.SEED,
+    beta: utils.Numeric,
+    shape: Union[int, Iterable[int]],
+    fmin: Optional[utils.Numeric] = 0.0,
+    seed: Optional[int] = utils.SEED,
 ) -> np.ndarray:
     """Generate Gaussian (1 / f) ** β noise.
 
@@ -166,7 +163,7 @@ def powerlaw_psd_gaussian(
         fmin (float): Low-frequency cutoff. Default: 0 corresponds to original paper. The largest possible
             value is fmin = 0.5, the Nyquist frequency. The output for this value is white noise.
         seed (int): Seed to use when creating the normal distribution.
-    
+
     Returns:
         np.ndarray: the noise samples in the shape (channels, samples)
 
@@ -188,7 +185,9 @@ def powerlaw_psd_gaussian(
     elif isinstance(shape, Iterable):
         size = list(shape)
     else:
-        raise ValueError(f"Argument `shape` must be of type int or Iterable[int] but got {type(shape)}")
+        raise ValueError(
+            f"Argument `shape` must be of type int or Iterable[int] but got {type(shape)}"
+        )
 
     # The number of samples in each time series
     samples = size[-1]
@@ -200,21 +199,23 @@ def powerlaw_psd_gaussian(
     # Validate / normalise fmin
     fmin = utils.sanitise_positive_number(fmin)
     if 0 <= fmin <= 0.5:
-        fmin = max(fmin, 1. / samples)  # Low frequency cutoff
+        fmin = max(fmin, 1.0 / samples)  # Low frequency cutoff
     else:
-        raise ValueError(f"Argument `fmin` must be chosen between 0 and 0.5 but got {fmin:.2f}.")
+        raise ValueError(
+            f"Argument `fmin` must be chosen between 0 and 0.5 but got {fmin:.2f}."
+        )
 
     # Build scaling factors for all frequencies
     s_scale = f
     ix = np.sum(s_scale < fmin)  # Index of the cutoff
     if ix and ix < len(s_scale):
         s_scale[:ix] = s_scale[ix]
-    s_scale = s_scale ** (-beta / 2.)
+    s_scale = s_scale ** (-beta / 2.0)
 
     # Calculate theoretical output standard deviation from scaling
     w = s_scale[1:].copy()
-    w[-1] *= (1 + (samples % 2)) / 2.  # correct f = +-0.5
-    sigma = 2 * np.sqrt(np.sum(w ** 2)) / samples
+    w[-1] *= (1 + (samples % 2)) / 2.0  # correct f = +-0.5
+    sigma = 2 * np.sqrt(np.sum(w**2)) / samples
 
     # Adjust size to generate one Fourier component per frequency
     size[-1] = len(f)
@@ -243,7 +244,7 @@ def powerlaw_psd_gaussian(
     sr[..., 0] *= np.sqrt(2)  # Fix magnitude
 
     # Combine power + corrected phase to Fourier components
-    s = sr + 1J * si
+    s = sr + 1j * si
 
     # Transform to real time series & scale to unit variance
     y = np.fft.irfft(s, n=samples, axis=-1)
@@ -270,4 +271,6 @@ def _parse_beta(noise: Any) -> float:
 
     # Must provide either a color or exponent
     else:
-        raise TypeError(f"Expected either a string or numeric input, but got {type(noise)}.")
+        raise TypeError(
+            f"Expected either a string or numeric input, but got {type(noise)}."
+        )
