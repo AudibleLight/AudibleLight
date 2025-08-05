@@ -616,6 +616,11 @@ class Scene:
             {k: Event.from_dict(v) for k, v in input_dict["events"].items()}
         )
 
+        # Instantiate the ambience in the same way
+        instantiated_scene.ambience = OrderedDict(
+            {k: Ambience.from_dict(v) for k, v in input_dict["ambience"].items()}
+        )
+
         return instantiated_scene
 
     @classmethod

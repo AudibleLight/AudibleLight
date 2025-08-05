@@ -12,6 +12,7 @@ from typing import Any, Iterable, Optional, Union
 
 import librosa
 import numpy as np
+from deepdiff import DeepDiff
 
 from audiblelight import utils
 
@@ -88,6 +89,47 @@ class Ambience:
         # Will be used to hold pre-rendered ambience
         self.audio = None
 
+    def __eq__(self, other: Any) -> bool:
+        """
+        Compare two Ambience objects for equality.
+
+        Returns:
+            bool: True if two Ambience objects are equal, False otherwise
+        """
+
+        # Non-Ambience objects are always not equal
+        if not isinstance(other, Ambience):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1,
+            d2,
+            ignore_order=True,
+            significant_digits=4,
+            ignore_numeric_type_changes=True,
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the scene
+        """
+        loaded = "loaded" if self.is_audio_loaded else "unloaded"
+        return f"'Ambience' with alias '{self.alias}' (currently {loaded})."
+
+    def __repr__(self) -> str:
+        """
+        Returns representation of the scene as a JSON
+        """
+        return utils.repr_as_json(self)
+
     @property
     def is_audio_loaded(self) -> bool:
         """
@@ -136,7 +178,42 @@ class Ambience:
             sample_rate=self.sample_rate,
             duration=self.duration,
             ref_db=self.ref_db,
-            **self.noise_kwargs,
+            noise_kwargs=self.noise_kwargs,
+        )
+
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate `Ambience` from a dictionary
+
+        Arguments:
+            input_dict (dict[str, Any]): the dictionary to instantiate from
+
+        Returns:
+            `Ambience` instance
+        """
+
+        # Sanitise inputs
+        for k in [
+            "alias",
+            "filepath",
+            "duration",
+            "ref_db",
+            "beta",
+            "channels",
+        ]:
+            if k not in input_dict:
+                raise KeyError(f"Missing key: '{k}'")
+
+        return cls(
+            channels=input_dict["channels"],
+            sample_rate=input_dict["sample_rate"],
+            alias=input_dict["alias"],
+            filepath=input_dict["filepath"],
+            duration=input_dict["duration"],
+            noise=input_dict["beta"],
+            ref_db=input_dict["ref_db"],
+            **input_dict["noise_kwargs"],
         )
 
 

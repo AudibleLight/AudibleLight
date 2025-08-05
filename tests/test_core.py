@@ -399,7 +399,18 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
             "fg_path": str(
                 utils.get_project_root() / "tests/test_resources/soundevents"
             ),
-            "ambience": False,
+            "ambience": {
+                "tester": {
+                    "alias": "tester",
+                    "beta": 1,
+                    "filepath": None,
+                    "channels": 4,
+                    "sample_rate": 44100.0,
+                    "duration": 10.0,
+                    "ref_db": -65,
+                    "noise_kwargs": {},
+                }
+            },
             "events": {
                 "event000": {
                     "alias": "event000",
@@ -1213,7 +1224,7 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
         }
     ],
 )
-def test_scene_from_dict(input_dict: input):
+def test_scene_from_dict(input_dict: dict):
     ev = Scene.from_dict(input_dict)
     assert isinstance(ev, Scene)
     assert len(ev.events) == len(input_dict["events"])
@@ -1222,6 +1233,7 @@ def test_scene_from_dict(input_dict: input):
         == len(input_dict["state"]["emitters"])
         == ev.state.ctx.get_source_count()
     )
+    assert len(ev.ambience.keys()) == len(input_dict["ambience"])
 
 
 @pytest.mark.parametrize(

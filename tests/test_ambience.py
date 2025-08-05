@@ -6,8 +6,8 @@
 import numpy as np
 import pytest
 
-from audiblelight.ambience import powerlaw_psd_gaussian, _parse_beta, Ambience
 from audiblelight import utils
+from audiblelight.ambience import Ambience, _parse_beta, powerlaw_psd_gaussian
 
 
 @pytest.mark.parametrize("shape", [2, 16, 500, 1000])
@@ -29,7 +29,7 @@ def test_powerlaw_psd_gaussian_output_finite():
 
 @pytest.mark.parametrize("exponent", [0.5, 1, 2])
 def test_var_distribution(exponent):
-    size = (100, 2 ** 16)
+    size = (100, 2**16)
     fmin = 0
     y = powerlaw_psd_gaussian(exponent, size, fmin=fmin, seed=1)
     ystd = y.std(axis=-1)
@@ -45,13 +45,15 @@ def test_small_sample_var(nsamples):
 
 @pytest.mark.parametrize("exponent", [0.5, 1, 2])
 def test_slope_distribution(exponent):
-    size = (100, 2 ** 16)
+    size = (100, 2**16)
     fmin = 0
     y = powerlaw_psd_gaussian(exponent, size, fmin=fmin, seed=1)
     yfft = np.fft.fft(y)
     f = np.fft.fftfreq(y.shape[-1])
     m = f > 0
-    fit, fcov = np.polyfit(np.log10(f[m]), np.log10(np.abs(yfft[..., m].T ** 2)),1, cov=True)
+    fit, fcov = np.polyfit(
+        np.log10(f[m]), np.log10(np.abs(yfft[..., m].T ** 2)), 1, cov=True
+    )
     slope_in = (exponent + fit[0] < 3 * np.sqrt(fcov[0, 0])).mean()
     assert slope_in > 0.95
 
@@ -84,15 +86,22 @@ def test_random_state_reproducibility():
         (1.5, 1.5),
         (0, 0),
         (np.float64(2.0), 2.0),
-        (set(), TypeError)
-    ]
+        (set(), TypeError),
+    ],
 )
 def test_parse_beta(color, expected):
     if isinstance(expected, type) and issubclass(expected, Exception):
         with pytest.raises(expected):
-            _parse_beta(color,)
+            _parse_beta(
+                color,
+            )
     else:
-        assert _parse_beta(color,) == expected
+        assert (
+            _parse_beta(
+                color,
+            )
+            == expected
+        )
 
 
 @pytest.mark.parametrize(
@@ -100,11 +109,84 @@ def test_parse_beta(color, expected):
     [
         (4, 2, "white", None),
         (4, 2, 2.0, None),
-        (2, 4, None, utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav"),
-        (1, 2, None, utils.get_project_root() / "tests/test_resources/soundevents/telephone/30085.wav"),
-    ]
+        (
+            2,
+            4,
+            None,
+            utils.get_project_root()
+            / "tests/test_resources/soundevents/waterTap/95709.wav",
+        ),
+        (
+            1,
+            2,
+            None,
+            utils.get_project_root()
+            / "tests/test_resources/soundevents/telephone/30085.wav",
+        ),
+    ],
 )
 def test_ambience_cls(channels, duration, noise, filepath):
     cls = Ambience(channels, duration, noise=noise, filepath=filepath, alias="tester")
     assert isinstance(cls.to_dict(), dict)
     assert cls.load_ambience().shape == (channels, round(duration * cls.sample_rate))
+
+
+@pytest.mark.parametrize("noise", ["pink", "brown", 2, 0])
+def test_magic_methods(noise, oyens_space):
+    ev = Ambience(
+        channels=4,
+        duration=10,
+        alias="tester",
+        noise=noise,
+    )
+    # Iterate over all the magic methods that return strings
+    for att in ["__str__", "__repr__"]:
+        assert isinstance(getattr(ev, att)(), str)
+    # Check the __eq__ comparison for identical objects
+    assert ev == Ambience.from_dict(ev.to_dict())
+
+
+@pytest.mark.parametrize(
+    "input_dict",
+    [
+        {
+            "alias": "tester",
+            "beta": 1,
+            "filepath": None,
+            "channels": 4,
+            "sample_rate": 44100.0,
+            "duration": 10.0,
+            "ref_db": -65,
+            "noise_kwargs": {},
+        },
+        {
+            "alias": "tester_audio",
+            "beta": None,
+            "filepath": utils.get_project_root()
+            / "tests/test_resources/soundevents/waterTap/95709.wav",
+            "channels": 4,
+            "sample_rate": 44100.0,
+            "duration": 10.0,
+            "ref_db": -65,
+            "noise_kwargs": {},
+        },
+        {
+            "alias": "tester_str",
+            "beta": "pink",
+            "filepath": None,
+            "channels": 4,
+            "sample_rate": 44100.0,
+            "duration": 10.0,
+            "ref_db": -65,
+            "noise_kwargs": {},
+        },
+    ],
+)
+def test_ambience_cls_from_dict(input_dict: dict):
+    amb = Ambience.from_dict(input_dict)
+    assert isinstance(amb, Ambience)
+    amb_audio = amb.load_ambience()
+    assert isinstance(amb_audio, np.ndarray)
+    loaded_channels, loaded_dur = amb_audio.shape
+    assert loaded_channels == input_dict["channels"]
+    assert loaded_dur == round(input_dict["sample_rate"] * input_dict["duration"])
