@@ -85,7 +85,7 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
         oyens_scene_no_overlap.add_event(emitter_kwargs=dict(keep_existing=True))
 
     syn.validate_scene(oyens_scene_no_overlap)
-    syn.render_scene_audio(oyens_scene_no_overlap)
+    syn.render_audio_for_all_scene_events(oyens_scene_no_overlap)
     assert len(oyens_scene_no_overlap.events) == n_events
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
@@ -110,7 +110,7 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
 
     # Render the scene audio
     syn.validate_scene(oyens_scene_no_overlap)
-    syn.render_scene_audio(oyens_scene_no_overlap)
+    syn.render_audio_for_all_scene_events(oyens_scene_no_overlap)
 
     # Now, try generating the full scene audio
     syn.generate_scene_audio_from_events(oyens_scene_no_overlap)

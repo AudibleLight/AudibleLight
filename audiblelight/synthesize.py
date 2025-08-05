@@ -138,8 +138,12 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
                     f"Expected {scene_audio.shape}, but got {ambient_noise.shape}."
                 )
 
+            # Now we scale to match the desired noise floor (taken from SpatialScaper)
+            scaled = db_to_multiplier(ambience.ref_db, np.mean(np.abs(ambient_noise)))
+            amb = scaled * ambient_noise
+
             # TODO: ideally, we can also support adding noise with a given offset and duration
-            scene_audio += ambient_noise
+            scene_audio += amb
 
     # Iterate over all the events
     for event in scene.events.values():

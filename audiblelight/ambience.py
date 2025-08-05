@@ -14,7 +14,6 @@ import librosa
 import numpy as np
 
 from audiblelight import utils
-from audiblelight.synthesize import db_to_multiplier
 
 # This dictionary maps popular "names" to β values for generating noise
 #  In general, higher β values cause more energy in high frequency parts of the power spectral density
@@ -122,12 +121,7 @@ class Ambience:
             # Tiles along both directions to get (n_channels, n_samples)
             out = np.tile(ambient, (self.channels, repeats))[:, :total_samples]
 
-        # Now we scale to match the desired noise floor (taken from SpatialScaper)
-        # TODO: second arg here should be computed with RMS, but this leads to clipping
-        scaler = db_to_multiplier(self.ref_db, np.mean(np.abs(out)))
-
-        # Set the audio to our property and return
-        self.audio = out * scaler
+        self.audio = out
         return self.audio
 
     def to_dict(self) -> dict:
