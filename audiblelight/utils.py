@@ -8,9 +8,11 @@ import json
 import os
 import random
 import wave
+from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Protocol, Union
+from time import time
+from typing import Any, Callable, Generator, List, Optional, Protocol, Union
 
 import numpy as np
 import torch
@@ -44,6 +46,31 @@ NUMERIC_DTYPES = (
 Numeric = Union[int, float, complex, np.integer, np.floating]  # used as a typehint
 
 AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
+
+
+@contextmanager
+def timer(name: str) -> Generator[None, Any, None]:
+    """
+    Log how long it takes to execute the provided block.
+
+    Examples:
+        Define a function with timing
+        >>> @timer("add")
+        >>> def time_me(a, b):
+        >>>     return a + b
+        >>>
+        >>> time_me(1, 2)
+    """
+    start = time()
+    try:
+        yield
+    except Exception as e:
+        end = time()
+        logger.warning(f"Took {end - start:.2f} seconds to {name} and raised {e}.")
+        raise e
+    else:
+        end = time()
+        logger.debug(f"Took {end - start:.2f} seconds to {name}.")
 
 
 def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
