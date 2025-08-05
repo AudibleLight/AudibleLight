@@ -488,8 +488,8 @@ class Scene:
 
         # Update the kwargs we'll use to create the trajectory with parameters from the event
         emitter_kwargs["duration"] = event.duration
-        emitter_kwargs["max_speed"] = event.spatial_velocity
-        emitter_kwargs["temporal_resolution"] = event.spatial_resolution
+        emitter_kwargs["velocity"] = event.spatial_velocity
+        emitter_kwargs["resolution"] = event.spatial_resolution
         utils.validate_kwargs(self.state.define_trajectory, **emitter_kwargs)
 
         # Define the trajectory
