@@ -2466,33 +2466,32 @@ def test_magic_methods(oyens_space):
 
 
 @pytest.mark.parametrize(
-    "starting_position,ending_position,duration,max_speed,temporal_resolution,raises",
+    "starting_position,duration,max_speed,temporal_resolution,raises",
     [
         # Test 1: don't define a starting position or ending position
-        (None, None, 5.0, 1.0, 4, False),
+        (None, 5.0, 1.0, 4, False),
         # Test 2: define a valid starting position, don't define an ending position
-        (np.array([1.6, -5.1, 1.7]), None, 5.0, 2.0, 2.0, False),
+        (np.array([1.5, -4.6, 1.2]), 5.0, 2.0, 1.0, False),
         # Test 3: define a valid ending position, don't define a starting position
-        (None, np.array([2.9, -1.0, 2.2]), 3.0, 1.0, 6, False),
+        (None, 3.0, 1.0, 6, False),
         # Test 4: define an INVALID starting and ending position
         (
             np.array([-1000, 1000, -1000]),
-            np.array([-1000, -1000, 1000]),
             5.0,
             1.0,
             4,
             True,
         ),
         # Test 5: defined start, random end
-        ([4.73, -0.72, 0.96], None, 2.0, 2.0, 10, False),
+        ([4.73, -0.72, 0.96], 2.0, 2.0, 10, False),
         # Test 6: slow velocity, high duration + resolution
-        (None, None, 10.0, 0.25, 4.0, False),
+        (None, 10.0, 0.25, 4.0, False),
         # Test 7: high velocity, small duration + resolution
-        (None, None, 0.5, 2.0, 1.0, False),
+        (None, 0.5, 2.0, 1.0, False),
         # Test 8: high resolution, small duration + velocity
-        (None, None, 1.0, 0.25, 4.0, False),
+        (None, 1.0, 0.25, 4.0, False),
         # Test 9: small resolution, high duration + velocity
-        (None, None, 10.0, 2.0, 1.0, False),
+        (None, 10.0, 2.0, 1.0, False),
     ],
 )
 @pytest.mark.parametrize(
@@ -2504,7 +2503,6 @@ def test_magic_methods(oyens_space):
 )
 def test_define_trajectory(
     starting_position,
-    ending_position,
     duration,
     max_speed,
     temporal_resolution,
@@ -2516,7 +2514,6 @@ def test_define_trajectory(
         trajectory = oyens_space.define_trajectory(
             duration=duration,
             starting_position=starting_position,
-            ending_position=ending_position,
             shape=shape,
             velocity=max_speed,
             resolution=temporal_resolution,
@@ -2532,8 +2529,6 @@ def test_define_trajectory(
         # If we've explicitly provided a starting and ending position, these should be maintained in the trajectory
         if starting_position is not None:
             assert np.allclose(trajectory[0, :], starting_position, atol=1e-4)
-        if ending_position is not None:
-            assert np.allclose(trajectory[-1, :], ending_position, atol=1e-4)
 
         # Check that speed constraints are never violated between points
         deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
@@ -2553,7 +2548,6 @@ def test_define_trajectory(
             _ = oyens_space.define_trajectory(
                 duration=duration,
                 starting_position=starting_position,
-                ending_position=ending_position,
                 shape=shape,
                 velocity=max_speed,
                 resolution=temporal_resolution,

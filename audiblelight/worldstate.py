@@ -1266,11 +1266,61 @@ class WorldState:
             f"Consider increasing the number of generated points (currently {n})"
         )
 
+    def _validate_trajectory(
+        self,
+        trajectory: np.ndarray,
+        max_distance: utils.Numeric,
+        step_distance: utils.Numeric,
+        requires_direct_line: bool,
+    ) -> bool:
+        """
+        Given a trajectory (created in `define_trajectory`), return True if valid, False otherwise
+
+        Arguments:
+            trajectory (np.ndarray): the trajectory to be validated
+            requires_direct_line (bool): whether a direct line must exist between the starting and ending position
+            max_distance (utils.Numeric): the maximum distance traversed in the trajectory, from start to end
+            step_distance (utils.Numeric): the maximum distance traversed from one step to the next in the trajectory
+
+        Returns:
+            bool: whether the trajectory is valid
+        """
+        # Get the starting and ending positions from the trajectory
+        start_attempt, end_attempt = trajectory[0, :], trajectory[-1, :]
+
+        # Trajectory must have more than 1 coordinate
+        if len(trajectory) < 2:
+            return False
+
+        # Reject if ending point is too far away from starting point
+        distance = np.linalg.norm(end_attempt - start_attempt)
+        if distance > max_distance:
+            return False
+
+        # Continue if no LOS exists between starting and ending position for a linear trajectory
+        #  We only check for a linear trajectory because, with other trajectories, it is feasible for
+        #  the starting and ending positions to be in different rooms, etc.
+        if requires_direct_line and not self.path_exists_between_points(
+            start_attempt, end_attempt
+        ):
+            return False
+
+        # Ensure no step exceeds max_speed / temporal_resolution
+        deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
+        if np.any(deltas > step_distance + 1e-4):
+            return False
+
+        # Validate that all the positions in the trajectory are acceptable
+        #  (in bounds of mesh, not too close to a microphone or another placed emitter, etc.)
+        if self._validate_position(trajectory):
+            return True
+
+        return False
+
     def define_trajectory(
         self,
         duration: Optional[utils.Numeric],
         starting_position: Optional[Union[np.ndarray, list]] = None,
-        ending_position: Optional[Union[np.ndarray, list]] = None,
         velocity: Optional[utils.Numeric] = MOVING_EMITTER_MAX_SPEED,
         resolution: Optional[utils.Numeric] = MOVING_EMITTER_TEMPORAL_RESOLUTION,
         shape: Optional[str] = "linear",
@@ -1284,12 +1334,15 @@ class WorldState:
         point and an end point that comply with these conditions, and then interpolates between these points according
         to the trajectory's shape.
 
+        Optionally, a custom starting position can also be provided, and a valid ending position will be randomly
+        sampled. To provide a custom ENDING position, one possibility is to provide this as the starting position, then
+        invert the trajectory array returned by this function. To use both a custom start AND end position, call the
+        trajectory functions in `utils.py` directly.
+
         Arguments:
             duration (Numeric): the length of time it should take to traverse from starting to ending position
             starting_position (np.ndarray): the starting position for the trajectory. If not provided, a random valid
                 position within the mesh will be selected.
-            ending_position (np.ndarray): the ending position for the trajectory. If not provided, a random valid
-                position within the mesh that has line-of-sight with `starting_position` will be selected.
             velocity (Numeric): the speed limit for the trajectory, in meters per second
             resolution (Numeric): the number of emitters created per second
             shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
@@ -1301,18 +1354,6 @@ class WorldState:
         Returns:
             np.ndarray: the sanitised trajectory, with shape (n_points, 3)
         """
-
-        # If we've provided BOTH a starting and ending position, we should only try and define the trajectory once
-        #  This is because the trajectory will always be deterministic (same on every attempt) with a known start/end,
-        #  and we don't want to continue iterating unnecessarily when the outcome is already known
-        actual_place_attempts = (
-            max_place_attempts
-            if starting_position is None or ending_position is None
-            else 1
-        )
-        actual_place_attempts = int(
-            utils.sanitise_positive_number(actual_place_attempts)
-        )
 
         # Sanitise provided shape
         #  Only accept a linear shape for now
@@ -1345,55 +1386,31 @@ class WorldState:
             )
 
         # Try and create the trajectory a specified number of times
-        for attempt in range(actual_place_attempts):
+        for attempt in range(max_place_attempts):
 
             # Log progress every 100 attempts
             if (attempt + 1) % 100 == 0:
-                logger.info(f"Trajectory attempt {attempt + 1}/{actual_place_attempts}")
+                logger.info(f"Trajectory attempt {attempt + 1}/{max_place_attempts}")
 
-            # If we've not provided a starting position,
-            #  either randomly sample this (when no ending position) or sample this WRT ending position
+            # If we've not provided a starting position, randomly sample one
             if starting_position is None:
-                if ending_position is None:
-                    start_attempt = self.get_random_position()
-                else:
-                    start_attempt = self.get_valid_position_with_max_distance(
-                        ending_position, max_distance, max_place_attempts
-                    )
-            #  Otherwise, check that our provided starting position is valid
+                start_attempt = self.get_random_position()
+            # Otherwise, sanitise the position and raise errors e.g. if it is an invalid shape
             else:
                 start_attempt = utils.sanitise_coordinates(starting_position)
 
-            # Do similar for the ending position: only sample if not already provided
-            if ending_position is None:
-                try:
-                    end_attempt = self.get_valid_position_with_max_distance(
-                        start_attempt, max_distance, max_place_attempts
-                    )
-                except ValueError:
-                    # Silently skip over errors in this case, so we retry with another starting position
-                    if starting_position is None:
-                        continue
-                    # Otherwise, we need to raise the error as this starting position is invalid
-                    else:
-                        raise
-            else:
-                end_attempt = utils.sanitise_coordinates(ending_position)
-
-            # No need to validate or sanitise starting and ending position
-            #  This is already done inside `get_random_position` and `get_valid_position_with_max_distance`
-            #  We also validate the entire trajectory at the very end of the loop
-
-            # Reject if ending point is too far away from starting point
-            distance = np.linalg.norm(end_attempt - start_attempt)
-            if distance > max_distance:
-                continue
-
-            # Continue if no LOS exists between starting and ending position for a linear trajectory
-            if shape == "linear" and not self.path_exists_between_points(
-                start_attempt, end_attempt
-            ):
-                continue
+            # Try and sample a random valid position from the starting point
+            try:
+                end_attempt = self.get_valid_position_with_max_distance(
+                    start_attempt, max_distance, max_place_attempts
+                )
+            except ValueError:
+                # Silently skip over errors in this case, so we retry with another starting position
+                if starting_position is None:
+                    continue
+                # Otherwise, we need to raise the error as this starting position is invalid
+                else:
+                    raise
 
             # Compute the trajectory with the utility function
             if shape == "linear":
@@ -1405,22 +1422,18 @@ class WorldState:
                     start_attempt, end_attempt, n_points
                 )
 
-            # Ensure no step exceeds max_speed / temporal_resolution
-            deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
-            if np.any(deltas > step_limit + 1e-4):
-                continue
-
-            # No need to check number of points within the trajectory is more than 1
-            #  This is because we already checked `n_points` outside the loop
-
-            # Validate that all the positions in the trajectory are acceptable
-            #  (in bounds of mesh, not too close to a microphone or another placed emitter, etc.)
-            if self._validate_position(trajectory):
+            # Validate the trajectory and return only if it is acceptable
+            if self._validate_trajectory(
+                trajectory,
+                max_distance,
+                step_limit,
+                requires_direct_line=True if shape == "linear" else False,
+            ):
                 return trajectory
 
         # If we reach here, we couldn't create the trajectory
         raise ValueError(
-            f"Could not define a valid movement trajectory after {actual_place_attempts} attempt(s). Consider:\n"
+            f"Could not define a valid movement trajectory after {max_place_attempts} attempt(s). Consider:\n"
             f"- Reducing `empty_space_around parameters`\n"
             f"- Decreasing `temporal_resolution` (currently {resolution})\n"
             f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
