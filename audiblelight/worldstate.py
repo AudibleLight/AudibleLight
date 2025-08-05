@@ -1355,16 +1355,6 @@ class WorldState:
             np.ndarray: the sanitised trajectory, with shape (n_points, 3)
         """
 
-        # Sanitise provided shape
-        #  Only accept a linear shape for now
-        accepteds = [
-            "linear",
-        ]
-        if shape not in accepteds:
-            raise ValueError(
-                f"`shape` must be one of {', '.join(accepteds)} but got '{shape}'"
-            )
-
         # Compute the number of samples based on duration and resolution
         n_points = round(utils.sanitise_positive_number(duration * resolution) + 1)
         if n_points < 2:
@@ -1372,6 +1362,7 @@ class WorldState:
                 "Cannot create a moving trajectory comprised of fewer than two points"
             )
 
+        # Sanitise the maximum distance that we'll travel in the trajectory
         max_distance = utils.sanitise_positive_number(velocity * duration)
 
         # Compute the distance that we can travel in a single step
@@ -1399,27 +1390,46 @@ class WorldState:
             else:
                 start_attempt = utils.sanitise_coordinates(starting_position)
 
+            # If we're doing a random walk, there's no need to sample an ending position directly
+            #  Instead, the ending position will be defined by the last point of the walk
+            #  So we can just set the `end_attempt` variable to None so that the linter is happy
+            if shape == "random":
+                end_attempt = None
             # Try and sample a random valid position from the starting point
-            try:
-                end_attempt = self.get_valid_position_with_max_distance(
-                    start_attempt, max_distance, max_place_attempts
-                )
-            except ValueError:
-                # Silently skip over errors in this case, so we retry with another starting position
-                if starting_position is None:
-                    continue
-                # Otherwise, we need to raise the error as this starting position is invalid
-                else:
-                    raise
+            else:
+                try:
+                    end_attempt = self.get_valid_position_with_max_distance(
+                        start_attempt, max_distance, max_place_attempts
+                    )
+                except ValueError:
+                    # Silently skip over errors in this case, so we retry with another starting position
+                    if starting_position is None:
+                        continue
+                    # Otherwise, we need to raise the error as this starting position is invalid
+                    else:
+                        raise
 
             # Compute the trajectory with the utility function
             if shape == "linear":
                 trajectory = utils.generate_linear_trajectory(
                     start_attempt, end_attempt, n_points
                 )
-            else:
+            elif shape == "circular":
                 trajectory = utils.generate_circular_trajectory(
                     start_attempt, end_attempt, n_points
+                )
+            elif shape == "random":
+                # Unlike all other trajectories, a random walk doesn't need a predefined ending
+                #  Instead, we just need to know the starting point, the number of steps,
+                #  and the maximum distance any single step should take
+                trajectory = utils.generate_random_trajectory(
+                    start_attempt, step_limit, n_points
+                )
+            # We don't know what the trajectory is
+            else:
+                accepted = ["linear", "circular", "random"]
+                raise ValueError(
+                    f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
                 )
 
             # Validate the trajectory and return only if it is acceptable

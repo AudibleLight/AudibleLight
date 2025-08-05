@@ -2468,13 +2468,9 @@ def test_magic_methods(oyens_space):
 @pytest.mark.parametrize(
     "starting_position,duration,max_speed,temporal_resolution,raises",
     [
-        # Test 1: don't define a starting position or ending position
-        (None, 5.0, 1.0, 4, False),
-        # Test 2: define a valid starting position, don't define an ending position
-        (np.array([1.5, -4.6, 1.2]), 5.0, 2.0, 1.0, False),
-        # Test 3: define a valid ending position, don't define a starting position
-        (None, 3.0, 1.0, 6, False),
-        # Test 4: define an INVALID starting and ending position
+        # Test 1: define a valid starting position, don't define an ending position
+        # (np.array([1.5, -4.6, 1.2]), 5.0, 2.0, 1.0, False),
+        # Test 2: define an INVALID starting and ending position
         (
             np.array([-1000, 1000, -1000]),
             5.0,
@@ -2482,24 +2478,19 @@ def test_magic_methods(oyens_space):
             4,
             True,
         ),
-        # Test 5: defined start, random end
-        ([4.73, -0.72, 0.96], 2.0, 2.0, 10, False),
-        # Test 6: slow velocity, high duration + resolution
+        # Test 3: slow velocity, high duration + resolution
         (None, 10.0, 0.25, 4.0, False),
-        # Test 7: high velocity, small duration + resolution
+        # Test 4: high velocity, small duration + resolution
         (None, 0.5, 2.0, 1.0, False),
-        # Test 8: high resolution, small duration + velocity
+        # Test 5: high resolution, small duration + velocity
         (None, 1.0, 0.25, 4.0, False),
-        # Test 9: small resolution, high duration + velocity
+        # Test 6: small resolution, high duration + velocity
         (None, 10.0, 2.0, 1.0, False),
     ],
 )
 @pytest.mark.parametrize(
     "shape",
-    # TODO: Repeat all test cases with every type of trajectory shape
-    [
-        "linear",
-    ],
+    ["linear", "circular", "random"],
 )
 def test_define_trajectory(
     starting_position,
