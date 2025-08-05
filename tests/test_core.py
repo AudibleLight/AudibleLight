@@ -409,7 +409,18 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
                     "duration": 10.0,
                     "ref_db": -65,
                     "noise_kwargs": {},
-                }
+                },
+                "tester_audio": {
+                    "alias": "tester_audio",
+                    "beta": None,
+                    "filepath": utils.get_project_root()
+                    / "tests/test_resources/soundevents/waterTap/95709.wav",
+                    "channels": 4,
+                    "sample_rate": 44100.0,
+                    "duration": 10.0,
+                    "ref_db": -65,
+                    "noise_kwargs": {},
+                },
             },
             "events": {
                 "event000": {
