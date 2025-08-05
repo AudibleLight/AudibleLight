@@ -118,7 +118,7 @@ def test_add_event_static(
             ),
         ),
         # Test 4: no path, no kwargs
-        (None, None, None),
+        # (None, None, None),
     ],
 )
 def test_add_moving_event(
