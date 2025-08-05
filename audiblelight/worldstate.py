@@ -1481,6 +1481,12 @@ class WorldState:
                 f"(currently {self.empty_space_around_emitter:.3f}m)"
             )
 
+        # If we've provided a starting position, sanitise and validate it before entering the loop
+        if starting_position is not None:
+            starting_position = utils.sanitise_coordinates(starting_position)
+            if not self._validate_position(starting_position):
+                raise ValueError(f"Invalid starting position ({starting_position})")
+
         # Try and create the trajectory a specified number of times
         for attempt in range(max_place_attempts):
 
@@ -1491,9 +1497,9 @@ class WorldState:
             # If we've not provided a starting position, randomly sample one
             if starting_position is None:
                 start_attempt = self.get_random_position()
-            # Otherwise, sanitise the position and raise errors e.g. if it is an invalid shape
+            # Otherwise, just use the starting position we've provided
             else:
-                start_attempt = utils.sanitise_coordinates(starting_position)
+                start_attempt = starting_position
 
             # If we're doing a random walk, there's no need to sample an ending position directly
             #  Instead, the ending position will be defined by the last point of the walk

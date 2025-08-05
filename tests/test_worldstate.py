@@ -2468,15 +2468,21 @@ def test_magic_methods(oyens_space):
 @pytest.mark.parametrize(
     "starting_position,duration,max_speed,temporal_resolution,raises",
     [
-        # Test 1: define a valid starting position, don't define an ending position
-        # (np.array([1.5, -4.6, 1.2]), 5.0, 2.0, 1.0, False),
-        # Test 2: define an INVALID starting and ending position
+        # Test 1: define a distance that is smaller than permissible
+        (
+            np.array([-0.5, -0.5, -0.5]),
+            0.2,
+            0.1,
+            4,
+            "Trajectory distance is smaller",
+        ),
+        # Test 2: define an INVALID starting
         (
             np.array([-1000, 1000, -1000]),
             5.0,
             1.0,
             4,
-            True,
+            "Invalid starting position",
         ),
         # Test 3: slow velocity, high duration + resolution
         (None, 10.0, 0.25, 4.0, False),
@@ -2535,7 +2541,7 @@ def test_define_trajectory(
         assert total_distance <= (max_speed * duration)
 
     else:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=raises):
             _ = oyens_space.define_trajectory(
                 duration=duration,
                 starting_position=starting_position,
