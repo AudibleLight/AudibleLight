@@ -425,31 +425,31 @@ class WorldState:
         angles = np.random.uniform(0, 2 * np.pi, num_rays)
         # Generate random elevation angles for each ray
         elevations = np.random.uniform(-np.pi / 2, np.pi / 2, num_rays)
+
         # Convert spherical coordinates (angles, elevations) to  Cartesian 3D direction vectors
-        directions = np.column_stack(
-            [
-                np.cos(elevations) * np.cos(angles),  # X component
-                np.cos(elevations) * np.sin(angles),  # Y component
-                np.sin(elevations),  # Z component
-            ]
-        )
+        cos_elevation = np.cos(elevations)
+        directions = np.empty((num_rays, 3))
+        directions[:, 0] = cos_elevation * np.cos(angles)  # x
+        directions[:, 1] = cos_elevation * np.sin(angles)  # y
+        directions[:, 2] = np.sin(elevations)  # z
+
         # Repeat the origin point for each ray so rays start from the same position
-        origins = np.tile(point, (num_rays, 1))
+        origins = np.broadcast_to(point, (num_rays, 3))
         # Cast rays from the origin in the computed directions and find the longest intersection distances with the mesh
         distances = trimesh.proximity.longest_ray(self.mesh, origins, directions)
+
         # We can get `inf` values here, likely due to holes in the mesh causing a ray never to intersect
-        if any(np.isinf(distances)):
+        if np.isinf(distances).any():
             # For simplicity, we can just remove these here but raise a warning
             logger.warning(
                 f"Some rays cast from point {point} have infinite distances: is the mesh watertight?"
             )
             distances = distances[distances != np.inf]
+
         # Compute weights by squaring the distances to give more importance to longer rays
         weights = distances**2
-        # Calculate weighted average of the distances using the computed weights
-        weighted_average = np.sum(distances * weights) / np.sum(weights)
-        # Return the weighted average ray length
-        return weighted_average
+        # Calculate weighted average of the distances using the computed weights and return
+        return np.sum(distances * weights) / np.sum(weights)
 
     def _setup_audio_context(self) -> None:
         """
@@ -793,25 +793,22 @@ class WorldState:
         """
         Get a random position to place a emitter inside the mesh
         """
-        # Get an initial microphone position
-        mic_pos = self.get_random_point_inside_mesh()
-        # Start iterating until we get an acceptable position
+        mic_pos = None
         for attempt in range(utils.MAX_PLACE_ATTEMPTS):
-            # Compute the weighted average ray length with this position
-            avg_ray_length = self.calculate_weighted_average_ray_length(mic_pos)
-            # If the position is acceptable, break out
-            if avg_ray_length >= MIN_AVG_RAY_LENGTH:
+            mic_pos = self.get_random_point_inside_mesh()
+            # Compute the weighted average ray length with this position and return if the position is acceptable
+            if (
+                self.calculate_weighted_average_ray_length(mic_pos)
+                >= MIN_AVG_RAY_LENGTH
+            ):
                 logger.info(f"Found suitable position after {attempt + 1} attempts")
-                break
-            # Otherwise, try again with a new position
-            else:
-                mic_pos = self.get_random_point_inside_mesh()
+                return mic_pos
+
         # If we haven't found an acceptable position, log this and use the most recent one.
-        else:
-            logger.error(
-                f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                f"Using the last attempted position, which is {mic_pos}."
-            )
+        logger.error(
+            f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+            f"Using the last attempted position: {mic_pos}."
+        )
         return mic_pos
 
     def get_random_point_inside_mesh(self) -> np.ndarray:
@@ -842,50 +839,72 @@ class WorldState:
     def _validate_position(self, pos_abs: np.ndarray) -> bool:
         """
         Validates a position or array of positions with respect to the mesh and objects inside it.
-        Returns True if valid, False if not. If multiple arrays provided, return True only if all are valid.
+
+        Returns:
+             bool: True if valid, False if not. If multiple arrays provided, return True only if all are valid.
         """
-        # Coerce to a 2D array of XYZ positions, for iteration
+        # Create the mask: one element per coordinate
+        mask = self._get_valid_positions_mask(pos_abs)
+        # If the position is valid, all elements should be True
+        return bool(mask.all())
+
+    def _get_valid_positions_mask(self, pos_abs: np.ndarray) -> np.ndarray:
+        """
+        Validates an array of positions with respect to the mesh and objects inside it.
+
+        Returns:
+            np.ndarray: a boolean mask of shape (N,) where True = valid, False = invalid.
+        """
         positions = utils.coerce2d(pos_abs)
         if positions.shape[1] != 3:
             raise ValueError("Expected input to have shape (N, 3) for XYZ coordinates")
 
-        # Iterate over all positions
-        for position in positions:
-            # Check minimum distance from all emitters
-            for emitter_list in self.emitters.values():
-                for emitter in emitter_list:
-                    if (
-                        np.linalg.norm(position - emitter.coordinates_absolute)
-                        < self.empty_space_around_emitter
-                    ):
-                        return False
+        # Create the empty mask with the same length as the input
+        num_positions = positions.shape[0]
+        valid_mask = np.ones(num_positions, dtype=bool)
 
-            # Check minimum distance from the center of every microphone and from every individual capsule
-            if len(self.microphones) > 0:
-                for attr, thresh in zip(
-                    # check mic centers first, check mic capsules second
-                    ["coordinates_center", "coordinates_absolute"],
-                    [self.empty_space_around_mic, self.empty_space_around_capsule],
-                ):
-                    coordinates = np.vstack(
-                        [getattr(mic, attr) for mic in self.microphones.values()]
-                    )
-                    distances = np.linalg.norm(position - coordinates, axis=1)
-                    if np.any(distances < thresh):
-                        return False
+        # Distance from emitters
+        if self.emitters:
+            emitter_coords = np.vstack(
+                [
+                    emitter.coordinates_absolute
+                    for emitter_list in self.emitters.values()
+                    for emitter in emitter_list
+                ]
+            )
+            emitter_dists = np.linalg.norm(
+                positions[:, None, :] - emitter_coords[None, :, :], axis=2
+            )
+            too_close_to_emitter = np.any(
+                emitter_dists < self.empty_space_around_emitter, axis=1
+            )
+            valid_mask &= ~too_close_to_emitter
 
-            # Check minimum distance from mesh surface
-            if (
-                self.mesh.nearest.on_surface([position])[1][0]
-                < self.empty_space_around_surface
+        # Distance from microphones
+        if self.microphones:
+            for attr, thresh in zip(
+                ["coordinates_center", "coordinates_absolute"],
+                [self.empty_space_around_mic, self.empty_space_around_capsule],
             ):
-                return False
+                mic_coords = np.vstack(
+                    [getattr(mic, attr) for mic in self.microphones.values()]
+                )
+                mic_dists = np.linalg.norm(
+                    positions[:, None, :] - mic_coords[None, :, :], axis=2
+                )
+                too_close_to_mic = np.any(mic_dists < thresh, axis=1)
+                valid_mask &= ~too_close_to_mic
 
-            # Check if the position is inside the mesh
-            if not self._is_point_inside_mesh(position):
-                return False
+        # Distance from mesh surface
+        surface_dists = self.mesh.nearest.on_surface(positions)[1]
+        too_close_to_surface = surface_dists < self.empty_space_around_surface
+        valid_mask &= ~too_close_to_surface
 
-        return True
+        # Inside mesh check
+        inside_mask = np.array([self._is_point_inside_mesh(p) for p in positions])
+        valid_mask &= inside_mask
+
+        return valid_mask
 
     def _try_add_emitter(
         self,
@@ -1255,17 +1274,22 @@ class WorldState:
         # Add center offset
         samples = ref + displacements
 
-        # Validate and return the first valid point
-        for point in samples:
-            if self._validate_position(point):
-                return point
+        # Get a boolean mask of valid sample positions
+        only_valids = self._get_valid_positions_mask(samples)
+        only_valids_idxs = np.flatnonzero(only_valids)
 
-        # If we've got to here, we can't find a valid sample, so raise an error
-        raise ValueError(
-            f"Cannot generate a random valid point for coordinate {ref} with radius {r:.3f}. "
-            f"Consider increasing the number of generated points (currently {n})"
-        )
+        # If we don't have any valid samples, throw an error
+        if len(only_valids_idxs) == 0:
+            raise ValueError(
+                f"Cannot generate a random valid point for coordinate {ref} with radius {r:.3f}. "
+                f"Consider increasing the number of generated points (currently {n})"
+            )
+        # Otherwise, get a random valid sample and return it
+        else:
+            choice = np.random.choice(only_valids_idxs)
+            return samples[choice, :]
 
+    # '@utils.timer("validate trajectory")
     def _validate_trajectory(
         self,
         trajectory: np.ndarray,
@@ -1285,46 +1309,39 @@ class WorldState:
         Returns:
             bool: whether the trajectory is valid
         """
-        # Get the starting position from the trajectory
-        start_attempt = trajectory[0, :]
+        # Early return if definitely invalid
+        if trajectory.shape[0] < 2:
+            return False
 
-        # Get the coordinate that is the furthest away from the starting position
-        #  For a linear/circular trajectory, this should just be the last coordinate
-        #  However, for a random walk, it technically be another coordinate
-        #  If, for instance, we begin by moving far away from the origin, then move back towards it
-        differences = trajectory[1:, :] - start_attempt
+        # Compute distances from start to all other points
+        start = trajectory[0]
+        differences = trajectory[1:] - start
         distances = np.linalg.norm(differences, axis=1)
+
+        # Get the furthest point from the starting position
+        #  Note: for circular and linear trajectories, this should be the same as the last point.
+        #  However, for random walks, this is not always the case, as we might walk very far away
+        #  from the origin, and then return to it by the end of the trajectory.
+        #  So, we should always consider the maximum distance from the origin, NOT the distance
+        #  between the first and last point in the array
         max_idx = np.argmax(distances)
-        end_attempt = trajectory[1:, :][max_idx]
+        end = trajectory[max_idx + 1]  # +1 because we sliced from [1:]
 
-        # Trajectory must have more than 1 coordinate
-        if len(trajectory) < 2:
+        # Check max distance constraint
+        if distances[max_idx] > max_distance:
             return False
 
-        # Reject if ending point is too far away from starting point
-        distance = np.linalg.norm(end_attempt - start_attempt)
-        if distance > max_distance:
+        # Optional: check for line of sight
+        if requires_direct_line and not self.path_exists_between_points(start, end):
             return False
 
-        # Continue if no LOS exists between starting and ending position for a linear trajectory
-        #  We only check for a linear trajectory because, with other trajectories, it is feasible for
-        #  the starting and ending positions to be in different rooms, etc.
-        if requires_direct_line and not self.path_exists_between_points(
-            start_attempt, end_attempt
-        ):
+        # Check distance between every step
+        step_deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
+        if np.any(step_deltas > step_distance + 1e-4):
             return False
 
-        # Ensure no step exceeds max_speed / temporal_resolution
-        deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
-        if np.any(deltas > step_distance + 1e-4):
-            return False
-
-        # Validate that all the positions in the trajectory are acceptable
-        #  (in bounds of mesh, not too close to a microphone or another placed emitter, etc.)
-        if self._validate_position(trajectory):
-            return True
-
-        return False
+        # Validate all positions in the trajectory WRT the rest of the mesh
+        return self._validate_position(trajectory)
 
     def define_trajectory(
         self,
