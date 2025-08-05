@@ -293,11 +293,21 @@ class WorldState:
     def __init__(
         self,
         mesh: Union[str, Path],
-        empty_space_around_mic: Optional[float] = EMPTY_SPACE_AROUND_MIC,
-        empty_space_around_emitter: Optional[float] = EMPTY_SPACE_AROUND_EMITTER,
-        empty_space_around_surface: Optional[float] = EMPTY_SPACE_AROUND_SURFACE,
-        empty_space_around_capsule: Optional[float] = EMPTY_SPACE_AROUND_CAPSULE,
-        repair_threshold: Optional[float] = None,
+        empty_space_around_mic: Optional[utils.Numeric] = EMPTY_SPACE_AROUND_MIC,
+        empty_space_around_emitter: Optional[
+            utils.Numeric
+        ] = EMPTY_SPACE_AROUND_EMITTER,
+        empty_space_around_surface: Optional[
+            utils.Numeric
+        ] = EMPTY_SPACE_AROUND_SURFACE,
+        empty_space_around_capsule: Optional[
+            utils.Numeric
+        ] = EMPTY_SPACE_AROUND_CAPSULE,
+        ensure_minimum_weighted_average_ray_length: Optional[bool] = False,
+        minimum_weighted_average_ray_length: Optional[
+            utils.Numeric
+        ] = MIN_AVG_RAY_LENGTH,
+        repair_threshold: Optional[utils.Numeric] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
         """
@@ -309,6 +319,10 @@ class WorldState:
             empty_space_around_emitter (float): minimum meters new emitters/mics will be placed from other emitters
             empty_space_around_surface (float): minimum meters new emitters/mics will be placed from mesh emitters
             empty_space_around_capsule (float): minimum meters new emitters/mics will be placed from mic capsules
+            ensure_minimum_weighted_average_ray_length (bool): if True, random points can only be sampled from within
+                the mesh when they have a weighted average ray length of at least `minimum_weighted_average_ray_length`
+            minimum_weighted_average_ray_length (float): value to consider when locating points in the mesh; only
+                evaluated when `ensure_minimum_weighted_average_ray_length` is True
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
@@ -320,10 +334,26 @@ class WorldState:
         self._irs = None  # will be updated when calling `simulate`
 
         # Distances from objects/mesh surfaces
-        self.empty_space_around_mic = empty_space_around_mic
-        self.empty_space_around_surface = empty_space_around_surface
-        self.empty_space_around_emitter = empty_space_around_emitter
-        self.empty_space_around_capsule = empty_space_around_capsule
+        self.empty_space_around_mic = utils.sanitise_positive_number(
+            empty_space_around_mic
+        )
+        self.empty_space_around_surface = utils.sanitise_positive_number(
+            empty_space_around_surface
+        )
+        self.empty_space_around_emitter = utils.sanitise_positive_number(
+            empty_space_around_emitter
+        )
+        self.empty_space_around_capsule = utils.sanitise_positive_number(
+            empty_space_around_capsule
+        )
+
+        # Checking minimum weighted average ray length
+        self.ensure_minimum_weighted_average_ray_length = (
+            ensure_minimum_weighted_average_ray_length
+        )
+        self.minimum_weighted_average_ray_length = utils.sanitise_positive_number(
+            minimum_weighted_average_ray_length
+        )
 
         # Load in the trimesh object
         self.mesh = load_mesh(mesh)
@@ -410,40 +440,59 @@ class WorldState:
             return self._irs
 
     def calculate_weighted_average_ray_length(
-        self, point: np.ndarray, num_rays: int = 100
-    ) -> float:
+        self, point: np.ndarray, num_rays: utils.Numeric = 100
+    ) -> utils.Numeric:
         """
-        Calculate the weighted average length of rays cast from a point into a mesh.
+        Estimate how spatially "open" a point is by computing the weighted average length of rays cast from that point.
+
+        Rays are emitted uniformly from the given point across 3D space. Each ray is traced until it intersects with
+        the mesh surface. The distances of these intersections are squared and used as weights to calculate a weighted
+        average, emphasising longer, unobstructed paths. This can be used as a heuristic for how suitable a point is
+        within a mesh (e.g., avoiding corners)
+
+        If any rays fail to intersect the mesh (due to holes or open surfaces), those rays are ignored, and a warning
+        is logged.
+
+        Arguments:
+            point (np.ndarray): a 3D coordinate (shape: (3,)) representing the origin of the rays.
+            num_rays (int): number of random rays to cast from the point (default is 100).
+
+        Returns:
+            float: The weighted average distance of ray intersections: higher values indicate more open surroundings
         """
+        # Sanitisation of inputs
+        num_rays = int(utils.sanitise_positive_number(num_rays))
+        point = utils.sanitise_coordinates(point)
+
         # Generate random azimuthal angles for each ray
         angles = np.random.uniform(0, 2 * np.pi, num_rays)
         # Generate random elevation angles for each ray
         elevations = np.random.uniform(-np.pi / 2, np.pi / 2, num_rays)
+
         # Convert spherical coordinates (angles, elevations) to  Cartesian 3D direction vectors
-        directions = np.column_stack(
-            [
-                np.cos(elevations) * np.cos(angles),  # X component
-                np.cos(elevations) * np.sin(angles),  # Y component
-                np.sin(elevations),  # Z component
-            ]
-        )
+        cos_elevation = np.cos(elevations)
+        directions = np.empty((num_rays, 3))
+        directions[:, 0] = cos_elevation * np.cos(angles)  # x
+        directions[:, 1] = cos_elevation * np.sin(angles)  # y
+        directions[:, 2] = np.sin(elevations)  # z
+
         # Repeat the origin point for each ray so rays start from the same position
-        origins = np.tile(point, (num_rays, 1))
+        origins = np.broadcast_to(point, (num_rays, 3))
         # Cast rays from the origin in the computed directions and find the longest intersection distances with the mesh
         distances = trimesh.proximity.longest_ray(self.mesh, origins, directions)
+
         # We can get `inf` values here, likely due to holes in the mesh causing a ray never to intersect
-        if any(np.isinf(distances)):
+        if np.isinf(distances).any():
             # For simplicity, we can just remove these here but raise a warning
             logger.warning(
                 f"Some rays cast from point {point} have infinite distances: is the mesh watertight?"
             )
             distances = distances[distances != np.inf]
+
         # Compute weights by squaring the distances to give more importance to longer rays
         weights = distances**2
-        # Calculate weighted average of the distances using the computed weights
-        weighted_average = np.sum(distances * weights) / np.sum(weights)
-        # Return the weighted average ray length
-        return weighted_average
+        # Calculate weighted average of the distances using the computed weights and return
+        return np.sum(distances * weights) / np.sum(weights)
 
     def _setup_audio_context(self) -> None:
         """
@@ -785,27 +834,41 @@ class WorldState:
 
     def get_random_position(self) -> np.ndarray:
         """
-        Get a random position to place a emitter inside the mesh
+        Get a random position to place an object inside the mesh
+
+        If `ensure_minimum_weighted_average_ray_length` is enabled, this function attempts to find a position that
+        meets the minimum openness criteria, measured by the weighted average ray length from the candidate point. It
+        will try up to `MAX_PLACE_ATTEMPTS` times before returning the last attempted position.
+
+        Returns:
+             np.ndarray: the random position to place an object inside the mesh
         """
-        # Get an initial microphone position
+        # Sample an initial position inside the mesh
+        #  If we don't care about minimum weighted average ray length, we'll just use this
         mic_pos = self.get_random_point_inside_mesh()
-        # Start iterating until we get an acceptable position
-        for attempt in range(utils.MAX_PLACE_ATTEMPTS):
-            # Compute the weighted average ray length with this position
-            avg_ray_length = self.calculate_weighted_average_ray_length(mic_pos)
-            # If the position is acceptable, break out
-            if avg_ray_length >= MIN_AVG_RAY_LENGTH:
-                logger.info(f"Found suitable position after {attempt + 1} attempts")
-                break
-            # Otherwise, try again with a new position
-            else:
-                mic_pos = self.get_random_point_inside_mesh()
-        # If we haven't found an acceptable position, log this and use the most recent one.
-        else:
+
+        # If we care about checking vs minimum weighted average ray length, we need to iterate
+        if self.ensure_minimum_weighted_average_ray_length:
+            for attempt in range(utils.MAX_PLACE_ATTEMPTS):
+
+                # Compute the weighted average ray length with this position and return if the position is acceptable
+                if (
+                    self.calculate_weighted_average_ray_length(mic_pos)
+                    >= self.minimum_weighted_average_ray_length
+                ):
+                    logger.info(f"Found suitable position after {attempt + 1} attempts")
+                    return mic_pos
+
+                # Generate a new position
+                else:
+                    mic_pos = self.get_random_point_inside_mesh()
+
+            # If we haven't found an acceptable position, log this and use the most recent one.
             logger.error(
                 f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                f"Using the last attempted position, which is {mic_pos}."
+                f"Using the last attempted position: {mic_pos}."
             )
+
         return mic_pos
 
     def get_random_point_inside_mesh(self) -> np.ndarray:
