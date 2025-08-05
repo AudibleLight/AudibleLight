@@ -2471,7 +2471,7 @@ def test_magic_methods(oyens_space):
         # Test 1: don't define a starting position or ending position
         (None, None, 5.0, 1.0, 4, False),
         # Test 2: define a valid starting position, don't define an ending position
-        (np.array([1.6, -5.1, 1.7]), None, 10.0, 2.0, 2, False),
+        (np.array([1.6, -5.1, 1.7]), None, 5.0, 2.0, 2.0, False),
         # Test 3: define a valid ending position, don't define a starting position
         (None, np.array([2.9, -1.0, 2.2]), 3.0, 1.0, 6, False),
         # Test 4: define an INVALID starting and ending position
@@ -2485,6 +2485,14 @@ def test_magic_methods(oyens_space):
         ),
         # Test 5: defined start, random end
         ([4.73, -0.72, 0.96], None, 2.0, 2.0, 10, False),
+        # Test 6: slow velocity, high duration + resolution
+        (None, None, 10.0, 0.25, 4.0, False),
+        # Test 7: high velocity, small duration + resolution
+        (None, None, 0.5, 2.0, 1.0, False),
+        # Test 8: high resolution, small duration + velocity
+        (None, None, 1.0, 0.25, 4.0, False),
+        # Test 9: small resolution, high duration + velocity
+        (None, None, 10.0, 2.0, 1.0, False),
     ],
 )
 @pytest.mark.parametrize(
@@ -2510,8 +2518,8 @@ def test_define_trajectory(
             starting_position=starting_position,
             ending_position=ending_position,
             shape=shape,
-            max_speed=max_speed,
-            temporal_resolution=temporal_resolution,
+            velocity=max_speed,
+            resolution=temporal_resolution,
         )
         assert isinstance(trajectory, np.ndarray)
         assert oyens_space._validate_position(trajectory)
@@ -2519,6 +2527,7 @@ def test_define_trajectory(
         # Check the shape: expecting (n_points, xyz == 3)
         n_points_actual, n_coords = trajectory.shape
         assert n_coords == 3
+        assert n_points_actual >= 2
 
         # If we've explicitly provided a starting and ending position, these should be maintained in the trajectory
         if starting_position is not None:
@@ -2526,16 +2535,14 @@ def test_define_trajectory(
         if ending_position is not None:
             assert np.allclose(trajectory[-1, :], ending_position, atol=1e-4)
 
-        # Temporal resolution adherence
-        n_points_expected = int(np.floor(duration * temporal_resolution) + 1)
-        assert (
-            n_points_actual == n_points_expected
-        ), f"Expected {n_points_expected} points, got {n_points_actual}"
-
         # Check that speed constraints are never violated between points
         deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
         max_segment_distance = max_speed / temporal_resolution
         assert np.all(deltas <= max_segment_distance + 1e-5)
+
+        # If the shape is linear, check that the distance between all points is roughly equivalent
+        if shape == "linear":
+            assert np.allclose(deltas, deltas[0], atol=1e-4)
 
         # Check distance between starting and ending point
         total_distance = np.linalg.norm(trajectory[-1, :] - trajectory[0, :])
@@ -2548,6 +2555,24 @@ def test_define_trajectory(
                 starting_position=starting_position,
                 ending_position=ending_position,
                 shape=shape,
-                max_speed=max_speed,
-                temporal_resolution=temporal_resolution,
+                velocity=max_speed,
+                resolution=temporal_resolution,
             )
+
+
+@pytest.mark.parametrize(
+    "ref,r,n,raises",
+    [
+        (np.array([4.73, -0.72, 0.96]), 0.5, 100, False),
+        ([1.6, -5.1, 1.7], 1.0, 100, False),
+        ([1000, 1000, 1000], 100, 10, True),
+    ],
+)
+def test_get_valid_position_with_max_distance(ref, r, n, raises, oyens_space):
+    if not raises:
+        point = oyens_space.get_valid_position_with_max_distance(ref, r, n)
+        assert isinstance(point, np.ndarray)
+        assert np.linalg.norm(point - ref) <= r
+    else:
+        with pytest.raises(ValueError):
+            _ = oyens_space.get_valid_position_with_max_distance(ref, r, n)

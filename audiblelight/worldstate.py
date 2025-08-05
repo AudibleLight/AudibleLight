@@ -88,7 +88,7 @@ def repair_mesh(mesh: trimesh.Trimesh) -> None:
 
 
 def add_sphere(
-    scene: trimesh.Scene, pos: np.array, color: list[int] = None, r: float = 0.2
+    scene: trimesh.Scene, pos: np.ndarray, color: list[int] = None, r: float = 0.2
 ) -> None:
     """Adds a sphere object to a scene with given position, color, and radius"""
     if color is None:
@@ -1220,15 +1220,59 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
+    def get_valid_position_with_max_distance(
+        self,
+        ref: np.ndarray,
+        r: utils.Numeric,
+        n: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
+    ) -> np.ndarray:
+        """
+        Generate a sphere with origin `ref` and radius `r` and sample a valid position from within its volume.
+
+        Arguments:
+            ref (np.ndarray): the reference point, treated as the origin of the sphere
+            r (utils.Numeric): the maximum distance for the sampled point from `ref`
+            n (utils.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
+
+        Raises:
+            ValueError: if a valid point from within `n` samples cannot be found
+        """
+        # Input sanitization
+        r = utils.sanitise_positive_number(r)
+        n = int(utils.sanitise_positive_number(n))
+        ref = utils.sanitise_coordinates(ref)
+
+        # Sample directions using normal distribution and normalize
+        directions = np.random.normal(size=(n, 3))
+        directions /= np.linalg.norm(directions, axis=1)[
+            :, np.newaxis
+        ]  # Normalize each row
+
+        # Sample radii with cubic root to ensure uniform volume distribution and use to scale the directions
+        radii = r * np.cbrt(np.random.uniform(0, 1, size=(n,)))
+        displacements = directions * radii[:, np.newaxis]
+
+        # Add center offset
+        samples = ref + displacements
+
+        # Validate and return the first valid point
+        for point in samples:
+            if self._validate_position(point):
+                return point
+
+        # If we've got to here, we can't find a valid sample, so raise an error
+        raise ValueError(
+            f"Cannot generate a random valid point for coordinate {ref} with radius {r:.3f}. "
+            f"Consider increasing the number of generated points (currently {n})"
+        )
+
     def define_trajectory(
         self,
         duration: Optional[utils.Numeric],
         starting_position: Optional[Union[np.ndarray, list]] = None,
         ending_position: Optional[Union[np.ndarray, list]] = None,
-        max_speed: Optional[utils.Numeric] = MOVING_EMITTER_MAX_SPEED,
-        temporal_resolution: Optional[
-            utils.Numeric
-        ] = MOVING_EMITTER_TEMPORAL_RESOLUTION,
+        velocity: Optional[utils.Numeric] = MOVING_EMITTER_MAX_SPEED,
+        resolution: Optional[utils.Numeric] = MOVING_EMITTER_TEMPORAL_RESOLUTION,
         shape: Optional[str] = "linear",
         max_place_attempts: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
     ):
@@ -1246,8 +1290,8 @@ class WorldState:
                 position within the mesh will be selected.
             ending_position (np.ndarray): the ending position for the trajectory. If not provided, a random valid
                 position within the mesh that has line-of-sight with `starting_position` will be selected.
-            max_speed (Numeric): the speed limit for the trajectory, in meters per second
-            temporal_resolution (Numeric): the number of emitters created per second
+            velocity (Numeric): the speed limit for the trajectory, in meters per second
+            resolution (Numeric): the number of emitters created per second
             shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
 
@@ -1281,24 +1325,23 @@ class WorldState:
             )
 
         # Compute the number of samples based on duration and resolution
-        n_points = round(
-            utils.sanitise_positive_number(duration * temporal_resolution) + 1
-        )
+        n_points = round(utils.sanitise_positive_number(duration * resolution) + 1)
         if n_points < 2:
             raise ValueError(
                 "Cannot create a moving trajectory comprised of fewer than two points"
             )
 
-        max_distance = utils.sanitise_positive_number(max_speed * duration)
+        max_distance = utils.sanitise_positive_number(velocity * duration)
 
         # Compute the distance that we can travel in a single step
-        step_limit = max_speed / temporal_resolution
+        step_limit = velocity / resolution
 
-        if max_distance < 1.0:
-            logger.warning(
-                f"Maximum trajectory distance is small ({max_distance:.2f} m). "
-                f"If a valid trajectory cannot be created, consider increasing the duration, max_speed, "
-                f"or relaxing spatial constraints."
+        # Raise an error if distance is too small
+        if max_distance < self.empty_space_around_emitter:
+            raise ValueError(
+                f"Trajectory distance is smaller than minimum allowed ({max_distance:.3f}m). "
+                f"Consider increasing `empty_space_around_emitter` argument "
+                f"(currently {self.empty_space_around_emitter:.3f}m)"
             )
 
         # Try and create the trajectory a specified number of times
@@ -1308,30 +1351,38 @@ class WorldState:
             if (attempt + 1) % 100 == 0:
                 logger.info(f"Trajectory attempt {attempt + 1}/{actual_place_attempts}")
 
-            # Use random starting and ending positions if not defined already: ending position assumes LOS with start
-            start_attempt = (
-                self.get_random_position()
-                if starting_position is None
-                else starting_position
-            )
-            end_attempt = (
-                self.get_random_position()
-                if ending_position is None
-                else ending_position
-            )
+            # If we've not provided a starting position,
+            #  either randomly sample this (when no ending position) or sample this WRT ending position
+            if starting_position is None:
+                if ending_position is None:
+                    start_attempt = self.get_random_position()
+                else:
+                    start_attempt = self.get_valid_position_with_max_distance(
+                        ending_position, max_distance, max_place_attempts
+                    )
+            #  Otherwise, check that our provided starting position is valid
+            else:
+                start_attempt = utils.sanitise_coordinates(starting_position)
 
-            # Sanitise starting and ending position
-            start_attempt = utils.sanitise_coordinates(start_attempt)
-            end_attempt = utils.sanitise_coordinates(end_attempt)
+            # Do similar for the ending position: only sample if not already provided
+            if ending_position is None:
+                try:
+                    end_attempt = self.get_valid_position_with_max_distance(
+                        start_attempt, max_distance, max_place_attempts
+                    )
+                except ValueError:
+                    # Silently skip over errors in this case, so we retry with another starting position
+                    if starting_position is None:
+                        continue
+                    # Otherwise, we need to raise the error as this starting position is invalid
+                    else:
+                        raise
+            else:
+                end_attempt = utils.sanitise_coordinates(ending_position)
 
-            # Continue if either starting or ending position is invalid
-            if not all(
-                (
-                    self._validate_position(start_attempt),
-                    self._validate_position(end_attempt),
-                )
-            ):
-                continue
+            # No need to validate or sanitise starting and ending position
+            #  This is already done inside `get_random_position` and `get_valid_position_with_max_distance`
+            #  We also validate the entire trajectory at the very end of the loop
 
             # Reject if ending point is too far away from starting point
             distance = np.linalg.norm(end_attempt - start_attempt)
@@ -1359,9 +1410,8 @@ class WorldState:
             if np.any(deltas > step_limit + 1e-4):
                 continue
 
-            # Ensure we have at least two steps in the trajectory
-            if len(trajectory) < 2:
-                continue
+            # No need to check number of points within the trajectory is more than 1
+            #  This is because we already checked `n_points` outside the loop
 
             # Validate that all the positions in the trajectory are acceptable
             #  (in bounds of mesh, not too close to a microphone or another placed emitter, etc.)
@@ -1372,8 +1422,9 @@ class WorldState:
         raise ValueError(
             f"Could not define a valid movement trajectory after {actual_place_attempts} attempt(s). Consider:\n"
             f"- Reducing `empty_space_around parameters`\n"
-            f"- Decreasing `temporal_resolution` (currently {temporal_resolution})\n"
+            f"- Decreasing `temporal_resolution` (currently {resolution})\n"
             f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
+            f"- Decreasing `max_distance` (currently {max_distance:.3f})"
         )
 
     def _simulation_sanity_check(self) -> None:
