@@ -12,10 +12,14 @@ This project provides a platform for generating synthetic soundscapes by simulat
 
 - Ensure `sox` and `ffmpeg` are installed, i.e. `sudo apt install libsox-dev` etc.
 - Ensure `glut` is installed, i.e. `sudo apt install freeglut3-dev`
+- Ensure `poetry` is installed
 - `git clone` this repository
-- Create a `venv` and activate
-- `pip install -r requirements.txt`
-- Install pre-commit hooks: `pre-commit install`
+- `poetry install` to install dependencies
+- `eval $(poetry env activate)` to activate the environment
+
+### Running `pre-commit` hooks
+
+- Install pre-commit hooks: `poetry run pre-commit install`
 - Run pre-commit: `pre-commit run --all-files`
 
 ## API Sketch

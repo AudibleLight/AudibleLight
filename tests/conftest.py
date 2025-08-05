@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """Fixtures used across all tests"""
+from typing import Callable
 
 import pytest
 
@@ -45,3 +46,22 @@ def oyens_scene_no_overlap() -> Scene:
     )
     sc.add_microphone(microphone_type="ambeovr")
     return sc
+
+
+@pytest.fixture
+def oyens_scene_factory() -> Callable:
+    def _factory():
+        sc = Scene(
+            duration=50,
+            mesh_path=OYENS_MESH,
+            event_start_dist=stats.uniform(0, 10),
+            event_duration_dist=stats.uniform(0, 10),
+            event_velocity_dist=stats.uniform(0, 10),
+            event_resolution_dist=stats.uniform(0, 10),
+            snr_dist=stats.norm(5, 1),
+            fg_path=SOUNDEVENT_DIR,
+            max_overlap=1
+        )
+        sc.add_microphone(microphone_type="ambeovr")
+        return sc
+    return _factory

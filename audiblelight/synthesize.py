@@ -5,8 +5,8 @@
 
 from time import time
 
-import numpy as np
 import librosa
+import numpy as np
 from loguru import logger
 from scipy import signal
 from tqdm import tqdm
@@ -62,9 +62,13 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
     """
     # Sanitise inputs
     if audio.ndim != 1:
-        raise ValueError(f"Only mono input is supported, but got {audio.ndim} dimensions!")
+        raise ValueError(
+            f"Only mono input is supported, but got {audio.ndim} dimensions!"
+        )
     if ir.ndim != 2:
-        raise ValueError(f"Expected shape of IR should be (n_samples, n_channels), but got ({ir.shape}) instead")
+        raise ValueError(
+            f"Expected shape of IR should be (n_samples, n_channels), but got ({ir.shape}) instead"
+        )
 
     # Shape of both arrays should be (n_samples, n_channels)
     #  where audio[n_channels] == 1, ir[n_channels] >= 1,
@@ -77,9 +81,16 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
 
     # Pad out the IR signal if it is shorter than the audio, and raise a warning
     if n_ir_samples < n_audio_samples:
-        logger.warning(f"IR has fewer samples than audio (IR: {n_ir_samples}, audio: {n_audio_samples}). "
-                       f"IR will be right-padded with zeros to match audio length!")
-        ir = np.pad(ir, ((0, n_audio_samples - n_ir_samples), (0, 0)), mode="constant", constant_values=0)
+        logger.warning(
+            f"IR has fewer samples than audio (IR: {n_ir_samples}, audio: {n_audio_samples}). "
+            f"IR will be right-padded with zeros to match audio length!"
+        )
+        ir = np.pad(
+            ir,
+            ((0, n_audio_samples - n_ir_samples), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
 
     # Perform the convolution using FFT method
     #  the output shape will be (n_ir_samples, n_ir_channels)
@@ -116,12 +127,16 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
     if len(scene.ambience) > 0:
         for ambience in scene.ambience.values():
             if not isinstance(ambience, Ambience):
-                raise TypeError(f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!")
+                raise TypeError(
+                    f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
+                )
 
             ambient_noise = ambience.load_ambience()
             if ambient_noise.shape != scene_audio.shape:
-                raise ValueError(f"Scene ambient noise does not match expected shape. "
-                                 f"Expected {scene_audio.shape}, but got {ambient_noise.shape}.")
+                raise ValueError(
+                    f"Scene ambient noise does not match expected shape. "
+                    f"Expected {scene_audio.shape}, but got {ambient_noise.shape}."
+                )
 
             # TODO: ideally, we can also support adding noise with a given offset and duration
             scene_audio += ambient_noise
@@ -134,7 +149,9 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
 
         # Ensure valid slice
         if scene_end <= scene_start:
-            logger.warning(f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}")
+            logger.warning(
+                f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}"
+            )
             continue
 
         num_samples = scene_end - scene_start
@@ -145,7 +162,9 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
         # If spatial_audio is shorter than expected, pad it (optional but safe)
         if spatial_audio.shape[1] < num_samples:
             pad_width = num_samples - spatial_audio.shape[1]
-            spatial_audio = np.pad(spatial_audio, ((0, 0), (0, pad_width)), mode='constant')
+            spatial_audio = np.pad(
+                spatial_audio, ((0, 0), (0, pad_width)), mode="constant"
+            )
 
         scene_audio[:, scene_start:scene_end] += spatial_audio
 
@@ -156,7 +175,9 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
     scene.audio = scene_audio
 
 
-def render_event_audio(event: Event, irs: np.ndarray, ref_db: utils.Numeric, ignore_cache: bool = True) -> None:
+def render_event_audio(
+    event: Event, irs: np.ndarray, ref_db: utils.Numeric, ignore_cache: bool = True
+) -> None:
     """
     Renders audio for a given `Event` object.
 
@@ -194,14 +215,18 @@ def render_event_audio(event: Event, irs: np.ndarray, ref_db: utils.Numeric, ign
     # Only a single emitter (IR): we can convolve easily with scipy
     if n_emitters == 1:
         if event.is_moving:
-            raise ValueError("Moving Event has only one emitter!")  # something has gone very wrong to hit this
+            raise ValueError(
+                "Moving Event has only one emitter!"
+            )  # something has gone very wrong to hit this
         # TODO: if any emitters are not mono, this will break silently
         spatial = time_invariant_convolution(audio, irs[:, 0].T).T
 
     # No emitters: means that audio is not spatialized
     elif n_emitters == 0:
-        logger.warning(f"No IRs were found for Event with alias {event.alias}. Audio is being tiled along the "
-                       f"channel dimension to match the expected shape ({n_ch, n_audio_samples}).")
+        logger.warning(
+            f"No IRs were found for Event with alias {event.alias}. Audio is being tiled along the "
+            f"channel dimension to match the expected shape ({n_ch, n_audio_samples})."
+        )
         spatial = np.repeat(audio[:, None], n_ch, 1).T
 
     # Moving sound sources: need to do time-variant convolution
@@ -243,11 +268,15 @@ def render_audio_for_all_scene_events(scene: Scene, ignore_cache: bool = True) -
         None
     """
 
-    # Try and grab the IRs from the WorldState, or run the synthesis if they're not present
-    try:
-        _ = scene.state.irs
-    except AttributeError:
+    # If we're invalidating the cache, always re-simulate the IRs whenever calling this function
+    if ignore_cache:
         scene.state.simulate()
+    # Otherwise, only run the synthesis if this hasn't already been done
+    else:
+        try:
+            _ = scene.state.irs
+        except AttributeError:
+            scene.state.simulate()
 
     # Grab the IRs from the entire WorldState
     #  The expected IR shape is (N_capsules, N_emitters, N_channels (== 1), N_samples)
@@ -257,15 +286,21 @@ def render_audio_for_all_scene_events(scene: Scene, ignore_cache: bool = True) -
 
     # Iterate over each one of our Events
     start = time()
-    for event_alias, event in tqdm(scene.events.items(), desc="Rendering event audio..."):
+    for event_alias, event in tqdm(
+        scene.events.items(), desc="Rendering event audio..."
+    ):
 
         # Grab the IRs for the current event's emitters
         #  This gets us (N_capsules, N_emitters, N_samples)
-        event_irs = irs[:, emitter_counter:len(event.emitters) + emitter_counter, 0, :]
+        event_irs = irs[
+            :, emitter_counter : len(event.emitters) + emitter_counter, 0, :
+        ]
 
         # Render the audio for the event
         #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
-        render_event_audio(event, event_irs, ref_db=scene.ref_db, ignore_cache=ignore_cache)
+        render_event_audio(
+            event, event_irs, ref_db=scene.ref_db, ignore_cache=ignore_cache
+        )
 
         # Update the counter
         emitter_counter += len(event.emitters)
@@ -298,12 +333,21 @@ def validate_scene(scene: Scene) -> None:
         raise ValueError("Scene has no events!")
 
     # Validate across all parts of the library, e.g. WorldState, Scene, ray-tracing engine
-    if len(scene.events) != len(scene.state.emitters) != scene.state.ctx.get_source_count():
-        raise ValueError(f"Mismatching number of emitters, events, and sources! "
-                         f"Got {len(scene.events)} events, {len(scene.state.emitters)} emitters, "
-                         f"{scene.state.ctx.get_source_count()} sources.")
+    vals = (
+        len(scene.events),
+        len(scene.state.emitters),
+        scene.state.ctx.get_source_count(),
+    )
+    if not all(v == vals[0] for v in vals):
+        raise ValueError(
+            f"Mismatching number of emitters, events, and sources! "
+            f"Got {len(scene.events)} events, {len(scene.state.emitters)} emitters, "
+            f"{scene.state.ctx.get_source_count()} sources."
+        )
 
     capsules = sum(m.n_capsules for m in scene.state.microphones.values())
     if capsules != scene.state.ctx.get_listener_count():
-        raise ValueError(f"Mismatching number of microphones and listeners! "
-                         f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners.")
+        raise ValueError(
+            f"Mismatching number of microphones and listeners! "
+            f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners."
+        )
