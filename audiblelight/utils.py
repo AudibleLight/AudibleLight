@@ -566,3 +566,26 @@ def generate_circular_trajectory(
         circle_points.append(list(point))
 
     return np.array(circle_points)
+
+
+def generate_random_trajectory(
+    xyz_start: np.ndarray,
+    max_step: Numeric,
+    n_points: int,
+) -> np.ndarray:
+    """
+    Generate a 3D random walk from `xyz_start` with `n_points` steps, such that no step exceeds `max_step`.
+    """
+    # Generate random directions in 3D and normalize to unit vectors
+    directions = np.random.normal(size=(n_points, 3))
+    norms = np.linalg.norm(directions, axis=1, keepdims=True)
+    unit_vectors = directions / norms
+
+    # Generate random step lengths in [0, step_limit]
+    step_lengths = np.random.uniform(0, max_step, size=(n_points, 1))
+
+    # Scale unit vectors by step lengths
+    steps = unit_vectors * step_lengths
+
+    # Compute random walk as the cumulative sum of every step, added to the starting position
+    return xyz_start + np.cumsum(steps, axis=0)
