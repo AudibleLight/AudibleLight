@@ -93,7 +93,7 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
         )
 
     syn.validate_scene(oyens_scene_no_overlap)
-    syn.render_scene_audio(oyens_scene_no_overlap)
+    syn.render_audio_for_all_scene_events(oyens_scene_no_overlap)
     assert len(oyens_scene_no_overlap.events) == n_events
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
