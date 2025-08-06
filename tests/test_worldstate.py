@@ -646,6 +646,12 @@ def test_calculate_weighted_average_ray_length(num_rays: int, oyens_space: World
     assert isinstance(result, float)
     assert np.isfinite(result)
     assert result > 0
+    # Try with a point outside the mesh: should be NaN
+    bad_point = np.array([1000, 1000, 1000])
+    result = oyens_space.calculate_weighted_average_ray_length(
+        bad_point, num_rays=num_rays
+    )
+    assert np.isnan(result)
 
 
 @pytest.mark.parametrize("test_num", range(1, 5))
@@ -661,6 +667,17 @@ def test_get_random_position(test_num: int, oyens_space: WorldState):
     # It should be valid (suitable distance from surfaces, inside mesh, away from mics/emitters...)
     assert oyens_space._validate_position(random_point)
     assert random_point.shape == (3,)  # should be a 1D array of XYZ
+
+
+def test_get_random_position_with_weighted_average_ray_length(oyens_space: WorldState):
+    # Test that, when this parameter is true, any random position has a minimum ray length
+    oyens_space.ensure_minimum_weighted_average_ray_length = True
+    oyens_space.minimum_weighted_average_ray_length = 1.0
+    point = oyens_space.get_random_position()
+    ray_length = oyens_space.calculate_weighted_average_ray_length(point, num_rays=1000)
+    assert ray_length >= oyens_space.minimum_weighted_average_ray_length
+    # Reset back to default
+    oyens_space.ensure_minimum_weighted_average_ray_length = False
 
 
 def test_create_plot(oyens_space):
@@ -2223,12 +2240,28 @@ def test_worldstate_from_dict(input_dict: dict):
     )
 
 
-def test_magic_methods(oyens_space):
+def test_worldstate_magic_methods(oyens_space):
     for method in ["__len__", "__str__", "__getitem__", "__repr__"]:
         assert hasattr(oyens_space, method)
         _ = getattr(oyens_space, method)
     # Compare equality
     assert oyens_space == WorldState.from_dict(oyens_space.to_dict())
+
+
+def test_emitter_magic_methods(oyens_space):
+    em = Emitter(
+        alias="asdf", coordinates_absolute=oyens_space.get_random_point_inside_mesh()
+    )
+    for method in ["__len__", "__str__", "__getitem__", "__repr__"]:
+        assert hasattr(oyens_space, method)
+        _ = getattr(oyens_space, method)
+    # Compare equality
+    outdict = em.to_dict()
+    assert em == Emitter.from_dict(outdict)
+    # Remove a key, should raise an error
+    with pytest.raises(KeyError):
+        outdict.pop("alias")
+        _ = Emitter.from_dict(outdict)
 
 
 @pytest.mark.parametrize(

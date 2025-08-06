@@ -4,10 +4,14 @@
 """Test cases for functionality inside audiblelight/synthesize.py"""
 
 
+from time import time
+
 import numpy as np
 import pytest
 
 import audiblelight.synthesize as syn
+from audiblelight.event import Event
+from audiblelight.worldstate import Emitter
 from tests import utils_tests
 
 
@@ -46,6 +50,33 @@ def test_apply_snr(x, snr, expected_max):
     ), f"Expected max {expected_max}, got {actual_max}"
 
 
+@pytest.mark.parametrize("n_emitters", list(range(4)))
+def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
+    # Create the event
+    ev = Event(alias="tester", filepath=utils_tests.TEST_AUDIOS[0], snr=5)
+    # This is not the proper way to do this, but whatever
+    emitter_list = []
+    for emitter_idx in range(n_emitters):
+        coords = oyens_scene_no_overlap.state.get_random_point_inside_mesh()
+        em = Emitter(alias=f"emitter_{emitter_idx}", coordinates_absolute=coords)
+        emitter_list.append(em)
+    # Update the state and register the emitters to the event
+    oyens_scene_no_overlap.state._update()
+    if len(emitter_list) > 0:
+        ev.register_emitters(emitter_list)
+    else:
+        ev.emitters = emitter_list
+    # Create some dummy IRs
+    irs = np.random.rand(4, n_emitters, 10000)
+    # Do the generation
+    syn.render_event_audio(ev, irs, oyens_scene_no_overlap.ref_db)
+    # Check everything
+    assert hasattr(ev, "spatial_audio")
+    assert isinstance(ev.spatial_audio, np.ndarray)
+    assert ev.spatial_audio.shape[0] == 4
+    assert ev.spatial_audio.ndim == 2
+
+
 @pytest.mark.parametrize(
     "n_events",
     [
@@ -62,7 +93,9 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
         )
 
     syn.validate_scene(oyens_scene_no_overlap)
-    syn.render_audio_for_all_scene_events(oyens_scene_no_overlap)
+    init_time = time()
+    syn.render_audio_for_all_scene_events(oyens_scene_no_overlap, ignore_cache=True)
+    no_cache_time = time() - init_time
     assert len(oyens_scene_no_overlap.events) == n_events
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
@@ -71,6 +104,17 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
         # Number of channels should be same as microphone, number of samples should be same as audio
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.audio.shape[-1]
+
+    # We should just be able to grab the audio from the cache now
+    init_time = time()
+    syn.render_audio_for_all_scene_events(oyens_scene_no_overlap, ignore_cache=False)
+    cache_time = time() - init_time
+
+    # With caching, should be much quicker to render the audio
+    assert cache_time < no_cache_time
+
+    # State should have IR objects cached
+    assert isinstance(oyens_scene_no_overlap.state.irs, dict)
 
 
 @pytest.mark.parametrize(
@@ -112,7 +156,10 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
     ],
 )
 def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap):
+    # Clear everything out for safety
     oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.clear_ambience()
+
     # Add both N static and N moving events
     for n_event in range(n_events):
         oyens_scene_no_overlap.add_event(
@@ -123,6 +170,12 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
             event_type="moving",
             event_kwargs=dict(spatial_resolution=2, duration=1, spatial_velocity=1),
         )
+
+    # Add some ambience: white noise and a running tap
+    oyens_scene_no_overlap.add_ambience(noise="white")
+    oyens_scene_no_overlap.add_ambience(
+        filepath=utils_tests.SOUNDEVENT_DIR / "waterTap/240693.wav"
+    )
 
     # Render the scene audio
     syn.validate_scene(oyens_scene_no_overlap)
@@ -160,6 +213,20 @@ def test_validate_scene(oyens_scene_factory):
     scn = oyens_scene_factory()
     scn.state.add_emitter()  # 1 emitter, 1 mic, 0 events
     with pytest.raises(ValueError, match="Scene has no events!"):
+        syn.validate_scene(scn)
+
+    # Test with no ray-tracing listeners
+    scn = oyens_scene_factory()
+    scn.state.add_emitter()
+    scn.state.ctx.clear_listeners()
+    with pytest.raises(ValueError, match="Ray-tracing engine has no listeners!"):
+        syn.validate_scene(scn)
+
+    # Test with no ray-tracing sources
+    scn = oyens_scene_factory()
+    scn.state.add_emitter()
+    scn.state.ctx.clear_sources()
+    with pytest.raises(ValueError, match="Ray-tracing engine has no sources!"):
         syn.validate_scene(scn)
 
     # Do the same for the capsules
