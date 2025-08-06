@@ -402,3 +402,109 @@ def test_write_wav(audio_input, expect_warning, expect_normalized, caplog):
 
         if expect_normalized:
             assert np.max(np.abs(data)) == 32767
+
+
+@pytest.mark.parametrize(
+    "xyz_start, xyz_end, n_points",
+    [
+        (np.array([0.0, 0.0, 0.0]), np.array([1.0, 1.0, 1.0]), 5),
+        (np.array([1.0, 2.0, 3.0]), np.array([4.0, 5.0, 6.0]), 10),
+        (np.array([-1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0]), 2),
+        (np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0]), 3),  # zero vector path
+    ],
+)
+def test_generate_linear_trajectory(
+    xyz_start: np.ndarray, xyz_end: np.ndarray, n_points: int
+):
+    traj = utils.generate_linear_trajectory(xyz_start, xyz_end, n_points)
+
+    # Check shape
+    assert traj.shape == (
+        n_points,
+        3,
+    ), f"Expected shape ({n_points}, 3), got {traj.shape}"
+
+    # Check first and last points
+    assert np.allclose(
+        traj[0], xyz_start
+    ), f"First point mismatch: expected {xyz_start}, got {traj[0]}"
+    assert np.allclose(
+        traj[-1], xyz_end
+    ), f"Last point mismatch: expected {xyz_end}, got {traj[-1]}"
+
+    # Check linear interpolation for n_points > 1
+    expected_step = (xyz_end - xyz_start) / (n_points - 1)
+    actual_steps = np.diff(traj, axis=0)
+    for step in actual_steps:
+        assert np.allclose(
+            step, expected_step
+        ), f"Inconsistent step: expected {expected_step}, got {step}"
+
+
+@pytest.mark.parametrize(
+    "xyz_start, xyz_end, n_points",
+    [
+        (np.array([0.0, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]), 10),
+        (np.array([1.0, 1.0, 1.0]), np.array([-1.0, -1.0, -1.0]), 20),
+        (np.array([1.0, 2.0, 3.0]), np.array([4.0, 6.0, 8.0]), 15),
+    ],
+)
+def test_generate_circular_trajectory(
+    xyz_start: np.ndarray, xyz_end: np.ndarray, n_points: int
+):
+    traj = utils.generate_circular_trajectory(xyz_start, xyz_end, n_points)
+
+    # Check shape
+    assert traj.shape == (
+        n_points,
+        3,
+    ), f"Expected shape ({n_points}, 3), got {traj.shape}"
+
+    # Check first and last points
+    assert np.allclose(
+        traj[0], xyz_start
+    ), f"First point mismatch: expected {xyz_start}, got {traj[0]}"
+    assert np.allclose(
+        traj[-1], xyz_end
+    ), f"Last point mismatch: expected {xyz_end}, got {traj[-1]}"
+
+    # Check all points lie on circle (same radius from midpoint)
+    midpoint = (xyz_start + xyz_end) / 2
+    radius = np.linalg.norm(xyz_end - xyz_start) / 2
+    distances = np.linalg.norm(traj - midpoint, axis=1)
+    assert np.allclose(
+        distances, radius, atol=1e-4
+    ), "Points not equidistant from midpoint"
+
+
+@pytest.mark.parametrize(
+    "xyz_start, max_step, n_points",
+    [
+        (np.array([0.0, 0.0, 0.0]), 0.1, 10),
+        (np.array([1.0, -1.0, 2.0]), 0.05, 50),
+        (np.array([5.0, 5.0, 5.0]), 0.2, 1),
+        (np.zeros(3), 0.0, 20),  # edge case: zero max step
+    ],
+)
+def test_generate_random_trajectory(
+    xyz_start: np.ndarray, max_step: utils.Numeric, n_points: int
+):
+    traj = utils.generate_random_trajectory(xyz_start, max_step, n_points)
+
+    # Check shape
+    assert traj.shape == (
+        n_points,
+        3,
+    ), f"Expected shape ({n_points}, 3), got {traj.shape}"
+
+    # Check each step is within max_step length
+    steps = np.diff(np.vstack([xyz_start, traj]), axis=0)
+    step_lengths = np.linalg.norm(steps, axis=1)
+    assert np.all(step_lengths <= max_step + 1e-4), "Step exceeds max_step"
+
+    # If max_step > 0, check at least one step is > 0
+    if max_step > 0:
+        assert np.any(step_lengths > 0), "All steps are zero despite positive max_step"
+    else:
+        # If max_step == 0, trajectory should be constant
+        assert np.allclose(traj, xyz_start), "Trajectory changed with zero max_step"

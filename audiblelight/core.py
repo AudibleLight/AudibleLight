@@ -36,6 +36,7 @@ class Scene:
         fg_path: Optional[Union[str, Path]] = None,
         state_kwargs: Optional[dict] = None,
         ref_db: Optional[utils.Numeric] = REF_DB,
+        scene_start_dist: Optional[utils.DistributionLike] = None,
         event_start_dist: Optional[utils.DistributionLike] = None,
         event_duration_dist: Optional[utils.DistributionLike] = None,
         event_velocity_dist: Optional[utils.DistributionLike] = None,
@@ -73,11 +74,30 @@ class Scene:
         self.mesh = self.state.mesh
         # self.irs = self.state.irs
 
+        # Define defaults for all distributions
+        #  Events can start any time within the duration of the scene, minus some padding
+        if scene_start_dist is None:
+            scene_start_dist = stats.uniform(0.0, self.duration - 1)
+        #  Events can start any time up to 5 seconds through their duration
+        if event_start_dist is None:
+            event_start_dist = stats.uniform(0.0, 5.0)
+        #  Events can last between 0 and 10 seconds
+        if event_duration_dist is None:
+            event_duration_dist = stats.uniform(0.0, 10.0)
+        #  Events move between 0.25 and 2.0 metres per second
+        if event_velocity_dist is None:
+            event_velocity_dist = stats.uniform(0.25, 2.0)
+        #  Events have a resolution of between 1-4 Hz (i.e., number of IRs per second)
+        if event_resolution_dist is None:
+            event_resolution_dist = stats.uniform(1.0, 4.0)
+        #  Events have an SNR with a mean of 5, SD of 1, and boundary between 2 and 8
+        if snr_dist is None:
+            snr_dist = stats.truncnorm(a=-3, b=3, loc=5, scale=1)
+
         # Distributions: these function sanitise the distributions so that they are either `None` or an object
         #  with the `rvs` method. When called, the `rvs` method will return a random variate sampled from the
         #  probability distribution.
-        # TODO: these all need to be checked
-        self.scene_start_dist = stats.uniform(0.0, self.duration)
+        self.scene_start_dist = utils.sanitise_distribution(scene_start_dist)
         self.event_start_dist = utils.sanitise_distribution(event_start_dist)
         self.event_duration_dist = utils.sanitise_distribution(event_duration_dist)
         self.event_velocity_dist = utils.sanitise_distribution(event_velocity_dist)
@@ -169,7 +189,7 @@ class Scene:
         Examples:
             >>> test_scene = Scene(...)
             >>> for n in range(9):
-            >>>     test_scene.add_event(...)
+            >>>     test_scene.add_event_static(...)
             >>> for ev in test_scene:
             >>>     assert isinstance(ev, Event)
         """
@@ -302,9 +322,6 @@ class Scene:
         )
         max_place_attempts = utils.MAX_PLACE_ATTEMPTS if not has_overrides else 1
 
-        # Get emitters from internal state
-        emitters = self.state.emitters[alias]
-
         # Pre-resolve all user-specified override values (only done once)
         overrides = {
             "scene_start": event_kwargs.get("scene_start"),
@@ -348,7 +365,8 @@ class Scene:
                 continue
 
             # Attempt to create and store the event
-            self.events[alias] = Event(**current_kws, emitters=emitters)
+            #  We'll register the emitters later in the function
+            self.events[alias] = Event(**current_kws)
             return True
 
         return False
@@ -361,31 +379,32 @@ class Scene:
             raise ValueError("No foreground audio path specified!")
         audios = []
         for fg_category_path in self.fg_category_paths:
-            for i in os.listdir(fg_category_path):
-                if i.endswith(utils.AUDIO_EXTS):
-                    audios.append(fg_category_path / Path(i))
+            for i_ in os.listdir(fg_category_path):
+                if i_.endswith(utils.AUDIO_EXTS):
+                    audios.append(fg_category_path / Path(i_))
         if len(audios) == 0:
             raise FileNotFoundError("No audio files found!")
         return utils.sanitise_filepath(random.choice(audios))
 
     def add_event(
         self,
+        event_type: Optional[str] = "static",
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
         emitter_kwargs: Optional[dict] = None,
         event_kwargs: Optional[dict] = None,
     ) -> None:
         """
-        Add a foreground event with optional overrides.
+        Add an event to the foreground, either "static" or "moving"
 
         Arguments:
+            event_type (str): the type of event to add, must be either "static" or "moving"
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
             emitter_kwargs: a dictionary of keyword arguments that will be passed to `WorldState.add_emitter`.
                 These arguments relate to the positionality of the Event within the mesh and its relation to other
                 objects within the WorldState. For more information, see `WorldState.add_emitter`.
-                If this dictionary is not passed, a single, static Emitter will be added to a random location.
             event_kwargs: a dictionary of keyword arguments to pass to `Event.__init__`.
                 These arguments OVERRIDE the probability distributions set inside `Scene.__init__`. In other words,
                 passing e.g. `event_start=5.0` into this dictionary will ensure that the Event audio begins at 5
@@ -395,6 +414,7 @@ class Scene:
             Creating an event with a predefined position
             >>> scene = Scene(...)
             >>> scene.add_event(
+            ...     event_type="static",
             ...     filepath=...,
             ...     alias="tester",
             ...     emitter_kwargs=dict(
@@ -407,6 +427,7 @@ class Scene:
             Creating an event with overrides
             >>> scene = Scene(...)
             >>> scene.add_event(
+            ...     event_type="static",
             ...     filepath=...,
             ...     alias="tester",
             ...     event_kwargs=dict(
@@ -415,7 +436,6 @@ class Scene:
             ...         snr=0.0,
             ...     )
         """
-
         # Get the alias we'll be using to refer to this event by
         alias = (
             utils.get_default_alias("event", self.events) if alias is None else alias
@@ -431,6 +451,9 @@ class Scene:
         if event_kwargs is None:
             event_kwargs = {}
 
+        # We need to raise errors when trying to
+        #  1) set an incorrect sample rate for the Event
+        #  2) trying to pass `emitters` directly to the Event
         if (
             "sample_rate" in event_kwargs.keys()
             and event_kwargs["sample_rate"] != self.state.ctx.config.sample_rate
@@ -439,10 +462,33 @@ class Scene:
                 "Event sample rate must be the same as the WorldState sample rate"
             )
 
+        if "emitters" in event_kwargs:
+            raise ValueError(
+                "Cannot pass emitters directly to an Event in this manner."
+            )
+
+        # Call the requisite function to add the event
+        if event_type == "static":
+            self.add_event_static(filepath, alias, emitter_kwargs, event_kwargs)
+        elif event_type == "moving":
+            self.add_event_moving(filepath, alias, emitter_kwargs, event_kwargs)
+        else:
+            raise ValueError(
+                f"Cannot parse event type {event_type}, expected either 'static' or 'moving'!"
+            )
+
+    def add_event_static(
+        self,
+        filepath: Union[str, Path],
+        alias: str,
+        emitter_kwargs: Optional[dict] = None,
+        event_kwargs: Optional[dict] = None,
+    ) -> None:
+        """
+        Add a static event to the foreground with optional overrides.
+        """
         # Ensure that we use the same alias for all emitters and events
-        emitter_kwargs["alias"] = (
-            alias  # TODO: this will be a problem when we have moving events (multiple emitters)
-        )
+        emitter_kwargs["alias"] = alias
         event_kwargs["alias"] = alias
 
         # Add the filepath into the event kwarg dictionary
@@ -464,6 +510,68 @@ class Scene:
                 f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap`."
             )
+
+        # Get emitters from internal state and register them with the event
+        emitters = self.state.get_emitters(alias)
+        self.get_event(alias).register_emitters(emitters)
+
+    def add_event_moving(
+        self,
+        filepath: Union[str, Path],
+        alias: str,
+        emitter_kwargs: Optional[dict] = None,
+        event_kwargs: Optional[dict] = None,
+    ):
+        """
+        Add a moving event to the foreground with optional overrides.
+        """
+        # Set any required arguments for the event
+        event_kwargs["alias"] = alias
+        event_kwargs["filepath"] = filepath
+
+        # Pre-initialise the event with required arguments
+        #  Note that this DOES NOT register the emitters.
+        #  We simply need to get the sampled duration, etc., directly from the Event object
+        utils.validate_kwargs(Event.__init__, **event_kwargs)
+        placed = self._try_add_event(**event_kwargs)
+
+        # Raise an error if we can't place the event correctly
+        if not placed:
+            raise ValueError(
+                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Consider increasing the value of `max_overlap`."
+            )
+
+        # Grab the event we just created
+        event = self.get_event(alias)
+
+        # Update the kwargs we'll use to create the trajectory with parameters from the event
+        emitter_kwargs["duration"] = event.duration
+        emitter_kwargs["velocity"] = event.spatial_velocity
+        emitter_kwargs["resolution"] = event.spatial_resolution
+        utils.validate_kwargs(self.state.define_trajectory, **emitter_kwargs)
+
+        # Define the trajectory
+        trajectory = self.state.define_trajectory(**emitter_kwargs)
+
+        # Tile the number of aliases so we have one for every emitter we want to create
+        aliases_tiled = [alias for _ in range(len(trajectory))]
+
+        # Add the emitters to the state with the desired aliases
+        #  We do not want to raise errors here. This is because the positions in the trajectory
+        #  have "pre-validated" during define_trajectory, and
+        # TODO: sort out how kwargs are handled here
+        self.state.add_emitters(
+            positions=trajectory,
+            aliases=aliases_tiled,
+            polar=False,
+            raise_on_error=False,
+            keep_existing=True,
+        )
+
+        # Grab the emitters we just created and register them with the event
+        emitters = self.state.get_emitters(alias)
+        event.register_emitters(emitters)
 
     def _would_exceed_temporal_overlap(
         self, new_event_start: float, new_event_duration: float
@@ -773,7 +881,7 @@ if __name__ == "__main__":
 
     # Add 9 sources to the scene
     for _ in range(9):
-        sc.add_event(emitter_kwargs=dict(keep_existing=True))
+        sc.add_event(event_type="static", emitter_kwargs=dict(keep_existing=True))
 
     # Add some white noise as ambience
     sc.add_ambience(noise="white")

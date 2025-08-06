@@ -636,14 +636,30 @@ def test_event_from_dict(input_dict: dict):
     for k, v in out_dict.items():
         assert input_dict[k] == out_dict[k]
 
+    # Remove a necessary key: should raise an error
+    input_dict.pop("alias")
+    with pytest.raises(KeyError):
+        _ = Event.from_dict(input_dict)
+
 
 @pytest.mark.parametrize("audio_fpath", TEST_AUDIOS[:5])
 def test_magic_methods(audio_fpath: str, oyens_space):
     oyens_space.add_emitter(alias="test_emitter")
     emitter = oyens_space.get_emitters("test_emitter")
     ev = Event(audio_fpath, "test_event", emitters=emitter)
+
     # Iterate over all the magic methods that return strings
     for att in ["__str__", "__repr__"]:
         assert isinstance(getattr(ev, att)(), str)
+
     # Check the __eq__ comparison for identical objects
     assert ev == Event.from_dict(ev.to_dict())
+
+    # Check the __eq__ comparison for non-identical objects
+    assert not ev == 123
+    assert not ev == "asdf"
+
+    # Removing the emitters and trying to render to dict should give an error
+    ev.emitters = None
+    with pytest.raises(ValueError):
+        _ = ev.to_dict()

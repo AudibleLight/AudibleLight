@@ -61,7 +61,7 @@ class Event:
         self,
         filepath: Union[str, Path],
         alias: str,
-        emitters: Union[list[Emitter], Emitter, list[dict]],
+        emitters: Union[list[Emitter], Emitter, list[dict]] = None,
         scene_start: Optional[float] = None,
         event_start: Optional[float] = None,
         duration: Optional[float] = None,
@@ -75,10 +75,11 @@ class Event:
         """
         Initializes the Event object, representing a single audio event taking place inside a Scene.
 
-        Args:
+        Arguments:
             filepath: Path to the audio file.
             alias: Label to refer to this Event by inside the Scene
             emitters: List of Emitter objects associated with this event.
+                If not provided, `register_emitters` must be called prior to rendering any Scene this Event is in.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
                 If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
@@ -134,29 +135,66 @@ class Event:
         self.event_end = self.event_start + self.duration
         self.scene_end = self.scene_start + self.duration
 
+        # Emitters: these will be set when calling `register_emitters`
+        self.emitters = None
+        self.is_moving = None
+
+        # Coordinate metadata: these will be set when calling `register_emitters`
+        self.start_coordinates_absolute = None
+        self.end_coordinates_absolute = None
+        self.start_coordinates_relative_cartesian = None
+        self.end_coordinates_relative_cartesian = None
+        self.start_coordinates_relative_polar = None
+        self.end_coordinates_relative_polar = None
+
+        # If we've provided emitters, go ahead and register them now
+        #  Otherwise, we must provide these before calling any synthesis functions
+        if emitters is not None:
+            self.register_emitters(emitters)
+        #  This is mostly for backwards compatibility when `emitters` was a required argument of Event.__init__
+        #  In practice, it allows us to get the duration of an event (etc.) before adding emitters
+        #  This can be useful in cases where we need the duration of an event before creating emitters
+        #  such as when defining the trajectory of a moving event
+
+    def register_emitters(
+        self,
+        emitters: Union[list[Emitter], Emitter, list[dict]],
+    ) -> None:
+        """
+        Registers emitters associated with this event.
+
+        Arguments:
+            emitters: List of Emitter objects associated with this event.
+
+        Returns:
+            None
+        """
+
+        # Register the emitter objects to the current class
         self.emitters = self._parse_emitters(emitters)
+
         #  If more than one emitter, the sound source is moving; if only one emitter, the sound source is stationary
         self.is_moving = len(self.emitters) > 1
 
         # We presume that the list of emitter objects is "sorted"
         #  i.e., that the first emitter corresponds to the start position and the last to the end
-        self.start_coordinates_absolute = self.emitters[0].coordinates_absolute
-        self.start_coordinates_relative_cartesian = self.emitters[
-            0
-        ].coordinates_relative_cartesian
-        self.start_coordinates_relative_polar = self.emitters[
-            0
-        ].coordinates_relative_polar
+        first_emitter = self.emitters[0]
+        self.start_coordinates_absolute = first_emitter.coordinates_absolute
+        self.start_coordinates_relative_cartesian = (
+            first_emitter.coordinates_relative_cartesian
+        )
+        self.start_coordinates_relative_polar = first_emitter.coordinates_relative_polar
 
         # Set the ending coordinates: if the object is not moving, these are the same as the starting coordinates.
         if self.is_moving:
-            self.end_coordinates_absolute = self.emitters[-1].coordinates_absolute
-            self.end_coordinates_relative_cartesian = self.emitters[
-                -1
-            ].coordinates_relative_cartesian
-            self.end_coordinates_relative_polar = self.emitters[
-                -1
-            ].coordinates_relative_polar
+            last_emitter = self.emitters[-1]
+            self.end_coordinates_absolute = last_emitter.coordinates_absolute
+            self.end_coordinates_relative_cartesian = (
+                last_emitter.coordinates_relative_cartesian
+            )
+            self.end_coordinates_relative_polar = (
+                last_emitter.coordinates_relative_polar
+            )
         else:
             self.end_coordinates_absolute = self.start_coordinates_absolute
             self.end_coordinates_relative_cartesian = (
@@ -205,6 +243,26 @@ class Event:
 
         # If there is no difference, there should be no keys in the deepdiff object
         return len(diff) == 0
+
+    def __len__(self) -> int:
+        """
+        Get the number of Emitters registered to this Event, alias for `len(Event.emitters)`.
+        """
+        if self.has_emitters:
+            return len(self.emitters)
+        else:
+            raise ValueError(
+                "Cannot get length of an Event object without registered emitters."
+            )
+
+    @property
+    def has_emitters(self) -> bool:
+        """
+        Returns True if Event has valid emitters associated with it, False otherwise
+        """
+        return self.emitters is not None and all(
+            isinstance(e, Emitter) for e in self.emitters
+        )
 
     @property
     def is_audio_loaded(self) -> bool:
@@ -329,6 +387,9 @@ class Event:
                 return inp.tolist()
             else:
                 return inp
+
+        if not self.has_emitters:
+            raise ValueError("Cannot dump metadata for an Event with no Emitters!")
 
         return dict(
             # Metadata

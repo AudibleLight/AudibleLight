@@ -4,11 +4,12 @@
 """Modules and functions for "synthesizing" outputs (including audio, video, image, metadata)"""
 
 from time import time
+from typing import Optional
 
 import librosa
 import numpy as np
 from loguru import logger
-from scipy import signal
+from scipy import fft, signal
 from tqdm import tqdm
 
 from audiblelight import utils
@@ -95,17 +96,210 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
     # Perform the convolution using FFT method
     #  the output shape will be (n_ir_samples, n_ir_channels)
     convolve: np.ndarray = signal.fftconvolve(audio, ir, mode="full", axes=0)
-    if convolve.shape[0] > n_audio_samples:
-        convolve = convolve[:n_audio_samples, :]
 
-    return convolve
+    # Transpose so we get (n_channels, n_samples)
+    return convolve.T
 
 
-def time_variant_convolution(audio: np.ndarray, ir_matrix: np.ndarray) -> np.ndarray:
+def stft(
+    y: np.ndarray,
+    fft_size: utils.Numeric = 512,
+    win_size: utils.Numeric = 256,
+    hop_size: utils.Numeric = 128,
+    stft_dims_first: bool = True,
+) -> np.ndarray:
     """
-    Convolve a bank of time-varying impulse responses with an audio input.
+    Compute the STFT for a given input signal
     """
-    raise NotImplementedError
+    # Generate the window function
+    window = np.sin(np.pi / win_size * np.arange(win_size)) ** 2
+
+    # Compute padding and pad the input signal
+    n_frames = 2 * int(np.ceil(y.shape[-1] / (2.0 * hop_size))) + 1
+    pad_width = [(0, 0)] * (y.ndim - 1) + [
+        (win_size - hop_size, n_frames * hop_size - y.shape[-1])
+    ]
+    y_padded = np.pad(y, pad_width, mode="constant")
+
+    # Use stride tricks to efficiently extract windows
+    shape = y_padded.shape[:-1] + (win_size, n_frames)
+    strides = y_padded.strides[:-1] + (
+        y_padded.strides[-1],
+        y_padded.strides[-1] * hop_size,
+    )
+    windows = np.lib.stride_tricks.as_strided(y_padded, shape=shape, strides=strides)
+
+    # Apply window function and compute FFT
+    spec = fft.rfft(windows * window[:, None], fft_size, norm="backward", axis=-2)
+
+    # move stft dims to the front (it's what the tv conv expects)
+    if stft_dims_first:
+        spec = np.moveaxis(np.moveaxis(spec, -2, 0), -1, 0)  # (frames, freq, ...)
+    spec = np.ascontiguousarray(spec)
+
+    return spec
+
+
+def generate_interpolation_matrix(
+    ir_times: np.ndarray,
+    sr: utils.Numeric,
+    hop_size: utils.Numeric,
+    n_frames: Optional[utils.Numeric] = None,
+) -> np.ndarray:
+    """
+    Generate impulse response interpolation weights that determines how the source moves through space.
+
+    This is currently simple linear interpolation between ir_times.
+
+    Arguments:
+        ir_times (np.ndarray): The IR start times.
+        sr (int): Samples per second.
+        hop_size (int): The stft hop size.
+        n_frames (int): The number of stft frames. Defaults to the maximum frame in ir_times.
+
+    Returns:
+        np.ndarray: the interpolation weights.
+    """
+    # frame indices when each IR starts: (n_irs)
+    frames = np.round((ir_times * sr + hop_size) / hop_size)
+    n_frames = n_frames if n_frames is not None else int(frames[-1])
+
+    # IR interpolation weights between 0 and 1: (n_frames, n_irs)
+    g_interp = np.zeros((n_frames, len(frames)))
+
+    for ni in range(len(frames) - 1):
+        tpts = np.arange(frames[ni], frames[ni + 1] + 1, dtype=int) - 1
+        ntpts_ratio = np.linspace(0, 1, len(tpts))
+        g_interp[tpts, ni] = 1 - ntpts_ratio
+        g_interp[tpts, ni + 1] = ntpts_ratio
+
+    return g_interp
+
+
+def perform_time_variant_convolution(
+    s_audio: np.ndarray,
+    s_ir: np.ndarray,
+    w_ir: np.ndarray,
+    ir_slice_min: utils.Numeric = 0,
+    ir_relevant_ratio_max: utils.Numeric = 0.5,
+) -> np.ndarray:
+    """
+    Convolve a bank of time-varying impulse responses with an audio spectrogram.
+
+    Arguments:
+        s_audio (np.ndarray): Input audio spectrogram with shape (frames, frequency).
+        s_ir (np.ndarray): Input impulse response spectrograms with shape (frames, frequency, channels, # of IRs).
+        w_ir (np.ndarray): Impulse response mixing weights between [0, 1] with shape (frames, # of IRs).
+
+    Returns:
+        np.ndarray: the convolved audio spectrogram with shape (frames, frequency).
+    """
+    # get shapes
+    n_frames_ir, n_freq, n_ch, n_irs = s_ir.shape
+    n_frames = min(
+        s_audio.shape[0], w_ir.shape[0]
+    )  # TODO: constant pad ir_interp to sigspec length
+
+    # Invert time for convolution
+    s_audio = np.ascontiguousarray(s_audio[::-1])
+    w_ir = np.ascontiguousarray(w_ir[::-1]).astype(complex)
+
+    # Output: spatialized stft
+    spatial_stft = np.empty((n_frames, n_freq, n_ch), dtype=complex)
+
+    for i in range(n_frames):
+        # slice time window that IRs are defined over
+        i_ir = -i - 1
+        j_ir = min(i_ir + n_frames_ir, 0) or None
+        sir = s_ir[: i + 1]
+        wir = w_ir[i_ir:j_ir]
+        s = s_audio[i_ir:j_ir]
+
+        # drop inactive irs to reduce computation
+        # _ir_slice_min refers to the minimum number of IRs where it makes sense
+        # to start optimizing the matrix multiplication by copying the non-zero
+        # subset of the W_ir matrix.
+        if ir_slice_min is not None and n_irs >= ir_slice_min:
+            relevant = np.any(wir != 0, axis=0)
+            # _ir_relevant_ratio_max decides if the matrix should be subselected
+            # based on the proportion of IRs that are active. Basically, if all IRs
+            # have some non-zero weight, then there is no point in copying the matrix.
+            if relevant.mean() < ir_relevant_ratio_max:  # could optimize this
+                sir = sir[
+                    :, :, :, relevant
+                ]  # this is a copy because of the boolean array :/
+                wir = wir[:, relevant]
+
+        # compute the weighted IR spectrogram
+        # (frame, freq, ch, nir) x (frame, _, _, nir) = (frame, freq, ch, _)
+        ctf_ltv = np.einsum("ijkl,il->ijk", sir, wir)
+
+        # Multiply the signal spectrogram with the CTF
+        # (frame, freq, ch) x (frame, freq, _) = (freq, ch)
+        Si = np.einsum("ijk,ij->jk", ctf_ltv, s)
+
+        spatial_stft[i] = Si  # (frame, freq, ch)
+
+    return spatial_stft
+
+
+def istft_overlap_synthesis(
+    spatial_stft: np.ndarray,
+    fft_size: utils.Numeric,
+    win_size: utils.Numeric,
+    hop_size: utils.Numeric,
+) -> np.ndarray:
+    """
+    Given a stft, recompose it into audio samples using overlap-add synthesis.
+    """
+    n_frames, _, n_ch = spatial_stft.shape
+
+    # Inverse FFT
+    audio_frames = np.real(fft.irfft(spatial_stft, n=fft_size, axis=1, norm="forward"))
+
+    # Overlap-add synthesis for all frames
+    spatial_audio = np.zeros(((n_frames + 1) * hop_size + win_size, n_ch))
+    for i in range(n_frames):
+        spatial_audio[i * hop_size : i * hop_size + fft_size] += audio_frames[i]
+
+    return spatial_audio[win_size : n_frames * hop_size, :]
+
+
+def time_variant_convolution(
+    irs: np.ndarray,
+    event: Event,
+    win_size: utils.Numeric,
+    hop_size: Optional[utils.Numeric] = None,
+) -> np.ndarray:
+    """
+    Performs time-variant convolution for given IRs and Event object
+    """
+
+    # Grab the event audio (this should already be loaded)
+    audio = event.load_audio()
+
+    # Get parameters and shapes
+    win_size = int(utils.sanitise_positive_number(win_size))
+    if hop_size is None:
+        hop_size = win_size // 2
+    hop_size = int(utils.sanitise_positive_number(hop_size))
+    fft_size = 2 * win_size
+
+    # Compute the spectrograms for both the IRs and the audio
+    # Output is (n_frames, n_freq_bins, n_capsules, n_sources)
+    ir_spec = stft(irs, fft_size, win_size, hop_size)
+    audio_spec = stft(audio, fft_size, win_size, hop_size)
+
+    # Interpolate between the duration of the audio file and the number of IRs to get the time matrix
+    ir_times = np.linspace(0, event.duration, len(event))
+    w_ir = generate_interpolation_matrix(ir_times, event.sample_rate, hop_size)
+
+    # Convolve signal with irs
+    # Output is (n_audio_frames, freq_bins, n_capsules)
+    spatial_stft = perform_time_variant_convolution(audio_spec, ir_spec, w_ir)
+
+    # Output is (n_channels, n_samples)
+    return istft_overlap_synthesis(spatial_stft, fft_size, win_size, hop_size).T
 
 
 def generate_scene_audio_from_events(scene: Scene) -> None:
@@ -158,18 +352,11 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
             )
             continue
 
-        num_samples = scene_end - scene_start
-
         # Truncate or pad spatial_audio to fit the scene slice length
-        spatial_audio = event.spatial_audio[:, :num_samples]
+        num_samples = scene_end - scene_start
+        spatial_audio = pad_or_truncate_audio(event.spatial_audio, num_samples)
 
-        # If spatial_audio is shorter than expected, pad it (optional but safe)
-        if spatial_audio.shape[1] < num_samples:
-            pad_width = num_samples - spatial_audio.shape[1]
-            spatial_audio = np.pad(
-                spatial_audio, ((0, 0), (0, pad_width)), mode="constant"
-            )
-
+        # Additive synthesis
         scene_audio[:, scene_start:scene_end] += spatial_audio
 
     # Sanity check everything
@@ -179,8 +366,32 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
     scene.audio = scene_audio
 
 
+def pad_or_truncate_audio(
+    audio: np.ndarray, desired_samples: utils.Numeric
+) -> np.ndarray:
+    """
+    Pads or truncates audio with desired number of samples.
+    """
+    # Audio is too short, needs padding
+    if audio.shape[1] < desired_samples:
+        return np.pad(
+            audio, ((0, 0), (0, desired_samples - audio.shape[1])), mode="constant"
+        )
+    # Audio is too long, needs truncating
+    elif audio.shape[1] > desired_samples:
+        return audio[:, :desired_samples]
+    # Audio is just right
+    else:
+        return audio
+
+
 def render_event_audio(
-    event: Event, irs: np.ndarray, ref_db: utils.Numeric, ignore_cache: bool = True
+    event: Event,
+    irs: np.ndarray,
+    ref_db: utils.Numeric,
+    ignore_cache: bool = True,
+    win_size: utils.Numeric = 512,
+    hop_size: Optional[utils.Numeric] = None,
 ) -> None:
     """
     Renders audio for a given `Event` object.
@@ -197,6 +408,8 @@ def render_event_audio(
         irs (np.ndarray): the IR audio array for the given event, taken from the WorldState and this event's Emitters
         ref_db (utils.Numeric): the noise floor for the Scene
         ignore_cache (bool): if True, any cached spatial audio from a previous call to this function will be discarded
+        win_size (int): the window size of the FFT, defaults to 512 samples
+        hop_size (utils.Numeric): the size of the hop between FFTs, defaults to (win_size // 2) samples
 
     Returns:
         None
@@ -223,19 +436,26 @@ def render_event_audio(
                 "Moving Event has only one emitter!"
             )  # something has gone very wrong to hit this
         # TODO: if any emitters are not mono, this will break silently
-        spatial = time_invariant_convolution(audio, irs[:, 0].T).T
+        spatial = time_invariant_convolution(audio, irs[:, 0].T)
 
     # No emitters: means that audio is not spatialized
     elif n_emitters == 0:
         logger.warning(
             f"No IRs were found for Event with alias {event.alias}. Audio is being tiled along the "
-            f"channel dimension to match the expected shape ({n_ch, n_audio_samples})."
+            f"channel dimension to match the expected shape {n_ch, n_audio_samples}."
         )
         spatial = np.repeat(audio[:, None], n_ch, 1).T
 
     # Moving sound sources: need to do time-variant convolution
     else:
-        spatial = time_variant_convolution(audio, irs)
+        if not event.is_moving:
+            raise ValueError(
+                "Expected a moving event!"
+            )  # something has gone very wrong to hit this
+        spatial = time_variant_convolution(irs, event, win_size, hop_size)
+
+    # Pad or truncate the audio to match the desired number of samples
+    spatial = pad_or_truncate_audio(spatial, n_audio_samples)
 
     # Deal with amplitude: this logic is taken from SpatialScaper
     #  This scales the audio simply to the maximum SNR
@@ -338,8 +558,12 @@ def validate_scene(scene: Scene) -> None:
 
     # Validate across all parts of the library, e.g. WorldState, Scene, ray-tracing engine
     vals = (
-        len(scene.events),
-        len(scene.state.emitters),
+        sum(
+            len(ev) for ev in scene.events.values()
+        ),  # sums number of emitters for every event
+        sum(
+            len(em) for em in scene.state.emitters.values()
+        ),  # sums number of emitters in total for the scene
         scene.state.ctx.get_source_count(),
     )
     if not all(v == vals[0] for v in vals):
@@ -355,3 +579,6 @@ def validate_scene(scene: Scene) -> None:
             f"Mismatching number of microphones and listeners! "
             f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners."
         )
+
+    if any(not ev.has_emitters for ev in scene.events.values()):
+        raise ValueError("Some events have no emitters registered to them!")

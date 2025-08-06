@@ -50,7 +50,7 @@ for i in range(n_scenes):
     # Add a random number of events
     n_events = np.random.randint(min_events, max_events + 1)
     for _ in range(n_events):
-        scene.add_event(
+        scene.add_event_static(
             label=('choose', []),
             source_file=('choose', []),
             source_time=('const', 0.0)

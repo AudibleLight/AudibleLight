@@ -34,6 +34,11 @@ WARN_WHEN_EFFICIENCY_BELOW = (
     0.5  # when the ray efficiency is below this value, raise a warning in .simulate
 )
 
+MOVING_EMITTER_MAX_SPEED = 1  # meters per second
+MOVING_EMITTER_TEMPORAL_RESOLUTION = (
+    4  # number of IRs created per second for a moving emitter
+)
+
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     """
@@ -83,7 +88,7 @@ def repair_mesh(mesh: trimesh.Trimesh) -> None:
 
 
 def add_sphere(
-    scene: trimesh.Scene, pos: np.array, color: list[int] = None, r: float = 0.2
+    scene: trimesh.Scene, pos: np.ndarray, color: list[int] = None, r: float = 0.2
 ) -> None:
     """Adds a sphere object to a scene with given position, color, and radius"""
     if color is None:
@@ -129,6 +134,7 @@ class Emitter:
         """
         for alias, obj in coordinates.items():
             # Add zero-arrays if the object is the current Emitter
+            # TODO: note that this won't currently work for moving emitters
             if alias == self.alias:
                 self.coordinates_relative_cartesian[alias] = np.array([0.0, 0.0, 0.0])
                 self.coordinates_relative_polar[alias] = np.array([0.0, 0.0, 0.0])
@@ -871,18 +877,31 @@ class WorldState:
 
         return mic_pos
 
-    def get_random_point_inside_mesh(self) -> np.ndarray:
+    def get_random_point_inside_mesh(self, batch_size: int = 10) -> np.ndarray:
         """
         Generates a random valid point inside the mesh.
+
+        N positions will be generated in batches and a whole batch will be checked at once to take advantage of
+        `numpy` vectorisation. In initial experiments, using a batch size of 10 resulted in a speed-up of 1.5x over
+        a batch size of 1 (i.e., no batching). Improvements level off and decrease after, with a batch size of 100
+        resulting in 2x worse performance than no batching.
+
+        Arguments:
+            batch_size (int): number of points to generate in a single batch, defaults to 10
 
         Returns:
             np.array: A valid point within the mesh in XYZ format
         """
+        min_bound, max_bound = self.mesh.bounds
+        # Keep iterating until we get at least one valid point
         while True:
-            point = np.random.uniform(self.mesh.bounds[0], self.mesh.bounds[1])
-            # This checks e.g. distance from surface, other emitters, other mics, and that point is in-bounds
-            if self._validate_position(point):
-                return point
+            points = np.random.uniform(min_bound, max_bound, size=(batch_size, 3))
+            # Returns a boolean mask of shape (batch_size,)
+            mask = self._get_valid_positions_mask(points)
+            # Index and get a random element from the valid items in the batch
+            if np.any(mask):
+                valids = np.flatnonzero(mask)
+                return points[np.random.choice(valids)]
 
     def _is_point_inside_mesh(self, point: Union[np.array, list]) -> bool:
         """
@@ -899,50 +918,72 @@ class WorldState:
     def _validate_position(self, pos_abs: np.ndarray) -> bool:
         """
         Validates a position or array of positions with respect to the mesh and objects inside it.
-        Returns True if valid, False if not. If multiple arrays provided, return True only if all are valid.
+
+        Returns:
+             bool: True if valid, False if not. If multiple arrays provided, return True only if all are valid.
         """
-        # Coerce to a 2D array of XYZ positions, for iteration
+        # Create the mask: one element per coordinate
+        mask = self._get_valid_positions_mask(pos_abs)
+        # If the position is valid, all elements should be True
+        return bool(mask.all())
+
+    def _get_valid_positions_mask(self, pos_abs: np.ndarray) -> np.ndarray:
+        """
+        Validates an array of positions with respect to the mesh and objects inside it.
+
+        Returns:
+            np.ndarray: a boolean mask of shape (N,) where True = valid, False = invalid.
+        """
         positions = utils.coerce2d(pos_abs)
         if positions.shape[1] != 3:
             raise ValueError("Expected input to have shape (N, 3) for XYZ coordinates")
 
-        # Iterate over all positions
-        for position in positions:
-            # Check minimum distance from all emitters
-            for emitter_list in self.emitters.values():
-                for emitter in emitter_list:
-                    if (
-                        np.linalg.norm(position - emitter.coordinates_absolute)
-                        < self.empty_space_around_emitter
-                    ):
-                        return False
+        # Create the empty mask with the same length as the input
+        num_positions = positions.shape[0]
+        valid_mask = np.ones(num_positions, dtype=bool)
 
-            # Check minimum distance from the center of every microphone and from every individual capsule
-            if len(self.microphones) > 0:
-                for attr, thresh in zip(
-                    # check mic centers first, check mic capsules second
-                    ["coordinates_center", "coordinates_absolute"],
-                    [self.empty_space_around_mic, self.empty_space_around_capsule],
-                ):
-                    coordinates = np.vstack(
-                        [getattr(mic, attr) for mic in self.microphones.values()]
-                    )
-                    distances = np.linalg.norm(position - coordinates, axis=1)
-                    if np.any(distances < thresh):
-                        return False
+        # Distance from emitters
+        if self.emitters:
+            emitter_coords = np.vstack(
+                [
+                    emitter.coordinates_absolute
+                    for emitter_list in self.emitters.values()
+                    for emitter in emitter_list
+                ]
+            )
+            emitter_dists = np.linalg.norm(
+                positions[:, None, :] - emitter_coords[None, :, :], axis=2
+            )
+            too_close_to_emitter = np.any(
+                emitter_dists < self.empty_space_around_emitter, axis=1
+            )
+            valid_mask &= ~too_close_to_emitter
 
-            # Check minimum distance from mesh surface
-            if (
-                self.mesh.nearest.on_surface([position])[1][0]
-                < self.empty_space_around_surface
+        # Distance from microphones
+        if self.microphones:
+            for attr, thresh in zip(
+                ["coordinates_center", "coordinates_absolute"],
+                [self.empty_space_around_mic, self.empty_space_around_capsule],
             ):
-                return False
+                mic_coords = np.vstack(
+                    [getattr(mic, attr) for mic in self.microphones.values()]
+                )
+                mic_dists = np.linalg.norm(
+                    positions[:, None, :] - mic_coords[None, :, :], axis=2
+                )
+                too_close_to_mic = np.any(mic_dists < thresh, axis=1)
+                valid_mask &= ~too_close_to_mic
 
-            # Check if the position is inside the mesh
-            if not self._is_point_inside_mesh(position):
-                return False
+        # Distance from mesh surface
+        surface_dists = self.mesh.nearest.on_surface(positions)[1]
+        too_close_to_surface = surface_dists < self.empty_space_around_surface
+        valid_mask &= ~too_close_to_surface
 
-        return True
+        # Inside mesh check
+        inside_mask = np.array([self._is_point_inside_mesh(p) for p in positions])
+        valid_mask &= inside_mask
+
+        return valid_mask
 
     def _try_add_emitter(
         self,
@@ -1220,11 +1261,6 @@ class WorldState:
             assert n_emitters > 0, "`n_emitters` must be positive!"
             positions = [None for _ in range(n_emitters)]
 
-        # Handle cases with non-unique aliases
-        if aliases is not None:
-            if len(set(aliases)) != len(aliases):
-                raise ValueError("Only unique aliases can be passed")
-
         all_not_none = [
             l_
             for l_ in [positions, aliases, mics]
@@ -1282,6 +1318,250 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
+    def get_valid_position_with_max_distance(
+        self,
+        ref: np.ndarray,
+        r: utils.Numeric,
+        n: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
+    ) -> np.ndarray:
+        """
+        Generate a sphere with origin `ref` and radius `r` and sample a valid position from within its volume.
+
+        Arguments:
+            ref (np.ndarray): the reference point, treated as the origin of the sphere
+            r (utils.Numeric): the maximum distance for the sampled point from `ref`
+            n (utils.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
+
+        Raises:
+            ValueError: if a valid point from within `n` samples cannot be found
+        """
+        # Input sanitization
+        r = utils.sanitise_positive_number(r)
+        n = int(utils.sanitise_positive_number(n))
+        ref = utils.sanitise_coordinates(ref)
+
+        # Sample directions using normal distribution and normalize
+        directions = np.random.normal(size=(n, 3))
+        directions /= np.linalg.norm(directions, axis=1)[
+            :, np.newaxis
+        ]  # Normalize each row
+
+        # Sample radii with cubic root to ensure uniform volume distribution and use to scale the directions
+        radii = r * np.cbrt(np.random.uniform(0, 1, size=(n,)))
+        displacements = directions * radii[:, np.newaxis]
+
+        # Add center offset
+        samples = ref + displacements
+
+        # Get a boolean mask of valid sample positions
+        only_valids = self._get_valid_positions_mask(samples)
+        only_valids_idxs = np.flatnonzero(only_valids)
+
+        # If we don't have any valid samples, throw an error
+        if len(only_valids_idxs) == 0:
+            raise ValueError(
+                f"Cannot generate a random valid point for coordinate {ref} with radius {r:.3f}. "
+                f"Consider increasing the number of generated points (currently {n})"
+            )
+        # Otherwise, get a random valid sample and return it
+        else:
+            choice = np.random.choice(only_valids_idxs)
+            return samples[choice, :]
+
+    def _validate_trajectory(
+        self,
+        trajectory: np.ndarray,
+        max_distance: utils.Numeric,
+        step_distance: utils.Numeric,
+        requires_direct_line: bool,
+    ) -> bool:
+        """
+        Given a trajectory (created in `define_trajectory`), return True if valid, False otherwise
+
+        Arguments:
+            trajectory (np.ndarray): the trajectory to be validated
+            requires_direct_line (bool): whether a direct line must exist between the starting and ending position
+            max_distance (utils.Numeric): the maximum distance traversed in the trajectory, from start to end
+            step_distance (utils.Numeric): the maximum distance traversed from one step to the next in the trajectory
+
+        Returns:
+            bool: whether the trajectory is valid
+        """
+        # Early return if definitely invalid
+        if trajectory.shape[0] < 2:
+            return False
+
+        # Compute distances from start to all other points
+        start = trajectory[0]
+        differences = trajectory[1:] - start
+        distances = np.linalg.norm(differences, axis=1)
+
+        # Get the furthest point from the starting position
+        #  Note: for circular and linear trajectories, this should be the same as the last point.
+        #  However, for random walks, this is not always the case, as we might walk very far away
+        #  from the origin, and then return to it by the end of the trajectory.
+        #  So, we should always consider the maximum distance from the origin, NOT the distance
+        #  between the first and last point in the array
+        max_idx = np.argmax(distances)
+        end = trajectory[max_idx + 1]  # +1 because we sliced from [1:]
+
+        # Check max distance constraint
+        if distances[max_idx] > max_distance:
+            return False
+
+        # Optional: check for line of sight
+        if requires_direct_line and not self.path_exists_between_points(start, end):
+            return False
+
+        # Check distance between every step
+        step_deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
+        if np.any(step_deltas > step_distance + 1e-4):
+            return False
+
+        # Validate all positions in the trajectory WRT the rest of the mesh
+        return self._validate_position(trajectory)
+
+    @utils.timer("define trajectory")
+    def define_trajectory(
+        self,
+        duration: Optional[utils.Numeric],
+        starting_position: Optional[Union[np.ndarray, list]] = None,
+        velocity: Optional[utils.Numeric] = MOVING_EMITTER_MAX_SPEED,
+        resolution: Optional[utils.Numeric] = MOVING_EMITTER_TEMPORAL_RESOLUTION,
+        shape: Optional[str] = "linear",
+        max_place_attempts: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
+    ):
+        """
+        Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
+
+        This method calculates a series of XYZ coordinates that outline the path of a sound event, based on the
+        specified trajectory shape, the confines of the mesh, and the duration of the event. It generates a starting
+        point and an end point that comply with these conditions, and then interpolates between these points according
+        to the trajectory's shape.
+
+        Optionally, a custom starting position can also be provided, and a valid ending position will be randomly
+        sampled. To provide a custom ENDING position, one possibility is to provide this as the starting position, then
+        invert the trajectory array returned by this function. To use both a custom start AND end position, call the
+        trajectory functions in `utils.py` directly.
+
+        Arguments:
+            duration (Numeric): the length of time it should take to traverse from starting to ending position
+            starting_position (np.ndarray): the starting position for the trajectory. If not provided, a random valid
+                position within the mesh will be selected.
+            velocity (Numeric): the speed limit for the trajectory, in meters per second
+            resolution (Numeric): the number of emitters created per second
+            shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
+            max_place_attempts (Numeric): the number of times to try and create the trajectory.
+
+        Raises:
+            ValueError: if a trajectory cannot be defined after `max_place_attempts`
+
+        Returns:
+            np.ndarray: the sanitised trajectory, with shape (n_points, 3)
+        """
+
+        # Compute the number of samples based on duration and resolution
+        n_points = round(utils.sanitise_positive_number(duration * resolution) + 1)
+        # Clamp `n_points` to 2, so we will always be able to create a moving trajectory
+        if n_points < 2:
+            n_points = 2
+            logger.warning(
+                f"Number of points in trajectory ({n_points}) is smaller than 2, so it is being clamped to "
+                f"2 internally. If this is happening frequently, consider increasing `resolution` "
+                f"(currently {resolution:.3f})."
+            )
+
+        # Sanitise the maximum distance that we'll travel in the trajectory
+        max_distance = utils.sanitise_positive_number(velocity * duration)
+
+        # Compute the distance that we can travel in a single step
+        step_limit = velocity / resolution
+
+        # We no longer raise an error if max_distance < self.empty_space_around_emitter
+        #  This is because (I think) this should parameter should only relate to emitters
+        #  associated with *separate* events. We do not care if two emitters related to the
+        #  *same* event are closer than this distance to each other.
+
+        # If we've provided a starting position, sanitise and validate it before entering the loop
+        if starting_position is not None:
+            starting_position = utils.sanitise_coordinates(starting_position)
+            if not self._validate_position(starting_position):
+                raise ValueError(f"Invalid starting position ({starting_position})")
+
+        # Try and create the trajectory a specified number of times
+        for attempt in range(max_place_attempts):
+
+            # Log progress every 100 attempts
+            if (attempt + 1) % 100 == 0:
+                logger.info(f"Trajectory attempt {attempt + 1}/{max_place_attempts}")
+
+            # If we've not provided a starting position, randomly sample one
+            if starting_position is None:
+                start_attempt = self.get_random_position()
+            # Otherwise, just use the starting position we've provided
+            else:
+                start_attempt = starting_position
+
+            # If we're doing a random walk, there's no need to sample an ending position directly
+            #  Instead, the ending position will be defined by the last point of the walk
+            #  So we can just set the `end_attempt` variable to None so that the linter is happy
+            if shape == "random":
+                end_attempt = None
+            # Try and sample a random valid position from the starting point
+            else:
+                try:
+                    end_attempt = self.get_valid_position_with_max_distance(
+                        start_attempt, max_distance, max_place_attempts
+                    )
+                except ValueError:
+                    # Silently skip over errors in this case, so we retry with another starting position
+                    if starting_position is None:
+                        continue
+                    # Otherwise, we need to raise the error as this starting position is invalid
+                    else:
+                        raise
+
+            # Compute the trajectory with the utility function
+            if shape == "linear":
+                trajectory = utils.generate_linear_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
+            elif shape == "circular":
+                trajectory = utils.generate_circular_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
+            elif shape == "random":
+                # Unlike all other trajectories, a random walk doesn't need a predefined ending
+                #  Instead, we just need to know the starting point, the number of steps,
+                #  and the maximum distance any single step should take
+                trajectory = utils.generate_random_trajectory(
+                    start_attempt, step_limit, n_points
+                )
+            # We don't know what the trajectory is
+            else:
+                accepted = ["linear", "circular", "random"]
+                raise ValueError(
+                    f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
+                )
+
+            # Validate the trajectory and return only if it is acceptable
+            if self._validate_trajectory(
+                trajectory,
+                max_distance,
+                step_limit,
+                requires_direct_line=True if shape == "linear" else False,
+            ):
+                return trajectory
+
+        # If we reach here, we couldn't create the trajectory
+        raise ValueError(
+            f"Could not define a valid movement trajectory after {max_place_attempts} attempt(s). Consider:\n"
+            f"- Reducing `empty_space_around parameters`\n"
+            f"- Decreasing `temporal_resolution` (currently {resolution})\n"
+            f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
+            f"- Decreasing `max_distance` (currently {max_distance:.3f})"
+        )
+
     def _simulation_sanity_check(self) -> None:
         """
         Check conditions required for simulation are met
@@ -1302,7 +1582,9 @@ class WorldState:
             self.ctx.get_source_count() > 0
         ), "Must have emitters added to the ray tracing engine"
         # Check we have the expected number of sources and listeners
-        assert len(self.emitters) == self.ctx.get_source_count()
+        assert (
+            sum(len(em) for em in self.emitters.values()) == self.ctx.get_source_count()
+        )
         assert (
             sum(m.n_capsules for m in self.microphones.values())
             == self.ctx.get_listener_count()
