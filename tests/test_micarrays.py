@@ -8,7 +8,6 @@ import json
 import numpy as np
 import pytest
 
-from audiblelight import utils
 from audiblelight.micarrays import (
     MICARRAY_LIST,
     AmbeoVR,
@@ -69,67 +68,6 @@ def test_to_dict(micarray):
         json.dumps(dict_out)
     except (TypeError, OverflowError):
         pytest.fail("Dictionary not JSON serializable")
-
-
-@pytest.mark.parametrize(
-    "spherical,expected_cartesian",
-    [
-        (np.array([[0.0, 90.0, 1.0]]), np.array([[1.0, 0.0, 0.0]])),
-        (np.array([[90.0, 90.0, 1.0]]), np.array([[0.0, 1.0, 0.0]])),
-        (np.array([[180.0, 90.0, 1.0]]), np.array([[-1.0, 0.0, 0.0]])),
-        (
-            np.array([[45.0, 60.0, 2.0]]),
-            np.array(
-                [
-                    [
-                        2.0 * np.sin(np.deg2rad(60.0)) * np.cos(np.deg2rad(45.0)),
-                        2.0 * np.sin(np.deg2rad(60.0)) * np.sin(np.deg2rad(45.0)),
-                        2.0 * np.cos(np.deg2rad(60.0)),
-                    ]
-                ]
-            ),
-        ),
-    ],
-)
-def test_polar_to_cartesian(spherical, expected_cartesian):
-    # polar -> cartesian
-    result = utils.polar_to_cartesian(spherical)
-    assert np.allclose(result, expected_cartesian, atol=1e-6)
-    # polar -> cartesian -> polar
-    result_pol = utils.cartesian_to_polar(result)
-    assert np.allclose(spherical, result_pol)
-
-
-@pytest.mark.parametrize(
-    "cartesian,expected_spherical",
-    [
-        (np.array([[1.0, 0.0, 0.0]]), np.array([[0.0, 90.0, 1.0]])),
-        (np.array([[0.0, 1.0, 0.0]]), np.array([[90.0, 90.0, 1.0]])),
-        (np.array([[0.0, 0.0, 1.0]]), np.array([[0.0, 0.0, 1.0]])),
-        (np.array([[-1.0, -1.0, 0.0]]), np.array([[225.0, 90.0, np.sqrt(2)]])),
-        (
-            np.array([[1.0, 1.0, 1.0]]),
-            np.array([[45.0, np.rad2deg(np.arccos(1.0 / np.sqrt(3))), np.sqrt(3)]]),
-        ),
-    ],
-)
-def test_cartesian_to_polar(cartesian, expected_spherical):
-    # cartesian -> polar
-    result = utils.cartesian_to_polar(cartesian)
-    assert np.allclose(result, expected_spherical)
-    # cartesian -> polar -> cartesian
-    result_cart = utils.polar_to_cartesian(result)
-    assert np.allclose(cartesian, result_cart)
-
-
-@pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])
-def test_center_coords(x: int, y: int, z: int):
-    coords_dict_deg = np.array([x, y, z])
-    coords_dict_cart = utils.polar_to_cartesian(coords_dict_deg)
-    coords_dict_centered = utils.center_coordinates(coords_dict_cart)
-    # Everything should be centered around the mean
-    #  As we only passed in one row, this will mean that every coordinate becomes a 0
-    assert np.allclose(np.mean(coords_dict_centered, axis=0), [0, 0, 0])
 
 
 @pytest.mark.parametrize(

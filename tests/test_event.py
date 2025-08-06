@@ -3,7 +3,6 @@
 
 """Test cases for functionality inside audiblelight/event.py"""
 
-import os
 from typing import Optional
 
 import numpy as np
@@ -11,20 +10,10 @@ import pytest
 
 from audiblelight import utils
 from audiblelight.event import Event
-
-SOUNDEVENT_DIR = utils.get_project_root() / "tests/test_resources/soundevents"
-TEST_AUDIO_DIRS = utils.list_deepest_directories(SOUNDEVENT_DIR)
-TEST_AUDIOS = sorted(
-    [
-        os.path.join(xs, x)
-        for xs in TEST_AUDIO_DIRS
-        for x in os.listdir(xs)
-        if x.endswith((".wav", ".mp3"))
-    ]
-)
+from tests import utils_tests
 
 
-@pytest.mark.parametrize("audio_fpath", TEST_AUDIOS[:5])
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
 def test_create_static_event(audio_fpath: str, oyens_space):
     oyens_space.add_microphone()
     oyens_space.add_emitter(alias="test_emitter")
@@ -46,12 +35,12 @@ def test_create_static_event(audio_fpath: str, oyens_space):
     "audio_fpath,duration,start_time",
     [
         # These are all music audio files, which we use as they're long
-        (TEST_AUDIOS[6], 0.5, 0.5),
-        (TEST_AUDIOS[7], 1.0, 1.0),
-        (TEST_AUDIOS[8], None, 1.0),
-        (TEST_AUDIOS[6], 0.5, None),
-        (TEST_AUDIOS[7], None, None),
-        (TEST_AUDIOS[8], 2.0, 5.0),
+        (utils_tests.TEST_AUDIOS[6], 0.5, 0.5),
+        (utils_tests.TEST_AUDIOS[7], 1.0, 1.0),
+        (utils_tests.TEST_AUDIOS[8], None, 1.0),
+        (utils_tests.TEST_AUDIOS[6], 0.5, None),
+        (utils_tests.TEST_AUDIOS[7], None, None),
+        (utils_tests.TEST_AUDIOS[8], 2.0, 5.0),
     ],
 )
 def test_load_audio(
@@ -102,7 +91,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
     oyens_space.add_emitter(alias="test_emitter")
     emitter = oyens_space.get_emitters("test_emitter")
     ev = Event(
-        filepath=SOUNDEVENT_DIR
+        filepath=utils_tests.SOUNDEVENT_DIR
         / "music/007527.mp3",  # duration of this audio is roughly 30 seconds
         alias="test_event",
         emitters=emitter,
@@ -642,7 +631,7 @@ def test_event_from_dict(input_dict: dict):
         _ = Event.from_dict(input_dict)
 
 
-@pytest.mark.parametrize("audio_fpath", TEST_AUDIOS[:5])
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
 def test_magic_methods(audio_fpath: str, oyens_space):
     oyens_space.add_emitter(alias="test_emitter")
     emitter = oyens_space.get_emitters("test_emitter")

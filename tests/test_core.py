@@ -14,10 +14,7 @@ from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter
-
-SOUNDEVENT_DIR = utils.get_project_root() / "tests/test_resources/soundevents"
-MESH_DIR = utils.get_project_root() / "tests/test_resources/meshes"
-OYENS_PATH = MESH_DIR / "Oyens.glb"
+from tests import utils_tests
 
 
 @pytest.mark.parametrize(
@@ -25,7 +22,7 @@ OYENS_PATH = MESH_DIR / "Oyens.glb"
     [
         # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(
                 position=np.array([-0.5, -0.5, 0.5]),
                 polar=False,
@@ -34,7 +31,11 @@ OYENS_PATH = MESH_DIR / "Oyens.glb"
             dict(duration=5, event_start=5, scene_start=5),
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
-        (SOUNDEVENT_DIR / "music/001666.mp3", None, dict(snr=5, spatial_velocity=5)),
+        (
+            utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
+            None,
+            dict(snr=5, spatial_velocity=5),
+        ),
         # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
         (
             None,
@@ -98,12 +99,12 @@ def test_add_event_static(
     [
         # Predefine a starting position for speedups
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(starting_position=np.array([1.6, -5.1, 1.7])),
             dict(duration=5, event_start=5, scene_start=5),
         ),
         (
-            SOUNDEVENT_DIR / "music/001666.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
             dict(starting_position=np.array([1.6, -5.1, 1.7])),
             dict(snr=5, spatial_velocity=1),
         ),
@@ -172,22 +173,22 @@ def test_add_moving_event(
     "new_event_audio,event_kwargs,raises",
     [
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(scene_start=6.0, duration=1.0),
             ValueError,
         ),
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(scene_start=9.0, duration=10.0),
             ValueError,
         ),
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(scene_start=3.0, duration=10.0),
             ValueError,
         ),
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(sample_rate=12345),
             ValueError,
         ),  # sample rate different to state
@@ -203,7 +204,7 @@ def test_add_bad_event(
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
         event_type="static",
-        filepath=SOUNDEVENT_DIR / "music/001666.mp3",
+        filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
         event_kwargs=dict(scene_start=5.0, duration=5.0),
     )
@@ -236,13 +237,16 @@ def test_add_bad_event(
     "new_event_audio,new_event_kws",
     [
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(),
         ),  # no custom event_start/duration, should be set automatically
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict(event_start=15, duration=20)),
-        (SOUNDEVENT_DIR / "music/000010.mp3", dict(duration=5.0)),
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
+            dict(event_start=15, duration=20),
+        ),
+        (utils_tests.SOUNDEVENT_DIR / "music/000010.mp3", dict(duration=5.0)),
+        (
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(scene_start=10.0, duration=5.0, event_start=5.0),
         ),  # no overlap
     ],
@@ -257,7 +261,7 @@ def test_add_acceptable_event(
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
         event_type="static",
-        filepath=SOUNDEVENT_DIR / "music/001666.mp3",
+        filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
         emitter_kwargs=dict(keep_existing=True),
         event_kwargs=dict(scene_start=5.0, duration=5.0),
@@ -283,7 +287,7 @@ def test_add_acceptable_event(
     "fg_path,raises",
     [
         (
-            [SOUNDEVENT_DIR / "music"],
+            [utils_tests.SOUNDEVENT_DIR / "music"],
             False,
         ),  # this folder has some audio files inside it, so it's all good
         (None, ValueError),  # as if we've not provided `fp_path` to `Scene.__init__`
@@ -434,38 +438,6 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
         oyens_scene_no_overlap.duration * oyens_scene_no_overlap.sample_rate
     )
     assert ambience_audio.shape == (4, expected_duration)
-
-
-@pytest.mark.parametrize(
-    "mesh_fpath",
-    [
-        MESH_DIR / mesh for mesh in os.listdir(MESH_DIR)
-    ],  # run on every mesh we have in the test directory
-)
-@pytest.mark.parametrize("mic_type", ["ambeovr", "eigenmike32"])
-@pytest.mark.parametrize("n_events, duration, max_overlap", [(1, 30, 3), (9, 50, 6)])
-@pytest.mark.skipif(os.getenv("REMOTE") == "true", reason="running on GH actions")
-def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
-    """
-    This function tests the whole pipeline, from generating a Scene with a given mesh, adding events, and creating audio
-    """
-    # Create the scene
-    sc = Scene(
-        duration=duration,
-        mesh_path=mesh_fpath,
-        # Use default distributions for everything
-        fg_path=SOUNDEVENT_DIR,
-        max_overlap=max_overlap,
-    )
-    # Add the desired microphone type and number of events
-    sc.add_microphone(microphone_type=mic_type)
-    for i in range(n_events):
-        sc.add_event(event_type="static", emitter_kwargs=dict(keep_existing=True))
-    # Generate everything and check the files exist
-    sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")
-    for path in ["audio_out.wav", "metadata_out.json"]:
-        assert os.path.isfile(path)
-        os.remove(path)
 
 
 @pytest.mark.parametrize(
@@ -1334,7 +1306,7 @@ def test_scene_from_dict(input_dict: dict):
     [
         # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
         (
-            SOUNDEVENT_DIR / "music/000010.mp3",
+            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             dict(
                 position=np.array([-0.5, -0.5, 0.5]),
                 polar=False,

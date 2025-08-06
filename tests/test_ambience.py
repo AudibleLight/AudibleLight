@@ -6,8 +6,8 @@
 import numpy as np
 import pytest
 
-from audiblelight import utils
 from audiblelight.ambience import Ambience, _parse_beta, powerlaw_psd_gaussian
+from tests import utils_tests
 
 
 @pytest.mark.parametrize("shape", [2, 16, 500, 1000])
@@ -113,15 +113,13 @@ def test_parse_beta(color, expected):
             2,
             4,
             None,
-            utils.get_project_root()
-            / "tests/test_resources/soundevents/waterTap/95709.wav",
+            utils_tests.SOUNDEVENT_DIR / "waterTap/95709.wav",
         ),
         (
             1,
             2,
             None,
-            utils.get_project_root()
-            / "tests/test_resources/soundevents/telephone/30085.wav",
+            utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
         ),
     ],
 )
@@ -162,8 +160,7 @@ def test_magic_methods(noise, oyens_space):
         {
             "alias": "tester_audio",
             "beta": None,
-            "filepath": utils.get_project_root()
-            / "tests/test_resources/soundevents/waterTap/95709.wav",
+            "filepath": utils_tests.SOUNDEVENT_DIR / "waterTap/95709.wav",
             "channels": 4,
             "sample_rate": 44100.0,
             "duration": 10.0,

@@ -14,8 +14,7 @@ import pytest
 from scipy import stats
 
 from audiblelight import utils
-
-EXISTING_FILE = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
+from tests import utils_tests
 
 
 @pytest.mark.parametrize(
@@ -94,8 +93,8 @@ def test_cartesian_to_polar(cartesian, expected):
 @pytest.mark.parametrize(
     "fpath,expected",
     [
-        (EXISTING_FILE, Path(EXISTING_FILE)),
-        (Path(EXISTING_FILE), Path(EXISTING_FILE)),
+        (utils_tests.OYENS_PATH, Path(utils_tests.OYENS_PATH)),
+        (Path(utils_tests.OYENS_PATH), Path(utils_tests.OYENS_PATH)),
         ("a/broken/filepath", FileNotFoundError),
         (123456, TypeError),
     ],
@@ -508,3 +507,13 @@ def test_generate_random_trajectory(
     else:
         # If max_step == 0, trajectory should be constant
         assert np.allclose(traj, xyz_start), "Trajectory changed with zero max_step"
+
+
+@pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])
+def test_center_coords(x: int, y: int, z: int):
+    coords_dict_deg = np.array([x, y, z])
+    coords_dict_cart = utils.polar_to_cartesian(coords_dict_deg)
+    coords_dict_centered = utils.center_coordinates(coords_dict_cart)
+    # Everything should be centered around the mean
+    #  As we only passed in one row, this will mean that every coordinate becomes a 0
+    assert np.allclose(np.mean(coords_dict_centered, axis=0), [0, 0, 0])

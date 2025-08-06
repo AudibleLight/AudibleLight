@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 import audiblelight.synthesize as syn
-from audiblelight import utils
+from tests import utils_tests
 
 
 @pytest.mark.parametrize(
@@ -85,8 +85,7 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
     # Add static sources in
     for n_event in range(n_events):
         oyens_scene_no_overlap.add_event(
-            filepath=utils.get_project_root()
-            / "tests/test_resources/soundevents/music/000010.mp3",
+            filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             # Use predefined kwargs so rendering doesn't take ages
             event_type="moving",
             event_kwargs=dict(spatial_resolution=2, duration=1, spatial_velocity=1),
