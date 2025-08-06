@@ -860,38 +860,3 @@ class Scene:
         Removes all current ambience events.
         """
         self.ambience = OrderedDict()
-
-
-if __name__ == "__main__":
-    sc = Scene(
-        duration=30,
-        mesh_path=utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb",
-        # Pass some default distributions for everything
-        event_start_dist=stats.uniform(0, 10),
-        event_duration_dist=stats.uniform(0, 10),
-        event_velocity_dist=stats.uniform(0, 10),
-        event_resolution_dist=stats.uniform(0, 10),
-        snr_dist=stats.norm(5, 1),
-        fg_path=utils.get_project_root() / "tests/test_resources/soundevents",
-        max_overlap=3,
-    )
-
-    # Add an ambeoVR microphone to the scene
-    sc.add_microphone(microphone_type="ambeovr")
-
-    # Add 9 sources to the scene
-    for _ in range(9):
-        sc.add_event(event_type="static", emitter_kwargs=dict(keep_existing=True))
-
-    # Add some white noise as ambience
-    sc.add_ambience(noise="white")
-
-    # Also add an audio file as ambience
-    #  This will be tiled to match the required duration and number of channels
-    sc.add_ambience(
-        filepath=utils.get_project_root()
-        / "tests/test_resources/soundevents/waterTap/95709.wav"
-    )
-
-    # Generate the audio
-    sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")

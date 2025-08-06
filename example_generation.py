@@ -1,64 +1,77 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""Generate a simple scene with moving, static, and ambient sound events and render to audio and JSON."""
+
 import os
 
-import numpy as np
+from scipy import stats
 
-import audiblelight as al
+from audiblelight import utils
+from audiblelight.core import Scene
 
 # OUTPUT DIRECTORY
-outfolder = 'spatial_scenes'
+OUTFOLDER = utils.get_project_root() / 'spatial_scenes'
+if not os.path.isdir(OUTFOLDER):
+    os.makedirs(OUTFOLDER)
 
 # PATHS
-fg_folder = 'audio/soundbank/foreground/'
-mesh_path = 'meshes/house_model.glb'  # Mesh can be a "building" and may contain multiple rooms
+FG_FOLDER = utils.get_project_root() / "tests/test_resources/soundevents"
+MESH_PATH = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"  # Mesh can be a "building"
 
 # SCENE SETTINGS
-n_scenes = 1000
-duration = 10.0  # seconds
-mic_array_name = 'tetra'
-min_events = 1
-max_events = 9
-max_overlap = 3
+DURATION = 30.0  # seconds
+MIC_ARRAY_NAME = 'tetra'
+N_STATIC_EVENTS = 4
+N_MOVING_EVENTS = 1
+MAX_OVERLAP = 3
 
 # SCENE-WIDE DISTRIBUTIONS
-event_time_dist = ('uniform', 0.0, duration)
-event_duration_dist = ('uniform', 0.5, 4.0)
-event_velocity_dist = ('uniform', 0.1, 1.5)  # meters per second
-snr_dist = ('uniform', 6, 30)
-ref_db = -50
+SCENE_TIME_DIST = stats.uniform(0.0, DURATION - 1)    # controls when events start in the scene
+EVENT_DURATION_DIST = stats.uniform(0.5, 4.0)
+EVENT_VELOCITY_DIST = stats.uniform(0.1, 1.5)  # meters per second
+SNR_DIST = stats.uniform(6, 30)
+REF_DB = -50
 
-# Generate scenes
-for i in range(n_scenes):
-    print(f'Generating spatial scene: {i + 1}/{n_scenes}')
 
-    # Create a scene object with global configuration
-    scene = al.Scene(
-        duration=duration,
-        mesh_path=mesh_path,
-        mic_array_name=mic_array_name,
-        fg_path=fg_folder,
-        ref_db=ref_db,
-        event_time_dist=event_time_dist,
-        event_duration_dist=event_duration_dist,
-        event_velocity_dist=event_velocity_dist,
-        snr_dist=snr_dist,
-        max_overlap=max_overlap
+def mvp() -> None:
+    """
+    Creates an example generation with arguments set above
+    """
+    sc = Scene(
+        duration=DURATION,
+        mesh_path=MESH_PATH,
+        scene_start_dist=SCENE_TIME_DIST,
+        event_duration_dist=EVENT_DURATION_DIST,
+        event_velocity_dist=EVENT_VELOCITY_DIST,
+        snr_dist=SNR_DIST,
+        fg_path=FG_FOLDER,
+        max_overlap=MAX_OVERLAP,
+        ref_db=REF_DB
     )
 
-    # Add ambient background noise
-    scene.add_ambience()
+    # Add an ambeoVR microphone to the scene
+    sc.add_microphone(microphone_type="ambeovr", alias=MIC_ARRAY_NAME)
 
-    # Add a random number of events
-    n_events = np.random.randint(min_events, max_events + 1)
-    for _ in range(n_events):
-        scene.add_event_static(
-            label=('choose', []),
-            source_file=('choose', []),
-            source_time=('const', 0.0)
-        )
+    # Add required sources to the scene
+    for _ in range(N_STATIC_EVENTS):
+        sc.add_event(event_type="static", emitter_kwargs=dict(keep_existing=True))
 
-    # Render to disk
-    scene.generate(
-        audio_path=os.path.join(outfolder, f'scene_spatial_{i:04d}.wav'),
-        metadata_path=os.path.join(outfolder, f'scene_spatial_{i:04d}.json'),
-        spatial_audio_format='A'  # A-format ambisonics
+    for _ in range(N_MOVING_EVENTS):
+        sc.add_event(event_type="moving",)
+
+    # Add some white noise as ambience
+    sc.add_ambience(noise="white")
+
+    # Also add an audio file as ambience
+    #  This will be tiled to match the required duration and number of channels
+    sc.add_ambience(
+        filepath=utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav"
     )
+
+    # Generate the audio
+    sc.generate(audio_path=OUTFOLDER / "audio_out.wav", metadata_path=OUTFOLDER / "metadata_out.json")
+
+
+if __name__ == "__main__":
+    mvp()
