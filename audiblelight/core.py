@@ -629,14 +629,10 @@ class Scene:
             validate_scene,
         )
 
-        # Simulate the IRs for the state
-        # TODO: this is currently causing `simulate` to be run twice, as it is also called in `render_audio_for...`
-        #  given that the default `ignore_cache=True`
-        self.state.simulate()
-
         # Render all the audio
-        #  This populates the `.spatial_audio` attribute inside each Event
-        #  It also populates the `audio` attribute inside this instance
+        #  This renders the IRs inside the worldstate
+        #  It then populates the `.spatial_audio` attribute inside each Event
+        #  And populates the `audio` attribute inside this instance
         validate_scene(self)
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
