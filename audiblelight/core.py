@@ -489,6 +489,9 @@ class Scene:
                 f"Cannot parse event type {event_type}, expected either 'static' or 'moving'!"
             )
 
+        ev = self.get_event(alias)
+        logger.info(f"Event added successfully: {ev}")
+
     def add_event_static(
         self,
         filepath: Union[str, Path],
@@ -627,6 +630,8 @@ class Scene:
         )
 
         # Simulate the IRs for the state
+        # TODO: this is currently causing `simulate` to be run twice, as it is also called in `render_audio_for...`
+        #  given that the default `ignore_cache=True`
         self.state.simulate()
 
         # Render all the audio
