@@ -131,6 +131,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
                 -4.396272957238952,
                 1.1108193078909387,
             ],
+            "num_emitters": 1,
             "emitters": [[2.415245142454964, -4.396272957238952, 1.1108193078909387]],
         },
         {
@@ -159,6 +160,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
                 1.4143926984162998,
                 1.3894620504871185,
             ],
+            "num_emitters": 11,
             "emitters": [
                 [
                     0.6104437590653142,
