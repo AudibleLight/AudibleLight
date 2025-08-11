@@ -76,28 +76,12 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
     #  and audio[n_samples] may not equal ir[n_samples]
     audio = np.expand_dims(audio, 1)
 
-    # Get all the shapes
-    n_audio_samples, n_audio_channels = audio.shape
-    n_ir_samples, n_ir_channels = ir.shape
-
-    # Pad out the IR signal if it is shorter than the audio, and raise a warning
-    if n_ir_samples < n_audio_samples:
-        logger.warning(
-            f"IR has fewer samples than audio (IR: {n_ir_samples}, audio: {n_audio_samples}). "
-            f"IR will be right-padded with zeros to match audio length!"
-        )
-        ir = np.pad(
-            ir,
-            ((0, n_audio_samples - n_ir_samples), (0, 0)),
-            mode="constant",
-            constant_values=0,
-        )
-
     # Perform the convolution using FFT method
-    #  the output shape will be (n_ir_samples, n_ir_channels)
+    #  the output shape will be ((n_ir_samples + n_audio_samples) - 1, n_ir_channels)
+    #  we will truncate to match the expected number of samples later
     convolve: np.ndarray = signal.fftconvolve(audio, ir, mode="full", axes=0)
 
-    # Transpose so we get (n_channels, n_samples)
+    # Transpose so we get (channels, samples)
     return convolve.T
 
 
