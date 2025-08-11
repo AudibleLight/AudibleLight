@@ -1022,10 +1022,10 @@ class WorldState:
                 continue
             # Successfully placed: add to the emitter dictionary and return True
             #  We will update the `coordinates_relative` objects in the `update_state` decorator
-            emitter = Emitter(alias=alias, coordinates_absolute=np.asarray(pos))
+            emitter = Emitter(
+                alias=alias, coordinates_absolute=utils.sanitise_coordinates(pos)
+            )
             # Add the emitter to the list created for this alias, or create the list if it doesn't exist
-            # TODO: we create a list of emitters for both static and moving sound sources
-            #  when moving, len(emitters) > 1, when static, len(emitters) == 1
             if alias in self.emitters:
                 self.emitters[alias].append(emitter)
             else:
@@ -1552,6 +1552,36 @@ class WorldState:
             f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
             f"- Decreasing `max_distance` (currently {max_distance:.3f})"
         )
+
+    @utils.update_state
+    def _add_emitters_without_validating(
+        self,
+        emitters: Union[list, np.ndarray],
+        alias: Optional[str],
+    ) -> None:
+        """
+        Adds emitters from a list **without checking** that they are valid.
+
+        These emitters are assumed to be *pre-validated* (i.e., from a call to `_validate_position`), and thus no
+        additional checks are performed on them here to ensure (for instance) that they are located in the mesh,
+        that they are an acceptable distance away from each other, etc.
+
+        This function is useful when adding emitters for every step in a trajectory created using `define_trajectory`:
+        these individual steps may be very close to each other, and would thus be rejected when calling
+        `_try_add_emitter`.
+        """
+        alias = (
+            utils.get_default_alias("src", self.emitters) if alias is None else alias
+        )
+
+        for coord in emitters:
+            emitter = Emitter(
+                alias=alias, coordinates_absolute=utils.sanitise_coordinates(coord)
+            )
+            if alias in self.emitters:
+                self.emitters[alias].append(emitter)
+            else:
+                self.emitters[alias] = [emitter]
 
     def _simulation_sanity_check(self) -> None:
         """

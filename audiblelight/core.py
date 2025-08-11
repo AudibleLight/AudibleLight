@@ -532,6 +532,7 @@ class Scene:
         emitters = self.state.get_emitters(alias)
         self.get_event(alias).register_emitters(emitters)
 
+    # noinspection PyProtectedMember
     def add_event_moving(
         self,
         filepath: Union[str, Path],
@@ -572,23 +573,19 @@ class Scene:
         # Define the trajectory
         trajectory = self.state.define_trajectory(**emitter_kwargs)
 
-        # Tile the number of aliases so we have one for every emitter we want to create
-        aliases_tiled = [alias for _ in range(len(trajectory))]
-
         # Add the emitters to the state with the desired aliases
-        #  We do not want to raise errors here. This is because the positions in the trajectory
-        #  have "pre-validated" during define_trajectory, and
-        # TODO: sort out how kwargs are handled here
-        self.state.add_emitters(
-            positions=trajectory,
-            aliases=aliases_tiled,
-            polar=False,
-            raise_on_error=False,
-            keep_existing=True,
-        )
+        #  This just adds the emitters in a loop with no additional checks
+        #  We already perform these checks inside `define_trajectory`.
+        self.state._add_emitters_without_validating(trajectory, alias)
 
         # Grab the emitters we just created and register them with the event
         emitters = self.state.get_emitters(alias)
+        if len(emitters) != len(trajectory):
+            raise ValueError(
+                f"Did not add expected number of emitters into the WorldState "
+                f"(expected {len(trajectory)}, got {len(emitters)})"
+            )
+
         event.register_emitters(emitters)
 
     def _would_exceed_temporal_overlap(
