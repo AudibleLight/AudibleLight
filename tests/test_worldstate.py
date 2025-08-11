@@ -995,6 +995,8 @@ def test_define_trajectory(
     shape,
     oyens_space,
 ):
+    oyens_space.clear_emitters()
+
     if not raises:
         trajectory = oyens_space.define_trajectory(
             duration=duration,
@@ -1027,6 +1029,10 @@ def test_define_trajectory(
         # Check distance between starting and ending point
         total_distance = np.linalg.norm(trajectory[-1, :] - trajectory[0, :])
         assert total_distance <= (max_speed * duration)
+
+        # If we add the emitters to the state, check that we have the correct number
+        oyens_space._add_emitters_without_validating(trajectory, alias="tmp")
+        assert len(oyens_space.get_emitters("tmp")) == len(trajectory)
 
     else:
         with pytest.raises(ValueError, match=raises):
