@@ -209,8 +209,9 @@ class Event:
         """
         Returns a string representation of the scene
         """
-        loaded = "loaded" if self.is_moving else "unloaded"
-        return f"'Event' with alias '{self.alias}' and audio file '{self.filepath}' (currently {loaded})."
+        loaded = "loaded" if self.is_audio_loaded else "unloaded"
+        moving = "moving" if self.is_moving else "static"
+        return f"'Event' ('{moving}') with alias '{self.alias}' and audio file '{self.filepath}' (currently {loaded})."
 
     def __repr__(self) -> str:
         """
@@ -405,6 +406,7 @@ class Event:
             filepath=str(self.filepath),
             class_id=self.class_id,
             class_label=self.class_label,
+            is_moving=self.is_moving,
             # Audio stuff
             scene_start=self.scene_start,
             scene_end=self.scene_end,
@@ -414,18 +416,10 @@ class Event:
             snr=self.snr,
             sample_rate=self.sample_rate,
             # Spatial stuff (inherited from Emitter objects)
-            spatial_resolution=self.spatial_resolution,
-            spatial_velocity=self.spatial_velocity,
-            start_coordinates=dict(
-                absolute=coerce(self.start_coordinates_absolute),
-                relative_cartesian=coerce(self.start_coordinates_relative_cartesian),
-                relative_polar=coerce(self.start_coordinates_relative_polar),
-            ),
-            end_coordinates=dict(
-                absolute=coerce(self.end_coordinates_absolute),
-                relative_cartesian=coerce(self.end_coordinates_relative_cartesian),
-                relative_polar=coerce(self.end_coordinates_relative_polar),
-            ),
+            spatial_resolution=self.spatial_resolution if self.is_moving else None,
+            spatial_velocity=self.spatial_velocity if self.is_moving else None,
+            start_coordinates=coerce(self.start_coordinates_absolute),
+            end_coordinates=coerce(self.end_coordinates_absolute),
             # Include the actual emitters as well, to enable unserialisation
             emitters=[v.to_dict() for v in self.emitters],
         )
