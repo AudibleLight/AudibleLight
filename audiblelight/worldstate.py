@@ -390,7 +390,7 @@ class WorldState:
         #  We have to clear sources out regardless of number of emitters because it is possible that, if we have
         #  removed an event (e.g. `Scene.remove_event(...)`), we'll "orphan" some sources otherwise
         self.ctx.clear_sources()
-        if len(self.emitters) > 0:
+        if self.num_emitters > 0:
             emitter_counter = 0
             for emitter_alias, emitter_list in self.emitters.items():
                 for emitter in emitter_list:
@@ -1588,7 +1588,7 @@ class WorldState:
         Check conditions required for simulation are met
         """
         assert (
-            len(self.emitters) > 0
+            self.num_emitters > 0
         ), "Must have added valid emitters to the mesh before calling `.simulate`!"
         assert (
             len(self.microphones) > 0
@@ -1621,7 +1621,7 @@ class WorldState:
         self._irs = None
         # Run the simulation
         logger.info(
-            f"Starting simulation with {len(self.emitters)} emitters, {len(self.microphones)} microphones"
+            f"Starting simulation with {self.num_emitters} emitters, {len(self.microphones)} microphones"
         )
         self.ctx.simulate()
         efficiency = self.ctx.get_indirect_ray_efficiency()
@@ -1848,11 +1848,21 @@ class WorldState:
 
         return state
 
+    @property
+    def num_emitters(self) -> int:
+        """
+        Returns the number of emitters in the state.
+
+        Note that this is not the same as calling `len(self.emitters)`: the total number of emitters is equivalent
+        to the length of ALL lists inside this dictionary
+        """
+        return sum(len(v) for v in self.emitters.values())
+
     def __len__(self) -> int:
         """
         Returns the number of objects in the mesh (i.e., number of microphones + emitters)
         """
-        return len(self.microphones) + len(self.emitters)
+        return len(self.microphones) + self.num_emitters
 
     def __str__(self) -> str:
         """
@@ -1860,7 +1870,7 @@ class WorldState:
         """
         return (
             f"'WorldState' with mesh '{self.mesh.metadata['fpath']}' and "
-            f"{len(self)} objects ({len(self.microphones)} microphones, {len(self.emitters)} emitters)"
+            f"{len(self)} objects ({len(self.microphones)} microphones, {self.num_emitters} emitters)"
         )
 
     def __repr__(self) -> str:

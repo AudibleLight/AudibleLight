@@ -506,9 +506,7 @@ def render_audio_for_all_scene_events(
 
         # Grab the IRs for the current event's emitters
         #  This gets us (N_capsules, N_emitters, N_samples)
-        event_irs = irs[
-            :, emitter_counter : len(event.emitters) + emitter_counter, 0, :
-        ]
+        event_irs = irs[:, emitter_counter : len(event) + emitter_counter, 0, :]
 
         # Render the audio for the event
         #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
@@ -517,7 +515,7 @@ def render_audio_for_all_scene_events(
         )
 
         # Update the counter
-        emitter_counter += len(event.emitters)
+        emitter_counter += len(event)
 
     logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds.!")
 
@@ -531,7 +529,7 @@ def validate_scene(scene: Scene) -> None:
         None
     """
     # Validate WorldState
-    if len(scene.state.emitters) == 0:
+    if scene.state.num_emitters == 0:
         raise ValueError("WorldState has no emitters!")
     if len(scene.state.microphones) == 0:
         raise ValueError("WorldState has no microphones!")
@@ -551,15 +549,13 @@ def validate_scene(scene: Scene) -> None:
         sum(
             len(ev) for ev in scene.events.values()
         ),  # sums number of emitters for every event
-        sum(
-            len(em) for em in scene.state.emitters.values()
-        ),  # sums number of emitters in total for the scene
+        scene.state.num_emitters,
         scene.state.ctx.get_source_count(),
     )
     if not all(v == vals[0] for v in vals):
         raise ValueError(
             f"Mismatching number of emitters, events, and sources! "
-            f"Got {len(scene.events)} events, {len(scene.state.emitters)} emitters, "
+            f"Got {len(scene.events)} events, {scene.state.num_emitters} emitters, "
             f"{scene.state.ctx.get_source_count()} sources."
         )
 

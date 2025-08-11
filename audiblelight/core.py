@@ -165,7 +165,7 @@ class Scene:
         """
         return (
             f"'Scene' with mesh '{self.state.mesh.metadata['fpath']}': "
-            f"{len(self)} events, {len(self.state.microphones)} microphones, {len(self.state.emitters)} emitters."
+            f"{len(self)} events, {len(self.state.microphones)} microphones, {self.state.num_emitters} emitters."
         )
 
     def __repr__(self) -> str:

@@ -70,7 +70,7 @@ def test_add_event_static(
     assert isinstance(ev, Event)
     assert not ev.is_moving
     assert ev.has_emitters
-    assert len(ev.emitters) == 1
+    assert len(ev) == 1
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     if isinstance(emitter_kws, dict):
@@ -143,10 +143,10 @@ def test_add_moving_event(
     assert isinstance(ev, Event)
     assert ev.is_moving
     assert ev.has_emitters
-    assert len(ev.emitters) >= 2
+    assert len(ev) >= 2
 
     # Should have correct number of sources added to the ray-tracing engine
-    assert oyens_scene_no_overlap.state.ctx.get_source_count() == len(ev.emitters)
+    assert oyens_scene_no_overlap.state.ctx.get_source_count() == len(ev)
 
     # Check all overrides passed correctly to the event class
     #  When we're using a random file, we cannot check these variables as they might have changed
@@ -368,13 +368,13 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
     # Add an event
     oyens_scene_no_overlap.add_event(event_type="static", alias="remover")
     assert len(oyens_scene_no_overlap.events) == 1
-    assert len(oyens_scene_no_overlap.state.emitters) == 1
+    assert oyens_scene_no_overlap.state.num_emitters == 1
     assert oyens_scene_no_overlap.state.ctx.get_source_count() == 1
 
     # Remove the event and check all has been removed
     oyens_scene_no_overlap.clear_event(alias="remover")
     assert len(oyens_scene_no_overlap.events) == 0
-    assert len(oyens_scene_no_overlap.state.emitters) == 0
+    assert oyens_scene_no_overlap.state.num_emitters == 0
     assert oyens_scene_no_overlap.state.ctx.get_source_count() == 0
 
     # Trying to remove event that doesn't exist will raise an error
@@ -388,13 +388,13 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_emitters()
     oyens_scene_no_overlap.clear_microphones()
     assert len(oyens_scene_no_overlap.state.microphones) == 0
-    assert len(oyens_scene_no_overlap.state.emitters) == 0
+    assert oyens_scene_no_overlap.state.num_emitters == 0
 
     oyens_scene_no_overlap.add_event(event_type="static", alias="remover")
     oyens_scene_no_overlap.clear_emitter(alias="remover")
     oyens_scene_no_overlap.add_event(event_type="static", alias="remover")
     oyens_scene_no_overlap.clear_emitters()
-    assert len(oyens_scene_no_overlap.state.emitters) == 0
+    assert oyens_scene_no_overlap.state.num_emitters == 0
 
     oyens_scene_no_overlap.add_microphone(alias="remover")
     oyens_scene_no_overlap.clear_microphone(alias="remover")
@@ -870,7 +870,7 @@ def test_scene_from_dict(input_dict: dict):
     assert isinstance(ev, Scene)
     assert len(ev.events) == len(input_dict["events"])
     assert (
-        sum(len(em) for em in ev.state.emitters.values())
+        ev.state.num_emitters
         == sum(len(em) for em in input_dict["state"]["emitters"].values())
         == ev.state.ctx.get_source_count()
     )

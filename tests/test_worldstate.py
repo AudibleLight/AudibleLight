@@ -254,7 +254,7 @@ def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
         position, emitter_alias, mic=None, keep_existing=False, polar=False
     )
     assert isinstance(oyens_space.emitters, dict)
-    assert len(oyens_space.emitters) == 1
+    assert oyens_space.num_emitters == 1
     # Get the desired emitter: should be the first element in the list
     src = oyens_space.get_emitter(
         emitter_alias if emitter_alias is not None else "src000", 0
@@ -421,7 +421,7 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
         oyens_space.add_emitter(
             position=position, mic="tester", keep_existing=False, polar=False
         )
-        assert len(oyens_space.emitters) == 1
+        assert oyens_space.num_emitters == 1
         src = oyens_space.get_emitter("src000", 0)
         assert isinstance(src, Emitter)
         # coordinates_relative dict should be as expected
@@ -454,7 +454,7 @@ def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
     oyens_space.add_emitters(
         positions, emitter_aliases, keep_existing=False, polar=False
     )
-    assert len(oyens_space.emitters) == len(positions)
+    assert oyens_space.num_emitters == len(positions)
     if emitter_aliases is not None:
         assert set(oyens_space.emitters.keys()) == set(emitter_aliases)
         # Should have all the other emitters in our relative coords dict
@@ -543,7 +543,7 @@ def test_add_emitters_relative_to_mic(
         polar=False,
         aliases=emit_aliases,
     )
-    assert len(oyens_space.emitters) == sum(expected)
+    assert oyens_space.num_emitters == sum(expected)
     for position, is_added, alias in zip(test_position, expected, emit_aliases):
         if is_added:
             emitter_list = oyens_space[
@@ -570,7 +570,7 @@ def test_add_emitters_relative_to_mic(
 )
 def test_add_n_emitters(n_emitters, oyens_space: WorldState):
     oyens_space.add_emitters(n_emitters=n_emitters, keep_existing=False, polar=False)
-    assert len(oyens_space.emitters) == n_emitters
+    assert oyens_space.num_emitters == n_emitters
     for emitter_list in oyens_space.emitters.values():
         for emitter in emitter_list:
             assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
@@ -610,7 +610,7 @@ def test_add_emitters_at_specific_position(
         polar=False,
         aliases=emit_alias,
     )
-    assert len(oyens_space.emitters) == sum(expected)
+    assert oyens_space.num_emitters == sum(expected)
     for position, is_added, alias in zip(test_position, expected, emit_alias):
         if is_added:
             for emitter in oyens_space[alias]:
@@ -926,7 +926,7 @@ def test_worldstate_from_dict(input_dict: dict):
     # Should have the correct number of emitters and microphones
     assert (
         wstate.ctx.get_source_count()
-        == len(wstate.emitters)
+        == wstate.num_emitters
         == len(input_dict["emitters"])
     )
     assert wstate.ctx.get_listener_count() == sum(
