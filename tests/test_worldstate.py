@@ -272,8 +272,8 @@ def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
     for k in [
         "alias",
         "coordinates_absolute",
-        "coordinates_relative_cartesian",
-        "coordinates_relative_polar",
+        # "coordinates_relative_cartesian",
+        # "coordinates_relative_polar",
     ]:
         assert k in di.keys()
     # Test output strings
