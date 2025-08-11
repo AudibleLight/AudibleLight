@@ -456,6 +456,7 @@ def list_innermost_directory_names_unique(root_dir: Union[str, Path]) -> set:
     return {Path(path).name for path in deepest_paths}
 
 
+# noinspection PyUnreachableCode
 def sample_distribution(
     distribution: Union[DistributionLike, Callable, None] = None,
     override: Union[Numeric, None] = None,
