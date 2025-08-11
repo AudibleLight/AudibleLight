@@ -229,8 +229,6 @@ class Emitter:
         return dict(
             alias=self.alias,
             coordinates_absolute=coerce(self.coordinates_absolute),
-            # coordinates_relative_cartesian=coerce(self.coordinates_relative_cartesian),
-            # coordinates_relative_polar=coerce(self.coordinates_relative_polar),
         )
 
     @classmethod
@@ -269,24 +267,10 @@ class Emitter:
             copied_dict[k] = unserialise(copied_dict[k])
 
         # Instantiate the class with the correct alias and absolute coordinates
-        instantiated = cls(
+        return cls(
             alias=copied_dict["alias"],
             coordinates_absolute=copied_dict["coordinates_absolute"],
         )
-
-        # Set the relative coordinates correctly
-        # setattr(
-        #     instantiated,
-        #     "coordinates_relative_cartesian",
-        #     copied_dict["coordinates_relative_cartesian"],
-        # )
-        # setattr(
-        #     instantiated,
-        #     "coordinates_relative_polar",
-        #     copied_dict["coordinates_relative_polar"],
-        # )
-
-        return instantiated
 
 
 class WorldState:
@@ -1428,7 +1412,7 @@ class WorldState:
         # Validate all positions in the trajectory WRT the rest of the mesh
         return self._validate_position(trajectory)
 
-    @utils.timer("define trajectory")
+    # @utils.timer("define trajectory")
     def define_trajectory(
         self,
         duration: utils.Numeric,
@@ -1606,6 +1590,9 @@ class WorldState:
         # Clear out any existing IRs
         self._irs = None
         # Run the simulation
+        logger.info(
+            f"Starting simulation with {len(self.emitters)} emitters, {len(self.microphones)} microphones"
+        )
         self.ctx.simulate()
         efficiency = self.ctx.get_indirect_ray_efficiency()
         # Log the ray efficiency: outdoor would have a very low value, e.g. < 0.05.
@@ -1751,9 +1738,18 @@ class WorldState:
         """
         Returns metadata for this object as a dictionary
         """
+
+        def coerce(inp):
+            if isinstance(inp, dict):
+                return {k: coerce(v) for k, v in inp.items()} if inp else None
+            elif isinstance(inp, np.ndarray):
+                return inp.tolist()
+            else:
+                return inp
+
         return dict(
             emitters={
-                s_alias: [s_.to_dict() for s_ in s]
+                s_alias: [coerce(s_.coordinates_absolute) for s_ in s]
                 for s_alias, s in self.emitters.items()
             },
             microphones={
@@ -1812,7 +1808,7 @@ class WorldState:
         )
         state.emitters = OrderedDict(
             {
-                a: [Emitter.from_dict(v_) for v_ in v]
+                a: [Emitter(alias=a, coordinates_absolute=v_) for v_ in v]
                 for a, v in input_dict["emitters"].items()
             }
         )

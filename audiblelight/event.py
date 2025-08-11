@@ -276,9 +276,11 @@ class Event:
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
     # noinspection PyUnreachableCode
-    @staticmethod
     def _parse_emitters(
-        emitters: Union[Emitter, list[Emitter], list[dict]]
+        self,
+        emitters: Union[
+            Emitter, list[Emitter], list[dict], list[list], list[np.ndarray]
+        ],
     ) -> list[Emitter]:
         """
         Safely handle coercing objects to a list of `Emitter`s
@@ -296,13 +298,24 @@ class Event:
                 emitters: list[dict]
                 return [Emitter.from_dict(dic) for dic in emitters]
 
-            elif not all(isinstance(em, Emitter) for em in emitters):
+            # Parse list of emitters
+            elif all(isinstance(em, Emitter) for em in emitters):
+                return emitters
+
+            # Parse list of arrays or lists by creating new emitter objects with the same values
+            elif all(isinstance(em, (np.ndarray, list)) for em in emitters):
+                return [
+                    Emitter(
+                        alias=self.alias,
+                        coordinates_absolute=utils.sanitise_coordinates(em),
+                    )
+                    for em in emitters
+                ]
+
+            else:
                 raise TypeError(
                     "Cannot parse emitter with type {}".format(type(emitters[0]))
                 )
-
-            else:
-                return emitters
 
         else:
             raise TypeError("Cannot parse emitters with type {}".format(type(emitters)))
@@ -420,8 +433,9 @@ class Event:
             spatial_velocity=self.spatial_velocity if self.is_moving else None,
             start_coordinates=coerce(self.start_coordinates_absolute),
             end_coordinates=coerce(self.end_coordinates_absolute),
+            num_emitters=len(self.emitters),
             # Include the actual emitters as well, to enable unserialisation
-            emitters=[v.to_dict() for v in self.emitters],
+            emitters=[coerce(v.coordinates_absolute) for v in self.emitters],
         )
 
     @classmethod
