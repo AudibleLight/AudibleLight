@@ -7,12 +7,14 @@ The core functionality is adapted from [`colorednoise` by Felix Patzelt](https:/
 which is released under a permissive MIT license.
 """
 
+import random
 from pathlib import Path
 from typing import Any, Iterable, Optional, Union
 
 import librosa
 import numpy as np
 from deepdiff import DeepDiff
+from loguru import logger
 
 from audiblelight import utils
 
@@ -157,11 +159,41 @@ class Ambience:
         # Or, we want to use a noise file from disk
         else:
             ambient, _ = librosa.load(
-                self.filepath, sr=self.sample_rate, mono=True, dtype=np.float32
+                self.filepath, sr=self.sample_rate, mono=False, dtype=np.float32
             )
-            repeats = -(-total_samples // len(ambient))  # ceiling division
-            # Tiles along both directions to get (n_channels, n_samples)
-            out = np.tile(ambient, (self.channels, repeats))[:, :total_samples]
+            ambient = utils.coerce2d(ambient)
+            n_audio_channels, n_samples = ambient.shape
+
+            # If the audio is multichannel, we need to check if we have the correct number of channels
+            if n_audio_channels != self.channels:
+
+                # Mono audio is always fine
+                if n_audio_channels == 1:
+                    ambient = ambient[0, :]
+
+                # Otherwise, we have multichannel audio with an incorrect number of channels, so just take one randomly
+                else:
+                    logger.warning(
+                        f"Passed audio has {n_audio_channels} channels, but expected {self.channels} channels. "
+                        f"A random mono channel will be chosen from the audio."
+                    )
+                    ambient = ambient[random.choice(range(n_audio_channels)), :]
+
+                # Audio at this point has shape (1, n_samples)
+                #  We'll need to tile it along the channel dimension
+                tile_channels = self.channels
+
+            # Here, the audio is multichannel, but we have the correct number of channels
+            #  So we can just use the audio directly, with repetitions along the time dimension
+            #  We don't need to tile along the channel dimension as well
+            else:
+                tile_channels = 1
+
+            repeats = -(-total_samples // n_samples)  # ceiling division
+            # Tiles along both directions as required to get (n_channels, n_samples)
+            out = np.tile(utils.coerce2d(ambient), (tile_channels, repeats))[
+                :, :total_samples
+            ]
 
         self.audio = out
         return self.audio
