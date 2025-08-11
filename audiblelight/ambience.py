@@ -60,7 +60,7 @@ class Ambience:
 
         # Basic attributes for the ambience, first three should be numeric
         self.channels = int(utils.sanitise_positive_number(channels))
-        self.sample_rate = utils.sanitise_positive_number(sample_rate)
+        self.sample_rate = int(utils.sanitise_positive_number(sample_rate))
         self.duration = utils.sanitise_positive_number(duration)
         self.alias = alias
 
@@ -217,6 +217,7 @@ class Ambience:
         )
 
 
+# noinspection PyUnreachableCode
 def powerlaw_psd_gaussian(
     beta: utils.Numeric,
     shape: Union[int, Iterable[int]],
