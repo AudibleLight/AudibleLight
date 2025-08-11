@@ -100,13 +100,13 @@ def test_add_event_static(
         # Predefine a starting position for speedups
         (
             utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(starting_position=np.array([1.6, -5.1, 1.7])),
+            dict(),
             dict(duration=5, event_start=5, scene_start=5),
         ),
         (
             utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
             dict(starting_position=np.array([1.6, -5.1, 1.7])),
-            dict(snr=5, spatial_velocity=1),
+            dict(snr=5, spatial_velocity=1, duration=5),
         ),
         (
             None,
