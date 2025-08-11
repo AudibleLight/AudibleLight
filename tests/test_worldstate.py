@@ -845,14 +845,11 @@ def test_emitter_from_dict(input_dict):
         {
             "emitters": {
                 "tester_emitter": [
-                    {
-                        "alias": "tester_emitter",
-                        "coordinates_absolute": [
-                            0.8212208994051426,
-                            -6.006953079901214,
-                            0.5535639680338247,
-                        ],
-                    }
+                    [
+                        0.8212208994051426,
+                        -6.006953079901214,
+                        0.5535639680338247,
+                    ],
                 ]
             },
             "microphones": {
