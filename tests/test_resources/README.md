@@ -2,6 +2,8 @@
 
 This directory contains resources used for unit testing.
 
+---
+
 The audio samples were sourced from the following datasets:
 
 - FSD50K: Freesound Dataset (Creative Commons)
@@ -10,9 +12,15 @@ The audio samples were sourced from the following datasets:
 - FMA: Free Music Archive Dataset (MIT License)
   https://github.com/mdeff/fma
 
+APART from the FOA audio file contained in `spatialsoundevents`, which was uploaded by [user `clucs` to FreeSound](https://freesound.org/people/clucs/sounds/428548/).
+
+---
+
 The meshes were sourced from the following datasets:
 
 - Gibson Environment Dataset (MIT License)
   https://github.com/StanfordVL/GibsonEnv
+
+---
 
 These files are included for unit testing purposes only.
