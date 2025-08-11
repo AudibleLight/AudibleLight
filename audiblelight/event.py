@@ -32,6 +32,9 @@ DCASE_SOUND_EVENT_CLASSES = {
 }
 _DCASE_SOUND_EVENT_CLASSES_INV = {v: k for v, k in DCASE_SOUND_EVENT_CLASSES.items()}
 
+# If no duration override passed in, this will be the maximum duration for an event
+MAX_DEFAULT_DURATION = 10
+
 
 def _infer_dcase_class_id_labels(
     class_id: Optional[int], class_label: Optional[str]
@@ -271,6 +274,7 @@ class Event:
         """
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
+    # noinspection PyUnreachableCode
     @staticmethod
     def _parse_emitters(
         emitters: Union[Emitter, list[Emitter], list[dict]]
@@ -324,7 +328,10 @@ class Event:
         Safely handle getting the duration of an audio file, with an optional override.
         """
         # If we haven't passed in an override, just use the full duration of the audio, minus the offset
+        #  Set a cap so that long audio is truncated e.g. to 10 seconds
         if duration is None:
+            # TODO: think about using a constant value here
+            #  So, e.g., music sound events get truncated to 10 seconds
             return utils.sanitise_positive_number(
                 self.audio_full_duration - self.event_start
             )

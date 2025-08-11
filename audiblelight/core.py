@@ -78,12 +78,6 @@ class Scene:
         #  Events can start any time within the duration of the scene, minus some padding
         if scene_start_dist is None:
             scene_start_dist = stats.uniform(0.0, self.duration - 1)
-        #  Events can start any time up to 5 seconds through their duration
-        if event_start_dist is None:
-            event_start_dist = stats.uniform(0.0, 5.0)
-        #  Events can last between 0 and 10 seconds
-        if event_duration_dist is None:
-            event_duration_dist = stats.uniform(0.0, 10.0)
         #  Events move between 0.25 and 2.0 metres per second
         if event_velocity_dist is None:
             event_velocity_dist = stats.uniform(0.25, 2.0)
@@ -93,6 +87,10 @@ class Scene:
         #  Events have an SNR with a mean of 5, SD of 1, and boundary between 2 and 8
         if snr_dist is None:
             snr_dist = stats.truncnorm(a=-3, b=3, loc=5, scale=1)
+
+        # No distribution for `event_start` and `event_distribution`
+        #  Unless a distribution is passed, we default to using the full duration of the audio (capped at 10 seconds)
+        #  and starting the audio at 0.0 seconds
 
         # Distributions: these function sanitise the distributions so that they are either `None` or an object
         #  with the `rvs` method. When called, the `rvs` method will return a random variate sampled from the
@@ -337,17 +335,28 @@ class Scene:
             # Copy once per attempt
             current_kws = event_kwargs.copy()
 
+            # If we haven't passed in a duration override OR a distribution, default to using the full audio duration
+            if overrides["duration"] is None and self.event_duration_dist is None:
+                current_kws["duration"] = None
+            # Otherwise, try and sample from the distribution or use the override
+            else:
+                current_kws["duration"] = utils.sample_distribution(
+                    self.event_duration_dist, overrides["duration"]
+                )
+
+            # Do the same for event start time
+            if overrides["event_start"] is None and self.event_start_dist is None:
+                current_kws["event_start"] = None
+            else:
+                current_kws["event_start"] = utils.sample_distribution(
+                    self.event_start_dist, overrides["event_start"]
+                )
+
             # Sample values (with fallback to override if provided)
             current_kws.update(
                 {
                     "scene_start": utils.sample_distribution(
                         self.scene_start_dist, overrides["scene_start"]
-                    ),
-                    "event_start": utils.sample_distribution(
-                        self.event_start_dist, overrides["event_start"]
-                    ),
-                    "duration": utils.sample_distribution(
-                        self.event_duration_dist, overrides["duration"]
                     ),
                     "snr": utils.sample_distribution(self.snr_dist, overrides["snr"]),
                     "spatial_velocity": utils.sample_distribution(
@@ -359,15 +368,17 @@ class Scene:
                 }
             )
 
+            # Create the event with the current keywords
+            current_event = Event(**current_kws)
+
             # Reject this attempt if overlap would be exceeded
             if self._would_exceed_temporal_overlap(
-                current_kws["scene_start"], current_kws["duration"]
+                current_event.scene_start, current_event.duration
             ):
                 continue
 
-            # Attempt to create and store the event
-            #  We'll register the emitters later in the function
-            self.events[alias] = Event(**current_kws)
+            # Store the event: we'll register the emitters later in the function
+            self.events[alias] = current_event
             return True
 
         return False
