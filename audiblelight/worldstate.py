@@ -1321,11 +1321,9 @@ class WorldState:
                         f"Consider reducing `empty_space_around` arguments."
                     )
 
-                # Raise the error if required or just log a warning and skip to the next emitter
+                # Raise the error if required
                 if raise_on_error:
                     raise ValueError(msg)
-                else:
-                    logger.warning(msg)
 
     def get_valid_position_with_max_distance(
         self,
