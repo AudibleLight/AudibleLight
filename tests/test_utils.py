@@ -482,7 +482,6 @@ def test_generate_circular_trajectory(
         (np.array([0.0, 0.0, 0.0]), 0.1, 10),
         (np.array([1.0, -1.0, 2.0]), 0.05, 50),
         (np.array([5.0, 5.0, 5.0]), 0.2, 1),
-        (np.zeros(3), 0.0, 20),  # edge case: zero max step
     ],
 )
 def test_generate_random_trajectory(
@@ -495,18 +494,13 @@ def test_generate_random_trajectory(
         n_points,
         3,
     ), f"Expected shape ({n_points}, 3), got {traj.shape}"
+    # Check starting position
+    assert np.array_equal(traj[0], xyz_start)
 
     # Check each step is within max_step length
-    steps = np.diff(np.vstack([xyz_start, traj]), axis=0)
+    steps = np.diff(traj, axis=0)
     step_lengths = np.linalg.norm(steps, axis=1)
     assert np.all(step_lengths <= max_step + 1e-4), "Step exceeds max_step"
-
-    # If max_step > 0, check at least one step is > 0
-    if max_step > 0:
-        assert np.any(step_lengths > 0), "All steps are zero despite positive max_step"
-    else:
-        # If max_step == 0, trajectory should be constant
-        assert np.allclose(traj, xyz_start), "Trajectory changed with zero max_step"
 
 
 @pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])

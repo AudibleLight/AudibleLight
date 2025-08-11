@@ -604,16 +604,22 @@ def generate_random_trajectory(
     """
     Generate a 3D random walk from `xyz_start` with `n_points` steps, such that no step exceeds `max_step`.
     """
+    if max_step <= 0.0:
+        raise ValueError(f"Maximum step must be greater than 0 but got {max_step}")
+
     # Generate random directions in 3D and normalize to unit vectors
-    directions = np.random.normal(size=(n_points, 3))
+    directions = np.random.normal(size=(n_points - 1, 3))
     norms = np.linalg.norm(directions, axis=1, keepdims=True)
     unit_vectors = directions / norms
 
     # Generate random step lengths in [0, step_limit]
-    step_lengths = np.random.uniform(0, max_step, size=(n_points, 1))
+    step_lengths = np.random.uniform(0, max_step, size=(n_points - 1, 1))
 
     # Scale unit vectors by step lengths
     steps = unit_vectors * step_lengths
 
     # Compute random walk as the cumulative sum of every step, added to the starting position
-    return xyz_start + np.cumsum(steps, axis=0)
+    trajectory = xyz_start + np.cumsum(steps, axis=0)
+
+    # Stack to add the starting position
+    return np.vstack([xyz_start, trajectory])
