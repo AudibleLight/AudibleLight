@@ -421,10 +421,12 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
     [
         ("white", None),
         (2.0, None),
+        # Mono audio
+        (None, utils_tests.SOUNDEVENT_DIR / "waterTap/95709.wav"),
+        # FOA audio
         (
             None,
-            utils.get_project_root()
-            / "tests/test_resources/soundevents/waterTap/95709.wav",
+            utils_tests.TEST_RESOURCES / "spatialsoundevents/voice_whitenoise_foa.wav",
         ),
     ],
 )
