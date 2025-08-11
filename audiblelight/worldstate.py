@@ -229,8 +229,8 @@ class Emitter:
         return dict(
             alias=self.alias,
             coordinates_absolute=coerce(self.coordinates_absolute),
-            coordinates_relative_cartesian=coerce(self.coordinates_relative_cartesian),
-            coordinates_relative_polar=coerce(self.coordinates_relative_polar),
+            # coordinates_relative_cartesian=coerce(self.coordinates_relative_cartesian),
+            # coordinates_relative_polar=coerce(self.coordinates_relative_polar),
         )
 
     @classmethod
@@ -259,8 +259,8 @@ class Emitter:
         for k in [
             "alias",
             "coordinates_absolute",
-            "coordinates_relative_cartesian",
-            "coordinates_relative_polar",
+            # "coordinates_relative_cartesian",
+            # "coordinates_relative_polar",
         ]:
             if k not in copied_dict:
                 raise KeyError(f"Missing key '{k}'")
@@ -275,16 +275,16 @@ class Emitter:
         )
 
         # Set the relative coordinates correctly
-        setattr(
-            instantiated,
-            "coordinates_relative_cartesian",
-            copied_dict["coordinates_relative_cartesian"],
-        )
-        setattr(
-            instantiated,
-            "coordinates_relative_polar",
-            copied_dict["coordinates_relative_polar"],
-        )
+        # setattr(
+        #     instantiated,
+        #     "coordinates_relative_cartesian",
+        #     copied_dict["coordinates_relative_cartesian"],
+        # )
+        # setattr(
+        #     instantiated,
+        #     "coordinates_relative_polar",
+        #     copied_dict["coordinates_relative_polar"],
+        # )
 
         return instantiated
 
