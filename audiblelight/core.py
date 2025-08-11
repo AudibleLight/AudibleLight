@@ -506,6 +506,8 @@ class Scene:
 
         # Raise an error if we can't place the event correctly
         if not placed:
+            # Need to tidy up the emitter we placed above to prevent it becoming an orphan
+            self.clear_emitter(alias)
             raise ValueError(
                 f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap`."
@@ -537,6 +539,7 @@ class Scene:
 
         # Raise an error if we can't place the event correctly
         if not placed:
+            # No need to clear out any emitters (as in `add_event_static`) because we haven't placed them yet
             raise ValueError(
                 f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap`."
