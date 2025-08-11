@@ -545,7 +545,7 @@ class WorldState:
     def add_microphone(
         self,
         microphone_type: Optional[Union[str, Type["MicArray"]]] = None,
-        position: Optional[list, np.ndarray] = None,
+        position: Optional[Union[list, np.ndarray]] = None,
         alias: Optional[str] = None,
         keep_existing: Optional[bool] = True,
     ) -> None:
