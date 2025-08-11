@@ -61,7 +61,7 @@ class Event:
         self,
         filepath: Union[str, Path],
         alias: str,
-        emitters: Union[list[Emitter], Emitter, list[dict]] = None,
+        emitters: Optional[Union[list[Emitter], Emitter, list[dict]]] = None,
         scene_start: Optional[float] = None,
         event_start: Optional[float] = None,
         duration: Optional[float] = None,
@@ -302,7 +302,7 @@ class Event:
         else:
             raise TypeError("Cannot parse emitters with type {}".format(type(emitters)))
 
-    def _parse_audio_start(self, audio_start: Optional[utils.Numeric]) -> float:
+    def _parse_audio_start(self, audio_start: Optional[utils.Numeric] = None) -> float:
         """
         Safely handle getting the start/offset time for an audio event, with an optional override.
         """
@@ -319,7 +319,7 @@ class Event:
             event_start_ = audio_start
         return utils.sanitise_positive_number(event_start_)
 
-    def _parse_duration(self, duration: Optional[float]) -> float:
+    def _parse_duration(self, duration: Optional[float] = None) -> float:
         """
         Safely handle getting the duration of an audio file, with an optional override.
         """
@@ -343,7 +343,7 @@ class Event:
                 return duration
 
     # noinspection PyTypeChecker
-    def load_audio(self, ignore_cache: bool = False) -> np.ndarray:
+    def load_audio(self, ignore_cache: Optional[bool] = False) -> np.ndarray:
         """
         Returns the audio array of the Event.
 

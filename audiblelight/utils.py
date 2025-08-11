@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
 from time import time
-from typing import Any, Callable, Generator, List, Optional, Protocol, Union
+from typing import Any, Callable, Generator, Optional, Protocol, Union
 
 import numpy as np
 import torch
@@ -259,7 +259,7 @@ def sanitise_directory(directory: Any) -> Path:
         )
 
 
-def sanitise_positive_number(x: Any) -> Union[float, None]:
+def sanitise_positive_number(x: Any) -> Optional[float]:
     """
     Validate that an input is a positive numeric input and coerce to a `float`
     """
@@ -272,7 +272,7 @@ def sanitise_positive_number(x: Any) -> Union[float, None]:
         raise TypeError("Expected a positive numeric input, but got {}".format(type(x)))
 
 
-def sanitise_coordinates(x: Any) -> Union[np.ndarray, None]:
+def sanitise_coordinates(x: Any) -> Optional[np.ndarray]:
     """
     Validate that an input is an array of coordinates (i.e., [X, Y, Z]) with the expected shape
     """
@@ -399,7 +399,7 @@ def update_state(func: Callable):
     return wrapper
 
 
-def list_all_directories(root_dir: Union[str, Path]) -> List[str]:
+def list_all_directories(root_dir: Union[str, Path]) -> list[str]:
     """
     Recursively return all directory paths under root_dir, including nested subdirectories.
     """
@@ -414,7 +414,7 @@ def list_all_directories(root_dir: Union[str, Path]) -> List[str]:
     return [str(p.resolve()) for p in root_path.rglob("*") if p.is_dir()]
 
 
-def list_deepest_directories(root_dir: Union[str, Path]) -> List[str]:
+def list_deepest_directories(root_dir: Union[str, Path]) -> list[str]:
     """
     Return only the deepest (leaf) directories under root_dir.
     A deepest directory is one that is not a parent of any other directory.
@@ -434,12 +434,12 @@ def list_deepest_directories(root_dir: Union[str, Path]) -> List[str]:
     return deepest_dirs
 
 
-def list_innermost_directory_names(root_dir: Union[str, Path]) -> List[str]:
+def list_innermost_directory_names(root_dir: Union[str, Path]) -> list[str]:
     """
     Return only the names of the innermost (leaf) directories under root_dir.
 
     Returns:
-        List[str]: A list of directory names (not full paths) of the deepest directories.
+        list[str]: A list of directory names (not full paths) of the deepest directories.
     """
     deepest_paths = list_deepest_directories(root_dir)
     return [Path(path).name for path in deepest_paths]

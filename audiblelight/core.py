@@ -270,6 +270,7 @@ class Scene:
             noise (str): either the type of noise to generate, e.g. "white", "red", or an arbitrary numeric exponent to
                 use when generating noise with `powerlaw_psd_gaussian`. Must be provided if `filepath` is None.
             ref_db (Numeric): the noise floor, in decibels
+            alias (str): string reference to refer to this `Ambience` object inside `Scene.ambience`
             kwargs: additional keyword arguments passed to `audiblelight.ambience.powerlaw_psd_gaussian`
         """
         # If the number of channels is not provided, try and get this from the number of microphone capsules
@@ -593,9 +594,9 @@ class Scene:
 
     def generate(
         self,
-        audio_path: Union[str, Path] = None,
-        metadata_path: Union[str, Path] = None,
-        spatial_audio_format: str = "A",
+        audio_path: Optional[Union[str, Path]] = None,
+        metadata_path: Optional[Union[str, Path]] = None,
+        spatial_audio_format: Optional[str] = "A",
     ) -> None:
         """
         Render scene to disk. Currently only audio and metadata are rendered.

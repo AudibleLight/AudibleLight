@@ -64,7 +64,9 @@ def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
 
 
 def get_broken_faces(mesh: trimesh.Trimesh) -> np.ndarray:
-    """Get the idxs of broken faces in a mesh. Uses copies to prevent anything being set inplace."""
+    """
+    Get the idxs of broken faces in a mesh. Uses copies to prevent anything being set inplace.
+    """
     # Make a copy of the mesh
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
@@ -88,9 +90,14 @@ def repair_mesh(mesh: trimesh.Trimesh) -> None:
 
 
 def add_sphere(
-    scene: trimesh.Scene, pos: np.ndarray, color: list[int] = None, r: float = 0.2
+    scene: trimesh.Scene,
+    pos: np.ndarray,
+    color: Optional[list[int]] = None,
+    r: Optional[utils.Numeric] = 0.2,
 ) -> None:
-    """Adds a sphere object to a scene with given position, color, and radius"""
+    """
+    Adds a sphere object to a scene with given position, color, and radius
+    """
     if color is None:
         color = [0, 0, 0]
     sphere = trimesh.creation.uv_sphere(radius=r)
@@ -446,7 +453,7 @@ class WorldState:
             return self._irs
 
     def calculate_weighted_average_ray_length(
-        self, point: np.ndarray, num_rays: utils.Numeric = 100
+        self, point: np.ndarray, num_rays: Optional[utils.Numeric] = 100
     ) -> utils.Numeric:
         """
         Estimate how spatially "open" a point is by computing the weighted average length of rays cast from that point.
@@ -510,7 +517,7 @@ class WorldState:
         self.ctx.finalize_object_mesh(0)
 
     def _try_add_microphone(
-        self, mic_cls, position: Union[list, None], alias: str
+        self, mic_cls, position: Optional[Union[list, np.ndarray]], alias: str
     ) -> bool:
         """
         Try to place a microphone of type mic_cls at position with given alias. Return True if successful.
@@ -537,10 +544,10 @@ class WorldState:
     @utils.update_state
     def add_microphone(
         self,
-        microphone_type: Union[str, Type["MicArray"], None] = None,
-        position: Union[list, np.ndarray, None] = None,
-        alias: str = None,
-        keep_existing: bool = True,
+        microphone_type: Optional[Union[str, Type["MicArray"]]] = None,
+        position: Optional[list, np.ndarray] = None,
+        alias: Optional[str] = None,
+        keep_existing: Optional[bool] = True,
     ) -> None:
         """
         Add a microphone to the space.
@@ -601,11 +608,11 @@ class WorldState:
     @utils.update_state
     def add_microphones(
         self,
-        microphone_types: list[Union[str, Type["MicArray"], None]] = None,
-        positions: list[Union[list, np.ndarray, None]] = None,
-        aliases: list[str] = None,
-        keep_existing: bool = True,
-        raise_on_error: bool = True,
+        microphone_types: Optional[list[Union[str, Type["MicArray"]]]] = None,
+        positions: Optional[list[Union[list, np.ndarray]]] = None,
+        aliases: Optional[list[str]] = None,
+        keep_existing: Optional[bool] = True,
+        raise_on_error: Optional[bool] = True,
     ) -> None:
         """
         Add multiple microphones to the mesh.
@@ -877,7 +884,9 @@ class WorldState:
 
         return mic_pos
 
-    def get_random_point_inside_mesh(self, batch_size: int = 10) -> np.ndarray:
+    def get_random_point_inside_mesh(
+        self, batch_size: Optional[utils.Numeric] = 10
+    ) -> np.ndarray:
         """
         Generates a random valid point inside the mesh.
 
@@ -1042,7 +1051,7 @@ class WorldState:
         return False
 
     def _get_mic_from_alias(
-        self, mic_alias: Optional[str]
+        self, mic_alias: Optional[str] = None
     ) -> Optional[Type["MicArray"]]:
         """Get a given `MicArray` object from its alias"""
         if mic_alias is not None:
@@ -1088,7 +1097,7 @@ class WorldState:
         return True
 
     def _parse_valid_microphone_aliases(
-        self, aliases: Union[bool, list, str, None]
+        self, aliases: Optional[Union[bool, list, str]]
     ) -> list[str]:
         """
         Get valid microphone aliases from an input
@@ -1213,14 +1222,14 @@ class WorldState:
     @utils.update_state
     def add_emitters(
         self,
-        positions: Union[list, np.ndarray, None] = None,
-        aliases: list[str] = None,
-        mics: Union[list[str], str] = None,
+        positions: Optional[Union[list, np.ndarray]] = None,
+        aliases: Optional[list[str]] = None,
+        mics: Optional[Union[list[str], str]] = None,
         n_emitters: Optional[int] = None,
-        keep_existing: bool = False,
-        polar: bool = True,
-        ensure_direct_path: Union[bool, list, str, None] = False,
-        raise_on_error: bool = True,
+        keep_existing: Optional[bool] = False,
+        polar: Optional[bool] = True,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        raise_on_error: Optional[bool] = True,
     ) -> None:
         """
         Add emitters to the mesh.
@@ -1424,7 +1433,7 @@ class WorldState:
     @utils.timer("define trajectory")
     def define_trajectory(
         self,
-        duration: Optional[utils.Numeric],
+        duration: utils.Numeric,
         starting_position: Optional[Union[np.ndarray, list]] = None,
         velocity: Optional[utils.Numeric] = MOVING_EMITTER_MAX_SPEED,
         resolution: Optional[utils.Numeric] = MOVING_EMITTER_TEMPORAL_RESOLUTION,
@@ -1642,7 +1651,9 @@ class WorldState:
         return all_irs
 
     def create_scene(
-        self, mic_radius: float = 0.2, emitter_radius: float = 0.1
+        self,
+        mic_radius: Optional[utils.Numeric] = 0.2,
+        emitter_radius: Optional[utils.Numeric] = 0.1,
     ) -> trimesh.Scene:
         """
         Creates a trimesh.Scene with the Space's mesh, microphone position, and emitters all added
@@ -1663,9 +1674,7 @@ class WorldState:
                 )
         return scene  # can then run `.show()` on the returned object
 
-    def create_plot(
-        self,
-    ) -> plt.Figure:
+    def create_plot(self) -> plt.Figure:
         """
         Creates a matplotlib.Figure object corresponding to top-down and side-views of the scene
 
@@ -1870,7 +1879,7 @@ class WorldState:
         # If there is no difference, there should be no keys in the deepdiff object
         return len(diff) == 0
 
-    def get_emitter(self, alias: str, emitter_idx: int = 0) -> Emitter:
+    def get_emitter(self, alias: str, emitter_idx: Optional[int] = 0) -> Emitter:
         """
         Given a valid alias and index, get a single `Emitter` object, as in `self.emitters[alias][emitter_idx]`
         """

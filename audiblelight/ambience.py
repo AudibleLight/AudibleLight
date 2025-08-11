@@ -137,7 +137,7 @@ class Ambience:
         """
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
-    def load_ambience(self, ignore_cache: bool = False) -> np.ndarray:
+    def load_ambience(self, ignore_cache: Optional[bool] = False) -> np.ndarray:
         """
         Load the background ambience as an array with shape (channels, samples).
         """

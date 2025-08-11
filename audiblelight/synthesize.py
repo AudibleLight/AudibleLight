@@ -103,10 +103,10 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
 
 def stft(
     y: np.ndarray,
-    fft_size: utils.Numeric = 512,
-    win_size: utils.Numeric = 256,
-    hop_size: utils.Numeric = 128,
-    stft_dims_first: bool = True,
+    fft_size: Optional[utils.Numeric] = 512,
+    win_size: Optional[utils.Numeric] = 256,
+    hop_size: Optional[utils.Numeric] = 128,
+    stft_dims_first: Optional[bool] = True,
 ) -> np.ndarray:
     """
     Compute the STFT for a given input signal
@@ -190,6 +190,10 @@ def perform_time_variant_convolution(
         s_audio (np.ndarray): Input audio spectrogram with shape (frames, frequency).
         s_ir (np.ndarray): Input impulse response spectrograms with shape (frames, frequency, channels, # of IRs).
         w_ir (np.ndarray): Impulse response mixing weights between [0, 1] with shape (frames, # of IRs).
+        ir_slice_min (Numeric): The minimum number of IRs where it makes sense to start optimizing the matrix
+            multiplication by copying the non-zero subset of the `w_ir` matrix
+        ir_relevant_ratio_max (Numeric): decides if the matrix should be subselected based on the proportion of IRs
+            that are active.
 
     Returns:
         np.ndarray: the convolved audio spectrogram with shape (frames, frequency).
@@ -389,8 +393,8 @@ def render_event_audio(
     event: Event,
     irs: np.ndarray,
     ref_db: utils.Numeric,
-    ignore_cache: bool = True,
-    win_size: utils.Numeric = 512,
+    ignore_cache: Optional[bool] = True,
+    win_size: Optional[utils.Numeric] = 512,
     hop_size: Optional[utils.Numeric] = None,
 ) -> None:
     """
@@ -472,7 +476,9 @@ def render_event_audio(
     event.spatial_audio = spatial
 
 
-def render_audio_for_all_scene_events(scene: Scene, ignore_cache: bool = True) -> None:
+def render_audio_for_all_scene_events(
+    scene: Scene, ignore_cache: Optional[bool] = True
+) -> None:
     """
     Renders audio for all `Events` associated with a given `Scene` object.
 
