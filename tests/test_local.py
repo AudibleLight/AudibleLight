@@ -183,7 +183,7 @@ def test_simulated_doa_with_music(
     ).coordinates_absolute.T  # coordinates of our capsules for the eigenmike
     fs = int(oyens_space.ctx.config.sample_rate)
     nfft = 1024
-    num_emitters = len(oyens_space.emitters)  # number of sound emitters we've added
+    num_emitters = oyens_space.num_emitters  # number of sound emitters we've added
     assert num_emitters == len(actual_doa) == len(emitters)  # sanity check everything
     music = MUSIC(
         L=l_,

@@ -171,10 +171,14 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
             event_kwargs=dict(spatial_resolution=2, duration=1, spatial_velocity=1),
         )
 
-    # Add some ambience: white noise and a running tap
+    # Add some ambience: white noise, mono audio, multichannel audio
     oyens_scene_no_overlap.add_ambience(noise="white")
     oyens_scene_no_overlap.add_ambience(
         filepath=utils_tests.SOUNDEVENT_DIR / "waterTap/240693.wav"
+    )
+    oyens_scene_no_overlap.add_ambience(
+        filepath=utils_tests.TEST_RESOURCES
+        / "spatialsoundevents/voice_whitenoise_foa.wav",
     )
 
     # Render the scene audio

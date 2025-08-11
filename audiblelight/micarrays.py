@@ -157,9 +157,9 @@ class MicArray:
         # Try and get all coordinate types for this microphone array
         coords = [
             "coordinates_absolute",
-            "coordinates_polar",
+            # "coordinates_polar",
             "coordinates_center",
-            "coordinates_cartesian",
+            # "coordinates_cartesian",
         ]
         coord_dict = OrderedDict()
         for coord_type in coords:

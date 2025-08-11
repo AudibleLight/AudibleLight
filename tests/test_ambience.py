@@ -187,3 +187,26 @@ def test_ambience_cls_from_dict(input_dict: dict):
     loaded_channels, loaded_dur = amb_audio.shape
     assert loaded_channels == input_dict["channels"]
     assert loaded_dur == round(input_dict["sample_rate"] * input_dict["duration"])
+
+
+@pytest.mark.parametrize("n_ambience_channels", [1, 4, 20])
+def test_load_multichannel_ambience(n_ambience_channels):
+    amb = Ambience(
+        channels=n_ambience_channels,
+        filepath=utils_tests.TEST_RESOURCES
+        / "spatialsoundevents/voice_whitenoise_foa.wav",
+        duration=10,
+        alias="foa_tester",
+    )
+    out = amb.load_ambience(ignore_cache=True)
+    assert out.shape[0] == n_ambience_channels  # should have correct number of channels
+
+    # If we don't want four channels, should be tiled mono
+    if n_ambience_channels != 4:
+        for channel in range(1, out.shape[0]):
+            assert np.all(out[0, :] == out[channel, :])
+
+    # Otherwise, should be raw FOA
+    elif n_ambience_channels == 4:
+        for channel in range(1, out.shape[0]):
+            assert not np.all(out[0, :] == out[channel, :])

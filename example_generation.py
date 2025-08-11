@@ -28,7 +28,8 @@ MAX_OVERLAP = 3
 
 # SCENE-WIDE DISTRIBUTIONS
 SCENE_TIME_DIST = stats.uniform(0.0, DURATION - 1)    # controls when events start in the scene
-EVENT_DURATION_DIST = stats.uniform(0.5, 4.0)
+EVENT_DURATION_DIST = None    # use full duration of audio
+EVENT_START_DIST = None    # start audio from 0 seconds
 EVENT_VELOCITY_DIST = stats.uniform(0.1, 1.5)  # meters per second
 SNR_DIST = stats.uniform(6, 30)
 REF_DB = -50
@@ -42,6 +43,7 @@ def mvp() -> None:
         duration=DURATION,
         mesh_path=MESH_PATH,
         scene_start_dist=SCENE_TIME_DIST,
+        event_start_dist=EVENT_START_DIST,
         event_duration_dist=EVENT_DURATION_DIST,
         event_velocity_dist=EVENT_VELOCITY_DIST,
         snr_dist=SNR_DIST,

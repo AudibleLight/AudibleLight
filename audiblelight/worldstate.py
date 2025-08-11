@@ -229,8 +229,6 @@ class Emitter:
         return dict(
             alias=self.alias,
             coordinates_absolute=coerce(self.coordinates_absolute),
-            coordinates_relative_cartesian=coerce(self.coordinates_relative_cartesian),
-            coordinates_relative_polar=coerce(self.coordinates_relative_polar),
         )
 
     @classmethod
@@ -259,8 +257,8 @@ class Emitter:
         for k in [
             "alias",
             "coordinates_absolute",
-            "coordinates_relative_cartesian",
-            "coordinates_relative_polar",
+            # "coordinates_relative_cartesian",
+            # "coordinates_relative_polar",
         ]:
             if k not in copied_dict:
                 raise KeyError(f"Missing key '{k}'")
@@ -269,24 +267,10 @@ class Emitter:
             copied_dict[k] = unserialise(copied_dict[k])
 
         # Instantiate the class with the correct alias and absolute coordinates
-        instantiated = cls(
+        return cls(
             alias=copied_dict["alias"],
             coordinates_absolute=copied_dict["coordinates_absolute"],
         )
-
-        # Set the relative coordinates correctly
-        setattr(
-            instantiated,
-            "coordinates_relative_cartesian",
-            copied_dict["coordinates_relative_cartesian"],
-        )
-        setattr(
-            instantiated,
-            "coordinates_relative_polar",
-            copied_dict["coordinates_relative_polar"],
-        )
-
-        return instantiated
 
 
 class WorldState:
@@ -406,7 +390,7 @@ class WorldState:
         #  We have to clear sources out regardless of number of emitters because it is possible that, if we have
         #  removed an event (e.g. `Scene.remove_event(...)`), we'll "orphan" some sources otherwise
         self.ctx.clear_sources()
-        if len(self.emitters) > 0:
+        if self.num_emitters > 0:
             emitter_counter = 0
             for emitter_alias, emitter_list in self.emitters.items():
                 for emitter in emitter_list:
@@ -1038,10 +1022,10 @@ class WorldState:
                 continue
             # Successfully placed: add to the emitter dictionary and return True
             #  We will update the `coordinates_relative` objects in the `update_state` decorator
-            emitter = Emitter(alias=alias, coordinates_absolute=np.asarray(pos))
+            emitter = Emitter(
+                alias=alias, coordinates_absolute=utils.sanitise_coordinates(pos)
+            )
             # Add the emitter to the list created for this alias, or create the list if it doesn't exist
-            # TODO: we create a list of emitters for both static and moving sound sources
-            #  when moving, len(emitters) > 1, when static, len(emitters) == 1
             if alias in self.emitters:
                 self.emitters[alias].append(emitter)
             else:
@@ -1321,11 +1305,9 @@ class WorldState:
                         f"Consider reducing `empty_space_around` arguments."
                     )
 
-                # Raise the error if required or just log a warning and skip to the next emitter
+                # Raise the error if required
                 if raise_on_error:
                     raise ValueError(msg)
-                else:
-                    logger.warning(msg)
 
     def get_valid_position_with_max_distance(
         self,
@@ -1430,7 +1412,7 @@ class WorldState:
         # Validate all positions in the trajectory WRT the rest of the mesh
         return self._validate_position(trajectory)
 
-    @utils.timer("define trajectory")
+    # @utils.timer("define trajectory")
     def define_trajectory(
         self,
         duration: utils.Numeric,
@@ -1571,12 +1553,42 @@ class WorldState:
             f"- Decreasing `max_distance` (currently {max_distance:.3f})"
         )
 
+    @utils.update_state
+    def _add_emitters_without_validating(
+        self,
+        emitters: Union[list, np.ndarray],
+        alias: Optional[str],
+    ) -> None:
+        """
+        Adds emitters from a list **without checking** that they are valid.
+
+        These emitters are assumed to be *pre-validated* (i.e., from a call to `_validate_position`), and thus no
+        additional checks are performed on them here to ensure (for instance) that they are located in the mesh,
+        that they are an acceptable distance away from each other, etc.
+
+        This function is useful when adding emitters for every step in a trajectory created using `define_trajectory`:
+        these individual steps may be very close to each other, and would thus be rejected when calling
+        `_try_add_emitter`.
+        """
+        alias = (
+            utils.get_default_alias("src", self.emitters) if alias is None else alias
+        )
+
+        for coord in emitters:
+            emitter = Emitter(
+                alias=alias, coordinates_absolute=utils.sanitise_coordinates(coord)
+            )
+            if alias in self.emitters:
+                self.emitters[alias].append(emitter)
+            else:
+                self.emitters[alias] = [emitter]
+
     def _simulation_sanity_check(self) -> None:
         """
         Check conditions required for simulation are met
         """
         assert (
-            len(self.emitters) > 0
+            self.num_emitters > 0
         ), "Must have added valid emitters to the mesh before calling `.simulate`!"
         assert (
             len(self.microphones) > 0
@@ -1608,6 +1620,9 @@ class WorldState:
         # Clear out any existing IRs
         self._irs = None
         # Run the simulation
+        logger.info(
+            f"Starting simulation with {self.num_emitters} emitters, {len(self.microphones)} microphones"
+        )
         self.ctx.simulate()
         efficiency = self.ctx.get_indirect_ray_efficiency()
         # Log the ray efficiency: outdoor would have a very low value, e.g. < 0.05.
@@ -1753,9 +1768,18 @@ class WorldState:
         """
         Returns metadata for this object as a dictionary
         """
+
+        def coerce(inp):
+            if isinstance(inp, dict):
+                return {k: coerce(v) for k, v in inp.items()} if inp else None
+            elif isinstance(inp, np.ndarray):
+                return inp.tolist()
+            else:
+                return inp
+
         return dict(
             emitters={
-                s_alias: [s_.to_dict() for s_ in s]
+                s_alias: [coerce(s_.coordinates_absolute) for s_ in s]
                 for s_alias, s in self.emitters.items()
             },
             microphones={
@@ -1814,7 +1838,7 @@ class WorldState:
         )
         state.emitters = OrderedDict(
             {
-                a: [Emitter.from_dict(v_) for v_ in v]
+                a: [Emitter(alias=a, coordinates_absolute=v_) for v_ in v]
                 for a, v in input_dict["emitters"].items()
             }
         )
@@ -1824,11 +1848,21 @@ class WorldState:
 
         return state
 
+    @property
+    def num_emitters(self) -> int:
+        """
+        Returns the number of emitters in the state.
+
+        Note that this is not the same as calling `len(self.emitters)`: the total number of emitters is equivalent
+        to the length of ALL lists inside this dictionary
+        """
+        return sum(len(v) for v in self.emitters.values())
+
     def __len__(self) -> int:
         """
         Returns the number of objects in the mesh (i.e., number of microphones + emitters)
         """
-        return len(self.microphones) + len(self.emitters)
+        return len(self.microphones) + self.num_emitters
 
     def __str__(self) -> str:
         """
@@ -1836,7 +1870,7 @@ class WorldState:
         """
         return (
             f"'WorldState' with mesh '{self.mesh.metadata['fpath']}' and "
-            f"{len(self)} objects ({len(self.microphones)} microphones, {len(self.emitters)} emitters)"
+            f"{len(self)} objects ({len(self.microphones)} microphones, {self.num_emitters} emitters)"
         )
 
     def __repr__(self) -> str:

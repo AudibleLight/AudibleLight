@@ -32,6 +32,9 @@ DCASE_SOUND_EVENT_CLASSES = {
 }
 _DCASE_SOUND_EVENT_CLASSES_INV = {v: k for v, k in DCASE_SOUND_EVENT_CLASSES.items()}
 
+# If no duration override passed in, this will be the maximum duration for an event
+MAX_DEFAULT_DURATION = 10
+
 
 def _infer_dcase_class_id_labels(
     class_id: Optional[int], class_label: Optional[str]
@@ -206,8 +209,13 @@ class Event:
         """
         Returns a string representation of the scene
         """
-        loaded = "loaded" if self.is_moving else "unloaded"
-        return f"'Event' with alias '{self.alias}' and audio file '{self.filepath}' (currently {loaded})."
+        loaded = "loaded" if self.is_audio_loaded else "unloaded"
+        moving = "Moving" if self.is_moving else "Static"
+        emits = "no " if self.emitters is None else len(self)
+        return (
+            f"{moving} 'Event' with alias '{self.alias}',"
+            f" audio file '{self.filepath}' ({loaded}), and {emits} emitters."
+        )
 
     def __repr__(self) -> str:
         """
@@ -271,9 +279,12 @@ class Event:
         """
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
-    @staticmethod
+    # noinspection PyUnreachableCode
     def _parse_emitters(
-        emitters: Union[Emitter, list[Emitter], list[dict]]
+        self,
+        emitters: Union[
+            Emitter, list[Emitter], list[dict], list[list], list[np.ndarray]
+        ],
     ) -> list[Emitter]:
         """
         Safely handle coercing objects to a list of `Emitter`s
@@ -291,13 +302,24 @@ class Event:
                 emitters: list[dict]
                 return [Emitter.from_dict(dic) for dic in emitters]
 
-            elif not all(isinstance(em, Emitter) for em in emitters):
+            # Parse list of emitters
+            elif all(isinstance(em, Emitter) for em in emitters):
+                return emitters
+
+            # Parse list of arrays or lists by creating new emitter objects with the same values
+            elif all(isinstance(em, (np.ndarray, list)) for em in emitters):
+                return [
+                    Emitter(
+                        alias=self.alias,
+                        coordinates_absolute=utils.sanitise_coordinates(em),
+                    )
+                    for em in emitters
+                ]
+
+            else:
                 raise TypeError(
                     "Cannot parse emitter with type {}".format(type(emitters[0]))
                 )
-
-            else:
-                return emitters
 
         else:
             raise TypeError("Cannot parse emitters with type {}".format(type(emitters)))
@@ -324,7 +346,10 @@ class Event:
         Safely handle getting the duration of an audio file, with an optional override.
         """
         # If we haven't passed in an override, just use the full duration of the audio, minus the offset
+        #  Set a cap so that long audio is truncated e.g. to 10 seconds
         if duration is None:
+            # TODO: think about using a constant value here
+            #  So, e.g., music sound events get truncated to 10 seconds
             return utils.sanitise_positive_number(
                 self.audio_full_duration - self.event_start
             )
@@ -398,6 +423,7 @@ class Event:
             filepath=str(self.filepath),
             class_id=self.class_id,
             class_label=self.class_label,
+            is_moving=self.is_moving,
             # Audio stuff
             scene_start=self.scene_start,
             scene_end=self.scene_end,
@@ -407,20 +433,13 @@ class Event:
             snr=self.snr,
             sample_rate=self.sample_rate,
             # Spatial stuff (inherited from Emitter objects)
-            spatial_resolution=self.spatial_resolution,
-            spatial_velocity=self.spatial_velocity,
-            start_coordinates=dict(
-                absolute=coerce(self.start_coordinates_absolute),
-                relative_cartesian=coerce(self.start_coordinates_relative_cartesian),
-                relative_polar=coerce(self.start_coordinates_relative_polar),
-            ),
-            end_coordinates=dict(
-                absolute=coerce(self.end_coordinates_absolute),
-                relative_cartesian=coerce(self.end_coordinates_relative_cartesian),
-                relative_polar=coerce(self.end_coordinates_relative_polar),
-            ),
+            spatial_resolution=self.spatial_resolution if self.is_moving else None,
+            spatial_velocity=self.spatial_velocity if self.is_moving else None,
+            start_coordinates=coerce(self.start_coordinates_absolute),
+            end_coordinates=coerce(self.end_coordinates_absolute),
+            num_emitters=len(self.emitters),
             # Include the actual emitters as well, to enable unserialisation
-            emitters=[v.to_dict() for v in self.emitters],
+            emitters=[coerce(v.coordinates_absolute) for v in self.emitters],
         )
 
     @classmethod

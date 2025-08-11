@@ -78,12 +78,6 @@ class Scene:
         #  Events can start any time within the duration of the scene, minus some padding
         if scene_start_dist is None:
             scene_start_dist = stats.uniform(0.0, self.duration - 1)
-        #  Events can start any time up to 5 seconds through their duration
-        if event_start_dist is None:
-            event_start_dist = stats.uniform(0.0, 5.0)
-        #  Events can last between 0 and 10 seconds
-        if event_duration_dist is None:
-            event_duration_dist = stats.uniform(0.0, 10.0)
         #  Events move between 0.25 and 2.0 metres per second
         if event_velocity_dist is None:
             event_velocity_dist = stats.uniform(0.25, 2.0)
@@ -93,6 +87,10 @@ class Scene:
         #  Events have an SNR with a mean of 5, SD of 1, and boundary between 2 and 8
         if snr_dist is None:
             snr_dist = stats.truncnorm(a=-3, b=3, loc=5, scale=1)
+
+        # No distribution for `event_start` and `event_distribution`
+        #  Unless a distribution is passed, we default to using the full duration of the audio (capped at 10 seconds)
+        #  and starting the audio at 0.0 seconds
 
         # Distributions: these function sanitise the distributions so that they are either `None` or an object
         #  with the `rvs` method. When called, the `rvs` method will return a random variate sampled from the
@@ -167,7 +165,7 @@ class Scene:
         """
         return (
             f"'Scene' with mesh '{self.state.mesh.metadata['fpath']}': "
-            f"{len(self)} events, {len(self.state.microphones)} microphones, {len(self.state.emitters)} emitters."
+            f"{len(self)} events, {len(self.state.microphones)} microphones, {self.state.num_emitters} emitters."
         )
 
     def __repr__(self) -> str:
@@ -337,17 +335,28 @@ class Scene:
             # Copy once per attempt
             current_kws = event_kwargs.copy()
 
+            # If we haven't passed in a duration override OR a distribution, default to using the full audio duration
+            if overrides["duration"] is None and self.event_duration_dist is None:
+                current_kws["duration"] = None
+            # Otherwise, try and sample from the distribution or use the override
+            else:
+                current_kws["duration"] = utils.sample_distribution(
+                    self.event_duration_dist, overrides["duration"]
+                )
+
+            # Do the same for event start time
+            if overrides["event_start"] is None and self.event_start_dist is None:
+                current_kws["event_start"] = None
+            else:
+                current_kws["event_start"] = utils.sample_distribution(
+                    self.event_start_dist, overrides["event_start"]
+                )
+
             # Sample values (with fallback to override if provided)
             current_kws.update(
                 {
                     "scene_start": utils.sample_distribution(
                         self.scene_start_dist, overrides["scene_start"]
-                    ),
-                    "event_start": utils.sample_distribution(
-                        self.event_start_dist, overrides["event_start"]
-                    ),
-                    "duration": utils.sample_distribution(
-                        self.event_duration_dist, overrides["duration"]
                     ),
                     "snr": utils.sample_distribution(self.snr_dist, overrides["snr"]),
                     "spatial_velocity": utils.sample_distribution(
@@ -359,15 +368,17 @@ class Scene:
                 }
             )
 
+            # Create the event with the current keywords
+            current_event = Event(**current_kws)
+
             # Reject this attempt if overlap would be exceeded
             if self._would_exceed_temporal_overlap(
-                current_kws["scene_start"], current_kws["duration"]
+                current_event.scene_start, current_event.duration
             ):
                 continue
 
-            # Attempt to create and store the event
-            #  We'll register the emitters later in the function
-            self.events[alias] = Event(**current_kws)
+            # Store the event: we'll register the emitters later in the function
+            self.events[alias] = current_event
             return True
 
         return False
@@ -478,6 +489,9 @@ class Scene:
                 f"Cannot parse event type {event_type}, expected either 'static' or 'moving'!"
             )
 
+        ev = self.get_event(alias)
+        logger.info(f"Event added successfully: {ev}")
+
     def add_event_static(
         self,
         filepath: Union[str, Path],
@@ -518,6 +532,7 @@ class Scene:
         emitters = self.state.get_emitters(alias)
         self.get_event(alias).register_emitters(emitters)
 
+    # noinspection PyProtectedMember
     def add_event_moving(
         self,
         filepath: Union[str, Path],
@@ -558,23 +573,19 @@ class Scene:
         # Define the trajectory
         trajectory = self.state.define_trajectory(**emitter_kwargs)
 
-        # Tile the number of aliases so we have one for every emitter we want to create
-        aliases_tiled = [alias for _ in range(len(trajectory))]
-
         # Add the emitters to the state with the desired aliases
-        #  We do not want to raise errors here. This is because the positions in the trajectory
-        #  have "pre-validated" during define_trajectory, and
-        # TODO: sort out how kwargs are handled here
-        self.state.add_emitters(
-            positions=trajectory,
-            aliases=aliases_tiled,
-            polar=False,
-            raise_on_error=False,
-            keep_existing=True,
-        )
+        #  This just adds the emitters in a loop with no additional checks
+        #  We already perform these checks inside `define_trajectory`.
+        self.state._add_emitters_without_validating(trajectory, alias)
 
         # Grab the emitters we just created and register them with the event
         emitters = self.state.get_emitters(alias)
+        if len(emitters) != len(trajectory):
+            raise ValueError(
+                f"Did not add expected number of emitters into the WorldState "
+                f"(expected {len(trajectory)}, got {len(emitters)})"
+            )
+
         event.register_emitters(emitters)
 
     def _would_exceed_temporal_overlap(
@@ -615,12 +626,10 @@ class Scene:
             validate_scene,
         )
 
-        # Simulate the IRs for the state
-        self.state.simulate()
-
         # Render all the audio
-        #  This populates the `.spatial_audio` attribute inside each Event
-        #  It also populates the `audio` attribute inside this instance
+        #  This renders the IRs inside the worldstate
+        #  It then populates the `.spatial_audio` attribute inside each Event
+        #  And populates the `audio` attribute inside this instance
         validate_scene(self)
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)

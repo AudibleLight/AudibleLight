@@ -76,28 +76,12 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
     #  and audio[n_samples] may not equal ir[n_samples]
     audio = np.expand_dims(audio, 1)
 
-    # Get all the shapes
-    n_audio_samples, n_audio_channels = audio.shape
-    n_ir_samples, n_ir_channels = ir.shape
-
-    # Pad out the IR signal if it is shorter than the audio, and raise a warning
-    if n_ir_samples < n_audio_samples:
-        logger.warning(
-            f"IR has fewer samples than audio (IR: {n_ir_samples}, audio: {n_audio_samples}). "
-            f"IR will be right-padded with zeros to match audio length!"
-        )
-        ir = np.pad(
-            ir,
-            ((0, n_audio_samples - n_ir_samples), (0, 0)),
-            mode="constant",
-            constant_values=0,
-        )
-
     # Perform the convolution using FFT method
-    #  the output shape will be (n_ir_samples, n_ir_channels)
+    #  the output shape will be ((n_ir_samples + n_audio_samples) - 1, n_ir_channels)
+    #  we will truncate to match the expected number of samples later
     convolve: np.ndarray = signal.fftconvolve(audio, ir, mode="full", axes=0)
 
-    # Transpose so we get (n_channels, n_samples)
+    # Transpose so we get (channels, samples)
     return convolve.T
 
 
@@ -522,9 +506,7 @@ def render_audio_for_all_scene_events(
 
         # Grab the IRs for the current event's emitters
         #  This gets us (N_capsules, N_emitters, N_samples)
-        event_irs = irs[
-            :, emitter_counter : len(event.emitters) + emitter_counter, 0, :
-        ]
+        event_irs = irs[:, emitter_counter : len(event) + emitter_counter, 0, :]
 
         # Render the audio for the event
         #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
@@ -533,7 +515,7 @@ def render_audio_for_all_scene_events(
         )
 
         # Update the counter
-        emitter_counter += len(event.emitters)
+        emitter_counter += len(event)
 
     logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds.!")
 
@@ -547,7 +529,7 @@ def validate_scene(scene: Scene) -> None:
         None
     """
     # Validate WorldState
-    if len(scene.state.emitters) == 0:
+    if scene.state.num_emitters == 0:
         raise ValueError("WorldState has no emitters!")
     if len(scene.state.microphones) == 0:
         raise ValueError("WorldState has no microphones!")
@@ -567,15 +549,13 @@ def validate_scene(scene: Scene) -> None:
         sum(
             len(ev) for ev in scene.events.values()
         ),  # sums number of emitters for every event
-        sum(
-            len(em) for em in scene.state.emitters.values()
-        ),  # sums number of emitters in total for the scene
+        scene.state.num_emitters,
         scene.state.ctx.get_source_count(),
     )
     if not all(v == vals[0] for v in vals):
         raise ValueError(
             f"Mismatching number of emitters, events, and sources! "
-            f"Got {len(scene.events)} events, {len(scene.state.emitters)} emitters, "
+            f"Got {len(scene.events)} events, {scene.state.num_emitters} emitters, "
             f"{scene.state.ctx.get_source_count()} sources."
         )
 
