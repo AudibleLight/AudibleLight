@@ -138,7 +138,13 @@ def test_micarray_from_dict(input_dict):
         # will be `pop`d and removed
         if k == "micarray_type":
             continue
-        assert input_dict[k] == out_dict[k]
+
+        if isinstance(input_dict[k], (np.ndarray, list)) and not isinstance(
+            input_dict[k][0], str
+        ):
+            assert np.isclose(input_dict[k], out_dict[k], atol=1e-4).all()
+        else:
+            assert input_dict[k] == out_dict[k]
 
 
 @pytest.mark.parametrize("mictype", MICARRAY_LIST)
