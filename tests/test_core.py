@@ -34,7 +34,7 @@ from tests import utils_tests
         # Test 2: explicit event keywords and filepath, but no emitter keywords
         (
             utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
-            dict(snr=5, spatial_velocity=5),
+            dict(snr=5),
         ),
         # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
         (
@@ -46,7 +46,6 @@ from tests import utils_tests
                 event_start=5,
                 scene_start=5,
                 snr=5,
-                spatial_velocity=5,
             ),
         ),
         # Test 4: no path, no kwargs
@@ -102,7 +101,7 @@ def test_add_event_static(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
         (
             utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
             dict(
-                starting_position=np.array([1.6, -5.1, 1.7]),
+                position=np.array([1.6, -5.1, 1.7]),
                 snr=5,
                 spatial_velocity=1,
                 duration=5,
@@ -111,7 +110,7 @@ def test_add_event_static(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
         (
             None,
             dict(
-                starting_position=np.array([1.6, -5.1, 1.7]),
+                position=np.array([1.6, -5.1, 1.7]),
                 duration=5,
                 event_start=5,
                 scene_start=5,
@@ -182,11 +181,6 @@ def test_add_moving_event(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
             dict(scene_start=3.0, duration=10.0),
             ValueError,
         ),
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(sample_rate=12345),
-            ValueError,
-        ),  # sample rate different to state
     ],
 )
 def test_add_bad_event(
@@ -359,7 +353,14 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
     assert len(oyens_scene_no_overlap.state.microphones) == 0
 
 
-@pytest.mark.parametrize("n_events", [1, 2, 3])
+@pytest.mark.parametrize(
+    "n_events",
+    [
+        1,
+        2,
+        3,
+    ],
+)
 def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):

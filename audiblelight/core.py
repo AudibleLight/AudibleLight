@@ -318,7 +318,8 @@ class Scene:
 
         # Use only 1 placement attempt if all overrides are present
         has_overrides = all(
-            k in event_kwargs for k in ("scene_start", "event_start", "duration")
+            k is not None in event_kwargs
+            for k in ("scene_start", "event_start", "duration")
         )
         max_place_attempts = utils.MAX_PLACE_ATTEMPTS if not has_overrides else 1
 
@@ -417,7 +418,7 @@ class Scene:
         shape: Optional[str] = None,
         spatial_resolution: Optional[utils.Numeric] = None,
         spatial_velocity: Optional[utils.Numeric] = None,
-    ) -> None:
+    ) -> Event:
         """
         Add an event to the foreground, either "static" or "moving"
 
@@ -453,6 +454,9 @@ class Scene:
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
 
+        Returns:
+            the Event object added to the Scene
+
         Examples:
             Creating an event with a predefined position
             >>> scene = Scene(...)
@@ -479,7 +483,7 @@ class Scene:
 
         # Call the requisite function to add the event
         if event_type == "static":
-            self.add_event_static(
+            event = self.add_event_static(
                 filepath=filepath,
                 alias=alias,
                 position=position,
@@ -495,7 +499,7 @@ class Scene:
             )
 
         elif event_type == "moving":
-            self.add_event_moving(
+            event = self.add_event_moving(
                 filepath=filepath,
                 alias=alias,
                 position=position,
@@ -516,8 +520,7 @@ class Scene:
             )
 
         # Log the creation of the event
-        ev = self.get_event(alias)
-        logger.info(f"Event added successfully: {ev}")
+        logger.info(f"Event added successfully: {event}")
 
     def add_event_static(
         self,
@@ -533,7 +536,7 @@ class Scene:
         snr: Optional[utils.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-    ) -> None:
+    ) -> Event:
         """
         Add a static event to the foreground with optional overrides.
 
@@ -564,6 +567,9 @@ class Scene:
                 If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
                 If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+
+        Returns:
+            the Event object added to the Scene
         """
         # Get a default alias and a random filepath if these haven't been provided
         alias = (
@@ -620,7 +626,10 @@ class Scene:
 
         # Get emitters from internal state and register them with the event
         emitters = self.state.get_emitters(alias)
-        self.get_event(alias).register_emitters(emitters)
+        event = self.get_event(alias)
+        event.register_emitters(emitters)
+
+        return event
 
     # noinspection PyProtectedMember
     def add_event_moving(
@@ -637,7 +646,7 @@ class Scene:
         class_label: Optional[str] = None,
         spatial_resolution: Optional[utils.Numeric] = None,
         spatial_velocity: Optional[utils.Numeric] = None,
-    ):
+    ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
 
@@ -663,6 +672,9 @@ class Scene:
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
+
+        Returns:
+            the Event object added to the Scene
         """
         # Get a default alias and a random filepath if these haven't been provided
         alias = (
@@ -732,6 +744,8 @@ class Scene:
                 f"(expected {len(trajectory)}, got {len(emitters)})"
             )
         event.register_emitters(emitters)
+
+        return event
 
     def _would_exceed_temporal_overlap(
         self, new_event_start: float, new_event_duration: float
