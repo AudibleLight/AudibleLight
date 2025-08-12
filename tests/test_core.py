@@ -52,6 +52,14 @@ from tests import utils_tests
     ],
 )
 def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
+    # Clear out the randomly-added mic and add one in a specific position (for reproducibility)
+    #  This is necessary because in the final test, we assume a polar position WRT the mic
+    #  But if the mic is placed randomly, this polar position can sometimes be invalid
+    is_polar = kwargs.get("polar", False)
+    if is_polar:
+        oyens_scene_no_overlap.clear_microphones()
+        oyens_scene_no_overlap.add_microphone(alias="mic000", position=[2.5, -1.0, 1.0])
+
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(event_type="static", alias="test_event", **kwargs)
@@ -67,7 +75,6 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     desired_position = kwargs.get("position", None)
-    is_polar = kwargs.get("polar", False)
 
     if desired_position is not None:
         # Non-polar positions, can just check directly
@@ -147,6 +154,14 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
     ],
 )
 def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
+    # Clear out the randomly-added mic and add one in a specific position (for reproducibility)
+    #  This is necessary because in the final test, we assume a polar position WRT the mic
+    #  But if the mic is placed randomly, this polar position can sometimes be invalid
+    is_polar = kwargs.get("polar", False)
+    if is_polar:
+        oyens_scene_no_overlap.clear_microphones()
+        oyens_scene_no_overlap.add_microphone(alias="mic000", position=[2.5, -1.0, 1.0])
+
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(event_type="moving", alias="test_event", **kwargs)
@@ -163,7 +178,6 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     desired_position = kwargs.get("position", None)
-    is_polar = kwargs.get("polar", False)
 
     if desired_position is not None:
         # Non-polar positions, can just check directly
