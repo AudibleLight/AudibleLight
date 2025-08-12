@@ -18,46 +18,43 @@ from tests import utils_tests
 
 
 @pytest.mark.parametrize(
-    "filepath,kwargs",
+    "kwargs",
     [
         # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(
-                position=np.array([-0.5, -0.5, 0.5]),
-                polar=False,
-                duration=5,
-                event_start=5,
-                scene_start=5,
-            ),
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
+            position=np.array([-0.5, -0.5, 0.5]),
+            polar=False,
+            duration=5,
+            event_start=5,
+            scene_start=5,
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
-            dict(snr=5),
-        ),
+        dict(filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3", snr=5),
         # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
-        (
-            None,
-            dict(
-                position=np.array([-0.5, -0.5, 0.5]),
-                polar=False,
-                duration=5,
-                event_start=5,
-                scene_start=5,
-                snr=5,
-            ),
+        dict(
+            position=np.array([-0.5, -0.5, 0.5]),
+            polar=False,
+            duration=5,
+            event_start=5,
+            scene_start=5,
+            snr=5,
         ),
-        # Test 4: no path, no kwargs
-        (None, dict()),
+        # Test 4: no kwargs
+        dict(),
+        # Test 5: polar position
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+            polar=True,
+            position=[90, 0.0, 0.5],
+            scene_start=0.0,
+        ),
     ],
 )
-def test_add_event_static(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
+def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
-    oyens_scene_no_overlap.add_event(
-        event_type="static", filepath=filepath, alias="test_event", **kwargs
-    )
+    oyens_scene_no_overlap.add_event(event_type="static", alias="test_event", **kwargs)
     # Should be added to ray-tracing engine
     assert oyens_scene_no_overlap.state.ctx.get_source_count() == 1
 
@@ -70,13 +67,31 @@ def test_add_event_static(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     desired_position = kwargs.get("position", None)
+    is_polar = kwargs.get("polar", False)
+
     if desired_position is not None:
-        assert np.array_equal(desired_position, ev.start_coordinates_absolute)
+        # Non-polar positions, can just check directly
+        if not is_polar:
+            assert np.array_equal(desired_position, ev.start_coordinates_absolute)
+
+        # Polar positions, a bit more complicated as they're silently converted to polar
+        if is_polar:
+            cart_pos = utils.polar_to_cartesian(desired_position)[0]
+            true_pos = (
+                oyens_scene_no_overlap.get_microphone("mic000").coordinates_center
+                + cart_pos
+            )
+            assert np.array_equal(true_pos, ev.start_coordinates_absolute)
+
+            # Also check that we've maintained the correct polar position
+            assert np.array_equal(
+                desired_position, ev.to_dict()["emitters_relative"]["mic000"][0]
+            )
 
     # Check all overrides passed correctly to the event class
     #  When we're using a random file, we cannot check these variables as they might have changed
     #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
-    if filepath is not None:
+    if kwargs.get("filepath") is not None:
         for override_key, override_val in kwargs.items():
             if hasattr(ev, override_key):
                 assert getattr(ev, override_key) == override_val
@@ -91,42 +106,50 @@ def test_add_event_static(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
 
 
 @pytest.mark.parametrize(
-    "filepath,kwargs",
+    "kwargs",
     [
-        # Predefine a starting position for speedups
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(duration=5, event_start=5, scene_start=5),
+        dict(
+            duration=5,
+            event_start=5,
+            scene_start=5,
+            shape="circular",
+            filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
         ),
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
-            dict(
-                position=np.array([1.6, -5.1, 1.7]),
-                snr=5,
-                spatial_velocity=1,
-                duration=5,
-            ),
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
+            position=np.array([1.6, -5.1, 1.7]),
+            snr=5,
+            spatial_velocity=1,
+            shape="random",
+            duration=5,
         ),
-        (
-            None,
-            dict(
-                position=np.array([1.6, -5.1, 1.7]),
-                duration=5,
-                event_start=5,
-                scene_start=5,
-                snr=5,
-                spatial_velocity=1,
-                spatial_resolution=2,
-            ),
+        dict(
+            position=np.array([1.6, -5.1, 1.7]),
+            duration=5,
+            event_start=5,
+            scene_start=5,
+            snr=5,
+            shape="linear",
+            spatial_velocity=1,
+            spatial_resolution=2,
+        ),
+        # Test with a polar starting position
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            polar=True,
+            position=[0.0, 90.0, 1.0],
+            shape="linear",
+            scene_start=5.0,  # start five seconds in
+            spatial_resolution=1.5,
+            spatial_velocity=1.0,
+            duration=2,
         ),
     ],
 )
-def test_add_moving_event(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
+def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
-    oyens_scene_no_overlap.add_event(
-        event_type="moving", filepath=filepath, alias="test_event", **kwargs
-    )
+    oyens_scene_no_overlap.add_event(event_type="moving", alias="test_event", **kwargs)
 
     # Should have added exactly one event
     assert len(oyens_scene_no_overlap.events) == 1
@@ -138,13 +161,36 @@ def test_add_moving_event(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
     assert ev.has_emitters
     assert len(ev) >= 2
 
+    # If we've passed in a custom position for the emitter, ensure that this is set correctly
+    desired_position = kwargs.get("position", None)
+    is_polar = kwargs.get("polar", False)
+
+    if desired_position is not None:
+        # Non-polar positions, can just check directly
+        if not is_polar:
+            assert np.array_equal(desired_position, ev.start_coordinates_absolute)
+
+        # Polar positions, a bit more complicated as they're silently converted to polar
+        if is_polar:
+            cart_pos = utils.polar_to_cartesian(desired_position)[0]
+            true_pos = (
+                oyens_scene_no_overlap.get_microphone("mic000").coordinates_center
+                + cart_pos
+            )
+            assert np.array_equal(true_pos, ev.start_coordinates_absolute)
+
+            # Also check that we've maintained the correct polar position
+            assert np.array_equal(
+                desired_position, ev.to_dict()["emitters_relative"]["mic000"][0]
+            )
+
     # Should have correct number of sources added to the ray-tracing engine
     assert oyens_scene_no_overlap.state.ctx.get_source_count() == len(ev)
 
     # Check all overrides passed correctly to the event class
     #  When we're using a random file, we cannot check these variables as they might have changed
     #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
-    if filepath is not None:
+    if kwargs.get("filepath") is not None:
         for override_key, override_val in kwargs.items():
             if hasattr(ev, override_key):
                 assert getattr(ev, override_key) == override_val

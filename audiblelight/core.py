@@ -400,6 +400,35 @@ class Scene:
             raise FileNotFoundError("No audio files found!")
         return utils.sanitise_filepath(random.choice(audios))
 
+    def _coerce_polar_position(
+        self,
+        position: Optional[Union[list, np.ndarray]] = None,
+        mic: Optional[str] = None,
+    ):
+        """
+        Coerces a polar position in form [azimuth, elevation, radius] to absolute Cartesian coordinates
+        """
+        # If we haven't passed a microphone alias
+        if mic is None:
+            # In cases where we only have one microphone, just use this
+            if len(self.state.microphones) == 1:
+                mic = list(self.state.microphones.keys())[0]
+            else:
+                raise ValueError(
+                    "Must pass a microphone alias when `polar` is True and more than one microphone "
+                    "has been added to the Scene"
+                )
+
+        # If we haven't passed a position
+        if position is None:
+            raise ValueError("Must pass a position when `polar` is True")
+
+        # Grab the center position of the mic and add the offset
+        return (
+            self.state.get_microphone(mic).coordinates_center
+            + utils.polar_to_cartesian(position)
+        )[0]
+
     def add_event(
         self,
         event_type: Optional[str] = "static",
@@ -433,7 +462,7 @@ class Scene:
                 When not provided, a random point inside the mesh will be chosen.
             mic: String reference to a microphone inside `self.state.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
-            polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
+            polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
                 units are [x, y, z] in absolute, cartesian terms.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
@@ -480,7 +509,6 @@ class Scene:
             ...     snr=0.0,
             ... )
         """
-
         # Call the requisite function to add the event
         if event_type == "static":
             event = self.add_event_static(
@@ -503,6 +531,8 @@ class Scene:
                 filepath=filepath,
                 alias=alias,
                 position=position,
+                polar=polar,
+                mic=mic,
                 shape=shape,
                 scene_start=scene_start,
                 event_start=event_start,
@@ -551,7 +581,7 @@ class Scene:
                 When not provided, a random point inside the mesh will be chosen.
             mic: String reference to a microphone inside `self.state.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
-            polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
+            polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
                 units are [x, y, z] in absolute, cartesian terms.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
@@ -582,12 +612,15 @@ class Scene:
             else utils.sanitise_filepath(filepath)
         )
 
+        # Convert polar positions to cartesian here
+        if polar:
+            position = self._coerce_polar_position(position, mic)
+
         # Construct kwargs dictionary for emitter and event
         emitter_kwargs = dict(
             position=position,
             alias=alias,
             mic=mic,
-            polar=polar,
             ensure_direct_path=ensure_direct_path,
             keep_existing=True,
         )
@@ -644,6 +677,8 @@ class Scene:
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
         position: Optional[Union[list, np.ndarray]] = None,
+        mic: Optional[str] = None,
+        polar: Optional[bool] = False,
         shape: Optional[str] = None,
         scene_start: Optional[utils.Numeric] = None,
         event_start: Optional[utils.Numeric] = None,
@@ -665,6 +700,10 @@ class Scene:
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
                 When not provided, a random point inside the mesh will be chosen.
+            mic: String reference to a microphone inside `self.state.microphones`;
+                when provided, `position` is interpreted as RELATIVE to the center of this microphone
+            polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
+                units are [x, y, z] in absolute, cartesian terms.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
                 If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
@@ -683,6 +722,10 @@ class Scene:
         Returns:
             the Event object added to the Scene
         """
+        # Convert polar positions to cartesian here
+        if polar:
+            position = self._coerce_polar_position(position, mic)
+
         # Get a default alias and a random filepath if these haven't been provided
         alias = (
             utils.get_default_alias("event", self.events) if alias is None else alias
