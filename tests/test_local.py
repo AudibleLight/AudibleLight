@@ -39,7 +39,9 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
     # Add the desired microphone type and number of events
     sc.add_microphone(microphone_type=mic_type)
     for i in range(n_events):
-        sc.add_event(event_type="static", emitter_kwargs=dict(keep_existing=True))
+        sc.add_event(
+            event_type="static",
+        )
     # Generate everything and check the files exist
     sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")
     for path in ["audio_out.wav", "metadata_out.json"]:

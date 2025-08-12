@@ -88,9 +88,7 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
     oyens_scene_no_overlap.clear_events()
     # Add static sources in
     for n_event in range(n_events):
-        oyens_scene_no_overlap.add_event(
-            event_type="static", emitter_kwargs=dict(keep_existing=True)
-        )
+        oyens_scene_no_overlap.add_event(event_type="static")
 
     syn.validate_scene(oyens_scene_no_overlap)
     init_time = time()
@@ -132,7 +130,9 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
             filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             # Use predefined kwargs so rendering doesn't take ages
             event_type="moving",
-            event_kwargs=dict(spatial_resolution=2, duration=1, spatial_velocity=1),
+            spatial_resolution=2,
+            duration=1,
+            spatial_velocity=1,
         )
 
     syn.validate_scene(oyens_scene_no_overlap)
@@ -163,12 +163,14 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
     # Add both N static and N moving events
     for n_event in range(n_events):
         oyens_scene_no_overlap.add_event(
-            event_type="static", emitter_kwargs=dict(keep_existing=True)
+            event_type="static",
         )
         # Predefined kwargs so rendering doesn't take ages
         oyens_scene_no_overlap.add_event(
             event_type="moving",
-            event_kwargs=dict(spatial_resolution=2, duration=1, spatial_velocity=1),
+            spatial_resolution=2,
+            duration=1,
+            spatial_velocity=1,
         )
 
     # Add some ambience: white noise, mono audio, multichannel audio

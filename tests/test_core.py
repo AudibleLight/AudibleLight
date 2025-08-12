@@ -18,7 +18,7 @@ from tests import utils_tests
 
 
 @pytest.mark.parametrize(
-    "filepath,emitter_kws,event_kws",
+    "filepath,kwargs",
     [
         # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
         (
@@ -26,14 +26,14 @@ from tests import utils_tests
             dict(
                 position=np.array([-0.5, -0.5, 0.5]),
                 polar=False,
-                ensure_direct_path=False,
+                duration=5,
+                event_start=5,
+                scene_start=5,
             ),
-            dict(duration=5, event_start=5, scene_start=5),
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
         (
             utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
-            None,
             dict(snr=5, spatial_velocity=5),
         ),
         # Test 3: explicit event and emitter keywords, but no filepath (will be randomly sampled)
@@ -42,25 +42,22 @@ from tests import utils_tests
             dict(
                 position=np.array([-0.5, -0.5, 0.5]),
                 polar=False,
-                ensure_direct_path=False,
+                duration=5,
+                event_start=5,
+                scene_start=5,
+                snr=5,
+                spatial_velocity=5,
             ),
-            dict(duration=5, event_start=5, scene_start=5, snr=5, spatial_velocity=5),
         ),
         # Test 4: no path, no kwargs
-        (None, None, None),
+        (None, dict()),
     ],
 )
-def test_add_event_static(
-    filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap: Scene
-):
+def test_add_event_static(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
-        event_type="static",
-        filepath=filepath,
-        alias="test_event",
-        emitter_kwargs=emitter_kws,
-        event_kwargs=event_kws,
+        event_type="static", filepath=filepath, alias="test_event", **kwargs
     )
     # Should be added to ray-tracing engine
     assert oyens_scene_no_overlap.state.ctx.get_source_count() == 1
@@ -73,17 +70,17 @@ def test_add_event_static(
     assert len(ev) == 1
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
-    if isinstance(emitter_kws, dict):
-        desired_position = emitter_kws.get("position", None)
-        if desired_position is not None:
-            assert np.array_equal(desired_position, ev.start_coordinates_absolute)
+    desired_position = kwargs.get("position", None)
+    if desired_position is not None:
+        assert np.array_equal(desired_position, ev.start_coordinates_absolute)
 
     # Check all overrides passed correctly to the event class
     #  When we're using a random file, we cannot check these variables as they might have changed
     #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
-    if filepath is not None and event_kws is not None:
-        for override_key, override_val in event_kws.items():
-            assert getattr(ev, override_key) == override_val
+    if filepath is not None:
+        for override_key, override_val in kwargs.items():
+            if hasattr(ev, override_key):
+                assert getattr(ev, override_key) == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
     for attr_ in [
@@ -95,23 +92,26 @@ def test_add_event_static(
 
 
 @pytest.mark.parametrize(
-    "filepath,emitter_kws,event_kws",
+    "filepath,kwargs",
     [
         # Predefine a starting position for speedups
         (
             utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(),
             dict(duration=5, event_start=5, scene_start=5),
         ),
         (
             utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
-            dict(starting_position=np.array([1.6, -5.1, 1.7])),
-            dict(snr=5, spatial_velocity=1, duration=5),
+            dict(
+                starting_position=np.array([1.6, -5.1, 1.7]),
+                snr=5,
+                spatial_velocity=1,
+                duration=5,
+            ),
         ),
         (
             None,
-            dict(starting_position=np.array([1.6, -5.1, 1.7])),
             dict(
+                starting_position=np.array([1.6, -5.1, 1.7]),
                 duration=5,
                 event_start=5,
                 scene_start=5,
@@ -122,17 +122,11 @@ def test_add_event_static(
         ),
     ],
 )
-def test_add_moving_event(
-    filepath: str, emitter_kws, event_kws, oyens_scene_no_overlap: Scene
-):
+def test_add_moving_event(filepath: str, kwargs, oyens_scene_no_overlap: Scene):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
-        event_type="moving",
-        filepath=filepath,
-        alias="test_event",
-        emitter_kwargs=emitter_kws,
-        event_kwargs=event_kws,
+        event_type="moving", filepath=filepath, alias="test_event", **kwargs
     )
 
     # Should have added exactly one event
@@ -151,9 +145,10 @@ def test_add_moving_event(
     # Check all overrides passed correctly to the event class
     #  When we're using a random file, we cannot check these variables as they might have changed
     #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
-    if filepath is not None and event_kws is not None:
-        for override_key, override_val in event_kws.items():
-            assert getattr(ev, override_key) == override_val
+    if filepath is not None:
+        for override_key, override_val in kwargs.items():
+            if hasattr(ev, override_key):
+                assert getattr(ev, override_key) == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
     for attr_ in [
@@ -206,7 +201,7 @@ def test_add_bad_event(
         event_type="static",
         filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
         alias="dummy_event",
-        event_kwargs=dict(scene_start=5.0, duration=5.0),
+        **event_kwargs,
     )
     # Add the tester event in: should raise an error
     with pytest.raises(raises):
@@ -214,8 +209,7 @@ def test_add_bad_event(
             event_type="static",
             filepath=new_event_audio,
             alias="bad_event",
-            emitter_kwargs=dict(keep_existing=True),
-            event_kwargs=event_kwargs,
+            **event_kwargs,
         )
     # Should not be added to the dictionary
     assert len(oyens_scene_no_overlap.events) == 1
@@ -228,59 +222,8 @@ def test_add_bad_event(
             event_type="will_fail",
             filepath=new_event_audio,
             alias="bad_event",
-            emitter_kwargs=dict(keep_existing=True),
-            event_kwargs=event_kwargs,
+            **event_kwargs,
         )
-
-
-@pytest.mark.parametrize(
-    "new_event_audio,new_event_kws",
-    [
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(),
-        ),  # no custom event_start/duration, should be set automatically
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(event_start=15, duration=20),
-        ),
-        (utils_tests.SOUNDEVENT_DIR / "music/000010.mp3", dict(duration=5.0)),
-        (
-            utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            dict(scene_start=10.0, duration=5.0, event_start=5.0),
-        ),  # no overlap
-    ],
-)
-def test_add_acceptable_event(
-    new_event_audio, new_event_kws, oyens_scene_no_overlap: Scene
-):
-    """
-    Test adding an acceptable event to a scene that already has events; should not be rejected
-    """
-    # Add the dummy event in
-    oyens_scene_no_overlap.clear_events()
-    oyens_scene_no_overlap.add_event(
-        event_type="static",
-        filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
-        alias="dummy_event",
-        emitter_kwargs=dict(keep_existing=True),
-        event_kwargs=dict(scene_start=5.0, duration=5.0),
-    )
-    # Add the tester event in: should not raise any errors
-    oyens_scene_no_overlap.add_event(
-        event_type="static",
-        filepath=new_event_audio,
-        alias="good_event",
-        emitter_kwargs=dict(keep_existing=True),
-        event_kwargs=new_event_kws,
-    )
-    # Should be able to access the event class
-    assert len(oyens_scene_no_overlap.events) == 2
-    ev = oyens_scene_no_overlap.get_event("good_event")
-    assert isinstance(ev, Event)
-    assert ev.filepath == new_event_audio
-    # Should have two emitters in the ray-tracing engine
-    assert oyens_scene_no_overlap.state.ctx.get_source_count() == 2
 
 
 @pytest.mark.parametrize(
@@ -420,9 +363,7 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
 def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):
-        oyens_scene_no_overlap.add_event(
-            event_type="static", emitter_kwargs=dict(keep_existing=True)
-        )
+        oyens_scene_no_overlap.add_event(event_type="static")
 
     oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
 
@@ -893,7 +834,7 @@ def test_scene_from_dict(input_dict: dict):
 
 
 @pytest.mark.parametrize(
-    "filepath, emitter_kws, event_kws",
+    "filepath, kwargs",
     [
         # Test 1: explicitly define a filepath, emitter keywords, and event keywords (overrides)
         (
@@ -902,20 +843,18 @@ def test_scene_from_dict(input_dict: dict):
                 position=np.array([-0.5, -0.5, 0.5]),
                 polar=False,
                 ensure_direct_path=False,
+                duration=5,
+                event_start=5,
+                scene_start=5,
             ),
-            dict(duration=5, event_start=5, scene_start=5),
         ),
     ],
 )
-def test_magic_methods(filepath, emitter_kws, event_kws, oyens_scene_no_overlap):
+def test_magic_methods(filepath, kwargs, oyens_scene_no_overlap):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
-        event_type="static",
-        filepath=filepath,
-        alias="test_event",
-        emitter_kwargs=emitter_kws,
-        event_kwargs=event_kws,
+        event_type="static", filepath=filepath, alias="test_event", **kwargs
     )
     # Creating an iterator
     for event in oyens_scene_no_overlap:
