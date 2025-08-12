@@ -4,7 +4,7 @@
 <p align="center">
 <a href="https://github.com/AudibleLight/AudibleLight/actions"><img alt="Actions Status" src="https://github.com/AudibleLight/AudibleLight/actions/workflows/tests.yml/badge.svg"></a>
 <a href="https://www.linux.org"><img alt="Platform: Linux" src="https://img.shields.io/badge/Platform-linux-lightgrey?logo=linux"></a>
-<a href="https://www.python.org/"><img alt="Python: 3.10" src="https://img.shields.io/badge/Python-3.8%2B-orange?logo=python"></a>
+<a href="https://www.python.org/"><img alt="Python: 3.10" src="https://img.shields.io/badge/Python-3.10%2B-orange?logo=python"></a>
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 <a href="https://github.com/AudibleLight/AudibleLight/pulls"><img alt="Pull requests: welcome" src="https://img.shields.io/badge/pull_requests-welcome-blue?logo=github"></a>
 </p>
