@@ -620,6 +620,11 @@ class Scene:
         if not placed:
             # Need to tidy up the emitter we placed above to prevent it becoming an orphan
             self.clear_emitter(alias)
+            # TODO: occasionally we're running into issues here with the tests.
+            #  this is probably due to when we select e.g. a long audio file randomly
+            #  we keep trying to place it in with the full duration
+            #  we should probably truncate to a sensible maximum duration
+            #  based on the duration of the scene
             raise ValueError(
                 f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "

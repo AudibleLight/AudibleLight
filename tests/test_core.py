@@ -364,7 +364,8 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
 def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):
-        oyens_scene_no_overlap.add_event(event_type="static")
+        # Use a short duration here so we don't run into issues with placing events
+        oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
 
     oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
 
