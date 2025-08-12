@@ -34,7 +34,7 @@ REF_DB = (
 NSCAPES = 20
 SEED = 42
 SAMPLE_RATE = 44100  # Default to 44.1kHz sample rate
-MAX_PLACE_ATTEMPTS = 100  # Max number of times we'll attempt to place a source or microphone before giving up
+MAX_PLACE_ATTEMPTS = 1000  # Max number of times we'll attempt to place a source or microphone before giving up
 
 NUMERIC_DTYPES = (
     int,

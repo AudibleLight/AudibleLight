@@ -521,6 +521,7 @@ class Scene:
 
         # Log the creation of the event
         logger.info(f"Event added successfully: {event}")
+        return event
 
     def add_event_static(
         self,
