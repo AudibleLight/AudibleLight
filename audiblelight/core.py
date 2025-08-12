@@ -12,6 +12,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Iterator, Optional, Type, Union
 
+import numpy as np
 import soundfile as sf
 from deepdiff import DeepDiff
 from loguru import logger
@@ -403,8 +404,19 @@ class Scene:
         event_type: Optional[str] = "static",
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
-        emitter_kwargs: Optional[dict] = None,
-        event_kwargs: Optional[dict] = None,
+        position: Optional[Union[list, np.ndarray]] = None,
+        mic: Optional[str] = None,
+        polar: Optional[bool] = False,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        scene_start: Optional[utils.Numeric] = None,
+        event_start: Optional[utils.Numeric] = None,
+        duration: Optional[utils.Numeric] = None,
+        snr: Optional[utils.Numeric] = None,
+        class_id: Optional[int] = None,
+        class_label: Optional[str] = None,
+        shape: Optional[str] = None,
+        spatial_resolution: Optional[utils.Numeric] = None,
+        spatial_velocity: Optional[utils.Numeric] = None,
     ) -> None:
         """
         Add an event to the foreground, either "static" or "moving"
@@ -414,13 +426,32 @@ class Scene:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
-            emitter_kwargs: a dictionary of keyword arguments that will be passed to `WorldState.add_emitter`.
-                These arguments relate to the positionality of the Event within the mesh and its relation to other
-                objects within the WorldState. For more information, see `WorldState.add_emitter`.
-            event_kwargs: a dictionary of keyword arguments to pass to `Event.__init__`.
-                These arguments OVERRIDE the probability distributions set inside `Scene.__init__`. In other words,
-                passing e.g. `event_start=5.0` into this dictionary will ensure that the Event audio begins at 5
-                seconds, without sampling a value from `event_start_dist`. For more information, see `Event.__init__`.
+            position: Location to add the event.
+                When `event_type=="static"`, this will be the position of the Event.
+                When `event_type=="moving"`, this will be the starting position of the Event.
+                When not provided, a random point inside the mesh will be chosen.
+            mic: String reference to a microphone inside `self.state.microphones`;
+                when provided, `position` is interpreted as RELATIVE to the center of this microphone
+            polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
+                units are [x, y, z] in absolute, cartesian terms.
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
+            scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
+                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
+            event_start: Time to start the Event audio from, in seconds. Must be a positive number.
+                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
+            duration: Time the Event audio lasts in seconds. Must be a positive number.
+                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
+            snr: Signal to noise ratio for the audio file with respect to the noise floor
+            class_label: Optional label to use for sound event class.
+                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+            class_id: Optional ID to use for sound event class.
+                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+            spatial_velocity: Speed of a moving sound event in metres-per-second
+            spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
+            shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
 
         Examples:
             Creating an event with a predefined position
@@ -429,85 +460,144 @@ class Scene:
             ...     event_type="static",
             ...     filepath=...,
             ...     alias="tester",
-            ...     emitter_kwargs=dict(
-            ...         position=[-0.5, -0.5, 0.5],
-            ...         polar=False,
-            ...         ensure_direct_path=False,
-            ...     )
+            ...     position=[-0.5, -0.5, 0.5],
+            ...     polar=False,
+            ...     ensure_direct_path=False
             ... )
 
             Creating an event with overrides
             >>> scene = Scene(...)
             >>> scene.add_event(
-            ...     event_type="static",
+            ...     event_type="moving",
             ...     filepath=...,
             ...     alias="tester",
-            ...     event_kwargs=dict(
-            ...         event_start=5.0,
-            ...         duration=5.0,
-            ...         snr=0.0,
-            ...     )
+            ...     event_start=5.0,
+            ...     duration=5.0,
+            ...     snr=0.0,
+            ... )
         """
-        # Get the alias we'll be using to refer to this event by
-        alias = (
-            utils.get_default_alias("event", self.events) if alias is None else alias
-        )
-
-        # If we haven't provided a filepath, try and sample one from the foreground audio path
-        if filepath is None:
-            filepath = self._get_random_foreground_audio()
-
-        # Create empty dictionaries if we haven't explicitly provided kwargs
-        if emitter_kwargs is None:
-            emitter_kwargs = {}
-        if event_kwargs is None:
-            event_kwargs = {}
-
-        # We need to raise errors when trying to
-        #  1) set an incorrect sample rate for the Event
-        #  2) trying to pass `emitters` directly to the Event
-        if (
-            "sample_rate" in event_kwargs.keys()
-            and event_kwargs["sample_rate"] != self.state.ctx.config.sample_rate
-        ):
-            raise ValueError(
-                "Event sample rate must be the same as the WorldState sample rate"
-            )
-
-        if "emitters" in event_kwargs:
-            raise ValueError(
-                "Cannot pass emitters directly to an Event in this manner."
-            )
 
         # Call the requisite function to add the event
         if event_type == "static":
-            self.add_event_static(filepath, alias, emitter_kwargs, event_kwargs)
+            self.add_event_static(
+                filepath=filepath,
+                alias=alias,
+                position=position,
+                mic=mic,
+                polar=polar,
+                ensure_direct_path=ensure_direct_path,
+                scene_start=scene_start,
+                event_start=event_start,
+                duration=duration,
+                snr=snr,
+                class_id=class_id,
+                class_label=class_label,
+            )
+
         elif event_type == "moving":
-            self.add_event_moving(filepath, alias, emitter_kwargs, event_kwargs)
+            self.add_event_moving(
+                filepath=filepath,
+                alias=alias,
+                position=position,
+                shape=shape,
+                scene_start=scene_start,
+                event_start=event_start,
+                duration=duration,
+                snr=snr,
+                class_id=class_id,
+                class_label=class_label,
+                spatial_resolution=spatial_resolution,
+                spatial_velocity=spatial_velocity,
+            )
+
         else:
             raise ValueError(
                 f"Cannot parse event type {event_type}, expected either 'static' or 'moving'!"
             )
 
+        # Log the creation of the event
         ev = self.get_event(alias)
         logger.info(f"Event added successfully: {ev}")
 
     def add_event_static(
         self,
-        filepath: Union[str, Path],
-        alias: str,
-        emitter_kwargs: Optional[dict] = None,
-        event_kwargs: Optional[dict] = None,
+        filepath: Optional[Union[str, Path]] = None,
+        alias: Optional[str] = None,
+        position: Optional[Union[list, np.ndarray]] = None,
+        mic: Optional[str] = None,
+        polar: Optional[bool] = False,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        scene_start: Optional[utils.Numeric] = None,
+        event_start: Optional[utils.Numeric] = None,
+        duration: Optional[utils.Numeric] = None,
+        snr: Optional[utils.Numeric] = None,
+        class_id: Optional[int] = None,
+        class_label: Optional[str] = None,
     ) -> None:
         """
         Add a static event to the foreground with optional overrides.
-        """
-        # Ensure that we use the same alias for all emitters and events
-        emitter_kwargs["alias"] = alias
-        event_kwargs["alias"] = alias
 
-        # Add the filepath into the event kwarg dictionary
-        event_kwargs["filepath"] = filepath
+        Arguments:
+            filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
+                `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
+            alias: the string alias used to index this event inside the `events` dictionary
+            position: Location to add the event.
+                When `event_type=="static"`, this will be the position of the Event.
+                When `event_type=="moving"`, this will be the starting position of the Event.
+                When not provided, a random point inside the mesh will be chosen.
+            mic: String reference to a microphone inside `self.state.microphones`;
+                when provided, `position` is interpreted as RELATIVE to the center of this microphone
+            polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
+                units are [x, y, z] in absolute, cartesian terms.
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
+            scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
+                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
+            event_start: Time to start the Event audio from, in seconds. Must be a positive number.
+                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
+            duration: Time the Event audio lasts in seconds. Must be a positive number.
+                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
+            snr: Signal to noise ratio for the audio file with respect to the noise floor
+            class_label: Optional label to use for sound event class.
+                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+            class_id: Optional ID to use for sound event class.
+                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+        """
+        # Get a default alias and a random filepath if these haven't been provided
+        alias = (
+            utils.get_default_alias("event", self.events) if alias is None else alias
+        )
+        filepath = (
+            self._get_random_foreground_audio()
+            if filepath is None
+            else utils.sanitise_filepath(filepath)
+        )
+
+        # Construct kwargs dictionary for emitter and event
+        emitter_kwargs = dict(
+            position=position,
+            alias=alias,
+            mic=mic,
+            polar=polar,
+            ensure_direct_path=ensure_direct_path,
+            keep_existing=True,
+        )
+        event_kwargs = dict(
+            filepath=filepath,
+            alias=alias,
+            scene_start=scene_start,
+            event_start=event_start,
+            duration=duration,
+            snr=snr,
+            sample_rate=self.sample_rate,
+            class_id=class_id,
+            class_label=class_label,
+            # No spatial resolution/velocity for static events
+            spatial_resolution=None,
+            spatial_velocity=None,
+        )
 
         # Add the emitters associated with the event to the worldstate
         #  This will perform spatial logic checks for e.g. ensuring that the emitter won't collide with anything
@@ -535,17 +625,73 @@ class Scene:
     # noinspection PyProtectedMember
     def add_event_moving(
         self,
-        filepath: Union[str, Path],
-        alias: str,
-        emitter_kwargs: Optional[dict] = None,
-        event_kwargs: Optional[dict] = None,
+        filepath: Optional[Union[str, Path]] = None,
+        alias: Optional[str] = None,
+        position: Optional[Union[list, np.ndarray]] = None,
+        shape: Optional[str] = None,
+        scene_start: Optional[utils.Numeric] = None,
+        event_start: Optional[utils.Numeric] = None,
+        duration: Optional[utils.Numeric] = None,
+        snr: Optional[utils.Numeric] = None,
+        class_id: Optional[int] = None,
+        class_label: Optional[str] = None,
+        spatial_resolution: Optional[utils.Numeric] = None,
+        spatial_velocity: Optional[utils.Numeric] = None,
     ):
         """
         Add a moving event to the foreground with optional overrides.
+
+        Arguments:
+            filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
+                `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
+            alias: the string alias used to index this event inside the `events` dictionary
+            position: Location to add the event.
+                When `event_type=="static"`, this will be the position of the Event.
+                When `event_type=="moving"`, this will be the starting position of the Event.
+                When not provided, a random point inside the mesh will be chosen.
+            scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
+                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
+            event_start: Time to start the Event audio from, in seconds. Must be a positive number.
+                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
+            duration: Time the Event audio lasts in seconds. Must be a positive number.
+                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
+            snr: Signal to noise ratio for the audio file with respect to the noise floor
+            class_label: Optional label to use for sound event class.
+                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+            class_id: Optional ID to use for sound event class.
+                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+            spatial_velocity: Speed of a moving sound event in metres-per-second
+            spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
+            shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
         """
-        # Set any required arguments for the event
-        event_kwargs["alias"] = alias
-        event_kwargs["filepath"] = filepath
+        # Get a default alias and a random filepath if these haven't been provided
+        alias = (
+            utils.get_default_alias("event", self.events) if alias is None else alias
+        )
+        filepath = (
+            self._get_random_foreground_audio()
+            if filepath is None
+            else utils.sanitise_filepath(filepath)
+        )
+
+        # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
+        emitter_kwargs = dict(
+            starting_position=position,
+            shape=shape,
+        )
+        event_kwargs = dict(
+            filepath=filepath,
+            alias=alias,
+            scene_start=scene_start,
+            event_start=event_start,
+            duration=duration,
+            snr=snr,
+            sample_rate=self.sample_rate,
+            class_id=class_id,
+            class_label=class_label,
+            spatial_resolution=spatial_resolution,
+            spatial_velocity=spatial_velocity,
+        )
 
         # Pre-initialise the event with required arguments
         #  Note that this DOES NOT register the emitters.
@@ -585,7 +731,6 @@ class Scene:
                 f"Did not add expected number of emitters into the WorldState "
                 f"(expected {len(trajectory)}, got {len(emitters)})"
             )
-
         event.register_emitters(emitters)
 
     def _would_exceed_temporal_overlap(
