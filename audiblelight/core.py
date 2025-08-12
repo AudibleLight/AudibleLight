@@ -174,11 +174,11 @@ class Scene:
         """
         return utils.repr_as_json(self)
 
-    def __getitem__(self, alias: str) -> Event:
+    def __getitem__(self, alias_or_idx: Union[str, int]) -> Event:
         """
         An alternative for `self.get_event(alias) or `self.events[alias]`
         """
-        return self.get_event(alias)
+        return self.get_event(alias_or_idx)
 
     def __iter__(self) -> Iterator[Event]:
         """
@@ -772,14 +772,30 @@ class Scene:
         """
         return list(self.events.values())
 
-    def get_event(self, alias: str) -> Event:
+    # noinspection PyUnreachableCode
+    def get_event(self, alias_or_idx: Union[str, int]) -> Event:
         """
-        Given a valid alias, get an associated event, as in `self.events[alias]`
+        Given a valid alias, get an associated event either by alias (string) or idx (int).
         """
-        if alias in self.events.keys():
-            return self.events[alias]
+        # Trying to get the event by its alias
+        if isinstance(alias_or_idx, str):
+            if alias_or_idx in self.events.keys():
+                return self.events[alias_or_idx]
+            else:
+                raise KeyError("Event alias '{}' not found.".format(alias_or_idx))
+
+        # Trying to get the event by its index
+        elif isinstance(alias_or_idx, int):
+            try:
+                return list(self.events.values())[alias_or_idx]
+            except IndexError:
+                raise IndexError("No event with index {}.".format(alias_or_idx))
+
+        # We don't know how to get the event
         else:
-            raise KeyError("Event alias '{}' not found.".format(alias))
+            raise TypeError(
+                "Expected `str` or `int` but got {}".format(type(alias_or_idx))
+            )
 
     def get_emitters(self, alias: str) -> list[Emitter]:
         """

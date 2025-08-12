@@ -342,6 +342,29 @@ def test_add_mic_arrays_to_state(mic_arrays, oyens_scene_no_overlap: Scene):
     assert oyens_scene_no_overlap.state.ctx.get_listener_count() == 4
 
 
+def test_get_event(oyens_scene_no_overlap):
+    oyens_scene_no_overlap.add_event(event_type="static")
+
+    # These are all functionally equivalent
+    event = oyens_scene_no_overlap.get_event("event000")
+    assert isinstance(event, Event)
+    event2 = oyens_scene_no_overlap["event000"]
+    assert isinstance(event2, Event)
+    event3 = oyens_scene_no_overlap.get_event(0)
+    assert isinstance(event3, Event)
+    event4 = oyens_scene_no_overlap[0]
+    assert isinstance(event4, Event)
+
+    # Trying to get event that doesn't exist will raise an error
+    #  Error type will vary depending on how we get the event
+    with pytest.raises(KeyError):
+        oyens_scene_no_overlap.get_event("not_existing")
+    with pytest.raises(IndexError):
+        oyens_scene_no_overlap.get_event(100)
+    with pytest.raises(TypeError):
+        oyens_scene_no_overlap.get_event(None)
+
+
 def test_get_funcs(oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.add_event(event_type="static")
     # Test all the get functions
@@ -351,17 +374,9 @@ def test_get_funcs(oyens_scene_no_overlap: Scene):
     assert isinstance(emitter_list, list)
     emitter = oyens_scene_no_overlap.get_emitter("event000", 0)
     assert isinstance(emitter, Emitter)
-    event = oyens_scene_no_overlap.get_event("event000")
-    assert isinstance(event, Event)
-    event2 = oyens_scene_no_overlap["event000"]
-    assert isinstance(event2, Event)
     events = oyens_scene_no_overlap.get_events()
     assert isinstance(events, list)
     assert isinstance(events[0], Event)
-
-    # Trying to get event that doesn't exist will raise an error
-    with pytest.raises(KeyError):
-        oyens_scene_no_overlap.get_event("not_existing")
 
 
 def test_clear_funcs(oyens_scene_no_overlap: Scene):
