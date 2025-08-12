@@ -3,6 +3,7 @@
 
 """Provides classes and functions for placing audio files within Space and Scene objects"""
 
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -416,6 +417,15 @@ class Event:
         if not self.has_emitters:
             raise ValueError("Cannot dump metadata for an Event with no Emitters!")
 
+        # Get relative positions from emitters
+        relative_positions = {}
+        for emitter in self.emitters:
+            for k, v in emitter.coordinates_relative_polar.items():
+                if k in relative_positions.keys():
+                    relative_positions[k].append(coerce(v)[0])
+                else:
+                    relative_positions[k] = [coerce(v)[0]]
+
         return dict(
             # Metadata
             alias=self.alias,
@@ -435,11 +445,12 @@ class Event:
             # Spatial stuff (inherited from Emitter objects)
             spatial_resolution=self.spatial_resolution if self.is_moving else None,
             spatial_velocity=self.spatial_velocity if self.is_moving else None,
-            start_coordinates=coerce(self.start_coordinates_absolute),
-            end_coordinates=coerce(self.end_coordinates_absolute),
+            # start_coordinates=coerce(self.start_coordinates_absolute),
+            # end_coordinates=coerce(self.end_coordinates_absolute),
             num_emitters=len(self.emitters),
             # Include the actual emitters as well, to enable unserialisation
             emitters=[coerce(v.coordinates_absolute) for v in self.emitters],
+            emitters_relative=relative_positions,
         )
 
     @classmethod
@@ -468,11 +479,31 @@ class Event:
             if k not in input_dict:
                 raise KeyError(f"Missing key: '{k}'")
 
+        # Define emitters list from relative + absolute positions
+        #  This is pretty horrible, but I can't think of another way to do it
+        emitters_list = []
+        emitters_relative = input_dict["emitters_relative"]
+        for emitter_idx, emitter in enumerate(input_dict["emitters"]):
+            obj = Emitter(alias=input_dict["alias"], coordinates_absolute=emitter)
+            obj.coordinates_relative_polar = OrderedDict(
+                {
+                    k: np.array([emitters_relative[k][emitter_idx]])
+                    for k in emitters_relative.keys()
+                }
+            )
+            obj.coordinates_relative_cartesian = OrderedDict(
+                {
+                    k: utils.polar_to_cartesian(emitters_relative[k][emitter_idx])
+                    for k in emitters_relative.keys()
+                }
+            )
+            emitters_list.append(obj)
+
         # Instantiate the event and return
         return cls(
             alias=input_dict["alias"],
             filepath=input_dict["filepath"],
-            emitters=input_dict["emitters"],
+            emitters=emitters_list,
             scene_start=input_dict["scene_start"],
             event_start=input_dict["event_start"],
             duration=input_dict["duration"],
