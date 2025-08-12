@@ -153,9 +153,13 @@ class Emitter:
                     coords = utils.sanitise_coordinates(obj.coordinates_center)
 
                 elif isinstance(obj, list):
-                    assert all([isinstance(em, Emitter) for em in obj])
-                    # TODO: check that this makes sense
-                    coords = np.vstack([em.coordinates_absolute for em in obj])
+                    if all([isinstance(em, Emitter) for em in obj]):
+                        coords = np.vstack([em.coordinates_absolute for em in obj])
+
+                    else:
+                        raise TypeError(
+                            "Cannot handle input with type {}".format(type(obj))
+                        )
 
                 else:
                     raise TypeError(
@@ -395,7 +399,7 @@ class WorldState:
             for emitter_alias, emitter_list in self.emitters.items():
                 for emitter in emitter_list:
                     # Update the coordinates of the emitter WRT other microphones, emitters
-                    emitter.update_coordinates(self.emitters)
+                    # emitter.update_coordinates(self.emitters)
                     emitter.update_coordinates(self.microphones)
                     # Add the emitter to the ray-tracing engine
                     self.ctx.add_source()
