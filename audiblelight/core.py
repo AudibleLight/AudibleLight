@@ -622,7 +622,8 @@ class Scene:
             self.clear_emitter(alias)
             raise ValueError(
                 f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                f"Consider increasing the value of `max_overlap`."
+                f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
+                f"`duration` of the scene (currently {self.duration})."
             )
 
         # Get emitters from internal state and register them with the event
@@ -717,7 +718,8 @@ class Scene:
             # No need to clear out any emitters (as in `add_event_static`) because we haven't placed them yet
             raise ValueError(
                 f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
-                f"Consider increasing the value of `max_overlap`."
+                f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
+                f"`duration` of the scene (currently {self.duration})."
             )
 
         # Grab the event we just created
