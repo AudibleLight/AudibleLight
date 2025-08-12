@@ -139,7 +139,7 @@ def main(
     scene.add_microphone(microphone_type=micarray, alias=micarray)
 
     for _ in range(n_static):
-        scene.add_event(event_type="static", emitter_kwargs=dict(keep_existing=True))
+        scene.add_event(event_type="static")
 
     for _ in range(n_moving):
         scene.add_event(event_type="moving")
