@@ -431,26 +431,30 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                     "class_id": None,
                     "class_label": None,
                     "is_moving": False,
-                    "scene_start": 5.0,
-                    "scene_end": 10.0,
-                    "event_start": 5.0,
-                    "event_end": 10.0,
-                    "duration": 5.0,
-                    "snr": 5.185405340406351,
+                    "scene_start": 0.0,
+                    "scene_end": 0.3922902494331066,
+                    "event_start": 0.0,
+                    "event_end": 0.3922902494331066,
+                    "duration": 0.3922902494331066,
+                    "snr": None,
                     "sample_rate": 44100.0,
                     "spatial_resolution": None,
                     "spatial_velocity": None,
-                    "start_coordinates": [-0.5, -0.5, 0.5],
-                    "end_coordinates": [-0.5, -0.5, 0.5],
+                    "num_emitters": 1,
                     "emitters": [
-                        [-0.5, -0.5, 0.5],
+                        [1.8156068957785347, -1.863507837016133, 1.8473540916136413]
                     ],
+                    "emitters_relative": {
+                        "mic000": [
+                            [203.9109387558252, -5.976352087676762, 3.3744825372046803]
+                        ]
+                    },
                 }
             },
             "state": {
                 "emitters": {
                     "test_event": [
-                        [-0.5, -0.5, 0.5],
+                        [1.8156068957785347, -1.863507837016133, 1.8473540916136413]
                     ]
                 },
                 "microphones": {
@@ -523,304 +527,7 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                 "empty_space_around_capsule": 0.05,
                 "repair_threshold": None,
             },
-        },
-        {
-            "audiblelight_version": "0.1.0",
-            "rlr_audio_propagation_version": "0.0.1",
-            "creation_time": "2025-08-11_14:21:13",
-            "duration": 30.0,
-            "ref_db": -50,
-            "max_overlap": 3,
-            "fg_path": str(utils_tests.SOUNDEVENT_DIR),
-            "ambience": {
-                "ambience000": {
-                    "alias": "ambience000",
-                    "beta": 0,
-                    "filepath": None,
-                    "channels": 4,
-                    "sample_rate": 44100,
-                    "duration": 30.0,
-                    "ref_db": -50,
-                    "noise_kwargs": {},
-                },
-                "ambience001": {
-                    "alias": "ambience001",
-                    "beta": None,
-                    "filepath": str(utils_tests.SOUNDEVENT_DIR / "waterTap/95709.wav"),
-                    "channels": 4,
-                    "sample_rate": 44100,
-                    "duration": 30.0,
-                    "ref_db": -50,
-                    "noise_kwargs": {},
-                },
-            },
-            "events": {
-                "event000": {
-                    "alias": "event000",
-                    "filename": "93856.wav",
-                    "filepath": str(
-                        utils_tests.SOUNDEVENT_DIR / "maleSpeech/93856.wav"
-                    ),
-                    "class_id": None,
-                    "class_label": None,
-                    "is_moving": False,
-                    "scene_start": 8.812249505679185,
-                    "scene_end": 9.265038621325443,
-                    "event_start": 0.0,
-                    "event_end": 0.4527891156462585,
-                    "duration": 0.4527891156462585,
-                    "snr": 29.029578165525322,
-                    "sample_rate": 44100.0,
-                    "spatial_resolution": None,
-                    "spatial_velocity": None,
-                    "start_coordinates": [
-                        2.75861354993879,
-                        -1.6199735396985329,
-                        0.4482871425244255,
-                    ],
-                    "end_coordinates": [
-                        2.75861354993879,
-                        -1.6199735396985329,
-                        0.4482871425244255,
-                    ],
-                    "num_emitters": 1,
-                    "emitters": [
-                        [2.75861354993879, -1.6199735396985329, 0.4482871425244255]
-                    ],
-                },
-                "event001": {
-                    "alias": "event001",
-                    "filename": "236657.wav",
-                    "filepath": str(
-                        utils_tests.SOUNDEVENT_DIR / "femaleSpeech/236657.wav"
-                    ),
-                    "class_id": None,
-                    "class_label": None,
-                    "is_moving": False,
-                    "scene_start": 9.33668388157278,
-                    "scene_end": 9.755482067513823,
-                    "event_start": 0.0,
-                    "event_end": 0.41879818594104307,
-                    "duration": 0.41879818594104307,
-                    "snr": 18.337663556181106,
-                    "sample_rate": 44100.0,
-                    "spatial_resolution": None,
-                    "spatial_velocity": None,
-                    "start_coordinates": [
-                        1.451795233185468,
-                        -5.204843321294307,
-                        1.1484658843042004,
-                    ],
-                    "end_coordinates": [
-                        1.451795233185468,
-                        -5.204843321294307,
-                        1.1484658843042004,
-                    ],
-                    "num_emitters": 1,
-                    "emitters": [
-                        [1.451795233185468, -5.204843321294307, 1.1484658843042004]
-                    ],
-                },
-                "event002": {
-                    "alias": "event002",
-                    "filename": "007527.mp3",
-                    "filepath": str(utils_tests.SOUNDEVENT_DIR / "music/007527.mp3"),
-                    "class_id": None,
-                    "class_label": None,
-                    "is_moving": False,
-                    "scene_start": 28.98229911181565,
-                    "scene_end": 58.95887507553447,
-                    "event_start": 0.0,
-                    "event_end": 29.976575963718822,
-                    "duration": 29.976575963718822,
-                    "snr": 17.66172309231914,
-                    "sample_rate": 44100.0,
-                    "spatial_resolution": None,
-                    "spatial_velocity": None,
-                    "start_coordinates": [
-                        3.7954463446663036,
-                        -5.454712940913788,
-                        1.6274903797382563,
-                    ],
-                    "end_coordinates": [
-                        3.7954463446663036,
-                        -5.454712940913788,
-                        1.6274903797382563,
-                    ],
-                    "num_emitters": 1,
-                    "emitters": [
-                        [3.7954463446663036, -5.454712940913788, 1.6274903797382563]
-                    ],
-                },
-                "event003": {
-                    "alias": "event003",
-                    "filename": "30085.wav",
-                    "filepath": str(utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav"),
-                    "class_id": None,
-                    "class_label": None,
-                    "is_moving": False,
-                    "scene_start": 6.472908460600676,
-                    "scene_end": 10.362250864228795,
-                    "event_start": 0.0,
-                    "event_end": 3.889342403628118,
-                    "duration": 3.889342403628118,
-                    "snr": 25.55806050533056,
-                    "sample_rate": 44100.0,
-                    "spatial_resolution": None,
-                    "spatial_velocity": None,
-                    "start_coordinates": [
-                        4.37756516034859,
-                        -7.559676309493261,
-                        0.8787509777746272,
-                    ],
-                    "end_coordinates": [
-                        4.37756516034859,
-                        -7.559676309493261,
-                        0.8787509777746272,
-                    ],
-                    "num_emitters": 1,
-                    "emitters": [
-                        [4.37756516034859, -7.559676309493261, 0.8787509777746272]
-                    ],
-                },
-                "event004": {
-                    "alias": "event004",
-                    "filename": "240693.wav",
-                    "filepath": str(utils_tests.SOUNDEVENT_DIR / "waterTap/240693.wav"),
-                    "class_id": None,
-                    "class_label": None,
-                    "is_moving": True,
-                    "scene_start": 21.304835303603674,
-                    "scene_end": 27.295243466868982,
-                    "event_start": 0.0,
-                    "event_end": 5.990408163265307,
-                    "duration": 5.990408163265307,
-                    "snr": 26.31666181644687,
-                    "sample_rate": 44100.0,
-                    "spatial_resolution": 2.350573517115879,
-                    "spatial_velocity": 0.5339076324864093,
-                    "start_coordinates": [
-                        2.261394920448118,
-                        -0.21339953468371853,
-                        1.0865180964455003,
-                    ],
-                    "end_coordinates": [
-                        2.8767877662288184,
-                        -0.3463581007031614,
-                        1.838455595680327,
-                    ],
-                    "num_emitters": 5,
-                    "emitters": [
-                        [2.261394920448118, -0.21339953468371853, 1.0865180964455003],
-                        [2.415243131893293, -0.24663917618857925, 1.274502471254207],
-                        [2.569091343338468, -0.27987881769344, 1.4624868460629137],
-                        [2.7229395547836432, -0.3131184591983007, 1.6504712208716206],
-                        [2.8767877662288184, -0.3463581007031614, 1.838455595680327],
-                    ],
-                },
-            },
-            "state": {
-                "emitters": {
-                    "event000": [
-                        [2.75861354993879, -1.6199735396985329, 0.4482871425244255]
-                    ],
-                    "event001": [
-                        [1.451795233185468, -5.204843321294307, 1.1484658843042004]
-                    ],
-                    "event002": [
-                        [3.7954463446663036, -5.454712940913788, 1.6274903797382563]
-                    ],
-                    "event003": [
-                        [4.37756516034859, -7.559676309493261, 0.8787509777746272]
-                    ],
-                    "event004": [
-                        [2.261394920448118, -0.21339953468371853, 1.0865180964455003],
-                        [2.415243131893293, -0.24663917618857925, 1.274502471254207],
-                        [2.569091343338468, -0.27987881769344, 1.4624868460629137],
-                        [2.7229395547836432, -0.3131184591983007, 1.6504712208716206],
-                        [2.8767877662288184, -0.3463581007031614, 1.838455595680327],
-                    ],
-                },
-                "microphones": {
-                    "tetra": {
-                        "name": "ambeovr",
-                        "micarray_type": "AmbeoVR",
-                        "is_spherical": True,
-                        "n_capsules": 4,
-                        "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
-                        "coordinates_absolute": [
-                            [
-                                3.6105085415895757,
-                                -8.384402443789977,
-                                2.1526455364771224,
-                            ],
-                            [3.6105085415895757, -8.395987003096767, 2.141174007750102],
-                            [3.5989239822827845, -8.384402443789977, 2.141174007750102],
-                            [
-                                3.5989239822827845,
-                                -8.395987003096767,
-                                2.1526455364771224,
-                            ],
-                        ],
-                        "coordinates_center": [
-                            3.60471626193618,
-                            -8.390194723443372,
-                            2.146909772113612,
-                        ],
-                    }
-                },
-                "mesh": {
-                    "fname": "Oyens",
-                    "ftype": ".glb",
-                    "fpath": str(utils_tests.OYENS_PATH),
-                    "units": "meters",
-                    "from_gltf_primitive": False,
-                    "name": "defaultobject",
-                    "node": "defaultobject",
-                    "bounds": [
-                        [-3.0433080196380615, -10.448445320129395, -1.1850370168685913],
-                        [5.973234176635742, 2.101027011871338, 2.4577369689941406],
-                    ],
-                    "centroid": [
-                        1.527919030159762,
-                        -4.550817438070386,
-                        1.162934397641578,
-                    ],
-                },
-                "rlr_config": {
-                    "diffraction": 1,
-                    "direct": 1,
-                    "direct_ray_count": 500,
-                    "direct_sh_order": 3,
-                    "frequency_bands": 4,
-                    "global_volume": 1.0,
-                    "hrtf_back": [0.0, 0.0, 1.0],
-                    "hrtf_right": [1.0, 0.0, 0.0],
-                    "hrtf_up": [0.0, 1.0, 0.0],
-                    "indirect": 1,
-                    "indirect_ray_count": 5000,
-                    "indirect_ray_depth": 200,
-                    "indirect_sh_order": 1,
-                    "max_diffraction_order": 10,
-                    "max_ir_length": 4.0,
-                    "mesh_simplification": 0,
-                    "sample_rate": 44100.0,
-                    "size": 146,
-                    "source_ray_count": 200,
-                    "source_ray_depth": 10,
-                    "temporal_coherence": 0,
-                    "thread_count": 1,
-                    "transmission": 1,
-                    "unit_scale": 1.0,
-                },
-                "empty_space_around_mic": 0.1,
-                "empty_space_around_emitter": 0.2,
-                "empty_space_around_surface": 0.2,
-                "empty_space_around_capsule": 0.05,
-                "repair_threshold": None,
-            },
-            "spatial_format": "A",
-        },
+        }
     ],
 )
 def test_scene_from_dict(input_dict: dict):

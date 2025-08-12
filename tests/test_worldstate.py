@@ -457,15 +457,6 @@ def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
     assert oyens_space.num_emitters == len(positions)
     if emitter_aliases is not None:
         assert set(oyens_space.emitters.keys()) == set(emitter_aliases)
-        # Should have all the other emitters in our relative coords dict
-        for emitter_list in oyens_space.emitters.values():
-            for emitter in emitter_list:
-                assert set(emitter.coordinates_relative_cartesian.keys()) == set(
-                    emitter_aliases
-                )
-                assert set(emitter.coordinates_relative_polar.keys()) == set(
-                    emitter_aliases
-                )
     for emitter_list in oyens_space.emitters.values():
         for emitter in emitter_list:
             assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
@@ -574,9 +565,6 @@ def test_add_n_emitters(n_emitters, oyens_space: WorldState):
     for emitter_list in oyens_space.emitters.values():
         for emitter in emitter_list:
             assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
-            # Should update the relative position dictionary
-            assert len(emitter.coordinates_relative_polar) == n_emitters
-            assert len(emitter.coordinates_relative_cartesian) == n_emitters
             assert isinstance(emitter.coordinates_absolute, np.ndarray)
 
 
