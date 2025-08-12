@@ -151,38 +151,61 @@ def get_project_root() -> Path:
 
 
 def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
-    """Converts an array of spherical coordinates (azimuth°, polar°, radius) to Cartesian coordinates (XYZ)."""
+    """
+    Converts an array of spherical coordinates (azimuth°, polar°, radius) to Cartesian coordinates (XYZ).
+
+    Assumptions:
+        Azimuth: [0, 360), counter-clockwise from front.
+        Elevation: [-90, 90], 0 = horizontal, 90 = up, -90 = down.
+        Radius: unbounded, in metres.
+    """
     spherical_array = coerce2d(spherical_array)
+
     # Convert azimuth + elevation to radians
     azimuth_rad = np.deg2rad(spherical_array[:, 0])  # phi
-    polar_rad = np.deg2rad(spherical_array[:, 1])  # theta, polar angle from z-axis
+    elevation_rad = np.deg2rad(spherical_array[:, 1])  # theta, polar angle from z-axis
+
     # No need to do this for radius
     r = spherical_array[:, 2]
+
     # Express everything in cartesian form
-    x = r * np.sin(polar_rad) * np.cos(azimuth_rad)
-    y = r * np.sin(polar_rad) * np.sin(azimuth_rad)
-    z = r * np.cos(polar_rad)
+    x = r * np.cos(elevation_rad) * np.cos(azimuth_rad)
+    y = r * np.cos(elevation_rad) * np.sin(azimuth_rad)
+    z = r * np.sin(elevation_rad)
+
     # Stack into a 2D array of shape (n_capsules, 3)
     return np.column_stack((x, y, z))
 
 
 def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
-    """Converts an array of Cartesian coordinates (XYZ) to spherical coordinates (azimuth°, polar°, radius)."""
+    """
+    Converts an array of Cartesian coordinates (XYZ) to spherical coordinates (azimuth°, polar°, radius).
+
+    Assumptions:
+        Azimuth: [0, 360), counter-clockwise from front.
+        Elevation: [-90, 90], 0 = horizontal, 90 = up, -90 = down.
+        Radius: unbounded, in metres.
+    """
     cartesian_array = coerce2d(cartesian_array)
+
     # Unpack everything
     x = cartesian_array[:, 0]
     y = cartesian_array[:, 1]
     z = cartesian_array[:, 2]
+
     # Compute radius using the classic equation
     r = np.sqrt(x**2 + y**2 + z**2)
     assert np.all(r > 0), f"Expected radius > 0, but got radius = {r}"
+
     # Get azimuth and polar in radians first, then convert to degrees
     azimuth = np.rad2deg(np.arctan2(y, x))  # φ, angle in x-y plane from x-axis
-    polar = np.rad2deg(np.arccos(z / r))  # θ, angle from z-axis
+    elevation = np.rad2deg(np.arcsin(z / r))  # θ, angle from z-axis in [-90, 90]
+
     # Ensure azimuth is in [0, 360)
     azimuth = np.mod(azimuth, 360)
+
     # Stack everything back into a 2D array of shape (n_capsules, 3)
-    return np.column_stack((azimuth, polar, r))
+    return np.column_stack((azimuth, elevation, r))
 
 
 def center_coordinates(cartesian_array: np.ndarray) -> np.ndarray:

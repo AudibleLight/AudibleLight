@@ -354,20 +354,20 @@ def test_get_microphones_from_alias(inputs, outputs, oyens_space: WorldState):
 @pytest.mark.parametrize(
     "emitter_position,expected_position",
     [
-        # emitter offset 20 cm along +x direction (azimuth=0°, colatitude=90°)
-        ([0.0, 90.0, 0.2], [-0.3, -0.5, 0.5]),
-        # emitter offset 20 cm along +y direction (azimuth=90°, colatitude=90°)
-        (np.array([90.0, 90.0, 0.2]), np.array([-0.5, -0.3, 0.5])),
-        # emitter offset 20 cm along -z direction (azimuth=90°, colatitude=180°)
-        (np.array([90.0, 180.0, 0.2]), [-0.5, -0.5, 0.3]),
-        # emitter directly above the mic, 20 cm along +z (colatitude=0°)
-        ([0.0, 0.0, 0.2], [-0.5, -0.5, 0.7]),
-        # emitter directly below the mic, 20 cm along -z (colatitude=180°)
-        ([0.0, 180.0, 0.2], [-0.5, -0.5, 0.3]),
-        # emitter offset 30 cm along +y direction (azimuth=90°, colatitude=90°)
-        ([90.0, 90.0, 0.3], [-0.5, -0.2, 0.5]),
-        # emitter diagonally down-forward (azimuth=45°, colatitude=135°)
-        ([45.0, 135.0, 0.2], [-0.4, -0.4, 0.5 - 0.1414]),
+        # emitter offset 20 cm along +x direction (azimuth=0°, elevation=0°)
+        ([0.0, 0.0, 0.2], [-0.3, -0.5, 0.5]),
+        # emitter offset 20 cm along +y direction (azimuth=90°, elevation=0°)
+        (np.array([90.0, 0.0, 0.2]), np.array([-0.5, -0.3, 0.5])),
+        # emitter offset 20 cm along -z direction (azimuth=90°, elevation=-90°)
+        (np.array([90.0, -90.0, 0.2]), [-0.5, -0.5, 0.3]),
+        # emitter directly above the mic, 20 cm along +z (elevation=+90°)
+        ([0.0, 90.0, 0.2], [-0.5, -0.5, 0.7]),
+        # emitter directly below the mic, 20 cm along -z (elevation=-90°)
+        ([0.0, -90.0, 0.2], [-0.5, -0.5, 0.3]),
+        # emitter offset 30 cm along +y direction (azimuth=90°, elevation=0°)
+        ([90.0, 0.0, 0.3], [-0.5, -0.2, 0.5]),
+        # emitter diagonally down-forward (azimuth=45°, elevation=-45°)
+        ([45.0, -45.0, 0.2], [-0.4, -0.4, 0.5 - 0.1414]),
     ],
 )
 def test_add_polar_emitter(
@@ -476,11 +476,11 @@ def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
     [
         # 1. Azimuth = 0°, Colatitude = 90° (x+), and Colatitude = 0° (z+)
         # emitter 1: offset 20 cm along +x; emitter 2: offset 20 cm directly above mic
-        ([[0.0, 90.0, 0.2], [0.0, 0.0, 0.2]], [[-0.3, -0.5, 0.5], [-0.5, -0.5, 0.7]]),
+        ([[0.0, 0.0, 0.2], [0.0, 90.0, 0.2]], [[-0.3, -0.5, 0.5], [-0.5, -0.5, 0.7]]),
         # 2. Azimuth = 90°, Colatitude = 90° (y+), and Azimuth = 270°, Colatitude = 90° (y−)
         # emitter 1: offset 20 cm along +y; emitter 2: offset 20 cm along −y
         (
-            [[90.0, 90.0, 0.2], [270.0, 90.0, 0.2]],
+            [[90.0, 0.0, 0.2], [270.0, 0.0, 0.2]],
             [[-0.5, -0.3, 0.5], [-0.5, -0.7, 0.5]],
         ),
     ],

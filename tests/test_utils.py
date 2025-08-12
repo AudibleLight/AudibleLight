@@ -18,49 +18,59 @@ from tests import utils_tests
 
 
 @pytest.mark.parametrize(
-    "spherical, expected",
+    "polar, expected",
     [
-        # azimuth=0°, polar=0°, r=1 -> (0, 0, 1)
-        (np.array([[0, 0, 1]]), np.array([[0, 0, 1]])),
-        # azimuth=0°, polar=90°, r=1 -> (1, 0, 0)
-        (np.array([[0, 90, 1]]), np.array([[1, 0, 0]])),
-        # azimuth=90°, polar=90°, r=1 -> (0, 1, 0)
-        (np.array([[90, 90, 1]]), np.array([[0, 1, 0]])),
-        # azimuth=180°, polar=90°, r=1 -> (-1, 0, 0)
-        (np.array([[180, 90, 1]]), np.array([[-1, 0, 0]])),
-        # azimuth=0°, polar=180°, r=1 -> (0, 0, -1)
-        (np.array([[0, 180, 1]]), np.array([[0, 0, -1]])),
+        # azimuth=0°, elevation=90°, r=1 -> (0, 0, 1) → +Z
+        (np.array([[0, 90, 1]]), np.array([[0, 0, 1]])),
+        # azimuth=0°, elevation=0°, r=1 -> (1, 0, 0) → +X
+        (np.array([[0, 0, 1]]), np.array([[1, 0, 0]])),
+        # azimuth=90°, elevation=0°, r=1 -> (0, 1, 0) → +Y
+        (np.array([[90, 0, 1]]), np.array([[0, 1, 0]])),
+        # azimuth=180°, elevation=0°, r=1 -> (-1, 0, 0) → -X
+        (np.array([[180, 0, 1]]), np.array([[-1, 0, 0]])),
+        # azimuth=0°, elevation=-90°, r=1 -> (0, 0, -1) → -Z
+        (np.array([[0, -90, 1]]), np.array([[0, 0, -1]])),
         # Multiple points
         (
             np.array(
                 [
-                    [0, 0, 1],  # +Z
-                    [0, 90, 1],  # +X
-                    [90, 90, 1],  # +Y
-                    [180, 90, 1],  # -X
-                    [0, 180, 1],  # -Z
+                    [0, 90, 1],  # +Z
+                    [0, 0, 1],  # +X
+                    [90, 0, 1],  # +Y
+                    [180, 0, 1],  # -X
+                    [0, -90, 1],  # -Z
                 ]
             ),
-            np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0], [-1, 0, 0], [0, 0, -1]]),
+            np.array(
+                [
+                    [0, 0, 1],
+                    [1, 0, 0],
+                    [0, 1, 0],
+                    [-1, 0, 0],
+                    [0, 0, -1],
+                ]
+            ),
         ),
     ],
 )
-def test_polar_to_cartesian(spherical, expected):
-    result = utils.polar_to_cartesian(spherical)
+def test_polar_to_cartesian(polar, expected):
+    result = utils.polar_to_cartesian(polar)
     assert np.allclose(result, expected, atol=1e-4)
-    # Go the other way
-    assert np.allclose(utils.cartesian_to_polar(result), spherical, atol=1e-4)
+    # Round trip check
+    inverse = utils.cartesian_to_polar(result)
+    assert np.allclose(inverse, polar, atol=1e-4)
 
 
 @pytest.mark.parametrize(
     "cartesian, expected",
     [
-        # (x, y, z) -> (azimuth°, polar°, r)
-        (np.array([[0, 0, 1]]), np.array([[0, 0, 1]])),  # +Z axis
-        (np.array([[1, 0, 0]]), np.array([[0, 90, 1]])),  # +X axis
-        (np.array([[0, 1, 0]]), np.array([[90, 90, 1]])),  # +Y axis
-        (np.array([[-1, 0, 0]]), np.array([[180, 90, 1]])),  # -X axis
-        (np.array([[0, 0, -1]]), np.array([[0, 180, 1]])),  # -Z axis
+        # Cartesian -> (azimuth, elevation, radius)
+        (np.array([[0, 0, 1]]), np.array([[0, 90, 1]])),  # +Z
+        (np.array([[1, 0, 0]]), np.array([[0, 0, 1]])),  # +X
+        (np.array([[0, 1, 0]]), np.array([[90, 0, 1]])),  # +Y
+        (np.array([[-1, 0, 0]]), np.array([[180, 0, 1]])),  # -X
+        (np.array([[0, 0, -1]]), np.array([[0, -90, 1]])),  # -Z
+        # Multiple points
         (
             np.array(
                 [
@@ -73,11 +83,11 @@ def test_polar_to_cartesian(spherical, expected):
             ),
             np.array(
                 [
-                    [0, 0, 1],
                     [0, 90, 1],
-                    [90, 90, 1],
-                    [180, 90, 1],
-                    [0, 180, 1],
+                    [0, 0, 1],
+                    [90, 0, 1],
+                    [180, 0, 1],
+                    [0, -90, 1],
                 ]
             ),
         ),
@@ -86,8 +96,32 @@ def test_polar_to_cartesian(spherical, expected):
 def test_cartesian_to_polar(cartesian, expected):
     result = utils.cartesian_to_polar(cartesian)
     np.testing.assert_allclose(result, expected, atol=1e-4)
-    # Go the other way
-    assert np.allclose(utils.polar_to_cartesian(result), cartesian, atol=1e-4)
+    # Round trip check
+    inverse = utils.polar_to_cartesian(result)
+    assert np.allclose(inverse, cartesian, atol=1e-4)
+
+
+@pytest.mark.parametrize(
+    "polar, reference, expected",
+    [
+        (
+            np.array([[0, 90, 1]]),
+            np.array([[0, 0, 0]]),
+            np.array([[0, 0, 1]]),
+        ),  # straight up
+        (np.array([[0, 0, 1]]), np.array([[0, 0, 0]]), np.array([[1, 0, 0]])),  # +X
+        (np.array([[90, 0, 1]]), np.array([[0, 0, 0]]), np.array([[0, 1, 0]])),  # +Y
+        (np.array([[180, 0, 1]]), np.array([[0, 0, 0]]), np.array([[-1, 0, 0]])),  # -X
+        (
+            np.array([[0, -90, 1]]),
+            np.array([[0, 0, 0]]),
+            np.array([[0, 0, -1]]),
+        ),  # straight down
+    ],
+)
+def test_polar_relative_to(polar, reference, expected):
+    result = reference + utils.polar_to_cartesian(polar)
+    assert np.allclose(result, expected, atol=1e-4)
 
 
 @pytest.mark.parametrize(
