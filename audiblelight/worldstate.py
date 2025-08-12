@@ -717,8 +717,8 @@ class WorldState:
             position (np.ndarray): Array of form [X, Y, Z]
             polar: whether the coordinates are provided in spherical form. If True:
                 - Azimuth (X) must be between 0 and 360
-                - Colatitude (Y) must be between 0 and 180
-                - Elevation (Z) must be a positive value, measured in the same units given by the mesh.
+                - Elevation (Y) must be between -90 and 90
+                - Radius (Z) must be a positive value, measured in the same units given by the mesh.
             microphone_type: Type of microphone to add, defaults to mono capsule
             mic_alias: String reference for the microphone, auto-generated if None
             emitter_alias: String reference for the emitter, auto-generated if None
@@ -767,10 +767,9 @@ class WorldState:
         )
 
         # Convert spherical coordinates to Cartesian offset if required
+        #  returns a 2D array, we just want 1D
         if polar:
-            emitter_offset = utils.polar_to_cartesian(emitter_offset)[
-                0
-            ]  # returns a 2D array, we just want 1D
+            emitter_offset = utils.polar_to_cartesian(emitter_offset)[0]
 
         # Attempt to find valid positions for both microphone and emitter
         for attempt in range(max_place_attempts):
@@ -987,7 +986,6 @@ class WorldState:
         position: Optional[list],
         relative_mic: Optional[Type["MicArray"]],
         alias: str,
-        polar: bool,
         path_between: list[str],
     ) -> bool:
         """
@@ -1003,13 +1001,6 @@ class WorldState:
             pos = position if position_is_assigned else self.get_random_position()
             if len(pos) != 3:
                 raise ValueError(f"Expected three coordinates but got {len(pos)}")
-            # Convert to Cartesian if position is in polar coordinates
-            if polar:
-                if not relative_mic or not position_is_assigned:
-                    raise ValueError(
-                        "Polar coordinates require a relative mic and a fixed position"
-                    )
-                pos = utils.polar_to_cartesian(pos)[0]
             # Adjust position relative to the mic array if provided
             if relative_mic:
                 pos = relative_mic.coordinates_center + pos
@@ -1122,16 +1113,13 @@ class WorldState:
         alias: Optional[str] = None,
         mic: Optional[str] = None,
         keep_existing: Optional[bool] = False,
-        polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> None:
         """
-        Add a emitter to the state.
+        Add an emitter to the state.
 
-        If `mic` is a key inside `microphones`, `position` is assumed to be relative to that microphone; else,
-        it is assumed to be in absolute terms. If `polar` is True, `position` should be in the form
-        (azimuth°, polar°, radius); else, it should be in cartesian coordinates in meters with the form [x, y, z].
-        Note that `mic_alias` must not be None when `polar` is True.
+        If `position` is provided, it must be in absolute (cartesian) terms.
+        If `mic` is a key inside `microphones`, `position` is assumed to be relative to that microphone.
 
         Arguments:
             position: Location to add the emitter, defaults to a random, valid location.
@@ -1139,8 +1127,6 @@ class WorldState:
             mic: String reference to a microphone inside `self.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
             keep_existing (optional): Whether to keep existing emitters from the mesh or remove, defaults to keep
-            polar: When True, expects `position` to be provided in [azimuth, colatitude, elevation] form; otherwise,
-                units are [x, y, z] in absolute, cartesian terms.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
@@ -1170,10 +1156,6 @@ class WorldState:
         if not keep_existing:
             self.clear_emitters()
 
-        # Sanity checking
-        if polar:
-            assert mic is not None, "mic_alias is required for polar coordinates"
-
         # Parse the list of microphone aliases that we require a direct line to
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
@@ -1186,9 +1168,7 @@ class WorldState:
         )
 
         # Try and place inside the mesh: return True if placed, False if not
-        placed = self._try_add_emitter(
-            position, desired_mic, alias, polar, direct_path_to
-        )
+        placed = self._try_add_emitter(position, desired_mic, alias, direct_path_to)
 
         # If we can't add the emitter to the mesh
         if not placed:
@@ -1215,7 +1195,6 @@ class WorldState:
         mics: Optional[Union[list[str], str]] = None,
         n_emitters: Optional[int] = None,
         keep_existing: Optional[bool] = False,
-        polar: Optional[bool] = True,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
         raise_on_error: Optional[bool] = True,
     ) -> None:
@@ -1234,7 +1213,6 @@ class WorldState:
             keep_existing (optional): whether to keep existing emitters from the mesh or remove, defaults to keep.
             raise_on_error (optional): if True, raises an error when unable to place emitter, otherwise skips to next.
             n_emitters: Number of emitters to add with random positions
-            polar (optional): if True, `position` is expected in form [azimuth, colatitude, elevation] relative to mic
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
@@ -1243,9 +1221,6 @@ class WorldState:
         # Remove existing emitters if we wish to do this
         if not keep_existing:
             self.clear_emitters()
-
-        if polar:
-            assert mics is not None, "mic_alias is required for polar coordinates"
 
         # Parse the list of microphone aliases that we require a direct line to
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
@@ -1291,7 +1266,7 @@ class WorldState:
 
             # Try and place the emitter inside the space
             placed = self._try_add_emitter(
-                position_, desired_mic, emitter_alias_, polar, direct_path_to
+                position_, desired_mic, emitter_alias_, direct_path_to
             )
 
             # If we can't add the emitter to the mesh

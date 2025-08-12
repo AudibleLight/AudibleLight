@@ -250,9 +250,7 @@ def test_validate_position(
 def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
     oyens_space.clear_microphones()
     # Add the emitters in and check that the shape of the resulting array is what we expect
-    oyens_space.add_emitter(
-        position, emitter_alias, mic=None, keep_existing=False, polar=False
-    )
+    oyens_space.add_emitter(position, emitter_alias, mic=None, keep_existing=False)
     assert isinstance(oyens_space.emitters, dict)
     assert oyens_space.num_emitters == 1
     # Get the desired emitter: should be the first element in the list
@@ -286,30 +284,22 @@ def test_add_emitter_invalid(oyens_space: WorldState):
     # Raise error when no microphone with alias has been added
     with pytest.raises(KeyError):
         oyens_space.add_emitter(
-            mic="ambeovr", position=[1000, 1000, 1000], keep_existing=False, polar=False
+            mic="ambeovr", position=[1000, 1000, 1000], keep_existing=False
         )
     # Raise error when trying to add emitter out of bounds
     oyens_space.add_microphone(alias="ambeovr")
     with pytest.raises(ValueError):
         oyens_space.add_emitter(
-            mic="ambeovr", position=[1000, 1000, 1000], keep_existing=False, polar=False
+            mic="ambeovr", position=[1000, 1000, 1000], keep_existing=False
         )
     # Cannot add emitter that directly intersects with a microphone
     oyens_space.add_microphone(position=[-0.5, -0.5, 0.5], keep_existing=False)
     with pytest.raises(ValueError):
-        oyens_space.add_emitter(
-            [-0.5, -0.5, 0.5], polar=False
-        )  # same, in absolute terms
+        oyens_space.add_emitter([-0.5, -0.5, 0.5])  # same, in absolute terms
     with pytest.raises(ValueError):
         oyens_space.add_emitter(
-            [0.0, 0.0, 0.0], mic="mic000", polar=False
+            [0.0, 0.0, 0.0], mic="mic000"
         )  # same, in relative terms
-    # Must provide a reference microphone when using polar emitters
-    with pytest.raises(AssertionError):
-        oyens_space.add_emitter([0.0, 0.0, 0.0], polar=True, mic=None)
-    # Cannot use random positions with polar = True
-    with pytest.raises(AssertionError):
-        oyens_space.add_emitter(position=None, polar=True)
     # This emitter is valid, but has no direct path to the microphone
     with pytest.raises(ValueError):
         # emitter is in bedroom 2, microphone is in living room
@@ -318,7 +308,6 @@ def test_add_emitter_invalid(oyens_space: WorldState):
         )
         oyens_space.add_emitter(
             position=np.array([2.9, -7.0, 0.3]),
-            polar=False,
             ensure_direct_path="tester",
             keep_existing=False,
         )
@@ -352,48 +341,6 @@ def test_get_microphones_from_alias(inputs, outputs, oyens_space: WorldState):
 
 
 @pytest.mark.parametrize(
-    "emitter_position,expected_position",
-    [
-        # emitter offset 20 cm along +x direction (azimuth=0°, elevation=0°)
-        ([0.0, 0.0, 0.2], [-0.3, -0.5, 0.5]),
-        # emitter offset 20 cm along +y direction (azimuth=90°, elevation=0°)
-        (np.array([90.0, 0.0, 0.2]), np.array([-0.5, -0.3, 0.5])),
-        # emitter offset 20 cm along -z direction (azimuth=90°, elevation=-90°)
-        (np.array([90.0, -90.0, 0.2]), [-0.5, -0.5, 0.3]),
-        # emitter directly above the mic, 20 cm along +z (elevation=+90°)
-        ([0.0, 90.0, 0.2], [-0.5, -0.5, 0.7]),
-        # emitter directly below the mic, 20 cm along -z (elevation=-90°)
-        ([0.0, -90.0, 0.2], [-0.5, -0.5, 0.3]),
-        # emitter offset 30 cm along +y direction (azimuth=90°, elevation=0°)
-        ([90.0, 0.0, 0.3], [-0.5, -0.2, 0.5]),
-        # emitter diagonally down-forward (azimuth=45°, elevation=-45°)
-        ([45.0, -45.0, 0.2], [-0.4, -0.4, 0.5 - 0.1414]),
-    ],
-)
-def test_add_polar_emitter(
-    emitter_position, expected_position, oyens_space: WorldState
-):
-    oyens_space.add_microphone(
-        keep_existing=False,
-        position=[-0.5, -0.5, 0.5],
-        microphone_type="monocapsule",
-        alias="tester",
-    )
-    oyens_space.add_emitter(
-        position=emitter_position,
-        polar=True,
-        mic="tester",
-        keep_existing=False,
-        alias="testsrc",
-    )
-    assert np.allclose(
-        oyens_space.get_emitter("testsrc", 0).coordinates_absolute,
-        expected_position,
-        atol=1e-4,
-    )
-
-
-@pytest.mark.parametrize(
     "position,accept",
     [
         ([0.1, 0.0, 0.0], False),
@@ -415,12 +362,10 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
     if not accept:
         with pytest.raises(ValueError):
             oyens_space.add_emitter(
-                position=position, mic="tester", keep_existing=False, polar=False
+                position=position, mic="tester", keep_existing=False
             )
     else:
-        oyens_space.add_emitter(
-            position=position, mic="tester", keep_existing=False, polar=False
-        )
+        oyens_space.add_emitter(position=position, mic="tester", keep_existing=False)
         assert oyens_space.num_emitters == 1
         src = oyens_space.get_emitter("src000", 0)
         assert isinstance(src, Emitter)
@@ -451,50 +396,13 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
 )
 def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
     oyens_space.clear_microphones()
-    oyens_space.add_emitters(
-        positions, emitter_aliases, keep_existing=False, polar=False
-    )
+    oyens_space.add_emitters(positions, emitter_aliases, keep_existing=False)
     assert oyens_space.num_emitters == len(positions)
     if emitter_aliases is not None:
         assert set(oyens_space.emitters.keys()) == set(emitter_aliases)
     for emitter_list in oyens_space.emitters.values():
         for emitter in emitter_list:
             assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
-
-
-@pytest.mark.parametrize(
-    "emitter_positions,expected_positions",
-    [
-        # 1. Azimuth = 0°, Colatitude = 90° (x+), and Colatitude = 0° (z+)
-        # emitter 1: offset 20 cm along +x; emitter 2: offset 20 cm directly above mic
-        ([[0.0, 0.0, 0.2], [0.0, 90.0, 0.2]], [[-0.3, -0.5, 0.5], [-0.5, -0.5, 0.7]]),
-        # 2. Azimuth = 90°, Colatitude = 90° (y+), and Azimuth = 270°, Colatitude = 90° (y−)
-        # emitter 1: offset 20 cm along +y; emitter 2: offset 20 cm along −y
-        (
-            [[90.0, 0.0, 0.2], [270.0, 0.0, 0.2]],
-            [[-0.5, -0.3, 0.5], [-0.5, -0.7, 0.5]],
-        ),
-    ],
-)
-def test_add_polar_emitters(
-    emitter_positions, expected_positions, oyens_space: WorldState
-):
-    oyens_space.add_microphone(
-        keep_existing=False,
-        position=[-0.5, -0.5, 0.5],
-        microphone_type="monocapsule",
-        alias="tester",
-    )
-    oyens_space.add_emitters(
-        positions=emitter_positions, polar=True, mics="tester", keep_existing=False
-    )
-    for emitter_list, expected_position in zip(
-        oyens_space.emitters.values(), expected_positions
-    ):
-        for emitter in emitter_list:
-            assert np.allclose(
-                emitter.coordinates_absolute, expected_position, atol=1e-4
-            )
 
 
 @pytest.mark.parametrize(
@@ -531,7 +439,6 @@ def test_add_emitters_relative_to_mic(
         mics="testmic",
         keep_existing=False,
         raise_on_error=False,
-        polar=False,
         aliases=emit_aliases,
     )
     assert oyens_space.num_emitters == sum(expected)
@@ -560,7 +467,7 @@ def test_add_emitters_relative_to_mic(
     [i for i in range(1, 10, 2)],
 )
 def test_add_n_emitters(n_emitters, oyens_space: WorldState):
-    oyens_space.add_emitters(n_emitters=n_emitters, keep_existing=False, polar=False)
+    oyens_space.add_emitters(n_emitters=n_emitters, keep_existing=False)
     assert oyens_space.num_emitters == n_emitters
     for emitter_list in oyens_space.emitters.values():
         for emitter in emitter_list:
@@ -595,7 +502,6 @@ def test_add_emitters_at_specific_position(
         positions=test_position,
         keep_existing=False,
         raise_on_error=False,
-        polar=False,
         aliases=emit_alias,
     )
     assert oyens_space.num_emitters == sum(expected)
@@ -609,19 +515,18 @@ def test_add_emitters_invalid(oyens_space: WorldState):
     # n_emitters must be a postive integer
     with pytest.raises(AssertionError):
         for inp in ["asdf", [], -1, -100, 0]:
-            oyens_space.add_emitters(n_emitters=inp, keep_existing=False, polar=False)
+            oyens_space.add_emitters(
+                n_emitters=inp,
+                keep_existing=False,
+            )
     # Cannot specify both a number of random emitters and positions for them
     with pytest.raises(TypeError):
-        oyens_space.add_emitters(positions=[[0, 0, 0]], n_emitters=1, polar=False)
-    # Aliases for emitters must be unique
-    # with pytest.raises(ValueError):
-    #     oyens_space.add_emitters(aliases=["asdf", "asdf"], polar=False)
+        oyens_space.add_emitters(positions=[[0, 0, 0]], n_emitters=1)
     # Cannot add emitters that are way outside the mesh
     with pytest.raises(ValueError):
         oyens_space.add_emitters(
             [[1000.0, 1000.0, 1000.0], [-1000, -1000, -1000]],
             keep_existing=False,
-            polar=False,
         )
 
 
@@ -649,7 +554,7 @@ def test_get_random_position(test_num: int, oyens_space: WorldState):
     # Add some microphones and emitters to the space
     for idx_ in range(test_num):
         oyens_space.add_microphone(keep_existing=True)
-        oyens_space.add_emitter(keep_existing=True, polar=False)
+        oyens_space.add_emitter(keep_existing=True)
     # Grab a random position
     random_point = oyens_space.get_random_position()
     # It should be valid (suitable distance from surfaces, inside mesh, away from mics/emitters...)
@@ -671,7 +576,7 @@ def test_get_random_position_with_weighted_average_ray_length(oyens_space: World
 def test_create_plot(oyens_space):
     # Add some microphones and emitters
     oyens_space.add_microphone(keep_existing=False)
-    oyens_space.add_emitter(polar=False)
+    oyens_space.add_emitter()
     # Create the plot
     fig = oyens_space.create_plot()
     assert isinstance(fig, plt.Figure)
@@ -682,7 +587,7 @@ def test_create_plot(oyens_space):
 def test_create_scene(oyens_space):
     # Add some microphones and emitters
     oyens_space.add_microphone(keep_existing=False)
-    oyens_space.add_emitter(polar=False)
+    oyens_space.add_emitter()
     # Create the scene
     scene = oyens_space.create_scene()
     assert isinstance(scene, Scene)
@@ -736,7 +641,7 @@ def test_to_dict(oyens_space: WorldState):
     oyens_space.add_microphone(
         microphone_type="ambeovr", alias="tester_mic", keep_existing=False
     )
-    oyens_space.add_emitter(alias="tester_emitter", polar=False, keep_existing=False)
+    oyens_space.add_emitter(alias="tester_emitter", keep_existing=False)
     dict_out = oyens_space.to_dict()
     # Dictionary should have required keys
     assert isinstance(dict_out, dict)

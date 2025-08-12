@@ -75,7 +75,7 @@ def test_simulated_ir(n_mics: int, n_emitters: int, oyens_space: WorldState):
     oyens_space.add_microphones(
         microphone_types=["ambeovr" for _ in range(n_mics)], keep_existing=False
     )
-    oyens_space.add_emitters(n_emitters=n_emitters, polar=False)
+    oyens_space.add_emitters(n_emitters=n_emitters)
     # Grab the IRs: we should have one array for every microphone
     oyens_space.simulate()
     assert isinstance(oyens_space.irs, dict)
@@ -109,7 +109,7 @@ def test_save_wavs(oyens_space: WorldState):
     oyens_space.add_microphone(
         microphone_type="ambeovr", keep_existing=False
     )  # just adds an ambeovr mic in a random plcae
-    oyens_space.add_emitter(polar=False)
+    oyens_space.add_emitter()
     # Run the simulation
     oyens_space.simulate()
     # Dump the IRs to a temporary directory
@@ -172,9 +172,7 @@ def test_simulated_doa_with_music(
         keep_existing=False,
         alias="tester",
     )
-    oyens_space.add_emitters(
-        positions=emitters, mics="tester", keep_existing=False, polar=False
-    )
+    oyens_space.add_emitters(positions=emitters, mics="tester", keep_existing=False)
     oyens_space.simulate()
     # TODO: in the future we should use simulated sound emitters, not the IRs
     output = oyens_space.irs
@@ -262,9 +260,7 @@ def test_simulated_sound_distance(
         aliases=["closemic", "farmic"],
         keep_existing=False,
     )
-    oyens_space.add_emitter(
-        emitter_position, mic="closemic", keep_existing=False, polar=False
-    )
+    oyens_space.add_emitter(emitter_position, mic="closemic", keep_existing=False)
     oyens_space.simulate()
     irs = oyens_space.irs
     # Shape of the IRs should be as expected
