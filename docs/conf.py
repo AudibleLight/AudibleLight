@@ -7,13 +7,16 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import os
+import shutil
 import sys
+
+from audiblelight import utils
 
 sys.path.insert(0, os.path.abspath('..'))
 
 project = 'AudibleLight'
-copyright = '2025, Huw Cheston'
-author = 'Huw Cheston'
+copyright = '2025, Centre for Digital Music, Queen Mary University of London'
+author = 'Centre for Digital Music, Queen Mary University of London'
 release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
@@ -23,7 +26,10 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.napoleon',
+    "nbsphinx",
+    "IPython.sphinxext.ipython_console_highlighting",
+    "myst_parser"
 ]
 
 templates_path = ['_templates']
@@ -51,8 +57,26 @@ typehints_use_signature_return = True
 typehints_fully_qualified = False
 
 
+print("Copy example notebooks into docs/_examples")
+
+
+def all_but_ipynb(dir, contents):
+    result = []
+    for c in contents:
+        if ".ipynb_checkpoints" in c:
+            result.append(c)
+        if os.path.isfile(os.path.join(dir, c)) and (not c.endswith(".ipynb")):
+            result.append(c)
+    return result
+
+
+shutil.rmtree(utils.get_project_root() / "docs/_examples", ignore_errors=True)
+shutil.copytree(utils.get_project_root() / "notebooks", utils.get_project_root() / "docs/_examples", ignore=all_but_ipynb)
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_book_theme'
 html_static_path = ['_static']
+
+html_favicon = '_static/favicon.ico'
