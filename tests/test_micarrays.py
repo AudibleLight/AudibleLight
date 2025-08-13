@@ -3,11 +3,19 @@
 
 """Tests microphone arrays in audiblelight.micarrays"""
 
-import pytest
-import numpy as np
+import json
 
-from audiblelight import utils
-from audiblelight.micarrays import *
+import numpy as np
+import pytest
+
+from audiblelight.micarrays import (
+    MICARRAY_LIST,
+    AmbeoVR,
+    Eigenmike32,
+    MicArray,
+    MonoCapsule,
+    sanitize_microphone_input,
+)
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
@@ -32,7 +40,12 @@ def test_polar_coordinates(micarray):
         polar = getattr(micarray(), "coordinates_polar")
         assert isinstance(polar, np.ndarray)
         # Should have the correct number of capsules and be the same shape as the cartesian coordinates
-        assert polar.shape == cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
+        assert (
+            polar.shape
+            == cartesian.shape
+            == (micarray().n_capsules, 3)
+            == (len(micarray()), 3)
+        )
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
@@ -45,89 +58,21 @@ def test_cartesian_coordinates(micarray):
     assert cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
 
 
-@pytest.mark.parametrize(
-    "spherical,expected_cartesian",
-    [
-        (
-            np.array([[0.0, 90.0, 1.0]]),
-            np.array([[1.0, 0.0, 0.0]])
-        ),
-        (
-            np.array([[90.0, 90.0, 1.0]]),
-            np.array([[0.0, 1.0, 0.0]])
-        ),
-        (
-            np.array([[180.0, 90.0, 1.0]]),
-            np.array([[-1.0, 0.0, 0.0]])
-        ),
-        (
-            np.array([[45.0, 60.0, 2.0]]),
-            np.array([
-                [
-                    2.0 * np.sin(np.deg2rad(60.0)) * np.cos(np.deg2rad(45.0)),
-                    2.0 * np.sin(np.deg2rad(60.0)) * np.sin(np.deg2rad(45.0)),
-                    2.0 * np.cos(np.deg2rad(60.0)),
-                ]
-            ]),
-        ),
-    ]
-)
-def test_polar_to_cartesian(spherical, expected_cartesian):
-    # polar -> cartesian
-    result = utils.polar_to_cartesian(spherical)
-    assert np.allclose(result, expected_cartesian, atol=1e-6)
-    # polar -> cartesian -> polar
-    result_pol = utils.cartesian_to_polar(result)
-    assert np.allclose(spherical, result_pol)
+@pytest.mark.parametrize("micarray", MICARRAY_LIST)
+def test_to_dict(micarray):
+    micarray = micarray()
+    micarray.set_absolute_coordinates([-0.5, -0.5, -0.5])
+    dict_out = micarray.to_dict()
+    assert isinstance(dict_out, dict)
+    try:
+        json.dumps(dict_out)
+    except (TypeError, OverflowError):
+        pytest.fail("Dictionary not JSON serializable")
 
 
 @pytest.mark.parametrize(
-    "cartesian,expected_spherical",
-    [
-        (
-            np.array([[1.0, 0.0, 0.0]]),
-            np.array([[0.0, 90.0, 1.0]])
-        ),
-        (
-            np.array([[0.0, 1.0, 0.0]]),
-            np.array([[90.0, 90.0, 1.0]])
-        ),
-        (
-            np.array([[0.0, 0.0, 1.0]]),
-            np.array([[0.0, 0.0, 1.0]])
-        ),
-        (
-            np.array([[-1.0, -1.0, 0.0]]),
-            np.array([[225.0, 90.0, np.sqrt(2)]])
-        ),
-        (
-            np.array([[1.0, 1.0, 1.0]]),
-            np.array([[45.0, np.rad2deg(np.arccos(1.0 / np.sqrt(3))), np.sqrt(3)]])
-        ),
-    ]
+    "micarray,center", [(ma, np.array([5.0, 5.0, 5.0])) for ma in MICARRAY_LIST]
 )
-def test_cartesian_to_polar(cartesian, expected_spherical):
-    # cartesian -> polar
-    result = utils.cartesian_to_polar(cartesian)
-    assert np.allclose(result, expected_spherical)
-    # cartesian -> polar -> cartesian
-    result_cart = utils.polar_to_cartesian(result)
-    assert np.allclose(cartesian, result_cart)
-
-
-@pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])
-def test_center_coords(x: int, y: int, z: int):
-    coords_dict_deg = np.array([x, y, z])
-    coords_dict_cart = utils.polar_to_cartesian(coords_dict_deg)
-    coords_dict_centered = utils.center_coordinates(coords_dict_cart)
-    # Everything should be centered around the mean
-    #  As we only passed in one row, this will mean that every coordinate becomes a 0
-    assert np.allclose(
-        np.mean(coords_dict_centered, axis=0), [0, 0, 0]
-    )
-
-
-@pytest.mark.parametrize("micarray,center", [(ma, np.array([5.0, 5.0, 5.0])) for ma in MICARRAY_LIST])
 def test_absolute_coordinates(micarray, center: np.ndarray):
     ma = micarray()
     with pytest.raises(NotImplementedError):
@@ -146,11 +91,73 @@ def test_absolute_coordinates(micarray, center: np.ndarray):
 
 @pytest.mark.parametrize(
     "array_name,expected",
-    [("eigenmike32", Eigenmike32), ("ambeovr", AmbeoVR), ("asdf", ValueError), (None, MonoCapsule), (123, TypeError)]
+    [
+        ("eigenmike32", Eigenmike32),
+        ("ambeovr", AmbeoVR),
+        ("asdf", ValueError),
+        (None, MonoCapsule),
+        (123, TypeError),
+    ],
 )
 def test_sanitize_microphone_input(array_name: str, expected: object):
     if issubclass(expected, Exception):
         with pytest.raises(expected):
             _ = sanitize_microphone_input(array_name)
     else:
-        assert type(expected) == type(sanitize_microphone_input(array_name))
+        assert type(expected) is type(sanitize_microphone_input(array_name))
+
+
+@pytest.mark.parametrize(
+    "input_dict",
+    [
+        {
+            "name": "ambeovr",
+            "micarray_type": "AmbeoVR",
+            "is_spherical": True,
+            "n_capsules": 4,
+            "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
+            "coordinates_absolute": [
+                [2.1146615660317107, 0.0029858628742159927, 2.029366448659064],
+                [2.1146615660317107, -0.008598696432575392, 2.0178949199320435],
+                [2.1030770067249196, 0.0029858628742159927, 2.0178949199320435],
+                [2.1030770067249196, -0.008598696432575392, 2.029366448659064],
+            ],
+            "coordinates_center": [
+                2.108869286378315,
+                -0.002806416779179699,
+                2.023630684295554,
+            ],
+        }
+    ],
+)
+def test_micarray_from_dict(input_dict):
+    out_array = MicArray.from_dict(input_dict)
+    assert issubclass(type(out_array), MicArray)
+    out_dict = out_array.to_dict()
+    for k, v in out_dict.items():
+        # will be `pop`d and removed
+        if k == "micarray_type":
+            continue
+
+        if isinstance(input_dict[k], (np.ndarray, list)) and not isinstance(
+            input_dict[k][0], str
+        ):
+            assert np.isclose(input_dict[k], out_dict[k], atol=1e-4).all()
+        else:
+            assert input_dict[k] == out_dict[k]
+
+
+@pytest.mark.parametrize("mictype", MICARRAY_LIST)
+def test_magic_methods(mictype):
+    instant = mictype()
+    instant.set_absolute_coordinates([-0.5, -0.5, 0.5])
+    for at in [
+        "__len__",
+        "__repr__",
+        "__str__",
+    ]:
+        assert hasattr(instant, at)
+        _ = getattr(instant, at)
+    # Compare equality
+    instant2 = mictype.from_dict(instant.to_dict())
+    assert instant == instant2

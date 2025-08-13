@@ -1,0 +1,57 @@
+[tool.poetry]
+name = "audiblelight"
+version = "0.1.0"
+description = "A library for soundscape synthesis using spatial impulse responses derived from ray-traced room scans"
+authors = ["Huw Cheston <h.cheston@qmul.ac.uk>", "Iran Roman <i.roman@qmul.ac.uk>"]
+license = "CC-BY-4.0"
+homepage = "https://github.com/AudibleLight/AudibleLight"
+repository = "https://github.com/AudibleLight/AudibleLight"
+keywords = ["audio", "sound", "soundscape", "environmental", "ambisonics", "microphone array", "sound event detection", "localization"]
+classifiers = [
+    "License :: CC-BY-4.0",
+    "Programming Language :: Python",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis"
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+librosa = "0.11.0"
+matplotlib = "*"
+numpy = "2.0.2"
+pandas = "2.2.2"
+pillow = "11.2.1"
+plotly = "5.24.1"
+rtree = "1.4.0"
+scipy = "*"
+tqdm = "4.67.1"
+trimesh = "4.6.11"
+scaper = "*"
+torch = "*"
+pyglet = "<2"
+loguru = "*"
+pre-commit = "*"
+netCDF4 = "*"
+pytest = "*"
+coverage = "*"
+pytest-cov = "*"
+pytest-xdist = "*"
+pyroomacoustics = "*"
+h5py = "*"
+deepdiff = "*"
+rlr-audio-propagation = { git = "https://github.com/beasteers/rlr-audio-propagation.git", branch = "main" }
+notebook = "^7.4.5"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "*"
+black = "24.4.2"
+isort = "5.13.2"
+flake8 = "7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
