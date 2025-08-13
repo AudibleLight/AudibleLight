@@ -47,6 +47,8 @@ rlr-audio-propagation = { git = "https://github.com/beasteers/rlr-audio-propagat
 notebook = "^7.4.5"
 sphinx = "*"
 sphinx-book-theme = "*"
+nbsphinx = "*"
+myst-parser = "*"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "*"
