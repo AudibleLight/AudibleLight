@@ -1,0 +1,1195 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>audiblelight.core.Scene &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_autosummary/audiblelight.core.Scene';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="audiblelight.worldstate.WorldState" href="audiblelight.worldstate.WorldState.html" />
+    <link rel="prev" title="AudibleLight documentation" href="../index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Core API:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">audiblelight.core.Scene</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Events and Emitters:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Microphones:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Synthesis:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l1"><a class="reference internal" href="audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/_autosummary/audiblelight.core.Scene.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>audiblelight.core.Scene</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene"><code class="docutils literal notranslate"><span class="pre">Scene</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__init__"><code class="docutils literal notranslate"><span class="pre">Scene.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__eq__"><code class="docutils literal notranslate"><span class="pre">Scene.__eq__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__getitem__"><code class="docutils literal notranslate"><span class="pre">Scene.__getitem__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__iter__"><code class="docutils literal notranslate"><span class="pre">Scene.__iter__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__len__"><code class="docutils literal notranslate"><span class="pre">Scene.__len__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__repr__"><code class="docutils literal notranslate"><span class="pre">Scene.__repr__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__str__"><code class="docutils literal notranslate"><span class="pre">Scene.__str__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_ambience"><code class="docutils literal notranslate"><span class="pre">Scene.add_ambience()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.add_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_emitters"><code class="docutils literal notranslate"><span class="pre">Scene.add_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_event"><code class="docutils literal notranslate"><span class="pre">Scene.add_event()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_event_moving"><code class="docutils literal notranslate"><span class="pre">Scene.add_event_moving()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_event_static"><code class="docutils literal notranslate"><span class="pre">Scene.add_event_static()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_microphone"><code class="docutils literal notranslate"><span class="pre">Scene.add_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_microphone_and_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.add_microphone_and_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_microphones"><code class="docutils literal notranslate"><span class="pre">Scene.add_microphones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_ambience"><code class="docutils literal notranslate"><span class="pre">Scene.clear_ambience()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.clear_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_emitters"><code class="docutils literal notranslate"><span class="pre">Scene.clear_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_event"><code class="docutils literal notranslate"><span class="pre">Scene.clear_event()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_events"><code class="docutils literal notranslate"><span class="pre">Scene.clear_events()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_microphone"><code class="docutils literal notranslate"><span class="pre">Scene.clear_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_microphones"><code class="docutils literal notranslate"><span class="pre">Scene.clear_microphones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.from_dict"><code class="docutils literal notranslate"><span class="pre">Scene.from_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.from_json"><code class="docutils literal notranslate"><span class="pre">Scene.from_json()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.generate"><code class="docutils literal notranslate"><span class="pre">Scene.generate()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_ambience"><code class="docutils literal notranslate"><span class="pre">Scene.get_ambience()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.get_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_emitters"><code class="docutils literal notranslate"><span class="pre">Scene.get_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_event"><code class="docutils literal notranslate"><span class="pre">Scene.get_event()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_events"><code class="docutils literal notranslate"><span class="pre">Scene.get_events()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_microphone"><code class="docutils literal notranslate"><span class="pre">Scene.get_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.to_dict"><code class="docutils literal notranslate"><span class="pre">Scene.to_dict()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="audiblelight-core-scene">
+<h1>audiblelight.core.Scene<a class="headerlink" href="#audiblelight-core-scene" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiblelight.core.Scene">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiblelight.core.</span></span><span class="sig-name descname"><span class="pre">Scene</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">duration</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fg_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_db</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_start_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_start_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_duration_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_velocity_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_resolution_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">snr_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_overlap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>duration</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em>)</p></li>
+<li><p><strong>mesh_path</strong> (<em>str</em><em> | </em><em>Path</em>)</p></li>
+<li><p><strong>fg_path</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>state_kwargs</strong> (<em>dict</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>ref_db</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>scene_start_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_start_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_duration_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_velocity_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_resolution_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>snr_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>max_overlap</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">duration</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fg_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_db</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_start_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_start_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_duration_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_velocity_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_resolution_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">snr_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_overlap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.__init__" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>duration</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em>)</p></li>
+<li><p><strong>mesh_path</strong> (<em>str</em><em> | </em><em>Path</em>)</p></li>
+<li><p><strong>fg_path</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>state_kwargs</strong> (<em>dict</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>ref_db</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>scene_start_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_start_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_duration_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_velocity_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>event_resolution_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>snr_dist</strong> (<em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>max_overlap</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.__init__" title="audiblelight.core.Scene.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(duration, mesh_path[, fg_path, ...])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_ambience" title="audiblelight.core.Scene.add_ambience"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_ambience</span></code></a>([filepath, noise, channels, ...])</p></td>
+<td><p>Add ambient noise to the WorldState.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_emitter" title="audiblelight.core.Scene.add_emitter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_emitter</span></code></a>(**kwargs)</p></td>
+<td><p>Add an emitter to the WorldState.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_emitters" title="audiblelight.core.Scene.add_emitters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_emitters</span></code></a>(**kwargs)</p></td>
+<td><p>Add emitters to the WorldState.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_event" title="audiblelight.core.Scene.add_event"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_event</span></code></a>([event_type, filepath, alias, ...])</p></td>
+<td><p>Add an event to the foreground, either &quot;static&quot; or &quot;moving&quot;</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_event_moving" title="audiblelight.core.Scene.add_event_moving"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_event_moving</span></code></a>([filepath, alias, ...])</p></td>
+<td><p>Add a moving event to the foreground with optional overrides.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_event_static" title="audiblelight.core.Scene.add_event_static"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_event_static</span></code></a>([filepath, alias, ...])</p></td>
+<td><p>Add a static event to the foreground with optional overrides.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_microphone" title="audiblelight.core.Scene.add_microphone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_microphone</span></code></a>(**kwargs)</p></td>
+<td><p>Add a microphone to the WorldState.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_microphone_and_emitter" title="audiblelight.core.Scene.add_microphone_and_emitter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_microphone_and_emitter</span></code></a>(**kwargs)</p></td>
+<td><p>Add both a microphone and emitter with specified relationship.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.add_microphones" title="audiblelight.core.Scene.add_microphones"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_microphones</span></code></a>(**kwargs)</p></td>
+<td><p>Add microphones to the WorldState.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.clear_ambience" title="audiblelight.core.Scene.clear_ambience"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_ambience</span></code></a>()</p></td>
+<td><p>Removes all current ambience events.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.clear_emitter" title="audiblelight.core.Scene.clear_emitter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_emitter</span></code></a>(alias)</p></td>
+<td><p>Alias for <cite>WorldState.clear_emitter</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.clear_emitters" title="audiblelight.core.Scene.clear_emitters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_emitters</span></code></a>()</p></td>
+<td><p>Alias for <cite>WorldState.clear_emitters</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.clear_event" title="audiblelight.core.Scene.clear_event"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_event</span></code></a>(alias)</p></td>
+<td><p>Given an alias for an event, clears the event and updates the state.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.clear_events" title="audiblelight.core.Scene.clear_events"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_events</span></code></a>()</p></td>
+<td><p>Removes all current events and emitters from the state</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.clear_microphone" title="audiblelight.core.Scene.clear_microphone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_microphone</span></code></a>(alias)</p></td>
+<td><p>Alias for <cite>WorldState.clear_microphone</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.clear_microphones" title="audiblelight.core.Scene.clear_microphones"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_microphones</span></code></a>()</p></td>
+<td><p>Alias for <cite>WorldState.clear_microphones</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.from_dict" title="audiblelight.core.Scene.from_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code></a>(input_dict)</p></td>
+<td><p>Instantiate a <cite>Scene</cite> from a dictionary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.from_json" title="audiblelight.core.Scene.from_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_json</span></code></a>(json_fpath)</p></td>
+<td><p>Instantiate a <cite>Scene</cite> from a JSON file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.generate" title="audiblelight.core.Scene.generate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate</span></code></a>([audio_path, metadata_path, ...])</p></td>
+<td><p>Render scene to disk.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.get_ambience" title="audiblelight.core.Scene.get_ambience"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ambience</span></code></a>(alias)</p></td>
+<td><p>Given a valid alias, get an associated ambience event, as in <cite>self.ambience[alias]</cite></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.get_emitter" title="audiblelight.core.Scene.get_emitter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_emitter</span></code></a>(alias[, emitter_idx])</p></td>
+<td><p>Alias for <cite>WorldState.get_emitter</cite></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.get_emitters" title="audiblelight.core.Scene.get_emitters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_emitters</span></code></a>(alias)</p></td>
+<td><p>Alias for <cite>WorldState.get_emitters</cite></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.get_event" title="audiblelight.core.Scene.get_event"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_event</span></code></a>(alias_or_idx)</p></td>
+<td><p>Given a valid alias, get an associated event either by alias (string) or idx (int).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.get_events" title="audiblelight.core.Scene.get_events"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_events</span></code></a>()</p></td>
+<td><p>Return a list of all events for this scene, as in <cite>self.events.values()</cite></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.core.Scene.get_microphone" title="audiblelight.core.Scene.get_microphone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_microphone</span></code></a>(alias)</p></td>
+<td><p>Alias for <cite>WorldState.get_microphone</cite></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.core.Scene.to_dict" title="audiblelight.core.Scene.to_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code></a>()</p></td>
+<td><p>Returns metadata for this object as a dictionary</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.__eq__">
+<span class="sig-name descname"><span class="pre">__eq__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.__eq__" title="Link to this definition">#</a></dt>
+<dd><p>Compare two Scene objects for equality.</p>
+<p>Internally, we convert both objects to a dictionary, and then use the <cite>deepdiff</cite> package to compare them, with
+some additional logic to account e.g. for significant digits and values that will always be different (e.g.,
+creation time).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other</strong> (<em>Any</em>) – the object to compare the current <cite>Scene</cite> object against</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the Scene objects are equivalent, False otherwise</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias_or_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.__getitem__" title="Link to this definition">#</a></dt>
+<dd><p>An alternative for <cite>self.get_event(alias) or `self.events[alias]</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alias_or_idx</strong> (<em>str</em><em> | </em><em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="audiblelight.event.Event.html#audiblelight.event.Event" title="audiblelight.event.Event"><em>Event</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.__iter__">
+<span class="sig-name descname"><span class="pre">__iter__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.__iter__" title="Link to this definition">#</a></dt>
+<dd><p>Yields an iterator of Event objects from the current scene</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">test_scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">9</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">test_scene</span><span class="o">.</span><span class="n">add_event_static</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">ev</span> <span class="ow">in</span> <span class="n">test_scene</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ev</span><span class="p">,</span> <span class="n">Event</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Iterator</em>[<a class="reference internal" href="audiblelight.event.Event.html#audiblelight.event.Event" title="audiblelight.event.Event"><em>Event</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.__len__">
+<span class="sig-name descname"><span class="pre">__len__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.__len__" title="Link to this definition">#</a></dt>
+<dd><p>Returns the number of events in the scene</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.__repr__">
+<span class="sig-name descname"><span class="pre">__repr__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.__repr__" title="Link to this definition">#</a></dt>
+<dd><p>Returns representation of the scene as a JSON</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.__str__">
+<span class="sig-name descname"><span class="pre">__str__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.__str__" title="Link to this definition">#</a></dt>
+<dd><p>Returns a string representation of the scene</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_ambience">
+<span class="sig-name descname"><span class="pre">add_ambience</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_db</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_ambience" title="Link to this definition">#</a></dt>
+<dd><p>Add ambient noise to the WorldState.</p>
+<p>The ambience can be either a file on the disk (in which case filepath must not be None) or a type of noise
+“color” such as white, red, or blue (in which case noise must not be None). The number of channels can be
+provided directly or will be inferred from the microphones added to the state, when this is possible.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>channels</strong> (<em>int</em>) – the number of channels to generate noise for. If None, will be inferred from available mics.</p></li>
+<li><p><strong>filepath</strong> (<em>str</em><em> or </em><em>Path</em>) – a path to an audio file on the disk. Must be provided when <cite>noise</cite> is None.</p></li>
+<li><p><strong>noise</strong> (<em>str</em>) – either the type of noise to generate, e.g. “white”, “red”, or an arbitrary numeric exponent to
+use when generating noise with <cite>powerlaw_psd_gaussian</cite>. Must be provided if <cite>filepath</cite> is None.</p></li>
+<li><p><strong>ref_db</strong> (<em>Numeric</em>) – the noise floor, in decibels</p></li>
+<li><p><strong>alias</strong> (<em>str</em>) – string reference to refer to this <cite>Ambience</cite> object inside <cite>Scene.ambience</cite></p></li>
+<li><p><strong>kwargs</strong> – additional keyword arguments passed to <cite>audiblelight.ambience.powerlaw_psd_gaussian</cite></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_emitter">
+<span class="sig-name descname"><span class="pre">add_emitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_emitter" title="Link to this definition">#</a></dt>
+<dd><p>Add an emitter to the WorldState.</p>
+<p>An alias for <cite>WorldState.add_emitter</cite>: see that method for a full description.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_emitters">
+<span class="sig-name descname"><span class="pre">add_emitters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_emitters" title="Link to this definition">#</a></dt>
+<dd><p>Add emitters to the WorldState.</p>
+<p>An alias for <cite>WorldState.add_emitters</cite>: see that method for a full description.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_event">
+<span class="sig-name descname"><span class="pre">add_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'static'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_direct_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">snr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_velocity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_event" title="Link to this definition">#</a></dt>
+<dd><p>Add an event to the foreground, either “static” or “moving”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>event_type</strong> (<em>str</em>) – the type of event to add, must be either “static” or “moving”</p></li>
+<li><p><strong>filepath</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>) – a path to a foreground event to use. If not provided, a foreground event will be sampled from
+<cite>fg_category_paths</cite>, if this is provided inside <cite>__init__</cite>; otherwise, an error will be raised.</p></li>
+<li><p><strong>alias</strong> (<em>str</em><em> | </em><em>None</em>) – the string alias used to index this event inside the <cite>events</cite> dictionary</p></li>
+<li><p><strong>position</strong> (<em>list</em><em> | </em><em>ndarray</em><em> | </em><em>None</em>) – Location to add the event.
+When <cite>event_type==”static”</cite>, this will be the position of the Event.
+When <cite>event_type==”moving”</cite>, this will be the starting position of the Event.
+When not provided, a random point inside the mesh will be chosen.</p></li>
+<li><p><strong>mic</strong> (<em>str</em><em> | </em><em>None</em>) – String reference to a microphone inside <cite>self.state.microphones</cite>;
+when provided, <cite>position</cite> is interpreted as RELATIVE to the center of this microphone</p></li>
+<li><p><strong>polar</strong> (<em>bool</em><em> | </em><em>None</em>) – When True, expects <cite>position</cite> to be provided in [azimuth, elevation, radius] form; otherwise,
+units are [x, y, z] in absolute, cartesian terms.</p></li>
+<li><p><strong>ensure_direct_path</strong> (<em>bool</em><em> | </em><em>list</em><em> | </em><em>str</em><em> | </em><em>None</em>) – Whether to ensure a direct line exists between the emitter and given microphone(s).
+If True, will ensure a direct line exists between the emitter and ALL <cite>microphone</cite> objects. If a list of
+strings, these should correspond to microphone aliases inside <cite>microphones</cite>; a direct line will be
+ensured with all of these microphones. If False, no direct line is required for a emitter.</p></li>
+<li><p><strong>scene_start</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time to start the Event within the Scene, in seconds. Must be a positive number.
+If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).</p></li>
+<li><p><strong>event_start</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time to start the Event audio from, in seconds. Must be a positive number.
+If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).</p></li>
+<li><p><strong>duration</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time the Event audio lasts in seconds. Must be a positive number.
+If None or greater than the duration of the audio, defaults to using the full duration of the audio.</p></li>
+<li><p><strong>snr</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Signal to noise ratio for the audio file with respect to the noise floor</p></li>
+<li><p><strong>class_label</strong> (<em>str</em><em> | </em><em>None</em>) – Optional label to use for sound event class.
+If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.</p></li>
+<li><p><strong>class_id</strong> (<em>int</em><em> | </em><em>None</em>) – Optional ID to use for sound event class.
+If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.</p></li>
+<li><p><strong>spatial_velocity</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Speed of a moving sound event in metres-per-second</p></li>
+<li><p><strong>spatial_resolution</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Resolution of a moving sound event in Hz (i.e., number of IRs created per second)</p></li>
+<li><p><strong>shape</strong> (<em>str</em><em> | </em><em>None</em>) – the shape of a moving event trajectory; must be one of “linear”, “circular”, “random”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the Event object added to the Scene</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="audiblelight.event.Event.html#audiblelight.event.Event" title="audiblelight.event.Event"><em>Event</em></a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Creating an event with a predefined position:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">filepath</span><span class="o">=</span><span class="s2">&quot;some/path.wav&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;tester&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">position</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">polar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">ensure_direct_path</span><span class="o">=</span><span class="kc">False</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Creating an event with overrides:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;moving&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">filepath</span><span class="o">=</span><span class="s2">&quot;some/path.wav&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;tester&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">event_start</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">duration</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">snr</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_event_moving">
+<span class="sig-name descname"><span class="pre">add_event_moving</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">snr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_velocity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_event_moving" title="Link to this definition">#</a></dt>
+<dd><p>Add a moving event to the foreground with optional overrides.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filepath</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>) – a path to a foreground event to use. If not provided, a foreground event will be sampled from
+<cite>fg_category_paths</cite>, if this is provided inside <cite>__init__</cite>; otherwise, an error will be raised.</p></li>
+<li><p><strong>alias</strong> (<em>str</em><em> | </em><em>None</em>) – the string alias used to index this event inside the <cite>events</cite> dictionary</p></li>
+<li><p><strong>position</strong> (<em>list</em><em> | </em><em>ndarray</em><em> | </em><em>None</em>) – Location to add the event.
+When <cite>event_type==”static”</cite>, this will be the position of the Event.
+When <cite>event_type==”moving”</cite>, this will be the starting position of the Event.
+When not provided, a random point inside the mesh will be chosen.</p></li>
+<li><p><strong>mic</strong> (<em>str</em><em> | </em><em>None</em>) – String reference to a microphone inside <cite>self.state.microphones</cite>;
+when provided, <cite>position</cite> is interpreted as RELATIVE to the center of this microphone</p></li>
+<li><p><strong>polar</strong> (<em>bool</em><em> | </em><em>None</em>) – When True, expects <cite>position</cite> to be provided in [azimuth, elevation, radius] form; otherwise,
+units are [x, y, z] in absolute, cartesian terms.</p></li>
+<li><p><strong>scene_start</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time to start the Event within the Scene, in seconds. Must be a positive number.
+If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).</p></li>
+<li><p><strong>event_start</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time to start the Event audio from, in seconds. Must be a positive number.
+If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).</p></li>
+<li><p><strong>duration</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time the Event audio lasts in seconds. Must be a positive number.
+If None or greater than the duration of the audio, defaults to using the full duration of the audio.</p></li>
+<li><p><strong>snr</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Signal to noise ratio for the audio file with respect to the noise floor</p></li>
+<li><p><strong>class_label</strong> (<em>str</em><em> | </em><em>None</em>) – Optional label to use for sound event class.
+If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.</p></li>
+<li><p><strong>class_id</strong> (<em>int</em><em> | </em><em>None</em>) – Optional ID to use for sound event class.
+If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.</p></li>
+<li><p><strong>spatial_velocity</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Speed of a moving sound event in metres-per-second</p></li>
+<li><p><strong>spatial_resolution</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Resolution of a moving sound event in Hz (i.e., number of IRs created per second)</p></li>
+<li><p><strong>shape</strong> (<em>str</em><em> | </em><em>None</em>) – the shape of a moving event trajectory; must be one of “linear”, “circular”, “random”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the Event object added to the Scene</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="audiblelight.event.Event.html#audiblelight.event.Event" title="audiblelight.event.Event"><em>Event</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_event_static">
+<span class="sig-name descname"><span class="pre">add_event_static</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_direct_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">snr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_event_static" title="Link to this definition">#</a></dt>
+<dd><p>Add a static event to the foreground with optional overrides.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filepath</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>) – a path to a foreground event to use. If not provided, a foreground event will be sampled from
+<cite>fg_category_paths</cite>, if this is provided inside <cite>__init__</cite>; otherwise, an error will be raised.</p></li>
+<li><p><strong>alias</strong> (<em>str</em><em> | </em><em>None</em>) – the string alias used to index this event inside the <cite>events</cite> dictionary</p></li>
+<li><p><strong>position</strong> (<em>list</em><em> | </em><em>ndarray</em><em> | </em><em>None</em>) – Location to add the event.
+When <cite>event_type==”static”</cite>, this will be the position of the Event.
+When <cite>event_type==”moving”</cite>, this will be the starting position of the Event.
+When not provided, a random point inside the mesh will be chosen.</p></li>
+<li><p><strong>mic</strong> (<em>str</em><em> | </em><em>None</em>) – String reference to a microphone inside <cite>self.state.microphones</cite>;
+when provided, <cite>position</cite> is interpreted as RELATIVE to the center of this microphone</p></li>
+<li><p><strong>polar</strong> (<em>bool</em><em> | </em><em>None</em>) – When True, expects <cite>position</cite> to be provided in [azimuth, elevation, radius] form; otherwise,
+units are [x, y, z] in absolute, cartesian terms.</p></li>
+<li><p><strong>ensure_direct_path</strong> (<em>bool</em><em> | </em><em>list</em><em> | </em><em>str</em><em> | </em><em>None</em>) – Whether to ensure a direct line exists between the emitter and given microphone(s).
+If True, will ensure a direct line exists between the emitter and ALL <cite>microphone</cite> objects. If a list of
+strings, these should correspond to microphone aliases inside <cite>microphones</cite>; a direct line will be
+ensured with all of these microphones. If False, no direct line is required for a emitter.</p></li>
+<li><p><strong>scene_start</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time to start the Event within the Scene, in seconds. Must be a positive number.
+If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).</p></li>
+<li><p><strong>event_start</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time to start the Event audio from, in seconds. Must be a positive number.
+If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).</p></li>
+<li><p><strong>duration</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Time the Event audio lasts in seconds. Must be a positive number.
+If None or greater than the duration of the audio, defaults to using the full duration of the audio.</p></li>
+<li><p><strong>snr</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>) – Signal to noise ratio for the audio file with respect to the noise floor</p></li>
+<li><p><strong>class_label</strong> (<em>str</em><em> | </em><em>None</em>) – Optional label to use for sound event class.
+If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.</p></li>
+<li><p><strong>class_id</strong> (<em>int</em><em> | </em><em>None</em>) – Optional ID to use for sound event class.
+If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the Event object added to the Scene</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="audiblelight.event.Event.html#audiblelight.event.Event" title="audiblelight.event.Event"><em>Event</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_microphone">
+<span class="sig-name descname"><span class="pre">add_microphone</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_microphone" title="Link to this definition">#</a></dt>
+<dd><p>Add a microphone to the WorldState.</p>
+<p>An alias for <cite>WorldState.add_microphone</cite>: see that method for a full description.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_microphone_and_emitter">
+<span class="sig-name descname"><span class="pre">add_microphone_and_emitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_microphone_and_emitter" title="Link to this definition">#</a></dt>
+<dd><p>Add both a microphone and emitter with specified relationship.</p>
+<p>An alias for <cite>WorldState.add_microphone_and_emitter</cite>: see that method for a full description.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.add_microphones">
+<span class="sig-name descname"><span class="pre">add_microphones</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.add_microphones" title="Link to this definition">#</a></dt>
+<dd><p>Add microphones to the WorldState.</p>
+<p>An alias for <cite>WorldState.add_microphones</cite>: see that method for a full description.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.clear_ambience">
+<span class="sig-name descname"><span class="pre">clear_ambience</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.clear_ambience" title="Link to this definition">#</a></dt>
+<dd><p>Removes all current ambience events.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.clear_emitter">
+<span class="sig-name descname"><span class="pre">clear_emitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.clear_emitter" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <cite>WorldState.clear_emitter</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alias</strong> (<em>str</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.clear_emitters">
+<span class="sig-name descname"><span class="pre">clear_emitters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.clear_emitters" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <cite>WorldState.clear_emitters</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.clear_event">
+<span class="sig-name descname"><span class="pre">clear_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.clear_event" title="Link to this definition">#</a></dt>
+<dd><p>Given an alias for an event, clears the event and updates the state.</p>
+<p>Note: simply calling <cite>del self.events[alias]</cite> is not enough; we also need to remove the source from the
+ray-tracing engine by updating the <cite>state.emitters</cite> dictionary and calling <cite>state._update</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alias</strong> (<em>str</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.clear_events">
+<span class="sig-name descname"><span class="pre">clear_events</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.clear_events" title="Link to this definition">#</a></dt>
+<dd><p>Removes all current events and emitters from the state</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.clear_microphone">
+<span class="sig-name descname"><span class="pre">clear_microphone</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.clear_microphone" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <cite>WorldState.clear_microphone</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alias</strong> (<em>str</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.clear_microphones">
+<span class="sig-name descname"><span class="pre">clear_microphones</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.clear_microphones" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <cite>WorldState.clear_microphones</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.from_dict">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.from_dict" title="Link to this definition">#</a></dt>
+<dd><p>Instantiate a <cite>Scene</cite> from a dictionary.</p>
+<p>The new <cite>Scene</cite> will have the same WorldState, Emitters, Events, and Microphones as the original, serialised
+dictionary created from <cite>to_dict</cite>. Ensure that any necessary files (e.g. meshes, audio files) are located in
+the same places as specified in the dictionary.</p>
+<p>Note that, currently, distribution objects (e.g., <cite>Scene.event_start_dist</cite>) cannot be loaded from a dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input_dict</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Dictionary that will be used to instantiate the <cite>Scene</cite>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Scene instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.from_json">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_fpath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.from_json" title="Link to this definition">#</a></dt>
+<dd><p>Instantiate a <cite>Scene</cite> from a JSON file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>json_fpath</strong> (<em>str</em><em> | </em><em>Path</em>) – Path to the JSON file to load.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Scene instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">audio_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_audio_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'A'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.generate" title="Link to this definition">#</a></dt>
+<dd><p>Render scene to disk. Currently only audio and metadata are rendered.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>audio_path</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>) – Path to the audio file.</p></li>
+<li><p><strong>metadata_path</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>) – Path to the metadata file.</p></li>
+<li><p><strong>spatial_audio_format</strong> (<em>str</em><em> | </em><em>None</em>) – Format to use for saving spatial audio, defaults to ambisonics “A” format</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.get_ambience">
+<span class="sig-name descname"><span class="pre">get_ambience</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.get_ambience" title="Link to this definition">#</a></dt>
+<dd><p>Given a valid alias, get an associated ambience event, as in <cite>self.ambience[alias]</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="audiblelight.ambience.Ambience.html#audiblelight.ambience.Ambience" title="audiblelight.ambience.Ambience"><em>Ambience</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.get_emitter">
+<span class="sig-name descname"><span class="pre">get_emitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">emitter_idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.get_emitter" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <cite>WorldState.get_emitter</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>alias</strong> (<em>str</em>)</p></li>
+<li><p><strong>emitter_idx</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="audiblelight.worldstate.Emitter.html#audiblelight.worldstate.Emitter" title="audiblelight.worldstate.Emitter"><em>Emitter</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.get_emitters">
+<span class="sig-name descname"><span class="pre">get_emitters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.get_emitters" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <cite>WorldState.get_emitters</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alias</strong> (<em>str</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[<a class="reference internal" href="audiblelight.worldstate.Emitter.html#audiblelight.worldstate.Emitter" title="audiblelight.worldstate.Emitter"><em>Emitter</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.get_event">
+<span class="sig-name descname"><span class="pre">get_event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias_or_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.get_event" title="Link to this definition">#</a></dt>
+<dd><p>Given a valid alias, get an associated event either by alias (string) or idx (int).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alias_or_idx</strong> (<em>str</em><em> | </em><em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="audiblelight.event.Event.html#audiblelight.event.Event" title="audiblelight.event.Event"><em>Event</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.get_events">
+<span class="sig-name descname"><span class="pre">get_events</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.get_events" title="Link to this definition">#</a></dt>
+<dd><p>Return a list of all events for this scene, as in <cite>self.events.values()</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="audiblelight.event.Event.html#audiblelight.event.Event" title="audiblelight.event.Event"><em>Event</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.get_microphone">
+<span class="sig-name descname"><span class="pre">get_microphone</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alias</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.get_microphone" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <cite>WorldState.get_microphone</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>alias</strong> (<em>str</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Type</em>[<a class="reference internal" href="audiblelight.micarrays.MicArray.html#audiblelight.micarrays.MicArray" title="audiblelight.micarrays.MicArray"><em>MicArray</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.core.Scene.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.core.Scene.to_dict" title="Link to this definition">#</a></dt>
+<dd><p>Returns metadata for this object as a dictionary</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">AudibleLight documentation</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="audiblelight.worldstate.WorldState.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">audiblelight.worldstate.WorldState</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene"><code class="docutils literal notranslate"><span class="pre">Scene</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__init__"><code class="docutils literal notranslate"><span class="pre">Scene.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__eq__"><code class="docutils literal notranslate"><span class="pre">Scene.__eq__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__getitem__"><code class="docutils literal notranslate"><span class="pre">Scene.__getitem__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__iter__"><code class="docutils literal notranslate"><span class="pre">Scene.__iter__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__len__"><code class="docutils literal notranslate"><span class="pre">Scene.__len__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__repr__"><code class="docutils literal notranslate"><span class="pre">Scene.__repr__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.__str__"><code class="docutils literal notranslate"><span class="pre">Scene.__str__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_ambience"><code class="docutils literal notranslate"><span class="pre">Scene.add_ambience()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.add_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_emitters"><code class="docutils literal notranslate"><span class="pre">Scene.add_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_event"><code class="docutils literal notranslate"><span class="pre">Scene.add_event()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_event_moving"><code class="docutils literal notranslate"><span class="pre">Scene.add_event_moving()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_event_static"><code class="docutils literal notranslate"><span class="pre">Scene.add_event_static()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_microphone"><code class="docutils literal notranslate"><span class="pre">Scene.add_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_microphone_and_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.add_microphone_and_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.add_microphones"><code class="docutils literal notranslate"><span class="pre">Scene.add_microphones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_ambience"><code class="docutils literal notranslate"><span class="pre">Scene.clear_ambience()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.clear_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_emitters"><code class="docutils literal notranslate"><span class="pre">Scene.clear_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_event"><code class="docutils literal notranslate"><span class="pre">Scene.clear_event()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_events"><code class="docutils literal notranslate"><span class="pre">Scene.clear_events()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_microphone"><code class="docutils literal notranslate"><span class="pre">Scene.clear_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.clear_microphones"><code class="docutils literal notranslate"><span class="pre">Scene.clear_microphones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.from_dict"><code class="docutils literal notranslate"><span class="pre">Scene.from_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.from_json"><code class="docutils literal notranslate"><span class="pre">Scene.from_json()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.generate"><code class="docutils literal notranslate"><span class="pre">Scene.generate()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_ambience"><code class="docutils literal notranslate"><span class="pre">Scene.get_ambience()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_emitter"><code class="docutils literal notranslate"><span class="pre">Scene.get_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_emitters"><code class="docutils literal notranslate"><span class="pre">Scene.get_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_event"><code class="docutils literal notranslate"><span class="pre">Scene.get_event()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_events"><code class="docutils literal notranslate"><span class="pre">Scene.get_events()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.get_microphone"><code class="docutils literal notranslate"><span class="pre">Scene.get_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.core.Scene.to_dict"><code class="docutils literal notranslate"><span class="pre">Scene.to_dict()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Huw Cheston
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Huw Cheston.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
