@@ -1,6 +1,0 @@
-﻿audiblelight
-============
-
-.. automodule:: audiblelight
-
-   
