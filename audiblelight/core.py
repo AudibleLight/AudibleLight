@@ -487,27 +487,30 @@ class Scene:
             the Event object added to the Scene
 
         Examples:
-            Creating an event with a predefined position
+            Creating an event with a predefined position:
+
             >>> scene = Scene(...)
             >>> scene.add_event(
             ...     event_type="static",
-            ...     filepath=...,
+            ...     filepath="some/path.wav",
             ...     alias="tester",
             ...     position=[-0.5, -0.5, 0.5],
             ...     polar=False,
             ...     ensure_direct_path=False
             ... )
 
-            Creating an event with overrides
+            Creating an event with overrides:
+
             >>> scene = Scene(...)
             >>> scene.add_event(
             ...     event_type="moving",
-            ...     filepath=...,
+            ...     filepath="some/path.wav",
             ...     alias="tester",
             ...     event_start=5.0,
             ...     duration=5.0,
             ...     snr=0.0,
             ... )
+
         """
         # Call the requisite function to add the event
         if event_type == "static":

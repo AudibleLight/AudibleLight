@@ -21,3 +21,8 @@ coverage.xml
 
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
+
+# Sphinx documentation
+/docs/_build/
+/docs/_autosummary/
+/docs/_examples/
