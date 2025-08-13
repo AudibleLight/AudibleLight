@@ -10,9 +10,9 @@ import os
 import shutil
 import sys
 
-from audiblelight import utils
-
 sys.path.insert(0, os.path.abspath('..'))
+
+from audiblelight import utils  # noqa: E402
 
 project = 'AudibleLight'
 copyright = '2025, Centre for Digital Music, Queen Mary University of London'
