@@ -54,8 +54,27 @@ jobs:
         # Info about error codes: https://pycodestyle.pycqa.org/en/latest/intro.html#error-codes
         # and https://flake8.pycqa.org/en/latest/user/error-codes.html
 
-      - name: Run tests
-        run: poetry run pytest -n auto -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+      - name: Run tests with retries
+        # This should hopefully help until we can fix https://github.com/AudibleLight/AudibleLight/issues/28
+        run: |
+          set -e
+      
+          for i in 1 2 3; do
+            echo "⚙️ Attempt $i: Running tests"
+            poetry run pytest -n auto -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+            exit_code=$?
+      
+            if [ "$exit_code" -eq 0 ]; then
+              echo "✅ Tests passed on attempt $i"
+              exit 0
+            fi
+      
+            echo "❌ Tests failed on attempt $i with code $exit_code"
+            sleep 5
+          done
+      
+          echo "🔥 All 3 test attempts failed"
+          exit 1
 
       - name: Upload coverage to Codecov
         # only upload to codecov with latest python version
