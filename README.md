@@ -14,6 +14,7 @@
 <a href="https://www.python.org/"><img alt="Python: 3.10" src="https://img.shields.io/badge/Python-3.10%2B-orange?logo=python"></a>
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 <a href="https://github.com/AudibleLight/AudibleLight/pulls"><img alt="Pull requests: welcome" src="https://img.shields.io/badge/pull_requests-welcome-blue?logo=github"></a>
+<a href="https://creativecommons.org/licenses/by/4.0/"><img alt="CC BY 4.0" src="https://img.shields.io/badge/License-CC%20BY%204.0-red.svg"></a>
 </p>
 
 > [!WARNING]

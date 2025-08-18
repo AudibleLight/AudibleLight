@@ -3,6 +3,9 @@
 /.idea
 /notebooks/.ipynb_checkpoints
 
+# Ignore build
+/dist/
+
 # ignore coverage files
 .coverage
 coverage.xml
@@ -27,3 +30,5 @@ coverage.xml
 /docs/_build/
 /docs/_autosummary/
 /docs/_examples/
+
+.env
