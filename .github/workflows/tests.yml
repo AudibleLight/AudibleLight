@@ -55,4 +55,11 @@ jobs:
         # and https://flake8.pycqa.org/en/latest/user/error-codes.html
 
       - name: Run tests
-        run: poetry run pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        run: poetry run pytest -n auto -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+
+      - name: Upload coverage to Codecov
+        # only upload to codecov with latest python version
+        if: success() && matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
