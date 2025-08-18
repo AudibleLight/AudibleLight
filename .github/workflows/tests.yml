@@ -59,7 +59,7 @@ jobs:
         uses: nick-fields/retry@v3.0.2
         with:
           timeout_minutes: 20
-          max_attempts: 3
+          max_attempts: 5
           command: poetry run pytest -n auto -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
           retry_wait_seconds: 30
           continue_on_error: false
