@@ -35,25 +35,29 @@ pyglet = "<2"
 loguru = "*"
 pre-commit = "*"
 netCDF4 = "*"
-pytest = "*"
-coverage = "*"
-pytest-cov = "*"
-pytest-xdist = "*"
 pyroomacoustics = "*"
 h5py = "*"
 deepdiff = "*"
 rlr-audio-propagation = { git = "https://github.com/beasteers/rlr-audio-propagation.git", branch = "main" }
+pedalboard = "*"
+
+[tool.poetry.group.dev.dependencies]
+notebook = "^7.4.5"
+pytest = "*"
+coverage = "*"
+pytest-cov = "*"
+pytest-xdist = "*"
+pre-commit = "*"
+black = "24.4.2"
+isort = "5.13.2"
+flake8 = "7.0.0"
+
+[tool.poetry.group.docs.dependencies]
 notebook = "^7.4.5"
 sphinx = "*"
 sphinx-book-theme = "*"
 nbsphinx = "*"
 myst-parser = "*"
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = "*"
-black = "24.4.2"
-isort = "5.13.2"
-flake8 = "7.0.0"
 
 [build-system]
 requires = ["poetry-core"]
