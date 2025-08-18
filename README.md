@@ -1,4 +1,9 @@
-<h1 align="center">AudibleLight 🔈💡</h1>
+<h1 align="center">AudibleLight</h1>
+
+<p align="center">
+<a href="https://github.com/AudibleLight/AudibleLight"><img alt="AudibleLight logo" src="icon.png"></a>
+</p>
+
 <h2 align="center">Spatial soundscape synthesis using ray-tracing</h2>
 
 <p align="center">

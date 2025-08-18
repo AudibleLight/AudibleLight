@@ -14,6 +14,7 @@ coverage.xml
 # Ignore outputs
 *.wav
 *.png
+!icon.png
 *.sofa
 *.h5
 *.reapeaks
