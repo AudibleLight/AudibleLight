@@ -181,7 +181,7 @@ class Augmentation:
             input_dict: Dictionary that will be used to instantiate the object.
 
         Returns:
-            Scene instance.
+            Augmentation child class instance.
         """
 
         if "name" not in input_dict:
@@ -210,10 +210,10 @@ class Augmentation:
         creation time).
 
         Arguments:
-            other: the object to compare the current `Scene` object against
+            other: the object to compare the current `Augmentation` object against
 
         Returns:
-            bool: True if the Scene objects are equivalent, False otherwise
+            bool: True if the Augmentation objects are equivalent, False otherwise
         """
 
         # Non-Augmentation objects are always not equal
