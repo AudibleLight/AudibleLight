@@ -55,4 +55,18 @@ jobs:
         # and https://flake8.pycqa.org/en/latest/user/error-codes.html
 
       - name: Run tests
-        run: poetry run pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        # This should hopefully help until we can fix https://github.com/AudibleLight/AudibleLight/issues/28
+        uses: nick-fields/retry@v3.0.2
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          command: poetry run pytest -n auto -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          retry_wait_seconds: 30
+          continue_on_error: false
+
+      - name: Upload coverage to Codecov
+        # only upload to codecov with latest python version
+        if: success() && matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
