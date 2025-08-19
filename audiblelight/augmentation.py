@@ -4,13 +4,13 @@
 """
 Provides classes and functions for handling spatial and non-spatial audio augmentations.
 
-Non-spatial augmentations
--------------------------
+# Non-spatial augmentations
 
 These classes are wrappers for a variety of external audio augmentations, including:
-    - https://spotify.github.io/pedalboard/
+    - https://spotify.github.io/pedalboard/ (majority of FX as of v.0.9.17, with obvious exemptions e.g. Convolution)
     - https://docs.pytorch.org/audio/main/transforms.html
     - https://librosa.org/doc/main/effects.html
+
 The purpose of wrapping these augmentations, rather than using them directly, is to provide a unified interface. For
 every augmentation class, parameters can either be sampled randomly from acceptable default distributions, or provided
 by the user. The exact parameters of the FX can then be reconstructed later from the `params` dictionary. Additionally,
@@ -56,8 +56,6 @@ class Augmentation:
         params (dict): the arguments passed to `fx`. Will be serialised inside `to_json`.
 
     """
-
-    AUGMENTATION_TYPE = None
 
     def __init__(
         self,
@@ -254,7 +252,60 @@ class Augmentation:
         return type(self).__name__
 
 
-class LowpassFilter(Augmentation):
+class EventAugmentation(Augmentation):
+    """
+    Base class for all Augmentation objects that can be used with Events
+    """
+
+    AUGMENTATION_TYPE = "event"
+
+
+class SceneAugmentation(Augmentation):
+    """
+    Base class for all Augmentation objects that can be used with Scenes
+    """
+
+    AUGMENTATION_TYPE = "scene"
+
+
+class Bitcrush(EventAugmentation):
+    """
+    Applies a bitcrush effect to the audio input.
+
+    Bitcrushing quantizes the "vertical" resolution of the audio input, such that every sample can only take a certain
+    number of unique values, controlled by the bit depth.
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
+        reset (bool): if True, the internal state of the FX will be reset every time it is called.
+        bit_depth: the bit depth to quantize the signal to; will be sampled between 8 and 32 bits if not provided.
+    """
+
+    MIN_DEPTH, MAX_DEPTH = 8, 32
+
+    def __init__(
+        self,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        bit_depth: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+        self.bit_depth = utils.sanitise_positive_number(
+            self.sample_value(
+                bit_depth,
+                stats.uniform(self.MIN_DEPTH, self.MAX_DEPTH - self.MIN_DEPTH),
+            )
+        )
+        self.params = dict(bit_depth=self.bit_depth)
+
+        from pedalboard import Bitcrush as PBBitcrush
+
+        self.fx = PBBitcrush(**self.params)
+
+
+class LowpassFilter(EventAugmentation):
     """
     Applies a low-pass filter to the audio.
 
@@ -271,7 +322,6 @@ class LowpassFilter(Augmentation):
     """
 
     MIN_FREQ, MAX_FREQ = 5512, 22050
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -303,7 +353,65 @@ class LowpassFilter(Augmentation):
         self.params = dict(cutoff_frequency_hz=self.cutoff_frequency_hz)
 
 
-class HighpassFilter(Augmentation):
+class HighShelfFilter(EventAugmentation):
+    """
+    Applies a high-shelf filter to the audio.
+
+    The high-shelf filter has a variable Q (sharpness) and gain parameter, alongside a cutoff frequency. Frequencies
+    above this value will be boosted by the provided gain, given in decibels.
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
+        reset (bool): if True, the internal state of the FX will be reset every time it is called.
+        cutoff_frequency_hz: the cutoff frequency for the filter; will be sampled between 5512 and 22050 Hz if not given
+        gain_db: the gain of the filter, in dB; will be sampled between -20 and 10 dB, if not given
+        q: the Q (or sharpness) of the filter; will be sampled between 0.1 and 1.0 if not given
+    """
+
+    MIN_FREQ, MAX_FREQ = 5512, 22050
+    MIN_GAIN, MAX_GAIN = -20, 10
+    MIN_Q, MAX_Q = 0.1, 1.0
+
+    def __init__(
+        self,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+        cutoff_frequency_hz: Optional[
+            Union[utils.Numeric, utils.DistributionLike]
+        ] = None,
+        q: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+
+        self.cutoff_frequency_hz = utils.sanitise_positive_number(
+            self.sample_value(
+                cutoff_frequency_hz,
+                stats.uniform(self.MIN_FREQ, self.MAX_FREQ - self.MIN_FREQ),
+            )
+        )
+        self.gain_db = self.sample_value(
+            gain_db,
+            stats.uniform(self.MIN_GAIN, self.MAX_GAIN - self.MIN_GAIN),
+        )
+        self.q = utils.sanitise_positive_number(
+            self.sample_value(
+                q,
+                stats.uniform(self.MIN_Q, self.MAX_Q - self.MIN_Q),
+            )
+        )
+        self.params = dict(
+            cutoff_frequency_hz=self.cutoff_frequency_hz, gain_db=self.gain_db, q=self.q
+        )
+
+        from pedalboard import HighShelfFilter as PBFilter
+
+        self.fx = PBFilter(**self.params)
+
+
+class HighpassFilter(EventAugmentation):
     """
     Applies a high-pass filter to the audio.
 
@@ -320,7 +428,6 @@ class HighpassFilter(Augmentation):
     """
 
     MIN_FREQ, MAX_FREQ = 32, 1024
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -352,7 +459,65 @@ class HighpassFilter(Augmentation):
         self.params = dict(cutoff_frequency_hz=self.cutoff_frequency_hz)
 
 
-class MultibandEqualizer(Augmentation):
+class LowShelfFilter(EventAugmentation):
+    """
+    Applies a low-shelf filter to the audio.
+
+    The low-shelf filter has a variable Q (sharpness) and gain parameter, alongside a cutoff frequency. Frequencies
+    below this value will be boosted by the provided gain, given in decibels.
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
+        reset (bool): if True, the internal state of the FX will be reset every time it is called.
+        cutoff_frequency_hz: the cutoff frequency for the filter; will be sampled between 32 and 1024 Hz if not given
+        gain_db: the gain of the filter, in dB; will be sampled between -20 and 10 dB, if not given
+        q: the Q (or sharpness) of the filter; will be sampled between 0.1 and 1.0 if not given
+    """
+
+    MIN_FREQ, MAX_FREQ = 32, 1024
+    MIN_GAIN, MAX_GAIN = -20, 10
+    MIN_Q, MAX_Q = 0.1, 1.0
+
+    def __init__(
+        self,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+        cutoff_frequency_hz: Optional[
+            Union[utils.Numeric, utils.DistributionLike]
+        ] = None,
+        q: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+
+        self.cutoff_frequency_hz = utils.sanitise_positive_number(
+            self.sample_value(
+                cutoff_frequency_hz,
+                stats.uniform(self.MIN_FREQ, self.MAX_FREQ - self.MIN_FREQ),
+            )
+        )
+        self.gain_db = self.sample_value(
+            gain_db,
+            stats.uniform(self.MIN_GAIN, self.MAX_GAIN - self.MIN_GAIN),
+        )
+        self.q = utils.sanitise_positive_number(
+            self.sample_value(
+                q,
+                stats.uniform(self.MIN_Q, self.MAX_Q - self.MIN_Q),
+            )
+        )
+        self.params = dict(
+            cutoff_frequency_hz=self.cutoff_frequency_hz, gain_db=self.gain_db, q=self.q
+        )
+
+        from pedalboard import LowShelfFilter as PBFilter
+
+        self.fx = PBFilter(**self.params)
+
+
+class MultibandEqualizer(EventAugmentation):
     """
     Applies equalization to the audio.
 
@@ -379,7 +544,6 @@ class MultibandEqualizer(Augmentation):
     MIN_GAIN, MAX_GAIN = -20, 10
     MIN_FREQ, MAX_FREQ = 1024, 22050
     MIN_Q, MAX_Q = 0.1, 1.0
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -494,7 +658,7 @@ class MultibandEqualizer(Augmentation):
         return filters
 
 
-class Compressor(Augmentation):
+class Compressor(EventAugmentation):
     """
     Applies compression to the audio signal.
 
@@ -519,7 +683,6 @@ class Compressor(Augmentation):
     MIN_THRESHOLD_DB, MAX_THRESHOLD_DB = -40, -20
     MIN_ATTACK, MAX_ATTACK = 1, 100
     MIN_RELEASE, MAX_RELEASE = 50, 1100
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -576,7 +739,7 @@ class Compressor(Augmentation):
         )
 
 
-class Chorus(Augmentation):
+class Chorus(EventAugmentation):
     """
     Applies chorus to the audio.
 
@@ -599,7 +762,6 @@ class Chorus(Augmentation):
     MIN_DELAY, MAX_DELAY = 1.0, 20.0
     MIN_MIX, MAX_MIX = 0.1, 0.5
     MIN_FEEDBACK, MAX_FEEDBACK = 0.0, 0.9
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -657,7 +819,102 @@ class Chorus(Augmentation):
         )
 
 
-class Distortion(Augmentation):
+class Clipping(EventAugmentation):
+    """
+    Applies hard distortion to the audio.
+
+    Clips the audio signal at the provided threshold, in decibels.
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
+        reset (bool): if True, the internal state of the FX will be reset every time it is called.
+        threshold_db: the dB level of the distortion effect. By default, will be sampled between -10 and -1 dB.
+    """
+
+    MIN_THRESHOLD_DB, MAX_THRESHOLD_DB = -10, -1
+
+    def __init__(
+        self,
+        sample_rate: utils.Numeric = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+        # Set all FX parameters
+        self.threshold_db = int(
+            (
+                self.sample_value(
+                    threshold_db,
+                    stats.uniform(self.MIN_THRESHOLD_DB, abs(self.MAX_THRESHOLD_DB)),
+                )
+            )
+        )
+        if self.threshold_db > 0:
+            self.threshold_db = -self.threshold_db
+
+        from pedalboard import Clipping as PBClipping
+
+        self.params = dict(threshold_db=self.threshold_db)
+        self.fx = PBClipping(**self.params)
+
+
+class Limiter(EventAugmentation):
+    """
+    Applies limiting to the audio.
+
+    A simple limiter with a hard clipper set to 0 dB. Release and threshold dB can be controlled by the user.
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
+        reset (bool): if True, the internal state of the FX will be reset every time it is called.
+        threshold_db: the dB threshold after which the compressor is active. Sampled between -40 and -20 dB if not given
+        release_ms: the time taken for the compressor to return to 0 dB after exceeding the threshold. If not provided,
+            will be sampled between 50 and 1100 ms (again, inspired by the UREI 1176).
+    """
+
+    MIN_THRESHOLD_DB, MAX_THRESHOLD_DB = -40, -20
+    MIN_RELEASE, MAX_RELEASE = 50, 1100
+
+    def __init__(
+        self,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+        release_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+
+        # Set all FX parameters
+        self.threshold_db = int(
+            (
+                self.sample_value(
+                    threshold_db,
+                    stats.uniform(self.MIN_THRESHOLD_DB, abs(self.MAX_THRESHOLD_DB)),
+                )
+            )
+        )
+        if self.threshold_db > 0:
+            self.threshold_db = -self.threshold_db
+
+        self.release_ms = utils.sanitise_positive_number(
+            self.sample_value(
+                release_ms,
+                stats.uniform(self.MIN_RELEASE, self.MAX_RELEASE - self.MIN_RELEASE),
+            )
+        )
+        self.params = dict(threshold_db=self.threshold_db, release_ms=self.release_ms)
+
+        # Initialise the audio FX
+        from pedalboard import Limiter as PBLimiter
+
+        self.fx = PBLimiter(**self.params)
+
+
+class Distortion(EventAugmentation):
     """
     Applies distortion to the audio.
 
@@ -672,7 +929,6 @@ class Distortion(Augmentation):
     """
 
     MIN_DRIVE, MAX_DRIVE = 10, 30
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -693,7 +949,7 @@ class Distortion(Augmentation):
         self.params = dict(drive_db=self.drive_db)
 
 
-class Phaser(Augmentation):
+class Phaser(EventAugmentation):
     """
     Applies a phaser to the audio.
 
@@ -717,7 +973,6 @@ class Phaser(Augmentation):
     MIN_FREQ, MAX_FREQ = 260, 6500
     MIN_MIX, MAX_MIX = 0.1, 0.5
     MIN_FEEDBACK, MAX_FEEDBACK = 0.0, 0.9
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -775,7 +1030,7 @@ class Phaser(Augmentation):
         )
 
 
-class Delay(Augmentation):
+class Delay(EventAugmentation):
     """
     Applies delay to the audio.
 
@@ -793,7 +1048,6 @@ class Delay(Augmentation):
     MIN_DELAY, MAX_DELAY = 0.01, 1.0
     MIN_FEEDBACK, MAX_FEEDBACK = 0.1, 0.9
     MIN_MIX, MAX_MIX = 0.1, 0.5
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -832,7 +1086,7 @@ class Delay(Augmentation):
         )
 
 
-class Gain(Augmentation):
+class Gain(EventAugmentation):
     """
     Applies gain (volume) to the audio.
 
@@ -847,7 +1101,6 @@ class Gain(Augmentation):
     """
 
     MIN_GAIN, MAX_GAIN = -10, 10
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -866,7 +1119,7 @@ class Gain(Augmentation):
         self.params = dict(gain_db=self.gain_db)
 
 
-class GSMFullRateCompressor(Augmentation):
+class GSMFullRateCompressor(EventAugmentation):
     """
     Applies GSM compression to the audio.
 
@@ -883,7 +1136,6 @@ class GSMFullRateCompressor(Augmentation):
 
     # Don't use the highest resampling quality (4) as it is much slower than the others
     QUALITIES = range(4)
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -905,7 +1157,7 @@ class GSMFullRateCompressor(Augmentation):
         self.params = dict(quality=self.quality)
 
 
-class MP3Compressor(Augmentation):
+class MP3Compressor(EventAugmentation):
     """
     Applies the LAME MP3 encoder in real-time to add compression artifacts to the audio stream.
 
@@ -922,7 +1174,6 @@ class MP3Compressor(Augmentation):
     """
 
     VBR_MIN, VBR_MAX = 2.001, 9.999
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -943,7 +1194,7 @@ class MP3Compressor(Augmentation):
         self.params = dict(vbr_quality=self.vbr_quality)
 
 
-class PitchShift(Augmentation):
+class PitchShift(EventAugmentation):
     """
     Applies pitch-shifting to the audio.
 
@@ -960,7 +1211,6 @@ class PitchShift(Augmentation):
     """
 
     MIN_SEMITONES, MAX_SEMITONES = -3, 3
-    AUGMENTATION_TYPE = "event"
 
     # Used in testing to indicate an augmentation that may sometimes have no effect
     #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
@@ -1009,7 +1259,7 @@ class PitchShift(Augmentation):
         return super().process(input_array)
 
 
-class TimeShift(Augmentation):
+class TimeShift(EventAugmentation):
     """
     Applies time-stretching to the audio.
 
@@ -1028,7 +1278,6 @@ class TimeShift(Augmentation):
     """
 
     MIN_SHIFT, MAX_SHIFT = 0.7, 1.5
-    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -1069,7 +1318,7 @@ class TimeShift(Augmentation):
         return super().process(input_array)
 
 
-class Preemphasis(Augmentation):
+class Preemphasis(EventAugmentation):
     r"""
     Applies preemphasis to the audio.
 
@@ -1123,7 +1372,7 @@ class Deemphasis(Preemphasis):
         return librosa.effects.deemphasis(input_audio, coef=self.coef)
 
 
-class Fade(Augmentation):
+class Fade(EventAugmentation):
     """
     Add a fade-in and/or fade-out to audio.
 
@@ -1162,7 +1411,7 @@ class Fade(Augmentation):
     ]
 
     # Can be flaky if we assign "none" for fade-in and fade-out!
-    # _FLAKY = True
+    _FLAKY = True
 
     def __init__(
         self,
@@ -1280,7 +1529,7 @@ class Fade(Augmentation):
         return input_audio * fade
 
 
-class _TimeWarpAugmentation(Augmentation):
+class _TimeWarpAugmentation(EventAugmentation):
     """
     Parent class for all time-warping augmentations.
 
@@ -1310,7 +1559,6 @@ class _TimeWarpAugmentation(Augmentation):
 
     MIN_PROB, MAX_PROB = 0.05, 0.15
     MIN_FPS, MAX_FPS = 2, 10.0
-    AUGMENTATION_TYPE = "event"
 
     # Used in testing to indicate an augmentation that may sometimes have no effect
     #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
@@ -1491,4 +1739,9 @@ ALL_EVENT_AUGMENTATIONS = [
     Preemphasis,
     Deemphasis,
     Fade,
+    Clipping,
+    Bitcrush,
+    Limiter,
+    HighShelfFilter,
+    LowShelfFilter,
 ]

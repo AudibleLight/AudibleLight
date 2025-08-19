@@ -11,12 +11,12 @@ from scipy import stats
 from audiblelight import utils
 from audiblelight.augmentation import (
     ALL_EVENT_AUGMENTATIONS,
-    Augmentation,
     Chorus,
     Compressor,
     Deemphasis,
     Delay,
     Distortion,
+    EventAugmentation,
     Fade,
     Gain,
     GSMFullRateCompressor,
@@ -228,8 +228,11 @@ def test_process_audio(fx_class, audio_fpath):
     fx_init = fx_class()
     out = fx_init(loaded)
 
-    # Should be a child of Augmentation class
-    assert issubclass(fx_class, Augmentation)
+    # Should be an Event augmentation
+    assert fx_class.AUGMENTATION_TYPE == "event"
+
+    # Should be a child of EventAugmentation class
+    assert issubclass(fx_class, EventAugmentation)
 
     # Should be a numpy array with different values to initial
     #  Don't test when we have flaky FX,
@@ -249,7 +252,7 @@ def test_process_audio(fx_class, audio_fpath):
 def test_load_from_dict(fx_class):
     fx_init = fx_class()
     out_dict = fx_init.to_dict()
-    reloaded = Augmentation.from_dict(out_dict)
+    reloaded = EventAugmentation.from_dict(out_dict)
     assert isinstance(reloaded, fx_class)
     assert reloaded == fx_init
 
