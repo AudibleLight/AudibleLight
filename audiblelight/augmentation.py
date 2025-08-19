@@ -47,12 +47,9 @@ class Augmentation:
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
-        kwargs: any additional keyword arguments to pass to the effect.
 
     Properties:
-        fx (Callable): the callable function applied to the audio. Can be from Pedalboard, Librosa, PyRubberband...
+        fx (Callable): the callable function applied to the audio.
         params (dict): the arguments passed to `fx`. Will be serialised inside `to_json`.
 
     """
@@ -60,13 +57,8 @@ class Augmentation:
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
-        **kwargs,
     ):
         self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
-        self.buffer_size = utils.sanitise_positive_number(buffer_size, cast_to=int)
-        self.reset = reset
         self.fx: Union[Callable, list[Callable]] = _identity
         self.params = dict()
 
@@ -115,7 +107,9 @@ class Augmentation:
 
         # Process all the FX in sequence
         for fx in self.fx if isinstance(self.fx, list) else [self.fx]:
-            out = fx(out, self.sample_rate, self.buffer_size, self.reset)
+            out = fx(
+                out, sample_rate=self.sample_rate, buffer_size=BUFFER_SIZE, reset=True
+            )
 
         # Temporary convert mono to stereo for pad function
         if out.ndim == 1:
@@ -170,9 +164,6 @@ class Augmentation:
         return dict(
             name=self.name,
             sample_rate=self.sample_rate,
-            buffer_size=self.buffer_size,
-            reset=self.reset,
-            # augmentation_type=self.AUGMENTATION_TYPE,
             **self.params,
         )
 
@@ -277,8 +268,6 @@ class Bitcrush(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         bit_depth: the bit depth to quantize the signal to; will be sampled between 8 and 32 bits if not provided.
     """
 
@@ -287,11 +276,11 @@ class Bitcrush(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         bit_depth: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
         self.bit_depth = utils.sanitise_positive_number(
             self.sample_value(
                 bit_depth,
@@ -314,8 +303,6 @@ class LowpassFilter(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         cutoff_frequency_hz (Union[utils.Numeric, utils.DistributionLike]): the cutoff frequency for the filter, or a
             distribution-like object to sample this from. Will default to sampling from uniform distribution
             between 5512 and 22050 Hz if not provided.
@@ -326,14 +313,14 @@ class LowpassFilter(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
         ] = None,
     ):
         # Initialise the parent class
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
 
         # Handle sampling the cutoff frequency
         #  Can be a numeric value or a distribution passed by the user
@@ -362,8 +349,6 @@ class HighShelfFilter(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         cutoff_frequency_hz: the cutoff frequency for the filter; will be sampled between 5512 and 22050 Hz if not given
         gain_db: the gain of the filter, in dB; will be sampled between -20 and 10 dB, if not given
         q: the Q (or sharpness) of the filter; will be sampled between 0.1 and 1.0 if not given
@@ -376,15 +361,15 @@ class HighShelfFilter(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
         ] = None,
         q: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
 
         self.cutoff_frequency_hz = utils.sanitise_positive_number(
             self.sample_value(
@@ -420,8 +405,6 @@ class HighpassFilter(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         cutoff_frequency_hz (Union[utils.Numeric, utils.DistribtionLike]): the cutoff frequency for the filter, or a
             distribution-like object to sample this from. Will default to sampling from uniform distribution
             between 32 and 1024 Hz if not provided.
@@ -432,14 +415,12 @@ class HighpassFilter(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
         ] = None,
     ):
         # Initialise the parent class
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
 
         # Handle sampling the cutoff frequency
         #  Can be a numeric value or a distribution passed by the user
@@ -468,8 +449,6 @@ class LowShelfFilter(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         cutoff_frequency_hz: the cutoff frequency for the filter; will be sampled between 32 and 1024 Hz if not given
         gain_db: the gain of the filter, in dB; will be sampled between -20 and 10 dB, if not given
         q: the Q (or sharpness) of the filter; will be sampled between 0.1 and 1.0 if not given
@@ -482,15 +461,15 @@ class LowShelfFilter(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
         ] = None,
         q: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
 
         self.cutoff_frequency_hz = utils.sanitise_positive_number(
             self.sample_value(
@@ -531,8 +510,6 @@ class MultibandEqualizer(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         n_bands: the number of peak filters to use in the equalizer. Defaults to a random integer between 1 and 8.
         gain_db: the gain values for each peak. Can be either a single value, a list of N values, or a distribution.
             If a single value, will be repeated N times. If a distribution, will be sampled from N times.
@@ -548,8 +525,6 @@ class MultibandEqualizer(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         n_bands: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         gain_db: Optional[
             Union[list[utils.Numeric], utils.Numeric, utils.DistributionLike]
@@ -561,7 +536,9 @@ class MultibandEqualizer(EventAugmentation):
             Union[list[utils.Numeric], utils.Numeric, utils.DistributionLike]
         ] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
 
         # The number of frequency bands we'll be applying
         self.n_bands = int(
@@ -667,8 +644,6 @@ class Compressor(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         threshold_db: the dB threshold after which the compressor is active. Sampled between -40 and -20 dB if not given
         ratio: the compressor ratio, i.e. `ratio=4` reduces the signal volume by 4 dB for every 1 dB over the threshold.
             If not provided, sampled from [4, 8, 12, 20] (i.e., the ratio values on the famous UREI 1176 compressor)
@@ -687,8 +662,6 @@ class Compressor(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         ratio: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         attack_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
@@ -696,7 +669,7 @@ class Compressor(EventAugmentation):
     ):
         from pedalboard import Compressor as PBCompressor
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
 
         # Set all FX parameters
         self.threshold_db = int(
@@ -748,8 +721,6 @@ class Chorus(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         rate_hz: the speed of the LFO controlling the frequency response. By default, sampled between 0 and 10 Hz
         depth: the depth of the LFO controlling the frequency response. By default, sampled between 0 and 1.0.
         centre_delay_ms: the centre delay of the modulation. By default, sampled between 1 and 20 ms.
@@ -766,8 +737,6 @@ class Chorus(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         rate_hz: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         depth: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         centre_delay_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
@@ -776,7 +745,9 @@ class Chorus(EventAugmentation):
     ):
         from pedalboard import Chorus as PBChorus
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
 
         # Initialise all the FX parameters
         self.rate_hz = utils.sanitise_positive_number(
@@ -827,8 +798,6 @@ class Clipping(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         threshold_db: the dB level of the distortion effect. By default, will be sampled between -10 and -1 dB.
     """
 
@@ -837,11 +806,9 @@ class Clipping(EventAugmentation):
     def __init__(
         self,
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         # Set all FX parameters
         self.threshold_db = int(
             (
@@ -868,8 +835,6 @@ class Limiter(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         threshold_db: the dB threshold after which the compressor is active. Sampled between -40 and -20 dB if not given
         release_ms: the time taken for the compressor to return to 0 dB after exceeding the threshold. If not provided,
             will be sampled between 50 and 1100 ms (again, inspired by the UREI 1176).
@@ -881,12 +846,12 @@ class Limiter(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         release_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
 
         # Set all FX parameters
         self.threshold_db = int(
@@ -923,8 +888,6 @@ class Distortion(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         drive_db: the dB level of the distortion effect. By default, will be sampled between 10 and 30 dB.
     """
 
@@ -933,13 +896,13 @@ class Distortion(EventAugmentation):
     def __init__(
         self,
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         drive_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         from pedalboard import Distortion as PBDistortion
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
         self.drive_db = utils.sanitise_positive_number(
             self.sample_value(
                 drive_db, stats.uniform(self.MIN_DRIVE, self.MAX_DRIVE - self.MIN_DRIVE)
@@ -959,8 +922,6 @@ class Phaser(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         rate_hz: the speed of the LFO controlling the frequency response. By default, sampled between 0 and 10 Hz
         depth: the depth of the LFO controlling the frequency response. By default, sampled between 0 and 1.0.
         centre_frequency_hz: the centre frequency of the modulation. By default, sampled between 1 and 20 ms.
@@ -977,8 +938,6 @@ class Phaser(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         rate_hz: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         depth: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         centre_frequency_hz: Optional[
@@ -989,7 +948,7 @@ class Phaser(EventAugmentation):
     ):
         from pedalboard import Phaser as PBPhaser
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         self.rate_hz = utils.sanitise_positive_number(
             self.sample_value(
                 rate_hz, stats.uniform(self.MIN_RATE, self.MAX_RATE - self.MIN_RATE)
@@ -1038,8 +997,6 @@ class Delay(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         delay: the delay time for the effect, in seconds. By default, sampled between 0.01 and 1.0 seconds.
         feedback: the feedback of the effect. By default, sampled between 0.0 and 0.9.
         mix: the dry/wet mix of the effect. By default, sampled between 0.1 and 0.5
@@ -1052,15 +1009,13 @@ class Delay(EventAugmentation):
     def __init__(
         self,
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         delay: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         feedback: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         mix: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         from pedalboard import Delay as PBDelay
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         self.delay = utils.sanitise_positive_number(
             self.sample_value(
                 delay, stats.uniform(self.MIN_DELAY, self.MAX_DELAY - self.MIN_DELAY)
@@ -1095,8 +1050,6 @@ class Gain(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         gain_db: the gain to apply to the signal. By default, sampled between -10 and 10 dB.
     """
 
@@ -1105,13 +1058,13 @@ class Gain(EventAugmentation):
     def __init__(
         self,
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         from pedalboard import Gain as PBGain
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
         self.gain_db = self.sample_value(
             gain_db, stats.uniform(self.MIN_GAIN, self.MAX_GAIN - self.MIN_GAIN)
         )
@@ -1129,8 +1082,6 @@ class GSMFullRateCompressor(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         quality: the quality of the resampling. By default, will be sampled between 0 and 3 (inclusive).
     """
 
@@ -1140,14 +1091,12 @@ class GSMFullRateCompressor(EventAugmentation):
     def __init__(
         self,
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         from pedalboard import GSMFullRateCompressor as PBGSMFullRateCompressor
         from pedalboard import Resample
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         self.quality = int(
             utils.sanitise_positive_number(
                 self.sample_value(quality, lambda: np.random.choice(self.QUALITIES))
@@ -1168,8 +1117,6 @@ class MP3Compressor(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): the size of the buffer for the audio effect.
-        reset (bool): if True, the internal state of the FX will be reset every time it is called.
         vbr_quality: the quality of the resampling. By default, will be sampled between 2 and 10.
     """
 
@@ -1178,13 +1125,11 @@ class MP3Compressor(EventAugmentation):
     def __init__(
         self,
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         vbr_quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         from pedalboard import MP3Compressor as PBMP3Compressor
 
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         self.vbr_quality = utils.sanitise_positive_number(
             self.sample_value(
                 vbr_quality, stats.uniform(self.VBR_MIN, self.VBR_MAX - self.VBR_MIN)
@@ -1204,8 +1149,6 @@ class PitchShift(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): ignored for this class.
-        reset (bool): ignored for this class.
         semitones: the number of semitones to shift the audio by. By default, will be sampled from between +/- 3
             semitones (i.e., up or down a minor third).
     """
@@ -1219,11 +1162,11 @@ class PitchShift(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         semitones: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(
+            sample_rate,
+        )
 
         self.semitones = int(
             self.sample_value(
@@ -1270,8 +1213,6 @@ class TimeShift(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): ignored for this class.
-        reset (bool): ignored for this class.
         stretch_factor: the time-stretching factor to apply. Values above 1 will increase the speed of the audio, while
             values below 1 will decrease the speed. A value of 1 will have no effect. By default, will be sampled
             from between 0.7 and 1.5.
@@ -1282,11 +1223,9 @@ class TimeShift(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         stretch_factor: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         self.stretch_factor = utils.sanitise_positive_number(
             self.sample_value(
                 stretch_factor,
@@ -1329,8 +1268,6 @@ class Preemphasis(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): ignored for this class.
-        reset (bool): ignored for this class.
         coef: the coefficient for pre-emphasis, sampled between 0 and 1 when not provided.
             At `coef=0`, the signal is unchanged. At `coef=1`, the result is the first-order difference of the signal.
     """
@@ -1340,11 +1277,9 @@ class Preemphasis(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         coef: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         self.coef = utils.sanitise_positive_number(
             self.sample_value(
                 coef,
@@ -1392,8 +1327,6 @@ class Fade(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): ignored for this class.
-        reset (bool): ignored for this class.
         fade_in_len: the length of time for the fade in (seconds), sampled between 0 and 1 if not given.
         fade_out_len: the length of time for the fade out (seconds), sampled between 0 and 1 if not given.
         fade_in_shape: the shape of the fade in, sampled randomly from an available option (see above) if not given
@@ -1416,14 +1349,12 @@ class Fade(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         fade_in_len: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         fade_out_len: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         fade_in_shape: Optional[str] = None,
         fade_out_shape: Optional[str] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
 
         # Get fade-in and fade-out times (in seconds)
         self.fade_in_len = utils.sanitise_positive_number(
@@ -1544,8 +1475,6 @@ class _TimeWarpAugmentation(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        buffer_size (utils.Numeric): ignored for this class.
-        reset (bool): ignored for this class.
         fps: the number of frames-per-second to use. Will be sampled between 2 and 10 FPS if not given.
         prob: the probability of activating the effect for every frame. Will be sampled between 5 and 15% if not given.
 
@@ -1567,12 +1496,10 @@ class _TimeWarpAugmentation(EventAugmentation):
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
-        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
-        reset: Optional[bool] = True,
         fps: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         prob: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        super().__init__(sample_rate, buffer_size, reset)
+        super().__init__(sample_rate)
         self.fps = utils.sanitise_positive_number(
             self.sample_value(
                 fps,
