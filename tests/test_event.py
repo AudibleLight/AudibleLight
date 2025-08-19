@@ -12,8 +12,8 @@ from audiblelight import utils
 from audiblelight.augmentation import (
     Augmentation,
     Compressor,
-    Equalizer,
     LowpassFilter,
+    MultibandEqualizer,
     Phaser,
     PitchShift,
     TimeShift,
@@ -265,7 +265,7 @@ def test_magic_methods(audio_fpath: str, oyens_space):
 @pytest.mark.parametrize(
     "augmentations",
     [
-        (LowpassFilter, Equalizer, Compressor),
+        (LowpassFilter, MultibandEqualizer, Compressor),
         (Phaser, Compressor),
         (PitchShift, TimeShift),
     ],

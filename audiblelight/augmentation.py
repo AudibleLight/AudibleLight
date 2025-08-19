@@ -7,14 +7,18 @@ Provides classes and functions for handling spatial and non-spatial audio augmen
 Non-spatial augmentations
 -------------------------
 
-Many of these classes are wrappers around effects from [`pedalboard`](https://spotify.github.io/pedalboard/). The
-wrappers enable parameters for each FX to be randomly sampled from acceptable default distributions, or a user
-provided distribution. Some of the FX are not implemented in `pedalboard` (e.g., `Equalizer`, which simulates a
-multi-band, parametric equalizer). The `TimeWarpXXXX` effects are taken from
-[this paper](https://arxiv.org/pdf/2502.06364).
+These classes are wrappers for a variety of external audio augmentations, including:
+    - https://spotify.github.io/pedalboard/
+    - https://docs.pytorch.org/audio/main/transforms.html
+    - https://librosa.org/doc/main/effects.html
+The purpose of wrapping these augmentations, rather than using them directly, is to provide a unified interface. For
+every augmentation class, parameters can either be sampled randomly from acceptable default distributions, or provided
+by the user. The exact parameters of the FX can then be reconstructed later from the `params` dictionary. Additionally,
+some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for AudibleLight.
 
 """
 
+import math
 from typing import Any, Callable, Iterator, Optional, Type, Union
 
 import librosa
@@ -348,7 +352,7 @@ class HighpassFilter(Augmentation):
         self.params = dict(cutoff_frequency_hz=self.cutoff_frequency_hz)
 
 
-class Equalizer(Augmentation):
+class MultibandEqualizer(Augmentation):
     """
     Applies equalization to the audio.
 
@@ -1119,6 +1123,163 @@ class Deemphasis(Preemphasis):
         return librosa.effects.deemphasis(input_audio, coef=self.coef)
 
 
+class Fade(Augmentation):
+    """
+    Add a fade-in and/or fade-out to audio.
+
+    The shape of the fade can be specified as one of:
+        - "linear"
+        - "exponential"
+        - "logarithmic"
+        - "quarter_sine"
+        - "half_sine"
+        - "none", equivalent to no fade
+
+    Different shapes can be specified for both the fade-in and fade-out. The length of the fade-in and fade-out time
+    must be specified in seconds.
+
+    For more information:
+        https://docs.pytorch.org/audio/main/generated/torchaudio.transforms.Fade.html
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): ignored for this class.
+        reset (bool): ignored for this class.
+        fade_in_len: the length of time for the fade in (seconds), sampled between 0 and 1 if not given.
+        fade_out_len: the length of time for the fade out (seconds), sampled between 0 and 1 if not given.
+        fade_in_shape: the shape of the fade in, sampled randomly from an available option (see above) if not given
+        fade_out_shape: the shape of the fade out, sampled randomly from an available option (see above) if not given
+    """
+
+    MIN_FADE, MAX_FADE = 0.0, 1.0  # seconds
+    FADE_SHAPES = [
+        "linear",
+        "exponential",
+        "logarithmic",
+        "quarter_sine",
+        "half_sine",
+        "none",
+    ]
+
+    # Can be flaky if we assign "none" for fade-in and fade-out!
+    # _FLAKY = True
+
+    def __init__(
+        self,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        fade_in_len: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+        fade_out_len: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+        fade_in_shape: Optional[str] = None,
+        fade_out_shape: Optional[str] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+
+        # Get fade-in and fade-out times (in seconds)
+        self.fade_in_len = utils.sanitise_positive_number(
+            self.sample_value(
+                fade_in_len,
+                stats.uniform(self.MIN_FADE, self.MAX_FADE - self.MIN_FADE),
+            )
+        )
+        self.fade_out_len = utils.sanitise_positive_number(
+            self.sample_value(
+                fade_out_len,
+                stats.uniform(self.MIN_FADE, self.MAX_FADE - self.MIN_FADE),
+            )
+        )
+
+        # Get shapes for the fade-in and fade-out
+        self.fade_in_shape = self._sample_fade_shape(fade_in_shape)
+        self.fade_out_shape = self._sample_fade_shape(fade_out_shape)
+
+        self.fx = self._apply_fx
+        self.params = dict(
+            fade_in_len=self.fade_in_len,
+            fade_out_len=self.fade_out_len,
+            fade_in_shape=self.fade_in_shape,
+            fade_out_shape=self.fade_out_shape,
+        )
+
+    def _sample_fade_shape(self, given_shape: Optional[str] = None) -> str:
+        if given_shape is None:
+            given_shape = np.random.choice(self.FADE_SHAPES)
+
+        if given_shape not in self.FADE_SHAPES:
+            raise ValueError(
+                f"Expected `shape` to be one of {', '.join(self.FADE_SHAPES)} but got {given_shape}"
+            )
+
+        return given_shape
+
+    def _fade_in(self, waveform_length: int, fade_len: int) -> np.ndarray:
+        if fade_len == 0 or self.fade_in_shape == "none":
+            return np.ones(waveform_length)
+
+        fade = np.linspace(0, 1, fade_len)
+        ones = np.ones(waveform_length - fade_len)
+
+        if self.fade_in_shape == "linear":
+            pass
+        elif self.fade_in_shape == "exponential":
+            fade = np.power(2, (fade - 1)) * fade
+        elif self.fade_in_shape == "logarithmic":
+            fade = np.log10(0.1 + fade) + 1
+        elif self.fade_in_shape == "quarter_sine":
+            fade = np.sin(fade * math.pi / 2)
+        elif self.fade_in_shape == "half_sine":
+            fade = np.sin(fade * math.pi - math.pi / 2) / 2 + 0.5
+
+        return np.clip(np.concatenate((fade, ones)), 0, 1)
+
+    def _fade_out(self, waveform_length: int, fade_len: int) -> np.ndarray:
+        if fade_len == 0 or self.fade_out_shape == "none":
+            return np.ones(waveform_length)
+
+        fade = np.linspace(0, 1, fade_len)
+        ones = np.ones(waveform_length - fade_len)
+
+        if self.fade_out_shape == "linear":
+            fade = -fade + 1
+        elif self.fade_out_shape == "exponential":
+            fade = np.power(2, -fade) * (1 - fade)
+        elif self.fade_out_shape == "logarithmic":
+            fade = np.log10(1.1 - fade) + 1
+        elif self.fade_out_shape == "quarter_sine":
+            fade = np.sin(fade * math.pi / 2 + math.pi / 2)
+        elif self.fade_out_shape == "half_sine":
+            fade = np.sin(fade * math.pi + math.pi / 2) / 2 + 0.5
+
+        return np.clip(np.concatenate((ones, fade)), 0, 1)
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        """
+        Apply the fade effect.
+
+        Args:
+            input_audio (np.ndarray): Audio array of shape (..., time)
+
+        Returns:
+            np.ndarray: Audio with fade-in and fade-out applied.
+        """
+        waveform_length = input_audio.shape[-1]
+        fade_in_samples = min(
+            int(round(self.fade_in_len * self.sample_rate)), waveform_length
+        )
+        fade_out_samples = min(
+            int(round(self.fade_out_len * self.sample_rate)), waveform_length
+        )
+
+        fade_in = self._fade_in(waveform_length, fade_in_samples)
+        fade_out = self._fade_out(waveform_length, fade_out_samples)
+        fade = fade_in * fade_out
+
+        # Reshape fade to match input_audio dimensions
+        fade = fade.reshape((1,) * (input_audio.ndim - 1) + (-1,))
+        return input_audio * fade
+
+
 class _TimeWarpAugmentation(Augmentation):
     """
     Parent class for all time-warping augmentations.
@@ -1312,7 +1473,7 @@ class TimeWarpReverse(_TimeWarpAugmentation):
 ALL_EVENT_AUGMENTATIONS = [
     LowpassFilter,
     HighpassFilter,
-    Equalizer,
+    MultibandEqualizer,
     Compressor,
     Chorus,
     Delay,
@@ -1329,4 +1490,5 @@ ALL_EVENT_AUGMENTATIONS = [
     TimeWarpReverse,
     Preemphasis,
     Deemphasis,
+    Fade,
 ]

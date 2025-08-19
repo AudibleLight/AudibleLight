@@ -17,12 +17,13 @@ from audiblelight.augmentation import (
     Deemphasis,
     Delay,
     Distortion,
-    Equalizer,
+    Fade,
     Gain,
     GSMFullRateCompressor,
     HighpassFilter,
     LowpassFilter,
     MP3Compressor,
+    MultibandEqualizer,
     Phaser,
     TimeWarpDuplicate,
 )
@@ -197,7 +198,7 @@ def test_equalizer(params):
     """
     Equalizer FX works a little differently as it is a list of pedalboard objects (PeakFilters)
     """
-    init_fx = Equalizer(**params)
+    init_fx = MultibandEqualizer(**params)
 
     # Should have set the number of bands correctly
     assert init_fx.n_bands == params["n_bands"]
@@ -221,7 +222,7 @@ def test_equalizer(params):
 @pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
 def test_process_audio(fx_class, audio_fpath):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
 
     # Initialise FX with default parameters and process the audio
     fx_init = fx_class()
@@ -251,3 +252,40 @@ def test_load_from_dict(fx_class):
     reloaded = Augmentation.from_dict(out_dict)
     assert isinstance(reloaded, fx_class)
     assert reloaded == fx_init
+
+
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_MUSICS[:3])
+@pytest.mark.parametrize(
+    "fx_params",
+    [
+        # Fade-out only, long
+        dict(fade_in_shape="none", fade_out_shape="linear", fade_out_len=5.0),
+        # Fade-in only, long
+        dict(fade_out_shape="none", fade_in_shape="linear", fade_in_len=5.0),
+        # Both fades
+        dict(
+            fade_out_shape="linear",
+            fade_in_shape="linear",
+            fade_in_len=5.0,
+            fade_out_len=5.0,
+        ),
+    ],
+)
+def test_fade(fx_params, audio_fpath):
+    # Load up the audio file in librosa
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+
+    # Process the audio with the augmentation
+    fader = Fade(**fx_params)
+    out = fader(loaded)
+
+    # Consider final sample and average volume of final N seconds
+    if fx_params["fade_out_shape"] != "none":
+        assert out[-1] == 0.0
+        fade_time = round(utils.SAMPLE_RATE * fx_params["fade_out_len"])
+        assert np.mean(np.abs(out[-fade_time:])) < np.mean(np.abs(loaded[-fade_time:]))
+
+    if fx_params["fade_in_shape"] != "none":
+        assert out[0] == 0.0
+        fade_time = round(utils.SAMPLE_RATE * fx_params["fade_in_len"])
+        assert np.mean(np.abs(out[:fade_time])) < np.mean(np.abs(loaded[:fade_time]))
