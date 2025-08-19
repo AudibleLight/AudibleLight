@@ -958,6 +958,10 @@ class PitchShift(Augmentation):
     MIN_SEMITONES, MAX_SEMITONES = -3, 3
     AUGMENTATION_TYPE = "event"
 
+    # Used in testing to indicate an augmentation that may sometimes have no effect
+    #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
+    _FLAKY = True
+
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
@@ -1061,6 +1065,60 @@ class TimeShift(Augmentation):
         return super().process(input_array)
 
 
+class Preemphasis(Augmentation):
+    r"""
+    Applies preemphasis to the audio.
+
+    Pre-emphasizes an audio signal with a first-order differencing filter, such that
+
+    ..math::
+        y[n] = y[n] - \text{coef} \times y[n-1], \ \text{where coef} \in \{0, 1\}
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): ignored for this class.
+        reset (bool): ignored for this class.
+        coef: the coefficient for pre-emphasis, sampled between 0 and 1 when not provided.
+            At `coef=0`, the signal is unchanged. At `coef=1`, the result is the first-order difference of the signal.
+    """
+
+    MIN_COEF, MAX_COEF = 0.0, 1.0
+
+    def __init__(
+        self,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        coef: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+        self.coef = utils.sanitise_positive_number(
+            self.sample_value(
+                coef,
+                stats.uniform(self.MIN_COEF, self.MAX_COEF - self.MIN_COEF),
+            )
+        )
+        self.fx = self._apply_fx
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        return librosa.effects.preemphasis(input_audio, coef=self.coef)
+
+
+class Deemphasis(Preemphasis):
+    r"""
+    Applies deemphasis to the audio.
+
+    De-emphasizes an audio signal with the inverse operation to preemphasis, such that
+
+    ..math::
+        y[n] = f(y)[n] + \text{coef} \times y[n-1], \\
+        \text{where coef} \in \{0, 1\} \ \text{and} \ f = \texttt{preemphasis}(y, \text{coef})}
+    """
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        return librosa.effects.deemphasis(input_audio, coef=self.coef)
+
+
 class _TimeWarpAugmentation(Augmentation):
     """
     Parent class for all time-warping augmentations.
@@ -1085,13 +1143,17 @@ class _TimeWarpAugmentation(Augmentation):
         [1] Cheston, H., Van Balen, J., & Durand, S. (2025). Automatic Identification of Samples in Hip-Hop Music via
         Multi-Loss Training and an Artificial Dataset. arXiv preprint arXiv:2502.06364.
         [2] Yesiler, F. Serrà, J., & Gómez, E. (2020). Accurate and Scalable Version Identification Using
-        Musically-Motivated Embeddings," ICASSP 2020 - 2020 IEEE International Conference on Acoustics, Speech and
+        Musically-Motivated Embeddings, ICASSP 2020 - 2020 IEEE International Conference on Acoustics, Speech and
         Signal Processing (ICASSP). doi:10.1109/ICASSP40776.2020.9053793.
     """
 
     MIN_PROB, MAX_PROB = 0.05, 0.15
     MIN_FPS, MAX_FPS = 2, 10.0
     AUGMENTATION_TYPE = "event"
+
+    # Used in testing to indicate an augmentation that may sometimes have no effect
+    #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
+    _FLAKY = True
 
     def __init__(
         self,
@@ -1265,4 +1327,6 @@ ALL_EVENT_AUGMENTATIONS = [
     TimeWarpSilence,
     TimeWarpDuplicate,
     TimeWarpReverse,
+    Preemphasis,
+    Deemphasis,
 ]

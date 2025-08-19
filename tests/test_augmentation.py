@@ -224,9 +224,11 @@ def test_process_audio(fx_class, audio_fpath):
     out = fx_init(loaded)
 
     # Should be a numpy array with different values to initial
+    #  Don't test when we have flaky FX,
+    #  e.g. pitchshift can have a randomly sampled value of 0 semitones
     assert isinstance(out, np.ndarray)
-    # if not fx_init.name == "PitchShift" and not getattr(fx_init, "semitones", 1) == 0:
-    #     assert not np.array_equal(out, loaded)
+    if not getattr(fx_init, "_FLAKY", False):
+        assert not np.array_equal(out, loaded)
 
     # But should have the same shape
     try:
