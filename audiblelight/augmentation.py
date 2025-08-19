@@ -23,8 +23,6 @@ from pedalboard import time_stretch
 from scipy import stats
 
 from audiblelight import utils
-from audiblelight.synthesize import pad_or_truncate_audio
-from audiblelight.utils import DistributionLike
 
 BUFFER_SIZE = 8192
 MIN_FPS, MAX_FPS = 0.5, 5
@@ -38,6 +36,10 @@ class Augmentation:
     """
     Base class for all augmentation objects to inherit from.
 
+    Augmentation objects need to inherit from this base class so that their parameters can be sampled from a
+    distribution every time they are called. This distribution can either be user-defined or set according to a
+    default. The user can also pass a numeric override for a parameter, in which case it will always be used.
+
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
         buffer_size (utils.Numeric): the size of the buffer for the audio effect.
@@ -49,6 +51,8 @@ class Augmentation:
         params (dict): the arguments passed to `fx`. Will be serialised inside `to_json`.
 
     """
+
+    AUGMENTATION_TYPE = None
 
     def __init__(
         self,
@@ -115,7 +119,7 @@ class Augmentation:
             out = np.expand_dims(out, 0)
 
         # Pad or truncate the audio to keep the same dims
-        trunc = pad_or_truncate_audio(out, max(input_array.shape))
+        trunc = utils.pad_or_truncate_audio(out, max(input_array.shape))
 
         # Stereo input, stereo output
         if input_array.ndim == 2:
@@ -165,6 +169,7 @@ class Augmentation:
             sample_rate=self.sample_rate,
             buffer_size=self.buffer_size,
             reset=self.reset,
+            # augmentation_type=self.AUGMENTATION_TYPE,
             **self.params,
         )
 
@@ -261,6 +266,7 @@ class LowpassFilter(Augmentation):
     """
 
     MIN_FREQ, MAX_FREQ = 5512, 22050
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -309,6 +315,7 @@ class HighpassFilter(Augmentation):
     """
 
     MIN_FREQ, MAX_FREQ = 32, 1024
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -367,6 +374,7 @@ class Equalizer(Augmentation):
     MIN_GAIN, MAX_GAIN = -20, 10
     MIN_FREQ, MAX_FREQ = 1024, 22050
     MIN_Q, MAX_Q = 0.1, 1.0
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -421,7 +429,7 @@ class Equalizer(Augmentation):
     def sample_peak_filter_params(
         self,
         override: Union[utils.Numeric, list[utils.Numeric], utils.DistributionLike],
-        default_dist: DistributionLike,
+        default_dist: utils.DistributionLike,
     ) -> list[utils.Numeric]:
         """
         Samples all values (e.g., all Q values, all frequencies) for all N peak filters.
@@ -506,6 +514,7 @@ class Compressor(Augmentation):
     MIN_THRESHOLD_DB, MAX_THRESHOLD_DB = -40, -20
     MIN_ATTACK, MAX_ATTACK = 1, 100
     MIN_RELEASE, MAX_RELEASE = 50, 1100
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -585,6 +594,7 @@ class Chorus(Augmentation):
     MIN_DELAY, MAX_DELAY = 1.0, 20.0
     MIN_MIX, MAX_MIX = 0.1, 0.5
     MIN_FEEDBACK, MAX_FEEDBACK = 0.0, 0.9
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -657,6 +667,7 @@ class Distortion(Augmentation):
     """
 
     MIN_DRIVE, MAX_DRIVE = 10, 30
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -701,6 +712,7 @@ class Phaser(Augmentation):
     MIN_FREQ, MAX_FREQ = 260, 6500
     MIN_MIX, MAX_MIX = 0.1, 0.5
     MIN_FEEDBACK, MAX_FEEDBACK = 0.0, 0.9
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -776,6 +788,7 @@ class Delay(Augmentation):
     MIN_DELAY, MAX_DELAY = 0.01, 1.0
     MIN_FEEDBACK, MAX_FEEDBACK = 0.1, 0.9
     MIN_MIX, MAX_MIX = 0.1, 0.5
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -829,6 +842,7 @@ class Gain(Augmentation):
     """
 
     MIN_GAIN, MAX_GAIN = -10, 10
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -864,6 +878,7 @@ class GSMFullRateCompressor(Augmentation):
 
     # Don't use the highest resampling quality (4) as it is much slower than the others
     QUALITIES = range(4)
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -902,6 +917,7 @@ class MP3Compressor(Augmentation):
     """
 
     VBR_MIN, VBR_MAX = 2.001, 9.999
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -939,6 +955,7 @@ class PitchShift(Augmentation):
     """
 
     MIN_SEMITONES, MAX_SEMITONES = -3, 3
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,
@@ -1002,6 +1019,7 @@ class TimeShift(Augmentation):
     """
 
     MIN_SHIFT, MAX_SHIFT = 0.7, 1.5
+    AUGMENTATION_TYPE = "event"
 
     def __init__(
         self,

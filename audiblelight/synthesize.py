@@ -342,7 +342,7 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
 
         # Truncate or pad spatial_audio to fit the scene slice length
         num_samples = scene_end - scene_start
-        spatial_audio = pad_or_truncate_audio(event.spatial_audio, num_samples)
+        spatial_audio = utils.pad_or_truncate_audio(event.spatial_audio, num_samples)
 
         # Additive synthesis
         scene_audio[:, scene_start:scene_end] += spatial_audio
@@ -352,25 +352,6 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
     utils.validate_shape(scene_audio.shape, (channels, duration))
 
     scene.audio = scene_audio
-
-
-def pad_or_truncate_audio(
-    audio: np.ndarray, desired_samples: utils.Numeric
-) -> np.ndarray:
-    """
-    Pads or truncates audio with desired number of samples.
-    """
-    # Audio is too short, needs padding
-    if audio.shape[1] < desired_samples:
-        return np.pad(
-            audio, ((0, 0), (0, desired_samples - audio.shape[1])), mode="constant"
-        )
-    # Audio is too long, needs truncating
-    elif audio.shape[1] > desired_samples:
-        return audio[:, :desired_samples]
-    # Audio is just right
-    else:
-        return audio
 
 
 def render_event_audio(
@@ -443,7 +424,7 @@ def render_event_audio(
         spatial = time_variant_convolution(irs, event, win_size, hop_size)
 
     # Pad or truncate the audio to match the desired number of samples
-    spatial = pad_or_truncate_audio(spatial, n_audio_samples)
+    spatial = utils.pad_or_truncate_audio(spatial, n_audio_samples)
 
     # Deal with amplitude: this logic is taken from SpatialScaper
     #  This scales the audio simply to the maximum SNR
