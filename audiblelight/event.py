@@ -13,7 +13,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 
 from audiblelight import utils
-from audiblelight.augmentation import Augmentation
+from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
 from audiblelight.worldstate import Emitter
 
 # Mapping from sound events to labels used in DCASE challenge
@@ -68,7 +68,7 @@ class Event:
         alias: str,
         emitters: Optional[Union[list[Emitter], Emitter, list[dict]]] = None,
         augmentations: Optional[
-            Union[Iterable[Type[Augmentation]], Type[Augmentation]]
+            Union[Iterable[Type[EventAugmentation]], Type[EventAugmentation]]
         ] = None,
         scene_start: Optional[float] = None,
         event_start: Optional[float] = None,
@@ -88,8 +88,8 @@ class Event:
             alias: Label to refer to this Event by inside the Scene
             emitters: List of Emitter objects associated with this Event.
                 If not provided, `register_emitters` must be called prior to rendering any Scene this Event is in.
-            augmentations: Iterable of Augmentation objects associated with this Event.
-                If not provided, Augmentations can be registered later by calling `register_augmentations`.
+            augmentations: Iterable of EventAugmentation objects associated with this Event.
+                If not provided, EventAugmentations can be registered later by calling `register_augmentations`.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
                 If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
@@ -172,13 +172,16 @@ class Event:
         #  such as when defining the trajectory of a moving event
 
     def register_augmentations(
-        self, augmentations: Union[Iterable[Type[Augmentation]], Type[Augmentation]]
+        self,
+        augmentations: Union[
+            Iterable[Type[EventAugmentation]], Type[EventAugmentation]
+        ],
     ) -> None:
         """
         Register augmentations associated with this Event.
 
         Arguments:
-            augmentations: Iterable of augmentations to register, or a single Augmentation type
+            augmentations: Iterable of augmentations to register, or a single EventAugmentation type
 
         Returns:
             None
@@ -193,12 +196,19 @@ class Event:
             # If the augmentation hasn't been initialised yet, try doing this now
             if isinstance(aug, type):
                 try:
-                    aug = aug()
+                    aug = aug(sample_rate=self.sample_rate)
                 except Exception as e:
                     raise e
 
+            # Check that the sample rate is valid
+            if aug.sample_rate != self.sample_rate:
+                raise ValueError(
+                    f"Augmentation has mismatching sample rate! "
+                    f"expected {self.sample_rate}, got {aug.sample_rate}"
+                )
+
             # Validate the augmentation and add it in if it's OK
-            self._validate_augmentation(aug)
+            validate_event_augmentation(aug)
             self.augmentations.append(aug)
 
         # Whenever we register augmentations, we should also invalidate any cached audio
@@ -206,46 +216,6 @@ class Event:
         #  when we call `self.load_audio`.
         self.audio = None
         self.spatial_audio = None
-
-    @staticmethod
-    def _validate_augmentation(augmentation_obj: Any) -> None:
-        """
-        Validates an augmentation class for the Event.
-
-        In order to be valid, an augmentation must:
-            - be callable;
-            - inherit from the `audiblelight.augmentation.Augmentation` class;
-            - define the `AUGMENTATION_TYPE` and `fx` properties;
-            - have an `AUGMENTATION_TYPE` of "event" (not "scene", which applies to `audiblelight.core.Scene` objects).
-
-        Arguments:
-            augmentation_obj (Any): the augmentation object to validate
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: if the augmentation object is invalid.
-            AttributeError: if the augmentation object does not have a required property or attribute.
-        """
-
-        if not callable(augmentation_obj):
-            raise ValueError("Augmentation object must be callable")
-
-        if not issubclass(type(augmentation_obj), Augmentation):
-            raise ValueError(
-                "Augmentation object must be a subclass of `audiblelight.augmentation.Augmentation`"
-            )
-
-        for attr in ["fx", "AUGMENTATION_TYPE"]:
-            if not hasattr(augmentation_obj, attr):
-                raise AttributeError(
-                    f"Augmentation object must have '{attr}' attribute"
-                )
-
-        aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
-        if aug_type != "event":
-            raise ValueError(f"Augmentation type must be 'event', but got '{aug_type}'")
 
     def register_emitters(
         self,
@@ -598,7 +568,7 @@ class Event:
         augs = []
         if "augmentations" in input_dict.keys():
             for aug in input_dict["augmentations"]:
-                augs.append(Augmentation.from_dict(aug))
+                augs.append(EventAugmentation.from_dict(aug))
 
         # Instantiate the event and return
         return cls(
@@ -617,7 +587,7 @@ class Event:
             spatial_velocity=input_dict["spatial_velocity"],
         )
 
-    def get_augmentation(self, idx: int) -> Type[Augmentation]:
+    def get_augmentation(self, idx: int) -> Type[EventAugmentation]:
         """
         Gets a single augmentation associated with this Event by its integer index.
         """
@@ -626,7 +596,7 @@ class Event:
         except IndexError:
             raise IndexError("No augmentation with index {}".format(idx))
 
-    def get_augmentations(self) -> list[Type[Augmentation]]:
+    def get_augmentations(self) -> list[Type[EventAugmentation]]:
         """
         Gets all augmentations associated with this Event.
         """

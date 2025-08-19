@@ -64,8 +64,8 @@ class Augmentation:
         reset: Optional[bool] = True,
         **kwargs,
     ):
-        self.sample_rate = int(utils.sanitise_positive_number(sample_rate))
-        self.buffer_size = int(utils.sanitise_positive_number(buffer_size))
+        self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
+        self.buffer_size = utils.sanitise_positive_number(buffer_size, cast_to=int)
         self.reset = reset
         self.fx: Union[Callable, list[Callable]] = _identity
         self.params = dict()
@@ -1745,3 +1745,48 @@ ALL_EVENT_AUGMENTATIONS = [
     HighShelfFilter,
     LowShelfFilter,
 ]
+
+
+# noinspection PyUnreachableCode
+def validate_event_augmentation(augmentation_obj: Any) -> None:
+    """
+    Validates an augmentation class for the Event.
+
+    In order to be valid, an augmentation must:
+        - be callable;
+        - be an instance of an augmentation class, not the class itself
+        - inherit from the `audiblelight.augmentation.EventAugmentation` class;
+        - define the `AUGMENTATION_TYPE` and `fx` properties;
+        - have an `AUGMENTATION_TYPE` of "event" (not "scene", which applies to `audiblelight.core.Scene` objects).
+
+    Arguments:
+        augmentation_obj (Any): the augmentation object to validate
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: if the augmentation object is invalid.
+        AttributeError: if the augmentation object does not have a required property or attribute.
+    """
+
+    if not callable(augmentation_obj):
+        raise ValueError("Augmentation object must be callable")
+
+    if isinstance(augmentation_obj, type):
+        raise ValueError(
+            "Augmentation object must be an instance of a class, not the class itself"
+        )
+
+    if not issubclass(type(augmentation_obj), EventAugmentation):
+        raise ValueError(
+            "Augmentation object must be a subclass of `audiblelight.augmentation.EventAugmentation`"
+        )
+
+    for attr in ["fx", "AUGMENTATION_TYPE", "params"]:
+        if not hasattr(augmentation_obj, attr):
+            raise AttributeError(f"Augmentation object must have '{attr}' attribute")
+
+    aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
+    if aug_type != "event":
+        raise ValueError(f"Augmentation type must be 'event', but got '{aug_type}'")
