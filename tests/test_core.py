@@ -648,3 +648,38 @@ def test_magic_methods(filepath, kwargs, oyens_scene_no_overlap):
     # Dump the scene again, reload, and compare
     ev2 = Scene.from_dict(oyens_scene_no_overlap.to_dict())
     assert ev2 == oyens_scene_no_overlap
+
+
+@pytest.mark.parametrize(
+    "aug_list, n_augs",
+    [
+        ([Phaser, LowpassFilter, TimeShift], 2),
+        ([Phaser], 1),
+        # Coerced down to 2
+        ([Phaser, LowpassFilter], 5000),
+    ],
+)
+@pytest.mark.parametrize("event_type", ["static", "moving"])
+def test_add_events_with_random_augmentations(aug_list, n_augs, event_type):
+    """
+    Add events with N random augmentations, drawn from our list
+    """
+    sc = Scene(
+        duration=50,
+        mesh_path=utils_tests.OYENS_PATH,
+        event_augmentations=aug_list,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        max_overlap=1,
+    )
+    ev = sc.add_event(augmentations=n_augs, event_type=event_type)
+    augs = ev.get_augmentations()
+
+    # All augs should be sampled from our list
+    for aug in augs:
+        assert type(aug) in aug_list
+
+    # Augmentations should always be unique when random sampling
+    assert len(augs) == len(list(set(augs)))
+
+    # Should have expected number of augs
+    assert len(augs) == min(len(sc.event_augmentations), n_augs)
