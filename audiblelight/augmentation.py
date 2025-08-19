@@ -17,6 +17,7 @@ multi-band, parametric equalizer). The `TimeWarpXXXX` effects are taken from
 
 from typing import Any, Callable, Iterator, Optional, Type, Union
 
+import librosa
 import numpy as np
 from deepdiff import DeepDiff
 from pedalboard import time_stretch
@@ -990,7 +991,7 @@ class PitchShift(Augmentation):
             high_quality=False,
         )
 
-    def process(self, input_array: np.ndarray, *args) -> np.ndarray:
+    def process(self, input_array: np.ndarray) -> np.ndarray:
         """
         Apply the effect to the input audio.
         """
@@ -1050,7 +1051,7 @@ class TimeShift(Augmentation):
             high_quality=False,
         )
 
-    def process(self, input_array: np.ndarray, *args) -> np.ndarray:
+    def process(self, input_array: np.ndarray) -> np.ndarray:
         """
         Apply the effect to the input audio.
         """
@@ -1060,216 +1061,208 @@ class TimeShift(Augmentation):
         return super().process(input_array)
 
 
-# class TimeWarpSilence(Augmentation):
-#     PROB = 0.1
-#
-#     def __init__(self, sample_rate: utils.Numeric = utils.SAMPLE_RATE, **kwargs):
-#         super().__init__(sample_rate)
-#         self.fps = kwargs.get('fps', np.random.uniform(MIN_FPS, MAX_FPS))
-#         self.seed = kwargs.get('seed', utils.SEED)
-#         self.prob = kwargs.get("prob", self.PROB)
-#
-#         self.params = dict(
-#             fps=float(self.fps),
-#             seed=int(self.seed),
-#             prob=self.prob
-#         )
-#
-#     def process(
-#             self,
-#             input_array: np.ndarray,
-#             *args
-#     ) -> np.ndarray:
-#         """
-#         Apply the effect to the input audio.
-#         """
-#         # Set the random seed according to the value defined in `__init__`, for reproducibility
-#         np.random.seed(self.seed)
-#
-#         # Slice the audio into frames
-#         sliced = slice_frames(input_array, args[0], self.fps)
-#         combframes = []
-#
-#         # Iterate over all the frames
-#         for frame in sliced:
-#             # If we trigger the effect, zero the frame
-#             if np.random.uniform(0., 1.) < self.prob:
-#                 frame = np.zeros(len(frame))
-#             combframes.append(frame)
-#
-#         # If we've never triggered the effect, return the original audio
-#         try:
-#             transformed = np.concatenate(combframes)
-#         except ValueError:
-#             return input_array
-#         else:
-#             return pad_or_truncate_audio(transformed, len(input_array))
-#
-#
-# class TimeWarpDuplicate(Augmentation):
-#     PROB = 0.1
-#
-#     def __init__(self, sample_rate: utils.Numeric = utils.SAMPLE_RATE, **kwargs):
-#         super().__init__(sample_rate)
-#         self.fps = kwargs.get('fps', np.random.uniform(MIN_FPS, MAX_FPS))
-#         self.seed = kwargs.get('seed', utils.SEED)
-#         self.prob = kwargs.get("prob", self.PROB)
-#
-#         self.params = dict(
-#             fps=float(self.fps),
-#             seed=int(self.seed),
-#             prob=self.prob
-#         )
-#
-#     def process(
-#             self,
-#             input_array: np.ndarray,
-#             *args
-#     ) -> np.ndarray:
-#         """
-#         Apply the effect to the input audio.
-#         """
-#         # Set the random seed according to the value defined in `__init__`, for reproducibility
-#         np.random.seed(self.seed)
-#
-#         # Slice the audio into frimes
-#         sliced = slice_frames(input_array, args[0], self.fps)
-#         combframes = []
-#
-#         # Iterate over all the frames
-#         for frame in sliced:
-#             # If we trigger the effect, append the frame to the list twice
-#             if np.random.uniform(0., 1.) < self.prob:
-#                 combframes.append(frame)
-#             combframes.append(frame)
-#
-#         # If we've never triggered the effect, just return the input audio
-#         try:
-#             transformed = np.concatenate(combframes)
-#         except ValueError:
-#             return input_array
-#         else:
-#             return pad_or_truncate_audio(transformed, len(input_array))
-#
-#
-# class TimeWarpRemove(Augmentation):
-#     PROB = 0.1
-#
-#     def __init__(self, sample_rate: utils.Numeric = utils.SAMPLE_RATE, **kwargs):
-#         super().__init__(sample_rate)
-#         self.fps = kwargs.get('fps', np.random.uniform(MIN_FPS, MAX_FPS))
-#         self.seed = kwargs.get('seed', utils.SEED)
-#         self.prob = kwargs.get("prob", self.PROB)
-#
-#         self.params = dict(
-#             fps=float(self.fps),
-#             seed=int(self.seed),
-#             prob=self.prob
-#         )
-#
-#     def process(
-#             self,
-#             input_array: np.ndarray,
-#             *args
-#     ) -> np.ndarray:
-#         """
-#         Apply the effect to the input audio.
-#         """
-#         # Set the random seed according to the value defined in `__init__`, for reproducibility
-#         np.random.seed(self.seed)
-#
-#         # Slice the audio into frames
-#         sliced = slice_frames(input_array, args[0], self.fps)
-#         combframes = []
-#
-#         # Iterate over all the frames
-#         for frame in sliced:
-#             # If we trigger the effect, skip the frame
-#             if np.random.uniform(0., 1.) < self.prob:
-#                 continue
-#             combframes.append(frame)
-#
-#         # If we've never triggered the effect, just return the input audio
-#         try:
-#             transformed = np.concatenate(combframes)
-#         except ValueError:
-#             return input_array
-#         else:
-#             return pad_or_truncate_audio(transformed, len(input_array))
-#
-#
-# class TimeWarpReverse(Augmentation):
-#     PROB = 0.1
-#
-#     def __init__(self, sample_rate: utils.Numeric = utils.SAMPLE_RATE, **kwargs):
-#         super().__init__(sample_rate)
-#         self.fps = kwargs.get('fps', np.random.uniform(MIN_FPS, MAX_FPS))
-#         self.seed = kwargs.get('seed', utils.SEED)
-#         self.prob = kwargs.get("prob", self.PROB)
-#
-#         self.params = dict(
-#             fps=float(self.fps),
-#             seed=int(self.seed),
-#             prob=self.prob
-#         )
-#
-#     def process(
-#             self,
-#             input_array: np.ndarray,
-#             *args
-#     ) -> np.ndarray:
-#         """
-#         Apply the effect to the input audio.
-#         """
-#         # Set the random seed according to the value defined in `__init__`, for reproducibility
-#         np.random.seed(self.seed)
-#
-#         # Slice the audio according to the number of FPS
-#         sliced = slice_frames(input_array, args[0], self.fps)
-#         combframes = []
-#
-#         # Iterate over all the frames
-#         for frame in sliced:
-#             # If we trigger the effect, flip the frame horizontally
-#             if np.random.uniform(0., 1.) < self.prob:
-#                 frame = np.flip(frame, axis=0)
-#             combframes.append(frame)
-#
-#         # Combine all the frames back into a single array
-#         try:
-#             transformed = np.concatenate(combframes)
-#         # If we've never triggered the effect, just return the input audio
-#         except ValueError:
-#             return input_array
-#         else:
-#             return pad_or_truncate_audio(transformed, len(input_array))
-#
-#
-# class Remix(Augmentation):
-#     pass
-#
-#
-# def slice_frames(inp_audio: np.ndarray, sample_rate: float, fps: float) -> np.ndarray:
-#     """
-#     Slice audio into non-overlapping frames
-#     """
-#     # This code is just taken from `librosa.util.frame`
-#     axis = 0
-#     frame_length = int(sample_rate / fps)
-#     hop_length = frame_length
-#     x = np.array(inp_audio, copy=False, subok=False)
-#
-#     # put our new within-frame axis at the end for now
-#     out_strides = x.strides + tuple([x.strides[axis]])
-#
-#     # Reduce the shape on the framing axis
-#     x_shape_trimmed = list(x.shape)
-#     x_shape_trimmed[axis] -= frame_length - 1
-#     out_shape = tuple(x_shape_trimmed) + tuple([frame_length])
-#     xw = np.lib.stride_tricks.as_strided(x, strides=out_strides, shape=out_shape, subok=False, writeable=False)
-#     xw = np.moveaxis(xw, -1, axis + 1)
-#
-#     # Downsample along the target axis
-#     slices = [slice(None)] * xw.ndim
-#     slices[axis] = slice(0, None, hop_length)
-#     return xw[tuple(slices)]
+class _TimeWarpAugmentation(Augmentation):
+    """
+    Parent class for all time-warping augmentations.
+
+    The following augmentations are classed as "time-warping":
+        - TimeWarpSilence
+        - TimeWarpDuplicate
+        - TimeWarpReverse
+        - TimeWarpRemove
+
+    They take inspiration from "DJ-style" effects commonly used in hip-hop music production and have been used as
+    augmentations in both music sample identification [1] and cover song identification [2].
+
+    Arguments:
+        sample_rate (utils.Numeric): the sample rate for the effect to use.
+        buffer_size (utils.Numeric): ignored for this class.
+        reset (bool): ignored for this class.
+        fps: the number of frames-per-second to use. Will be sampled between 2 and 10 FPS if not given.
+        prob: the probability of activating the effect for every frame. Will be sampled between 5 and 15% if not given.
+
+    References:
+        [1] Cheston, H., Van Balen, J., & Durand, S. (2025). Automatic Identification of Samples in Hip-Hop Music via
+        Multi-Loss Training and an Artificial Dataset. arXiv preprint arXiv:2502.06364.
+        [2] Yesiler, F. Serrà, J., & Gómez, E. (2020). Accurate and Scalable Version Identification Using
+        Musically-Motivated Embeddings," ICASSP 2020 - 2020 IEEE International Conference on Acoustics, Speech and
+        Signal Processing (ICASSP). doi:10.1109/ICASSP40776.2020.9053793.
+    """
+
+    MIN_PROB, MAX_PROB = 0.05, 0.15
+    MIN_FPS, MAX_FPS = 2, 10.0
+    AUGMENTATION_TYPE = "event"
+
+    def __init__(
+        self,
+        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        buffer_size: Optional[utils.Numeric] = BUFFER_SIZE,
+        reset: Optional[bool] = True,
+        fps: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+        prob: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+    ):
+        super().__init__(sample_rate, buffer_size, reset)
+        self.fps = utils.sanitise_positive_number(
+            self.sample_value(
+                fps,
+                stats.uniform(self.MIN_FPS, self.MAX_FPS - self.MIN_FPS),
+            )
+        )
+        self.prob = utils.sanitise_positive_number(
+            self.sample_value(
+                prob,
+                stats.uniform(self.MIN_PROB, self.MAX_PROB - self.MIN_PROB),
+            )
+        )
+        self.fx = self._apply_fx
+        self.params = dict(fps=self.fps, prob=self.prob)
+
+    def _timewarp(self, sliced_audio_frames: np.ndarray) -> list[np.ndarray]:
+        """
+        Implements the main time-warping functionality.
+
+        This should operate on a list of audio frames obtained using `slice_frames`.
+        """
+        raise NotImplementedError
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        """
+        Applies the audio FX for the time-warping effect
+        """
+        # Identity operation
+        if self.prob == 0:
+            return input_audio
+
+        # Non-overlapping frames use equal frame and hop length
+        fl = round(self.sample_rate / self.fps)
+
+        # Try and slice the audio into frames
+        if fl > max(input_audio.shape):
+            # Too short to slice: just use a single frame
+            sliced = np.expand_dims(input_audio, 0)
+        else:
+            sliced = librosa.util.frame(input_audio, frame_length=fl, hop_length=fl)
+
+        # Apply the FX: let's do the timewarp!
+        combframes = self._timewarp(sliced)
+
+        # If we've never triggered the effect, return the original audio
+        #  The parent class `process` function will handle padding/truncating
+        try:
+            return np.concatenate(combframes)
+        except ValueError:
+            return input_audio
+
+
+class TimeWarpSilence(_TimeWarpAugmentation):
+    """
+    Applies a time-warping effect (silence) to the audio.
+
+    This effect uses the following method:
+        - Split audio into frames, according to FPS value
+        - Iterate over all frames
+            - Sample a random value `x`
+            - if `x < prob`:
+                - Silence the frame (replace with zeros)
+    """
+
+    def _timewarp(self, sliced_audio_frames: np.ndarray) -> list[np.ndarray]:
+        combframes = []
+        # Iterate over all the frames
+        for frame in sliced_audio_frames:
+            # If we trigger the effect, zero the frame
+            if np.random.uniform(0.0, 1.0) < self.prob:
+                frame = np.zeros(len(frame))
+            combframes.append(frame)
+        return combframes
+
+
+class TimeWarpDuplicate(_TimeWarpAugmentation):
+    """
+    Applies a time-warping effect (silence) to the audio.
+
+    This effect uses the following method:
+        - Split audio into frames, according to FPS value
+        - Iterate over all frames
+            - Sample a random value `x`
+            - if `x < prob`:
+                - Duplicate the frame
+    """
+
+    def _timewarp(self, sliced_audio_frames: np.ndarray) -> list[np.ndarray]:
+        combframes = []
+        # Iterate over all the frames
+        for frame in sliced_audio_frames:
+            # If we trigger the effect, append the frame to the list twice
+            if np.random.uniform(0.0, 1.0) < self.prob:
+                combframes.append(frame)
+            combframes.append(frame)
+        return combframes
+
+
+class TimeWarpRemove(_TimeWarpAugmentation):
+    """
+    Applies a time-warping effect (silence) to the audio.
+
+    This effect uses the following method:
+        - Split audio into frames, according to FPS value
+        - Iterate over all frames
+            - Sample a random value `x`
+            - if `x < prob`:
+                - Remove the frame
+    """
+
+    def _timewarp(self, sliced_audio_frames: np.ndarray) -> list[np.ndarray]:
+        combframes = []
+        # Iterate over all the frames
+        for frame in sliced_audio_frames:
+            # If we trigger the effect, skip the frame
+            if np.random.uniform(0.0, 1.0) < self.prob:
+                continue
+            combframes.append(frame)
+        return combframes
+
+
+class TimeWarpReverse(_TimeWarpAugmentation):
+    """
+    Applies a time-warping effect (reverse) to the audio.
+
+    This effect uses the following method:
+        - Split audio into frames, according to FPS value
+        - Iterate over all frames
+            - Sample a random value `x`
+            - if `x < prob`:
+                - Reverse the frame
+    """
+
+    def _timewarp(self, sliced_audio_frames: np.ndarray) -> list[np.ndarray]:
+        combframes = []
+        # Iterate over all the frames
+        for frame in sliced_audio_frames:
+            # If we trigger the effect, flip it horizontally
+            if np.random.uniform(0.0, 1.0) < self.prob:
+                frame = np.flip(frame, axis=0)
+            combframes.append(frame)
+        return combframes
+
+
+# Holds all augmentations that can be applied to Event objects
+ALL_EVENT_AUGMENTATIONS = [
+    LowpassFilter,
+    HighpassFilter,
+    Equalizer,
+    Compressor,
+    Chorus,
+    Delay,
+    Distortion,
+    Phaser,
+    Gain,
+    GSMFullRateCompressor,
+    MP3Compressor,
+    PitchShift,
+    TimeShift,
+    TimeWarpRemove,
+    TimeWarpSilence,
+    TimeWarpDuplicate,
+    TimeWarpReverse,
+]
