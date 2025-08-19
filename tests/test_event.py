@@ -202,14 +202,17 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
                 {
                     "name": "Phaser",
                     "sample_rate": 44100,
-                    "buffer_size": 8192,
-                    "reset": True,
                     "rate_hz": 9.480337646552867,
                     "depth": 0.4725113710968438,
                     "centre_frequency_hz": 2348.1728842622597,
                     "feedback": 0.0810976870856293,
                     "mix": 0.4228090059318278,
-                }
+                },
+                {
+                    "name": "LowpassFilter",
+                    "sample_rate": 44100,
+                    "cutoff_frequency_hz": 7561.425049192692,
+                },
             ],
         },
     ],

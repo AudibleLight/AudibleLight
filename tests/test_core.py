@@ -522,6 +522,17 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                             [203.9109387558252, -5.976352087676762, 3.3744825372046803]
                         ]
                     },
+                    "augmentations": [
+                        {
+                            "name": "Phaser",
+                            "sample_rate": 44100,
+                            "rate_hz": 9.480337646552867,
+                            "depth": 0.4725113710968438,
+                            "centre_frequency_hz": 2348.1728842622597,
+                            "feedback": 0.0810976870856293,
+                            "mix": 0.4228090059318278,
+                        }
+                    ],
                 }
             },
             "state": {
@@ -679,7 +690,7 @@ def test_add_events_with_random_augmentations(aug_list, n_augs, event_type):
         assert type(aug) in aug_list
 
     # Augmentations should always be unique when random sampling
-    assert len(augs) == len(list(set(augs)))
+    assert len(augs) == len(set(type(aug) for aug in augs))
 
     # Should have expected number of augs
     assert len(augs) == min(len(sc.event_augmentations), n_augs)
