@@ -462,7 +462,7 @@ class WorldState:
             float: The weighted average distance of ray intersections: higher values indicate more open surroundings
         """
         # Sanitisation of inputs
-        num_rays = int(utils.sanitise_positive_number(num_rays))
+        num_rays = utils.sanitise_positive_number(num_rays, cast_to=int)
         point = utils.sanitise_coordinates(point)
 
         # Generate random azimuthal angles for each ray
@@ -1307,7 +1307,7 @@ class WorldState:
         """
         # Input sanitization
         r = utils.sanitise_positive_number(r)
-        n = int(utils.sanitise_positive_number(n))
+        n = utils.sanitise_positive_number(n, cast_to=int)
         ref = utils.sanitise_coordinates(ref)
 
         # Sample directions using normal distribution and normalize
@@ -1442,7 +1442,9 @@ class WorldState:
         )
 
         # Compute the number of samples based on duration and resolution
-        n_points = round(utils.sanitise_positive_number(duration * resolution) + 1)
+        n_points = (
+            utils.sanitise_positive_number(duration * resolution, cast_to=round) + 1
+        )
         # Clamp `n_points` to 2, so we will always be able to create a moving trajectory
         if n_points < 2:
             n_points = 2

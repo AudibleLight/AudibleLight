@@ -267,10 +267,10 @@ def time_variant_convolution(
     audio = event.load_audio()
 
     # Get parameters and shapes
-    win_size = int(utils.sanitise_positive_number(win_size))
+    win_size = utils.sanitise_positive_number(win_size, cast_to=int)
     if hop_size is None:
         hop_size = win_size // 2
-    hop_size = int(utils.sanitise_positive_number(hop_size))
+    hop_size = utils.sanitise_positive_number(hop_size, cast_to=int)
     fft_size = 2 * win_size
 
     # Compute the spectrograms for both the IRs and the audio

@@ -282,7 +282,7 @@ def sanitise_directory(directory: Any) -> Path:
         )
 
 
-def sanitise_positive_number(x: Any, cast_to: type = float) -> Optional[float]:
+def sanitise_positive_number(x: Any, cast_to: type = float) -> Optional[Numeric]:
     """
     Validate that an input is a positive numeric input and coerce to `cast_to` (default: float)
     """
