@@ -5,7 +5,7 @@
 
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Iterable, Optional, Type, Union
 
 import librosa
 import numpy as np
@@ -13,6 +13,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 
 from audiblelight import utils
+from audiblelight.augmentation import Augmentation
 from audiblelight.worldstate import Emitter
 
 # Mapping from sound events to labels used in DCASE challenge
@@ -66,6 +67,9 @@ class Event:
         filepath: Union[str, Path],
         alias: str,
         emitters: Optional[Union[list[Emitter], Emitter, list[dict]]] = None,
+        augmentations: Optional[
+            Union[Iterable[Type[Augmentation]], Type[Augmentation]]
+        ] = None,
         scene_start: Optional[float] = None,
         event_start: Optional[float] = None,
         duration: Optional[float] = None,
@@ -82,8 +86,10 @@ class Event:
         Arguments:
             filepath: Path to the audio file.
             alias: Label to refer to this Event by inside the Scene
-            emitters: List of Emitter objects associated with this event.
+            emitters: List of Emitter objects associated with this Event.
                 If not provided, `register_emitters` must be called prior to rendering any Scene this Event is in.
+            augmentations: Iterable of Augmentation objects associated with this Event.
+                If not provided, Augmentations can be registered later by calling `register_emitters`.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
                 If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
@@ -105,6 +111,11 @@ class Event:
         self.snr = snr
         self.sample_rate = utils.sanitise_positive_number(sample_rate)
         self.alias = alias
+
+        # Valid augmentations will be stored here and called when loading audio
+        self.augmentations = []
+        if augmentations is not None:
+            self.register_augmentations(augmentations)
 
         # Spatial audio attributes, set in the synthesizer
         self.spatial_audio = None
@@ -159,6 +170,82 @@ class Event:
         #  In practice, it allows us to get the duration of an event (etc.) before adding emitters
         #  This can be useful in cases where we need the duration of an event before creating emitters
         #  such as when defining the trajectory of a moving event
+
+    def register_augmentations(
+        self, augmentations: Union[Iterable[Type[Augmentation]], Type[Augmentation]]
+    ) -> None:
+        """
+        Register augmentations associated with this Event.
+
+        Arguments:
+            augmentations: Iterable of augmentations to register, or a single Augmentation type
+
+        Returns:
+            None
+        """
+        # Handle single augmentations
+        if not isinstance(augmentations, (list, tuple, set)):
+            augmentations = [augmentations]
+
+        # Iterate over all augmentations
+        for aug in augmentations:
+
+            # If the augmentation hasn't been initialised yet, try doing this now
+            if isinstance(aug, type):
+                try:
+                    aug = aug()
+                except Exception as e:
+                    raise e
+
+            # Validate the augmentation and add it in if it's OK
+            self._validate_augmentation(aug)
+            self.augmentations.append(aug)
+
+        # Whenever we register augmentations, we should also invalidate any cached audio
+        #  This will force us to reload the audio and apply the augmentations again
+        #  when we call `self.load_audio`.
+        self.audio = None
+        self.spatial_audio = None
+
+    @staticmethod
+    def _validate_augmentation(augmentation_obj: Any) -> None:
+        """
+        Validates an augmentation class for the Event.
+
+        In order to be valid, an augmentation must:
+            - be callable;
+            - inherit from the `audiblelight.augmentation.Augmentation` class;
+            - define the `AUGMENTATION_TYPE` and `fx` properties;
+            - have an `AUGMENTATION_TYPE` of "event" (not "scene", which applies to `audiblelight.core.Scene` objects).
+
+        Arguments:
+            augmentation_obj (Any): the augmentation object to validate
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: if the augmentation object is invalid.
+            AttributeError: if the augmentation object does not have a required property or attribute.
+        """
+
+        if not callable(augmentation_obj):
+            raise ValueError("Augmentation object must be callable")
+
+        if not issubclass(type(augmentation_obj), Augmentation):
+            raise ValueError(
+                "Augmentation object must be a subclass of `audiblelight.augmentation.Augmentation`"
+            )
+
+        for attr in ["fx", "AUGMENTATION_TYPE"]:
+            if not hasattr(augmentation_obj, attr):
+                raise AttributeError(
+                    f"Augmentation object must have '{attr}' attribute"
+                )
+
+        aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
+        if aug_type != "event":
+            raise ValueError(f"Augmentation type must be 'event', but got '{aug_type}'")
 
     def register_emitters(
         self,
@@ -390,7 +477,7 @@ class Event:
             # Otherwise, we need to load up the audio
             #  Using librosa, this will resample to the desired sample rate, convert to mono, set the offset to the
             #  desired event start time, and trim the duration to the desired duration
-            self.audio, _ = librosa.load(
+            audio_raw, _ = librosa.load(
                 self.filepath,
                 sr=self.sample_rate,
                 mono=True,
@@ -399,6 +486,12 @@ class Event:
                 dtype=np.float32,
             )
 
+        # Apply all augmentations to the audio
+        audio_out = audio_raw.copy()
+        for aug in self.augmentations:
+            audio_out = aug(audio_out)
+
+        self.audio = audio_out
         return self.audio
 
     def to_dict(self) -> dict:
@@ -408,7 +501,7 @@ class Event:
 
         def coerce(inp):
             if isinstance(inp, dict):
-                return {k: coerce(v) for k, v in inp.items()} if inp else None
+                return {k_: coerce(v_) for k_, v_ in inp.items()} if inp else None
             elif isinstance(inp, np.ndarray):
                 return inp.tolist()
             else:
@@ -451,6 +544,8 @@ class Event:
             # Include the actual emitters as well, to enable unserialisation
             emitters=[coerce(v.coordinates_absolute) for v in self.emitters],
             emitters_relative=relative_positions,
+            # Include the augmentation objects
+            augmentations=[aug.to_dict() for aug in self.augmentations],
         )
 
     @classmethod
@@ -499,11 +594,18 @@ class Event:
             )
             emitters_list.append(obj)
 
+        # Reconstruct augmentations
+        augs = []
+        if "augmentations" in input_dict.keys():
+            for aug in input_dict["augmentations"]:
+                augs.append(Augmentation.from_dict(aug))
+
         # Instantiate the event and return
         return cls(
             alias=input_dict["alias"],
             filepath=input_dict["filepath"],
             emitters=emitters_list,
+            augmentations=augs,
             scene_start=input_dict["scene_start"],
             event_start=input_dict["event_start"],
             duration=input_dict["duration"],
@@ -514,3 +616,33 @@ class Event:
             spatial_resolution=input_dict["spatial_resolution"],
             spatial_velocity=input_dict["spatial_velocity"],
         )
+
+    def get_augmentation(self, idx: int) -> Type[Augmentation]:
+        """
+        Gets a single augmentation associated with this Event by its integer index.
+        """
+        try:
+            return self.augmentations[idx]
+        except IndexError:
+            raise IndexError("No augmentation with index {}".format(idx))
+
+    def get_augmentations(self) -> list[Type[Augmentation]]:
+        """
+        Gets all augmentations associated with this Event.
+        """
+        return self.augmentations
+
+    def get_emitter(self, idx: int) -> Emitter:
+        """
+        Gets a single Emitter associated with this Event by its integer index
+        """
+        try:
+            return self.emitters[idx]
+        except (IndexError, TypeError):
+            raise IndexError("No emitter with index {}".format(idx))
+
+    def get_emitters(self) -> list[Emitter]:
+        """
+        Gets all emitters associated with this Event.
+        """
+        return self.emitters if self.emitters is not None else []
