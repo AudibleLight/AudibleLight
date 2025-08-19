@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from audiblelight import utils
+from audiblelight.augmentation import LowpassFilter, Phaser, TimeShift
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
@@ -28,6 +29,7 @@ from tests import utils_tests
             duration=5,
             event_start=5,
             scene_start=5,
+            augmentations=TimeShift(stretch_factor=0.5),
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
         dict(filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3", snr=5),
@@ -48,6 +50,7 @@ from tests import utils_tests
             polar=True,
             position=[90, 0.0, 0.5],
             scene_start=0.0,
+            augmentations=[LowpassFilter, Phaser()],
         ),
     ],
 )
@@ -101,7 +104,11 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
     if kwargs.get("filepath") is not None:
         for override_key, override_val in kwargs.items():
             if hasattr(ev, override_key):
-                assert getattr(ev, override_key) == override_val
+                attr = getattr(ev, override_key)
+                # Skip nested keys
+                if isinstance(attr, (list, np.ndarray, tuple, set)):
+                    continue
+                assert attr == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
     for attr_ in [
@@ -121,6 +128,7 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             scene_start=5,
             shape="circular",
             filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
+            augmentations=TimeShift,
         ),
         dict(
             filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
@@ -150,6 +158,7 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             spatial_resolution=1.5,
             spatial_velocity=1.0,
             duration=2,
+            augmentations=[Phaser, LowpassFilter],
         ),
     ],
 )
@@ -207,7 +216,11 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     if kwargs.get("filepath") is not None:
         for override_key, override_val in kwargs.items():
             if hasattr(ev, override_key):
-                assert getattr(ev, override_key) == override_val
+                attr = getattr(ev, override_key)
+                # Skip nested keys
+                if isinstance(attr, (list, np.ndarray, tuple, set)):
+                    continue
+                assert attr == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
     for attr_ in [

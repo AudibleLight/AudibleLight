@@ -10,7 +10,7 @@ from collections import OrderedDict
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Iterator, Optional, Type, Union
+from typing import Any, Iterable, Iterator, Optional, Type, Union
 
 import numpy as np
 import soundfile as sf
@@ -20,6 +20,7 @@ from scipy import stats
 
 from audiblelight import __version__, utils
 from audiblelight.ambience import Ambience
+from audiblelight.augmentation import Augmentation
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState
@@ -77,6 +78,8 @@ class Scene:
 
         # Define defaults for all distributions
         #  Events can start any time within the duration of the scene, minus some padding
+        # TODO: this is not consistent with how `stats.uniform` actually works.
+        #  see https://stackoverflow.com/questions/44572109/what-are-the-arguments-for-scipy-stats-uniform
         if scene_start_dist is None:
             scene_start_dist = stats.uniform(0.0, self.duration - 1)
         #  Events move between 0.25 and 2.0 metres per second
@@ -434,6 +437,9 @@ class Scene:
         event_type: Optional[str] = "static",
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
+        augmentations: Optional[
+            Union[Iterable[Type[Augmentation]], Type[Augmentation]]
+        ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
@@ -456,6 +462,9 @@ class Scene:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
+            augmentations: augmentation objects to associate with the Event.
+                If a list of Augmentation objects or a single Augmentation object, these will be passed directly.
+                If not provided, Augmentations can be registered later by calling `register_augmentations` on the Event.
             position: Location to add the event.
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
@@ -527,6 +536,7 @@ class Scene:
                 snr=snr,
                 class_id=class_id,
                 class_label=class_label,
+                augmentations=augmentations,
             )
 
         elif event_type == "moving":
@@ -545,6 +555,7 @@ class Scene:
                 class_label=class_label,
                 spatial_resolution=spatial_resolution,
                 spatial_velocity=spatial_velocity,
+                augmentations=augmentations,
             )
 
         else:
@@ -560,6 +571,9 @@ class Scene:
         self,
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
+        augmentations: Optional[
+            Union[Iterable[Type[Augmentation]], Type[Augmentation]]
+        ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
@@ -578,6 +592,9 @@ class Scene:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
+            augmentations: augmentation objects to associate with the Event.
+                If a list of Augmentation objects or a single Augmentation object, these will be passed directly.
+                If not provided, Augmentations can be registered later by calling `register_augmentations` on the Event.
             position: Location to add the event.
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
@@ -640,6 +657,7 @@ class Scene:
             # No spatial resolution/velocity for static events
             spatial_resolution=None,
             spatial_velocity=None,
+            augmentations=augmentations,
         )
 
         # Add the emitters associated with the event to the worldstate
@@ -679,6 +697,9 @@ class Scene:
         self,
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
+        augmentations: Optional[
+            Union[Iterable[Type[Augmentation]], Type[Augmentation]]
+        ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
@@ -699,6 +720,9 @@ class Scene:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
+            augmentations: augmentation objects to associate with the Event.
+                If a list of Augmentation objects or a single Augmentation object, these will be passed directly.
+                If not provided, Augmentations can be registered later by calling `register_augmentations` on the Event.
             position: Location to add the event.
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
@@ -756,6 +780,7 @@ class Scene:
             class_label=class_label,
             spatial_resolution=spatial_resolution,
             spatial_velocity=spatial_velocity,
+            augmentations=augmentations,
         )
 
         # Pre-initialise the event with required arguments

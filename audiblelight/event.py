@@ -89,7 +89,7 @@ class Event:
             emitters: List of Emitter objects associated with this Event.
                 If not provided, `register_emitters` must be called prior to rendering any Scene this Event is in.
             augmentations: Iterable of Augmentation objects associated with this Event.
-                If not provided, Augmentations can be registered later by calling `register_emitters`.
+                If not provided, Augmentations can be registered later by calling `register_augmentations`.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
                 If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
@@ -302,7 +302,7 @@ class Event:
         emits = "no " if self.emitters is None else len(self)
         return (
             f"{moving} 'Event' with alias '{self.alias}',"
-            f" audio file '{self.filepath}' ({loaded}), and {emits} emitters."
+            f" audio file '{self.filepath}' ({loaded}, {len(self.augmentations)} augmentations), {emits} emitter(s)."
         )
 
     def __repr__(self) -> str:
