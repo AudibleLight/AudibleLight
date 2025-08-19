@@ -39,7 +39,7 @@ pyroomacoustics = "*"
 h5py = "*"
 deepdiff = "*"
 rlr-audio-propagation = { git = "https://github.com/beasteers/rlr-audio-propagation.git", branch = "main" }
-pedalboard = "*"
+pedalboard = "0.9.17"
 
 [tool.poetry.group.dev.dependencies]
 notebook = "^7.4.5"
