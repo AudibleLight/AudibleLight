@@ -14,6 +14,7 @@ from audiblelight.augmentation import (
     Augmentation,
     Chorus,
     Compressor,
+    Deemphasis,
     Delay,
     Distortion,
     Equalizer,
@@ -23,6 +24,7 @@ from audiblelight.augmentation import (
     LowpassFilter,
     MP3Compressor,
     Phaser,
+    TimeWarpDuplicate,
 )
 from tests import utils_tests
 
@@ -125,6 +127,8 @@ def test_parameter_defaults(fx_class, expecteds):
         (Gain, dict(gain_db=20)),
         (GSMFullRateCompressor, dict(quality=2)),
         (MP3Compressor, dict(vbr_quality=5.0)),
+        (Deemphasis, dict(coef=0.5)),
+        (TimeWarpDuplicate, dict(prob=0.9, fps=20)),
     ],
 )
 def test_parameter_provided(fx_class, params):
@@ -222,6 +226,9 @@ def test_process_audio(fx_class, audio_fpath):
     # Initialise FX with default parameters and process the audio
     fx_init = fx_class()
     out = fx_init(loaded)
+
+    # Should be a child of Augmentation class
+    assert issubclass(fx_class, Augmentation)
 
     # Should be a numpy array with different values to initial
     #  Don't test when we have flaky FX,
