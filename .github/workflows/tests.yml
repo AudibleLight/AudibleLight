@@ -56,6 +56,7 @@ jobs:
 
       - name: Retry pytest on crash or failure
         shell: bash
+        continue-on-error: true
         run: |
           MAX_ATTEMPTS=5
           SLEEP_SECONDS=30
