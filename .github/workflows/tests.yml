@@ -52,48 +52,56 @@ jobs:
       - name: Style check with flake8
         shell: bash -l {0}
         run: poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Info about error codes: https://pycodestyle.pycqa.org/en/latest/intro.html#error-codes
-        # and https://flake8.pycqa.org/en/latest/user/error-codes.html
 
       # --- Test retries with exit code capture ---
       - name: Run tests with pytest (attempt 1)
         id: test-1
         continue-on-error: true
         run: |
+          set -o pipefail
           poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          EXIT_CODE=$?
+          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 2)
         id: test-2
         if: steps.test-1.outputs.exitcode != '0'
         continue-on-error: true
         run: |
+          set -o pipefail
           poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          EXIT_CODE=$?
+          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 3)
         id: test-3
         if: steps.test-2.outputs.exitcode != '0'
         continue-on-error: true
         run: |
+          set -o pipefail
           poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          EXIT_CODE=$?
+          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 4)
         id: test-4
         if: steps.test-3.outputs.exitcode != '0'
         continue-on-error: true
         run: |
+          set -o pipefail
           poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          EXIT_CODE=$?
+          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 5)
         id: test-5
         if: steps.test-4.outputs.exitcode != '0'
         continue-on-error: true
         run: |
+          set -o pipefail
           poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          EXIT_CODE=$?
+          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
 
       - name: Check if all test runs failed
         if: steps.test-1.outputs.exitcode != '0' &&
