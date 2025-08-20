@@ -54,42 +54,28 @@ jobs:
         # Info about error codes: https://pycodestyle.pycqa.org/en/latest/intro.html#error-codes
         # and https://flake8.pycqa.org/en/latest/user/error-codes.html
 
-      - name: Retry pytest on crash or failure
-        shell: bash
+      - name: Run tests with pytest (attempt 1)
         continue-on-error: true
+        id: test-1
+        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+
+      - name: Run tests with pytest (attempt 2)
+        continue-on-error: true
+        id: test-2
+        if: steps.test-1.outcome == 'failure'
+        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+
+      - name: Run tests with pytest (attempt 3)
+        continue-on-error: false
+        id: test-3
+        if: steps.test-2.outcome == 'failure' && steps.test-1.outcome == 'failure'
+        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+
+      - name: Check if any test run passed
+        if: steps.test-1.outcome == 'failure' && steps.test-2.outcome == 'failure' && steps.test-3.outcome == 'failure'
         run: |
-          MAX_ATTEMPTS=5
-          SLEEP_SECONDS=30
-          COUNT=0
-          
-          while true; do
-            (( COUNT++ ))
-            echo "Running pytest (attempt $COUNT/$MAX_ATTEMPTS)..."
-          
-            set +e
-            pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-            EXIT_CODE=$?
-            set -e
-          
-            if [[ $EXIT_CODE -ne 0 ]]; then
-              echo "Pytest terminated with exit code $EXIT_CODE."
-            else
-              echo "Pytest exited cleanly. Verifying no segfault occurred."
-            fi
-          
-            if [[ $EXIT_CODE -eq 0 ]]; then
-              echo "Tests passed without crash."
-              break
-            fi
-          
-            if [[ $COUNT -ge $MAX_ATTEMPTS ]]; then
-              echo "Reached $MAX_ATTEMPTS attempts. Failing."
-              exit $EXIT_CODE
-            fi
-          
-            echo "Retrying in $SLEEP_SECONDS seconds..."
-            sleep $SLEEP_SECONDS
-          done
+          echo "All test attempts failed."
+          exit 1
 
       - name: Upload coverage to Codecov
         # only upload to codecov with latest python version
