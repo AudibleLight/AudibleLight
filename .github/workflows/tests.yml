@@ -60,31 +60,32 @@ jobs:
           MAX_ATTEMPTS=5
           SLEEP_SECONDS=30
           COUNT=0
-      
+          
           while true; do
             (( COUNT++ ))
             echo "Running pytest (attempt $COUNT/$MAX_ATTEMPTS)..."
+          
+            set +e
             pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
             EXIT_CODE=$?
-      
+            set -e
+          
             if [[ $EXIT_CODE -ne 0 ]]; then
               echo "Pytest terminated with exit code $EXIT_CODE."
             else
               echo "Pytest exited cleanly. Verifying no segfault occurred."
             fi
-      
-            # If successful and exit code is zero, break.
+          
             if [[ $EXIT_CODE -eq 0 ]]; then
               echo "Tests passed without crash."
               break
             fi
-      
-            # If max attempts reached, fail explicitly.
+          
             if [[ $COUNT -ge $MAX_ATTEMPTS ]]; then
               echo "Reached $MAX_ATTEMPTS attempts. Failing."
               exit $EXIT_CODE
             fi
-      
+          
             echo "Retrying in $SLEEP_SECONDS seconds..."
             sleep $SLEEP_SECONDS
           done
