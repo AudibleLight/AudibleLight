@@ -666,8 +666,10 @@ def test_magic_methods(filepath, kwargs, oyens_scene_no_overlap):
     [
         ([Phaser, LowpassFilter, TimeShift], 2),
         ([Phaser], 1),
-        # Coerced down to 2
-        ([Phaser, LowpassFilter], 5000),
+        (
+            [Phaser, LowpassFilter],
+            5000,
+        ),  # requesting more augs than we have available, coerced to 2
     ],
 )
 @pytest.mark.parametrize("event_type", ["static", "moving"])
@@ -694,3 +696,88 @@ def test_add_events_with_random_augmentations(aug_list, n_augs, event_type):
 
     # Should have expected number of augs
     assert len(augs) == min(len(sc.event_augmentations), n_augs)
+
+
+@pytest.mark.parametrize(
+    "aug_list_of_tuples, n_augs",
+    [
+        (
+            [
+                (Phaser, dict(mix=np.random.rand)),
+                (LowpassFilter, dict(cutoff_frequency_hz=5000)),
+            ],
+            2,
+        ),
+        (
+            [
+                (TimeShift, dict(stretch_factor=np.random.rand)),
+                (LowpassFilter, dict(cutoff_frequency_hz=5000)),
+            ],
+            1,
+        ),
+        (
+            [
+                (TimeShift, dict(stretch_factor=np.random.rand)),
+                (
+                    Phaser,
+                    dict(
+                        mix=np.random.rand,
+                        feedback=0.5,
+                        depth=np.random.rand,
+                        centre_frequency_hz=500,
+                    ),
+                ),
+                (LowpassFilter, dict(cutoff_frequency_hz=5000)),
+            ],
+            3,
+        ),
+    ],
+)
+def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
+    """
+    Test adding events where we've set a parametrised distribution for each augmentation
+    """
+    sc = Scene(
+        duration=50,
+        mesh_path=utils_tests.OYENS_PATH,
+        event_augmentations=aug_list_of_tuples,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        max_overlap=1,
+    )
+    ev = sc.add_event(augmentations=n_augs, event_type="static")
+    augs = ev.get_augmentations()
+
+    # Sort everything so the FX are in the correct order
+    augs = sorted(augs, key=lambda x: x.name)
+    aug_list_of_tuples = [
+        i
+        for i in sorted(aug_list_of_tuples, key=lambda x: x[0]().name)
+        if i[0] in (type(a) for a in augs)
+    ]
+
+    # Should have the correct number of augmentations
+    assert len(augs) == n_augs
+
+    # Iterate over the passed in list of augs and the actual augs
+    for (expected_aug_type, expected_aug_kwargs), actual_aug in zip(
+        aug_list_of_tuples, augs
+    ):
+        # Should be the correct type
+        assert isinstance(actual_aug, expected_aug_type)
+
+        # Iterate over all the kwargs we were expecting to use
+        for k, v in expected_aug_kwargs.items():
+
+            # Explicitly provided a value, should be used
+            if isinstance(v, utils.Numeric):
+                assert getattr(actual_aug, k) == v
+
+            # Provided a function to sample the value, should be within range
+            else:
+                # Call the function N times and check that the actual value is within the range
+                sampled_values = [v() for _ in range(1000)]
+                assert (
+                    (min(sampled_values) - 1e-4)
+                    < getattr(actual_aug, k)
+                    < (max(sampled_values) + 1e-4)
+                )

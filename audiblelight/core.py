@@ -52,7 +52,13 @@ class Scene:
         event_resolution_dist: Optional[utils.DistributionLike] = None,
         snr_dist: Optional[utils.DistributionLike] = None,
         max_overlap: Optional[utils.Numeric] = MAX_OVERLAPPING_EVENTS,
-        event_augmentations: Optional[list[Type[EventAugmentation]]] = None,
+        event_augmentations: Optional[
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Iterable[tuple[Type[EventAugmentation], dict]],
+                Type[EventAugmentation],
+            ]
+        ] = None,
     ):
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
@@ -127,17 +133,86 @@ class Scene:
         # Event augmentations
         self.event_augmentations = []
         if event_augmentations is not None:
-            for aug in event_augmentations:
-                if isinstance(aug, type) and issubclass(aug, EventAugmentation):
-                    self.event_augmentations.append(aug)
-        # Remove duplicate augmentations from the list
-        self.event_augmentations = list(set(self.event_augmentations))
+            self.event_augmentations = self._parse_event_augmentations(
+                event_augmentations
+            )
 
         # Background noise
         #  if not None (i.e., with a call to `add_ambience`), will be added to audio when synthesising
         self.ambience = OrderedDict()
 
         self.audio = None
+
+    def _parse_event_augmentations(
+        self,
+        event_augmentations: Union[
+            Iterable[Type[EventAugmentation]],
+            Iterable[tuple[Type[EventAugmentation], dict]],
+            Type[EventAugmentation],
+        ],
+    ) -> list[tuple[Type[EventAugmentation], dict]]:
+        """
+        Parse user-provided event augmentations.
+
+        The result is a list of tuples with the form (EventAugmentationType, dict), where the dict contains
+        pre-validated keyword arguments that are passed to the EventAugmentation every time it is constructed.
+
+        This enables the user (for instance) to override the default values or distributions used within an
+        EventAugmentation class.
+
+        Arguments:
+            event_augmentations: the augmentation types. Can be a list of types, a list of tuples, or a single type.
+
+        Returns:
+            list[tuple]: the list of augmentation types and validated kwargs
+        """
+        # Coerce single types to a list
+        if not isinstance(event_augmentations, (tuple, list, np.ndarray)):
+            event_augmentations = [event_augmentations]
+
+        sanitised_event_augmentations = []
+
+        for maybe_iter in event_augmentations:
+            # We've passed in tuples of type (AugmentationClass, augmentation_kwargs)
+            if (
+                isinstance(maybe_iter, (tuple, list, np.ndarray))
+                and len(maybe_iter) == 2
+            ):
+                aug_type, kwargs_dict = maybe_iter
+
+            # We've just passed in the AugmentationClass, so use default kwargs for it
+            elif isinstance(maybe_iter, type):
+                aug_type = maybe_iter
+                kwargs_dict = dict()
+
+            # We don't know what's been passed in
+            else:
+                raise TypeError(
+                    f"Expected a tuple or EventAugmentation type but got {type(maybe_iter)}"
+                )
+
+            # Validate the augmentation is a subclass of the parent object
+            if not issubclass(aug_type, EventAugmentation):
+                raise TypeError(
+                    f"Expected an EventAugmentation subclass but got {type(aug_type)}"
+                )
+
+            # Ensure sample rate for the augmentation is set correctly
+            if (
+                "sample_rate" in kwargs_dict
+                and kwargs_dict["sample_rate"] != self.sample_rate
+            ):
+                raise ValueError(
+                    f"Expected a sample rate {self.sample_rate}, but got {kwargs_dict['sample_rate']}"
+                )
+            kwargs_dict["sample_rate"] = self.sample_rate
+
+            # Validate the kwargs for the augmentation and store
+            utils.validate_kwargs(aug_type, **kwargs_dict)
+            sanitised_event_augmentations.append((aug_type, kwargs_dict))
+
+        # Do not drop duplicates
+        return sanitised_event_augmentations
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -465,7 +540,7 @@ class Scene:
         sample_augs = (
             self.event_augmentations
             if len(self.event_augmentations) > 0
-            else ALL_EVENT_AUGMENTATIONS
+            else [(cls, dict()) for cls in ALL_EVENT_AUGMENTATIONS]
         )
 
         # Validate the number of augmentations we want
@@ -479,11 +554,15 @@ class Scene:
             )
             n_augmentations = len(sample_augs)
 
-        return np.random.choice(
+        # Make a random sample of N augs
+        #  This is a list of tuples where the first element is the aug type, and the second is a dictionary of kwargs
+        sampled_augs_and_kwargs = random.sample(
             sample_augs,
-            size=n_augmentations,
-            replace=False,
-        ).tolist()
+            k=n_augmentations,
+        )
+
+        # Initialise all the augmentations using the provided kwargs
+        return [cls(**kws) for cls, kws in sampled_augs_and_kwargs]
 
     def add_event(
         self,
