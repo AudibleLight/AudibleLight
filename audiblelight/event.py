@@ -616,3 +616,26 @@ class Event:
         Gets all emitters associated with this Event.
         """
         return self.emitters if self.emitters is not None else []
+
+    def clear_augmentation(self, idx: int) -> None:
+        """
+        Clears an augmentation at a given index
+        """
+        try:
+            del self.augmentations[idx]
+        except IndexError:
+            raise IndexError("No augmentation found at index {idx}".format(idx=idx))
+        else:
+            # Invalidate any cached audio
+            self.audio = None
+            self.spatial_audio = None
+
+    def clear_augmentations(self) -> None:
+        """
+        Removes all augmentations associated with this Event.
+        """
+        if len(self.augmentations) > 0:
+            self.augmentations = []
+            # Invalidate any cached audio
+            self.audio = None
+            self.spatial_audio = None
