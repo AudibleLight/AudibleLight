@@ -331,13 +331,12 @@ class LowpassFilter(EventAugmentation):
                 stats.uniform(self.MIN_FREQ, self.MAX_FREQ - self.MIN_FREQ),
             )
         )
+        self.params = dict(cutoff_frequency_hz=self.cutoff_frequency_hz)
 
         # Initialise the FX with the required parameter
         from pedalboard import LowpassFilter as PBLowpassFilter
 
-        self.fx = PBLowpassFilter(cutoff_frequency_hz=self.cutoff_frequency_hz)
-
-        self.params = dict(cutoff_frequency_hz=self.cutoff_frequency_hz)
+        self.fx = PBLowpassFilter(**self.params)
 
 
 class HighShelfFilter(EventAugmentation):
@@ -431,13 +430,12 @@ class HighpassFilter(EventAugmentation):
                 stats.uniform(self.MIN_FREQ, self.MAX_FREQ - self.MIN_FREQ),
             )
         )
+        self.params = dict(cutoff_frequency_hz=self.cutoff_frequency_hz)
 
         # Initialise the FX with the required parameter
         from pedalboard import HighpassFilter as PBHighpassFilter
 
-        self.fx = PBHighpassFilter(cutoff_frequency_hz=self.cutoff_frequency_hz)
-
-        self.params = dict(cutoff_frequency_hz=self.cutoff_frequency_hz)
+        self.fx = PBHighpassFilter(**self.params)
 
 
 class LowShelfFilter(EventAugmentation):
@@ -541,13 +539,12 @@ class MultibandEqualizer(EventAugmentation):
         )
 
         # The number of frequency bands we'll be applying
-        self.n_bands = int(
-            utils.sanitise_positive_number(
-                self.sample_value(
-                    n_bands,
-                    stats.uniform(self.MIN_BANDS, self.MAX_BANDS - self.MIN_BANDS),
-                )
-            )
+        self.n_bands = utils.sanitise_positive_number(
+            self.sample_value(
+                n_bands,
+                stats.uniform(self.MIN_BANDS, self.MAX_BANDS - self.MIN_BANDS),
+            ),
+            cast_to=int,
         )
 
         # Sample the parameters for all N frequency bands
@@ -561,15 +558,15 @@ class MultibandEqualizer(EventAugmentation):
         self.q = self.sample_peak_filter_params(
             q, stats.uniform(self.MIN_Q, self.MAX_Q - self.MIN_Q)
         )
-
-        # Given the parameter settings, create the filters
-        self.fx = self.create_filters()
         self.params = dict(
-            n_bands=int(self.n_bands),
+            n_bands=self.n_bands,
             gain_db=self.gain_db,
             cutoff_frequency_hz=self.cutoff_frequency_hz,
             q=self.q,
         )
+
+        # Given the parameter settings, create the filters
+        self.fx = self.create_filters()
 
     # noinspection PyUnreachableCode,PyUnresolvedReferences
     def sample_peak_filter_params(
@@ -667,8 +664,6 @@ class Compressor(EventAugmentation):
         attack_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         release_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import Compressor as PBCompressor
-
         super().__init__(sample_rate)
 
         # Set all FX parameters
@@ -700,16 +695,16 @@ class Compressor(EventAugmentation):
                 stats.uniform(self.MIN_RELEASE, self.MAX_RELEASE - self.MIN_RELEASE),
             )
         )
-
-        self.fx = PBCompressor(
-            self.threshold_db, self.ratio, self.attack_ms, self.release_ms
-        )
         self.params = dict(
             threshold_db=self.threshold_db,
             ratio=self.ratio,
             attack_ms=self.attack_ms,
             release_ms=self.release_ms,
         )
+
+        from pedalboard import Compressor as PBCompressor
+
+        self.fx = PBCompressor(**self.params)
 
 
 class Chorus(EventAugmentation):
@@ -743,8 +738,6 @@ class Chorus(EventAugmentation):
         feedback: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         mix: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import Chorus as PBChorus
-
         super().__init__(
             sample_rate,
         )
@@ -777,10 +770,6 @@ class Chorus(EventAugmentation):
                 mix, stats.uniform(self.MIN_MIX, self.MAX_MIX - self.MIN_MIX)
             )
         )
-
-        self.fx = PBChorus(
-            self.rate_hz, self.depth, self.centre_delay_ms, self.feedback, self.mix
-        )
         self.params = dict(
             rate_hz=self.rate_hz,
             depth=self.depth,
@@ -788,6 +777,10 @@ class Chorus(EventAugmentation):
             feedback=self.feedback,
             mix=self.mix,
         )
+
+        from pedalboard import Chorus as PBChorus
+
+        self.fx = PBChorus(**self.params)
 
 
 class Clipping(EventAugmentation):
@@ -820,10 +813,10 @@ class Clipping(EventAugmentation):
         )
         if self.threshold_db > 0:
             self.threshold_db = -self.threshold_db
+        self.params = dict(threshold_db=self.threshold_db)
 
         from pedalboard import Clipping as PBClipping
 
-        self.params = dict(threshold_db=self.threshold_db)
         self.fx = PBClipping(**self.params)
 
 
@@ -898,8 +891,6 @@ class Distortion(EventAugmentation):
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
         drive_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import Distortion as PBDistortion
-
         super().__init__(
             sample_rate,
         )
@@ -908,8 +899,11 @@ class Distortion(EventAugmentation):
                 drive_db, stats.uniform(self.MIN_DRIVE, self.MAX_DRIVE - self.MIN_DRIVE)
             )
         )
-        self.fx = PBDistortion(drive_db=self.drive_db)
         self.params = dict(drive_db=self.drive_db)
+
+        from pedalboard import Distortion as PBDistortion
+
+        self.fx = PBDistortion(drive_db=self.drive_db)
 
 
 class Phaser(EventAugmentation):
@@ -946,8 +940,6 @@ class Phaser(EventAugmentation):
         feedback: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         mix: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import Phaser as PBPhaser
-
         super().__init__(sample_rate)
         self.rate_hz = utils.sanitise_positive_number(
             self.sample_value(
@@ -976,10 +968,6 @@ class Phaser(EventAugmentation):
                 mix, stats.uniform(self.MIN_MIX, self.MAX_MIX - self.MIN_MIX)
             )
         )
-
-        self.fx = PBPhaser(
-            self.rate_hz, self.depth, self.centre_frequency_hz, self.feedback, self.mix
-        )
         self.params = dict(
             rate_hz=self.rate_hz,
             depth=self.depth,
@@ -987,6 +975,10 @@ class Phaser(EventAugmentation):
             feedback=self.feedback,
             mix=self.mix,
         )
+
+        from pedalboard import Phaser as PBPhaser
+
+        self.fx = PBPhaser(**self.params)
 
 
 class Delay(EventAugmentation):
@@ -997,28 +989,27 @@ class Delay(EventAugmentation):
 
     Arguments:
         sample_rate (utils.Numeric): the sample rate for the effect to use.
-        delay: the delay time for the effect, in seconds. By default, sampled between 0.01 and 1.0 seconds.
-        feedback: the feedback of the effect. By default, sampled between 0.0 and 0.9.
+        delay_seconds: the delay time for the effect, in seconds. By default, sampled between 0.01 and 1.0 seconds.
+        feedback: the feedback of the effect. By default, sampled between 0.1 and 0.5.
         mix: the dry/wet mix of the effect. By default, sampled between 0.1 and 0.5
     """
 
     MIN_DELAY, MAX_DELAY = 0.01, 1.0
-    MIN_FEEDBACK, MAX_FEEDBACK = 0.1, 0.9
+    MIN_FEEDBACK, MAX_FEEDBACK = 0.1, 0.5
     MIN_MIX, MAX_MIX = 0.1, 0.5
 
     def __init__(
         self,
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
-        delay: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
+        delay_seconds: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         feedback: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         mix: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import Delay as PBDelay
-
         super().__init__(sample_rate)
-        self.delay = utils.sanitise_positive_number(
+        self.delay_seconds = utils.sanitise_positive_number(
             self.sample_value(
-                delay, stats.uniform(self.MIN_DELAY, self.MAX_DELAY - self.MIN_DELAY)
+                delay_seconds,
+                stats.uniform(self.MIN_DELAY, self.MAX_DELAY - self.MIN_DELAY),
             )
         )
         self.feedback = utils.sanitise_positive_number(
@@ -1032,13 +1023,15 @@ class Delay(EventAugmentation):
                 mix, stats.uniform(self.MIN_MIX, self.MAX_MIX - self.MIN_MIX)
             )
         )
-
-        self.fx = PBDelay(self.delay, self.feedback, self.mix)
         self.params = dict(
-            delay=self.delay,
+            delay_seconds=self.delay_seconds,
             feedback=self.feedback,
             mix=self.mix,
         )
+
+        from pedalboard import Delay as PBDelay
+
+        self.fx = PBDelay(**self.params)
 
 
 class Gain(EventAugmentation):
@@ -1060,16 +1053,17 @@ class Gain(EventAugmentation):
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
         gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import Gain as PBGain
-
         super().__init__(
             sample_rate,
         )
         self.gain_db = self.sample_value(
             gain_db, stats.uniform(self.MIN_GAIN, self.MAX_GAIN - self.MIN_GAIN)
         )
-        self.fx = PBGain(gain_db=self.gain_db)
         self.params = dict(gain_db=self.gain_db)
+
+        from pedalboard import Gain as PBGain
+
+        self.fx = PBGain(**self.params)
 
 
 class GSMFullRateCompressor(EventAugmentation):
@@ -1093,17 +1087,18 @@ class GSMFullRateCompressor(EventAugmentation):
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
         quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import GSMFullRateCompressor as PBGSMFullRateCompressor
-        from pedalboard import Resample
-
         super().__init__(sample_rate)
         self.quality = int(
             utils.sanitise_positive_number(
                 self.sample_value(quality, lambda: np.random.choice(self.QUALITIES))
             )
         )
-        self.fx = PBGSMFullRateCompressor(quality=Resample.Quality(self.quality))
         self.params = dict(quality=self.quality)
+
+        from pedalboard import GSMFullRateCompressor as PBGSMFullRateCompressor
+        from pedalboard import Resample
+
+        self.fx = PBGSMFullRateCompressor(quality=Resample.Quality(self.quality))
 
 
 class MP3Compressor(EventAugmentation):
@@ -1127,16 +1122,17 @@ class MP3Compressor(EventAugmentation):
         sample_rate: utils.Numeric = utils.SAMPLE_RATE,
         vbr_quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
-        from pedalboard import MP3Compressor as PBMP3Compressor
-
         super().__init__(sample_rate)
         self.vbr_quality = utils.sanitise_positive_number(
             self.sample_value(
                 vbr_quality, stats.uniform(self.VBR_MIN, self.VBR_MAX - self.VBR_MIN)
             )
         )
-        self.fx = PBMP3Compressor(vbr_quality=self.vbr_quality)
         self.params = dict(vbr_quality=self.vbr_quality)
+
+        from pedalboard import MP3Compressor as PBMP3Compressor
+
+        self.fx = PBMP3Compressor(**self.params)
 
 
 class PitchShift(EventAugmentation):
@@ -1287,6 +1283,7 @@ class Preemphasis(EventAugmentation):
             )
         )
         self.fx = self._apply_fx
+        self.params = dict(coef=self.coef)
 
     def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
         return librosa.effects.preemphasis(input_audio, coef=self.coef)

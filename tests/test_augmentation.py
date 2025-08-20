@@ -76,7 +76,7 @@ from tests import utils_tests
         (
             Delay,
             dict(
-                delay=(Delay.MIN_DELAY, Delay.MAX_DELAY),
+                delay_seconds=(Delay.MIN_DELAY, Delay.MAX_DELAY),
                 mix=(Delay.MIN_MIX, Delay.MAX_MIX),
                 feedback=(Delay.MIN_FEEDBACK, Delay.MAX_FEEDBACK),
             ),
@@ -124,7 +124,7 @@ def test_parameter_defaults(fx_class, expecteds):
                 rate_hz=0.5, depth=0.1, centre_frequency_hz=500, mix=0.5, feedback=0.4
             ),
         ),
-        (Delay, dict(delay=0.5, mix=0.9, feedback=0.1)),
+        (Delay, dict(delay_seconds=0.5, mix=0.9, feedback=0.1)),
         (Gain, dict(gain_db=20)),
         (GSMFullRateCompressor, dict(quality=2)),
         (MP3Compressor, dict(vbr_quality=5.0)),
@@ -233,6 +233,10 @@ def test_process_audio(fx_class, audio_fpath):
 
     # Should be a child of EventAugmentation class
     assert issubclass(fx_class, EventAugmentation)
+
+    # Should have required params
+    assert hasattr(fx_init, "params")
+    assert len(fx_init.params) > 0
 
     # Should be a numpy array with different values to initial
     #  Don't test when we have flaky FX,
