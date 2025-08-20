@@ -24,6 +24,7 @@ In contrast to other projects (e.g., `sonicsim <https://github.com/JusperLee/Son
 
    installation
    _examples/example_generation
+   _examples/augmentations
    _examples/plot_mic_arrays
 
 .. toctree::
