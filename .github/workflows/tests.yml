@@ -13,9 +13,7 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     timeout-minutes: 300
 
     strategy:
@@ -57,43 +55,57 @@ jobs:
         # Info about error codes: https://pycodestyle.pycqa.org/en/latest/intro.html#error-codes
         # and https://flake8.pycqa.org/en/latest/user/error-codes.html
 
+      # --- Test retries with exit code capture ---
       - name: Run tests with pytest (attempt 1)
-        continue-on-error: true
         id: test-1
-        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        continue-on-error: true
+        run: |
+          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 2)
-        continue-on-error: true
         id: test-2
-        if: steps.test-1.outcome == 'failure'
-        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        if: steps.test-1.outputs.exitcode != '0'
+        continue-on-error: true
+        run: |
+          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 3)
-        continue-on-error: true
         id: test-3
-        if: steps.test-1.outcome == 'failure' && steps.test-2.outcome == 'failure'
-        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        if: steps.test-2.outputs.exitcode != '0'
+        continue-on-error: true
+        run: |
+          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 4)
-        continue-on-error: true
         id: test-4
-        if: steps.test-1.outcome == 'failure' && steps.test-2.outcome == 'failure' && steps.test-3.outcome == 'failure'
-        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        if: steps.test-3.outputs.exitcode != '0'
+        continue-on-error: true
+        run: |
+          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
 
       - name: Run tests with pytest (attempt 5)
-        continue-on-error: true
         id: test-5
-        if: steps.test-1.outcome == 'failure' && steps.test-2.outcome == 'failure' && steps.test-3.outcome == 'failure' && steps.test-4.outcome == 'failure'
-        run: poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+        if: steps.test-4.outputs.exitcode != '0'
+        continue-on-error: true
+        run: |
+          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
 
-      - name: Check if any test run passed
-        if: steps.test-1.outcome == 'failure' && steps.test-2.outcome == 'failure' && steps.test-3.outcome == 'failure' && steps.test-4.outcome == 'failure' && steps.test-5.outcome == 'failure'
+      - name: Check if all test runs failed
+        if: steps.test-1.outputs.exitcode != '0' &&
+            steps.test-2.outputs.exitcode != '0' &&
+            steps.test-3.outputs.exitcode != '0' &&
+            steps.test-4.outputs.exitcode != '0' &&
+            steps.test-5.outputs.exitcode != '0'
         run: |
           echo "All test attempts failed"
           exit 1
 
       - name: Upload coverage to Codecov
-        # only upload to codecov with latest python version
         if: success() && matrix.python-version == '3.11'
         uses: codecov/codecov-action@v5
         with:
