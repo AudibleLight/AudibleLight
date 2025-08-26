@@ -304,6 +304,7 @@ class WorldState:
         empty_space_around_capsule: Optional[
             utils.Numeric
         ] = EMPTY_SPACE_AROUND_CAPSULE,
+        add_to_context: Optional[bool] = True,
         ensure_minimum_weighted_average_ray_length: Optional[bool] = False,
         minimum_weighted_average_ray_length: Optional[
             utils.Numeric
@@ -320,6 +321,9 @@ class WorldState:
             empty_space_around_emitter (float): minimum meters new emitters/mics will be placed from other emitters
             empty_space_around_surface (float): minimum meters new emitters/mics will be placed from mesh emitters
             empty_space_around_capsule (float): minimum meters new emitters/mics will be placed from mic capsules
+            add_to_context (bool): if False, the ray-tracing context will ONLY be updated when running
+                `WorldState.simulate`. This is ideal in large-scale data generation pipelines. If True, the state
+                will be updated every time a new Microphone or Emitter is added. This is ideal for interactive use.
             ensure_minimum_weighted_average_ray_length (bool): if True, random points can only be sampled from within
                 the mesh when they have a weighted average ray length of at least `minimum_weighted_average_ray_length`
             minimum_weighted_average_ray_length (float): value to consider when locating points in the mesh; only
@@ -333,6 +337,8 @@ class WorldState:
         self.emitters = OrderedDict()
         self.microphones = OrderedDict()
         self._irs = None  # will be updated when calling `simulate`
+
+        self.add_to_state = add_to_context
 
         # Distances from objects/mesh surfaces
         self.empty_space_around_mic = utils.sanitise_positive_number(
@@ -371,16 +377,26 @@ class WorldState:
                 repair_mesh(self.mesh)
 
         # Setting up audio context
-        cfg = self._parse_rlr_config(rlr_kwargs)
-        self.ctx = Context(cfg)
+        self.cfg = self._parse_rlr_config(rlr_kwargs)
+        self.ctx = Context(self.cfg)
         self._setup_audio_context()
 
+    # noinspection PyUnreachableCode
     def _update(self) -> None:
         """
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
         """
+        # Destroy the old context
+        self.ctx.reset(self.cfg)
+        if self.ctx.get_listener_count() > 0:
+            self.ctx.clear_listeners()
+        if self.ctx.get_source_count() > 0:
+            self.ctx.clear_sources()
+
+        # Remake the context
+        self._setup_audio_context()
+
         # Update the ray-tracing listeners
-        self.ctx.clear_listeners()
         if len(self.microphones) > 0:
             all_caps = np.vstack(
                 [m.coordinates_absolute for m in self.microphones.values()]
@@ -388,12 +404,12 @@ class WorldState:
             for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
                 # Add a single listener for each individual capsule
                 self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
-                self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
+                self.ctx.set_listener_position(
+                    caps_idx,
+                    caps_pos.tolist() if isinstance(caps_pos, np.ndarray) else caps_pos,
+                )
 
         # Update the ray-tracing sources
-        #  We have to clear sources out regardless of number of emitters because it is possible that, if we have
-        #  removed an event (e.g. `Scene.remove_event(...)`), we'll "orphan" some sources otherwise
-        self.ctx.clear_sources()
         if self.num_emitters > 0:
             emitter_counter = 0
             for emitter_alias, emitter_list in self.emitters.items():
@@ -462,7 +478,7 @@ class WorldState:
             float: The weighted average distance of ray intersections: higher values indicate more open surroundings
         """
         # Sanitisation of inputs
-        num_rays = int(utils.sanitise_positive_number(num_rays))
+        num_rays = utils.sanitise_positive_number(num_rays, cast_to=int)
         point = utils.sanitise_coordinates(point)
 
         # Generate random azimuthal angles for each ray
@@ -529,7 +545,6 @@ class WorldState:
                 break
         return False
 
-    @utils.update_state
     def add_microphone(
         self,
         microphone_type: Optional[Union[str, Type["MicArray"]]] = None,
@@ -593,7 +608,11 @@ class WorldState:
                     f"Consider reducing `empty_space_around` arguments."
                 )
 
-    @utils.update_state
+        # If placed successfully, update the state
+        else:
+            if self.add_to_state:
+                self._update()
+
     def add_microphones(
         self,
         microphone_types: Optional[list[Union[str, Type["MicArray"]]]] = None,
@@ -694,7 +713,10 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
-    @utils.update_state
+        # Update the state after placing everything
+        if self.add_to_state:
+            self._update()
+
     def add_microphone_and_emitter(
         self,
         position: Optional[Union[np.ndarray, float]] = None,
@@ -816,6 +838,10 @@ class WorldState:
                 )
                 logger.info(f"Microphone '{mic_alias}' at: {mic_pos}")
                 logger.info(f"Emitter '{emitter_alias}' at: {emitter_pos}")
+
+                # Update the state and return
+                if self.add_to_state:
+                    self._update()
                 return
 
             # Log progress every 100 attempts
@@ -1106,7 +1132,6 @@ class WorldState:
         else:
             raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
-    @utils.update_state
     def add_emitter(
         self,
         position: Optional[Union[list, np.ndarray]] = None,
@@ -1187,7 +1212,11 @@ class WorldState:
                     f"or the `empty_space_around` arguments."
                 )
 
-    @utils.update_state
+        # Update the state with the new emitter
+        else:
+            if self.add_to_state:
+                self._update()
+
     def add_emitters(
         self,
         positions: Optional[Union[list, np.ndarray]] = None,
@@ -1288,6 +1317,10 @@ class WorldState:
                 if raise_on_error:
                     raise ValueError(msg)
 
+        # Update the state after placing everything
+        if self.add_to_state:
+            self._update()
+
     def get_valid_position_with_max_distance(
         self,
         ref: np.ndarray,
@@ -1307,7 +1340,7 @@ class WorldState:
         """
         # Input sanitization
         r = utils.sanitise_positive_number(r)
-        n = int(utils.sanitise_positive_number(n))
+        n = utils.sanitise_positive_number(n, cast_to=int)
         ref = utils.sanitise_coordinates(ref)
 
         # Sample directions using normal distribution and normalize
@@ -1442,7 +1475,9 @@ class WorldState:
         )
 
         # Compute the number of samples based on duration and resolution
-        n_points = round(utils.sanitise_positive_number(duration * resolution) + 1)
+        n_points = (
+            utils.sanitise_positive_number(duration * resolution, cast_to=round) + 1
+        )
         # Clamp `n_points` to 2, so we will always be able to create a moving trajectory
         if n_points < 2:
             n_points = 2
@@ -1543,7 +1578,6 @@ class WorldState:
             f"- Decreasing `max_distance` (currently {max_distance:.3f})"
         )
 
-    @utils.update_state
     def _add_emitters_without_validating(
         self,
         emitters: Union[list, np.ndarray],
@@ -1573,6 +1607,10 @@ class WorldState:
             else:
                 self.emitters[alias] = [emitter]
 
+        # Update the state after placing everything
+        if self.add_to_state:
+            self._update()
+
     def _simulation_sanity_check(self) -> None:
         """
         Check conditions required for simulation are met
@@ -1592,6 +1630,9 @@ class WorldState:
         assert (
             self.ctx.get_source_count() > 0
         ), "Must have emitters added to the ray tracing engine"
+        assert (
+            self.ctx.get_object_count() == 1
+        ), "Must have only one mesh added to the ray tracing engine"
         # Check we have the expected number of sources and listeners
         assert (
             sum(len(em) for em in self.emitters.values()) == self.ctx.get_source_count()
@@ -1605,6 +1646,8 @@ class WorldState:
         """
         Simulates audio propagation in the state with the current listener and sound emitter positions.
         """
+        # Update the ray-tracing engine with our current emitters, microphones, etc.
+        self._update()
         # Sanity check that we actually have emitters and microphones in the state
         self._simulation_sanity_check()
         # Clear out any existing IRs
@@ -1933,36 +1976,40 @@ class WorldState:
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
 
-    @utils.update_state
     def clear_microphones(self) -> None:
         """
         Removes all current microphones.
         """
         self.microphones = OrderedDict()
+        # Always update the state after clearing, regardless of `add_to_state` setting
+        self._update()
 
-    @utils.update_state
     def clear_emitters(self) -> None:
         """
         Removes all current emitters.
         """
         self.emitters = OrderedDict()
+        # Always update the state after clearing, regardless of `add_to_state` setting
+        self._update()
 
-    @utils.update_state
     def clear_microphone(self, alias: str) -> None:
         """
         Given an alias for a microphone, clear that microphone if it exists and update the state.
         """
         if alias in self.microphones.keys():
             del self.microphones[alias]
+            # Always update the state after clearing, regardless of `add_to_state` setting
+            self._update()
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
 
-    @utils.update_state
     def clear_emitter(self, alias: str) -> None:
         """
         Given an alias for an emitter, clear that emitter and update the state.
         """
         if alias in self.emitters.keys():
             del self.emitters[alias]
+            # Always update the state after clearing, regardless of `add_to_state` setting
+            self._update()
         else:
             raise KeyError("Emitter alias '{}' not found.".format(alias))

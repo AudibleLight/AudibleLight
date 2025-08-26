@@ -9,6 +9,16 @@ import numpy as np
 import pytest
 
 from audiblelight import utils
+from audiblelight.augmentation import (
+    Augmentation,
+    Compressor,
+    EventAugmentation,
+    LowpassFilter,
+    MultibandEqualizer,
+    Phaser,
+    PitchShift,
+    SpeedUp,
+)
 from audiblelight.event import Event
 from tests import utils_tests
 
@@ -126,6 +136,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "emitters_relative": {
                 "mic000": [[203.9109387558252, -5.976352087676762, 3.3744825372046803]]
             },
+            "augmentations": [],
         },
         {
             "alias": "test_event",
@@ -188,15 +199,38 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
                     [45.61524267370456, 19.24980675934964, 2.7179156247699607],
                 ]
             },
+            "augmentations": [
+                {
+                    "name": "Phaser",
+                    "sample_rate": 44100,
+                    "rate_hz": 9.480337646552867,
+                    "depth": 0.4725113710968438,
+                    "centre_frequency_hz": 2348.1728842622597,
+                    "feedback": 0.0810976870856293,
+                    "mix": 0.4228090059318278,
+                },
+                {
+                    "name": "LowpassFilter",
+                    "sample_rate": 44100,
+                    "cutoff_frequency_hz": 7561.425049192692,
+                },
+            ],
         },
     ],
 )
 def test_event_from_dict(input_dict: dict):
     ev = Event.from_dict(input_dict)
     assert isinstance(ev, Event)
+
+    # Check augmentations initialised correctly
+    if len(input_dict["augmentations"]) > 0:
+        for augmentation in ev.get_augmentations():
+            assert issubclass(type(augmentation), Augmentation)
+
     out_dict = ev.to_dict()
     for k, v in out_dict.items():
-        assert input_dict[k] == out_dict[k], f"Key {k} not set correctly"
+        if not isinstance(input_dict[k], list):
+            assert input_dict[k] == out_dict[k], f"Key {k} not set correctly"
 
     # Remove a necessary key: should raise an error
     input_dict.pop("alias")
@@ -209,6 +243,9 @@ def test_magic_methods(audio_fpath: str, oyens_space):
     oyens_space.add_emitter(alias="test_emitter")
     emitter = oyens_space.get_emitters("test_emitter")
     ev = Event(audio_fpath, "test_event", emitters=emitter)
+    # Add some augmentations
+    ev.register_augmentations(SpeedUp)
+    ev.register_augmentations([PitchShift, LowpassFilter])
 
     # Iterate over all the magic methods that return strings
     for att in ["__str__", "__repr__"]:
@@ -225,3 +262,75 @@ def test_magic_methods(audio_fpath: str, oyens_space):
     ev.emitters = None
     with pytest.raises(ValueError):
         _ = ev.to_dict()
+
+
+# noinspection PyUnreachableCode
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
+# Define some example augmentation chains
+@pytest.mark.parametrize(
+    "augmentations",
+    [
+        (LowpassFilter, MultibandEqualizer, Compressor),
+        (Phaser, Compressor),
+        (PitchShift, SpeedUp),
+    ],
+)
+def test_add_augmentations(audio_fpath, augmentations):
+    ev = Event(
+        audio_fpath,
+        "test_event",
+    )
+    # Load up the pre-augmented audio
+    init_audio = ev.load_audio(ignore_cache=True)
+
+    # Add in the augmentations
+    ev.register_augmentations(augmentations)
+    # Should have invalidated the audio we cached
+    assert ev.audio is None
+    assert len(ev.augmentations) > 0
+
+    # Audio should be different to the initial form after augmentation
+    aug_audio = ev.load_audio()
+    assert not np.array_equal(init_audio, aug_audio)
+    assert ev.audio is not None
+
+    # However, audio should have the same shape after augmentation
+    try:
+        utils.validate_shape(aug_audio.shape, init_audio.shape)
+    except ValueError as e:
+        pytest.fail(reason=e)
+
+    # Should be able to get the augmentation from the index
+    aug = ev.get_augmentation(0)
+    assert issubclass(type(aug), EventAugmentation)
+
+    # Clear the augmentations: should invalidate cached audio
+    ev.clear_augmentation(0)
+    ev.clear_augmentations()
+    assert ev.audio is None
+    assert len(ev.augmentations) == 0
+
+
+def test_add_bad_augmentation():
+    ev = Event(
+        utils_tests.TEST_AUDIOS[0],
+        "test_event",
+    )
+
+    # Mismatching sample rate
+    aug = Compressor(sample_rate=8000)
+    with pytest.raises(ValueError, match="Augmentation has mismatching sample rate!"):
+        ev.register_augmentations([aug])
+
+    # Will raise an error when called with "sample rate" kwarg
+    aug = int
+    with pytest.raises(TypeError, match="'sample_rate' is an invalid keyword argument"):
+        ev.register_augmentations([aug])
+
+    # Should not be able to get any augmentations
+    with pytest.raises(IndexError, match="No augmentation with index 1000"):
+        _ = ev.get_augmentation(1000)
+
+    # Should not be able to clear augmentation
+    with pytest.raises(IndexError, match="No augmentation found at index 1000"):
+        ev.clear_augmentation(1000)

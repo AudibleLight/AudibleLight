@@ -21,3 +21,4 @@ TEST_AUDIOS = sorted(
         if x.endswith((".wav", ".mp3"))
     ]
 )
+TEST_MUSICS = [i for i in TEST_AUDIOS if "music" in i]

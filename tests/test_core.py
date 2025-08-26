@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from audiblelight import utils
+from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
@@ -28,6 +29,7 @@ from tests import utils_tests
             duration=5,
             event_start=5,
             scene_start=5,
+            augmentations=SpeedUp(stretch_factor=0.5),
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
         dict(filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3", snr=5),
@@ -48,6 +50,7 @@ from tests import utils_tests
             polar=True,
             position=[90, 0.0, 0.5],
             scene_start=0.0,
+            augmentations=[LowpassFilter, Phaser()],
         ),
     ],
 )
@@ -101,7 +104,11 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
     if kwargs.get("filepath") is not None:
         for override_key, override_val in kwargs.items():
             if hasattr(ev, override_key):
-                assert getattr(ev, override_key) == override_val
+                attr = getattr(ev, override_key)
+                # Skip nested keys
+                if isinstance(attr, (list, np.ndarray, tuple, set)):
+                    continue
+                assert attr == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
     for attr_ in [
@@ -121,6 +128,7 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             scene_start=5,
             shape="circular",
             filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
+            augmentations=SpeedUp,
         ),
         dict(
             filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
@@ -150,6 +158,7 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             spatial_resolution=1.5,
             spatial_velocity=1.0,
             duration=2,
+            augmentations=[Phaser, LowpassFilter],
         ),
     ],
 )
@@ -207,7 +216,11 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     if kwargs.get("filepath") is not None:
         for override_key, override_val in kwargs.items():
             if hasattr(ev, override_key):
-                assert getattr(ev, override_key) == override_val
+                attr = getattr(ev, override_key)
+                # Skip nested keys
+                if isinstance(attr, (list, np.ndarray, tuple, set)):
+                    continue
+                assert attr == override_val
 
     # Check attributes that we will be adding into the event in its __init__ call based on the kwargs
     for attr_ in [
@@ -509,6 +522,17 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                             [203.9109387558252, -5.976352087676762, 3.3744825372046803]
                         ]
                     },
+                    "augmentations": [
+                        {
+                            "name": "Phaser",
+                            "sample_rate": 44100,
+                            "rate_hz": 9.480337646552867,
+                            "depth": 0.4725113710968438,
+                            "centre_frequency_hz": 2348.1728842622597,
+                            "feedback": 0.0810976870856293,
+                            "mix": 0.4228090059318278,
+                        }
+                    ],
                 }
             },
             "state": {
@@ -635,3 +659,139 @@ def test_magic_methods(filepath, kwargs, oyens_scene_no_overlap):
     # Dump the scene again, reload, and compare
     ev2 = Scene.from_dict(oyens_scene_no_overlap.to_dict())
     assert ev2 == oyens_scene_no_overlap
+
+
+@pytest.mark.parametrize(
+    "aug_list, n_augs",
+    [
+        ([Phaser, LowpassFilter, SpeedUp], 2),
+        ([Phaser], 1),
+        # requesting more augs than we have available, coerced to 2
+        ([Phaser, LowpassFilter], 5),
+    ],
+)
+@pytest.mark.parametrize(
+    "params",
+    [
+        dict(event_type="static"),
+        dict(
+            event_type="moving",
+            spatial_resolution=1,
+            spatial_velocity=1,
+            shape="linear",
+        ),
+    ],
+)
+def test_add_events_with_random_augmentations(aug_list, n_augs, params):
+    """
+    Add events with N random augmentations, drawn from our list
+    """
+    sc = Scene(
+        duration=50,
+        mesh_path=utils_tests.OYENS_PATH,
+        event_augmentations=aug_list,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        max_overlap=1,
+    )
+    ev = sc.add_event(
+        augmentations=n_augs,
+        filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+        duration=1,
+        **params,
+    )
+    augs = ev.get_augmentations()
+
+    # All augs should be sampled from our list
+    for aug in augs:
+        assert type(aug) in aug_list
+
+    # Augmentations should always be unique when random sampling
+    assert len(augs) == len(set(type(aug) for aug in augs))
+
+    # Should have expected number of augs
+    assert len(augs) == min(len(sc.event_augmentations), n_augs)
+
+
+@pytest.mark.parametrize(
+    "aug_list_of_tuples, n_augs",
+    [
+        (
+            [
+                (Phaser, dict(mix=np.random.rand)),
+                (LowpassFilter, dict(cutoff_frequency_hz=5000)),
+            ],
+            2,
+        ),
+        (
+            [
+                (SpeedUp, dict(stretch_factor=np.random.rand)),
+                (LowpassFilter, dict(cutoff_frequency_hz=5000)),
+            ],
+            1,
+        ),
+        (
+            [
+                (SpeedUp, dict(stretch_factor=np.random.rand)),
+                (
+                    Phaser,
+                    dict(
+                        mix=np.random.rand,
+                        feedback=0.5,
+                        depth=np.random.rand,
+                        centre_frequency_hz=500,
+                    ),
+                ),
+                (LowpassFilter, dict(cutoff_frequency_hz=5000)),
+            ],
+            3,
+        ),
+    ],
+)
+def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
+    """
+    Test adding events where we've set a parametrised distribution for each augmentation
+    """
+    sc = Scene(
+        duration=50,
+        mesh_path=utils_tests.OYENS_PATH,
+        event_augmentations=aug_list_of_tuples,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        max_overlap=1,
+    )
+    ev = sc.add_event(augmentations=n_augs, event_type="static")
+    augs = ev.get_augmentations()
+
+    # Sort everything so the FX are in the correct order
+    augs = sorted(augs, key=lambda x: x.name)
+    aug_list_of_tuples = [
+        i
+        for i in sorted(aug_list_of_tuples, key=lambda x: x[0]().name)
+        if i[0] in (type(a) for a in augs)
+    ]
+
+    # Should have the correct number of augmentations
+    assert len(augs) == n_augs
+
+    # Iterate over the passed in list of augs and the actual augs
+    for (expected_aug_type, expected_aug_kwargs), actual_aug in zip(
+        aug_list_of_tuples, augs
+    ):
+        # Should be the correct type
+        assert isinstance(actual_aug, expected_aug_type)
+
+        # Iterate over all the kwargs we were expecting to use
+        for k, v in expected_aug_kwargs.items():
+
+            # Explicitly provided a value, should be used
+            if isinstance(v, utils.Numeric):
+                assert getattr(actual_aug, k) == v
+
+            # Provided a function to sample the value, should be within range
+            else:
+                # Call the function N times and check that the actual value is within the range
+                sampled_values = [v() for _ in range(1000)]
+                assert (
+                    (min(sampled_values) - 1e-4)
+                    < getattr(actual_aug, k)
+                    < (max(sampled_values) + 1e-4)
+                )

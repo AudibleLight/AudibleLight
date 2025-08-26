@@ -10,7 +10,7 @@ from collections import OrderedDict
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Iterator, Optional, Type, Union
+from typing import Any, Iterable, Iterator, Optional, Type, Union
 
 import numpy as np
 import soundfile as sf
@@ -20,6 +20,7 @@ from scipy import stats
 
 from audiblelight import __version__, utils
 from audiblelight.ambience import Ambience
+from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState
@@ -30,6 +31,13 @@ WARN_WHEN_DURATION_LOWER_THAN = 5
 
 
 class Scene:
+    """
+    Initializes a Scene.
+
+    The Scene object is the highest level object within AudibleLight. It holds information relating to the current
+    WorldState (including a 3D mesh, alongside listeners and sound sources) and any sound Event objects within it.
+    """
+
     def __init__(
         self,
         duration: utils.Numeric,
@@ -44,6 +52,13 @@ class Scene:
         event_resolution_dist: Optional[utils.DistributionLike] = None,
         snr_dist: Optional[utils.DistributionLike] = None,
         max_overlap: Optional[utils.Numeric] = MAX_OVERLAPPING_EVENTS,
+        event_augmentations: Optional[
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Iterable[tuple[Type[EventAugmentation], dict]],
+                Type[EventAugmentation],
+            ]
+        ] = None,
     ):
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
@@ -61,7 +76,7 @@ class Scene:
         )
         self.ref_db = utils.sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
-        self.max_overlap = int(utils.sanitise_positive_number(max_overlap))
+        self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
 
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
         if state_kwargs is None:
@@ -77,6 +92,8 @@ class Scene:
 
         # Define defaults for all distributions
         #  Events can start any time within the duration of the scene, minus some padding
+        # TODO: this is not consistent with how `stats.uniform` actually works.
+        #  see https://stackoverflow.com/questions/44572109/what-are-the-arguments-for-scipy-stats-uniform
         if scene_start_dist is None:
             scene_start_dist = stats.uniform(0.0, self.duration - 1)
         #  Events move between 0.25 and 2.0 metres per second
@@ -110,13 +127,92 @@ class Scene:
             else None
         )
 
+        # Events will be stored within here
         self.events = OrderedDict()
+
+        # Event augmentations
+        self.event_augmentations = []
+        if event_augmentations is not None:
+            self.event_augmentations = self._parse_event_augmentations(
+                event_augmentations
+            )
 
         # Background noise
         #  if not None (i.e., with a call to `add_ambience`), will be added to audio when synthesising
         self.ambience = OrderedDict()
 
         self.audio = None
+
+    def _parse_event_augmentations(
+        self,
+        event_augmentations: Union[
+            Iterable[Type[EventAugmentation]],
+            Iterable[tuple[Type[EventAugmentation], dict]],
+            Type[EventAugmentation],
+        ],
+    ) -> list[tuple[Type[EventAugmentation], dict]]:
+        """
+        Parse user-provided event augmentations.
+
+        The result is a list of tuples with the form (EventAugmentationType, dict), where the dict contains
+        pre-validated keyword arguments that are passed to the EventAugmentation every time it is constructed.
+
+        This enables the user (for instance) to override the default values or distributions used within an
+        EventAugmentation class.
+
+        Arguments:
+            event_augmentations: the augmentation types. Can be a list of types, a list of tuples, or a single type.
+
+        Returns:
+            list[tuple]: the list of augmentation types and validated kwargs
+        """
+        # Coerce single types to a list
+        if not isinstance(event_augmentations, (tuple, list, np.ndarray)):
+            event_augmentations = [event_augmentations]
+
+        sanitised_event_augmentations = []
+
+        for maybe_iter in event_augmentations:
+            # We've passed in tuples of type (AugmentationClass, augmentation_kwargs)
+            if (
+                isinstance(maybe_iter, (tuple, list, np.ndarray))
+                and len(maybe_iter) == 2
+            ):
+                aug_type, kwargs_dict = maybe_iter
+
+            # We've just passed in the AugmentationClass, so use default kwargs for it
+            elif isinstance(maybe_iter, type):
+                aug_type = maybe_iter
+                kwargs_dict = dict()
+
+            # We don't know what's been passed in
+            else:
+                raise TypeError(
+                    f"Expected a tuple or EventAugmentation type but got {type(maybe_iter)}"
+                )
+
+            # Validate the augmentation is a subclass of the parent object
+            if not issubclass(aug_type, EventAugmentation):
+                raise TypeError(
+                    f"Expected an EventAugmentation subclass but got {type(aug_type)}"
+                )
+
+            # Ensure sample rate for the augmentation is set correctly
+            if (
+                "sample_rate" in kwargs_dict
+                and kwargs_dict["sample_rate"] != self.sample_rate
+            ):
+                raise ValueError(
+                    f"Expected a sample rate {self.sample_rate}, but got {kwargs_dict['sample_rate']}"
+                )
+            kwargs_dict["sample_rate"] = self.sample_rate
+
+            # Validate the kwargs for the augmentation and store
+            utils.validate_kwargs(aug_type, **kwargs_dict)
+            sanitised_event_augmentations.append((aug_type, kwargs_dict))
+
+        # Do not drop duplicates
+        return sanitised_event_augmentations
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -429,11 +525,57 @@ class Scene:
             + utils.polar_to_cartesian(position)
         )[0]
 
+    def _get_n_random_event_augmentations(
+        self, n_augmentations: utils.Numeric
+    ) -> list[Type[EventAugmentation]]:
+        """
+        Given a number N, get N random, unique Event augmentations
+
+        Event augmentations are taken either from `Scene.event_augmentations` or, if this was not set when calling
+        `Scene.__init__`, from a master list of valid augmentations inside `audiblelight.augmentations`.
+
+        The returned list of augmentations is guaranteed to be unique.
+        """
+        # Either use the user provided list of augmentations or the full list
+        sample_augs = (
+            self.event_augmentations
+            if len(self.event_augmentations) > 0
+            else [(cls, dict()) for cls in ALL_EVENT_AUGMENTATIONS]
+        )
+
+        # Validate the number of augmentations we want
+        n_augmentations = utils.sanitise_positive_number(n_augmentations, cast_to=int)
+
+        # Log case where we try to sample more augs than we have available
+        if n_augmentations > len(sample_augs):
+            logger.warning(
+                f"Tried to sample {n_augmentations} random augmentations, but `Scene.event_augmentations` "
+                f"only contains {len(sample_augs)} augmentations. Sampling {len(sample_augs)} instead."
+            )
+            n_augmentations = len(sample_augs)
+
+        # Make a random sample of N augs
+        #  This is a list of tuples where the first element is the aug type, and the second is a dictionary of kwargs
+        sampled_augs_and_kwargs = random.sample(
+            sample_augs,
+            k=n_augmentations,
+        )
+
+        # Initialise all the augmentations using the provided kwargs
+        return [cls(**kws) for cls, kws in sampled_augs_and_kwargs]
+
     def add_event(
         self,
         event_type: Optional[str] = "static",
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
+        augmentations: Optional[
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Type[EventAugmentation],
+                utils.Numeric,
+            ]
+        ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
@@ -456,6 +598,11 @@ class Scene:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
+            augmentations: augmentation objects to associate with the Event.
+                If a list of EventAugmentation objects or a single EventAugmentation object, these will be passed directly.
+                If a number, this many augmentations will be sampled from either `Scene.event_augmentations`, or a master
+                list of valid augmentations (defined inside `audiblelight.augmentations`)
+                If not provided, EventAugmentations can be registered later by calling `register_augmentations` on the Event.
             position: Location to add the event.
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
@@ -527,6 +674,7 @@ class Scene:
                 snr=snr,
                 class_id=class_id,
                 class_label=class_label,
+                augmentations=augmentations,
             )
 
         elif event_type == "moving":
@@ -545,6 +693,7 @@ class Scene:
                 class_label=class_label,
                 spatial_resolution=spatial_resolution,
                 spatial_velocity=spatial_velocity,
+                augmentations=augmentations,
             )
 
         else:
@@ -560,6 +709,13 @@ class Scene:
         self,
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
+        augmentations: Optional[
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Type[EventAugmentation],
+                utils.Numeric,
+            ]
+        ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
@@ -578,6 +734,11 @@ class Scene:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
+            augmentations: augmentation objects to associate with the Event.
+                If a list of EventAugmentation objects or a single EventAugmentation object, these will be passed directly.
+                If a number, this many augmentations will be sampled from either `Scene.event_augmentations`, or a master
+                list of valid augmentations (defined inside `audiblelight.augmentations`)
+                If not provided, EventAugmentations can be registered later by calling `register_augmentations` on the Event.
             position: Location to add the event.
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
@@ -619,6 +780,10 @@ class Scene:
         if polar:
             position = self._coerce_polar_position(position, mic)
 
+        # Sample N random augmentations from our list, if required
+        if isinstance(augmentations, utils.Numeric):
+            augmentations = self._get_n_random_event_augmentations(augmentations)
+
         # Construct kwargs dictionary for emitter and event
         emitter_kwargs = dict(
             position=position,
@@ -640,6 +805,7 @@ class Scene:
             # No spatial resolution/velocity for static events
             spatial_resolution=None,
             spatial_velocity=None,
+            augmentations=augmentations,
         )
 
         # Add the emitters associated with the event to the worldstate
@@ -679,6 +845,13 @@ class Scene:
         self,
         filepath: Optional[Union[str, Path]] = None,
         alias: Optional[str] = None,
+        augmentations: Optional[
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Type[EventAugmentation],
+                utils.Numeric,
+            ]
+        ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
@@ -699,6 +872,11 @@ class Scene:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
+            augmentations: augmentation objects to associate with the Event.
+                If a list of EventAugmentation objects or a single EventAugmentation object, these will be passed directly.
+                If a number, this many augmentations will be sampled from either `Scene.event_augmentations`, or a master
+                list of valid augmentations (defined inside `audiblelight.augmentations`)
+                If not provided, EventAugmentations can be registered later by calling `register_augmentations` on the Event.
             position: Location to add the event.
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
@@ -739,6 +917,10 @@ class Scene:
             else utils.sanitise_filepath(filepath)
         )
 
+        # Sample N random augmentations from our list, if required
+        if isinstance(augmentations, utils.Numeric):
+            augmentations = self._get_n_random_event_augmentations(augmentations)
+
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
         emitter_kwargs = dict(
             starting_position=position,
@@ -756,6 +938,7 @@ class Scene:
             class_label=class_label,
             spatial_resolution=spatial_resolution,
             spatial_velocity=spatial_velocity,
+            augmentations=augmentations,
         )
 
         # Pre-initialise the event with required arguments
