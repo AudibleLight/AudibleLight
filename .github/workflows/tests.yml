@@ -53,65 +53,15 @@ jobs:
         shell: bash -l {0}
         run: poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      # --- Test retries with exit code capture ---
-      - name: Run tests with pytest (attempt 1)
-        id: test-1
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          EXIT_CODE=$?
-          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-
-      - name: Run tests with pytest (attempt 2)
-        id: test-2
-        if: steps.test-1.outputs.exitcode != '0'
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          EXIT_CODE=$?
-          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-
-      - name: Run tests with pytest (attempt 3)
-        id: test-3
-        if: steps.test-2.outputs.exitcode != '0'
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          EXIT_CODE=$?
-          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-
-      - name: Run tests with pytest (attempt 4)
-        id: test-4
-        if: steps.test-3.outputs.exitcode != '0'
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          EXIT_CODE=$?
-          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-
-      - name: Run tests with pytest (attempt 5)
-        id: test-5
-        if: steps.test-4.outputs.exitcode != '0'
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          poetry run pytest -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
-          EXIT_CODE=$?
-          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-
-      - name: Check if all test runs failed
-        if: steps.test-1.outputs.exitcode != '0' &&
-            steps.test-2.outputs.exitcode != '0' &&
-            steps.test-3.outputs.exitcode != '0' &&
-            steps.test-4.outputs.exitcode != '0' &&
-            steps.test-5.outputs.exitcode != '0'
-        run: |
-          echo "All test attempts failed"
-          exit 1
+        # This should hopefully help until we can fix https://github.com/AudibleLight/AudibleLight/issues/28
+      - name: Run tests with retrying
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 20
+          max_attempts: 5
+          command: poetry run pytest -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          retry_wait_seconds: 30
+          continue_on_error: false
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
