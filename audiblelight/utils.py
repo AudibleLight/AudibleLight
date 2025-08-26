@@ -9,7 +9,6 @@ import os
 import random
 import wave
 from contextlib import contextmanager
-from functools import wraps
 from pathlib import Path
 from time import time
 from typing import Any, Callable, Generator, Optional, Protocol, Union
@@ -407,21 +406,6 @@ def repr_as_json(cls: object) -> str:
         raise AttributeError(f"Class {cls.__name__} has no attribute 'to_dict'")
 
 
-def update_state(func: Callable):
-    """
-    Decorator function that will update a `WorldState` and all objects in it. Should be run after any
-    method that changes the state, e.g. `add_microphone`, `add_emitter`.
-    """
-
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        self._update()
-        return result
-
-    return wrapper
-
-
 def list_all_directories(root_dir: Union[str, Path]) -> list[str]:
     """
     Recursively return all directory paths under root_dir, including nested subdirectories.
@@ -504,6 +488,7 @@ def sample_distribution(
             )
 
 
+# noinspection PyUnreachableCode
 def validate_kwargs(func: Callable, **kwargs) -> None:
     """
     Validates that the given kwargs are acceptable keyword arguments for the provided function.

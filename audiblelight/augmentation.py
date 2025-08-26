@@ -19,6 +19,7 @@ some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for Audible
 """
 
 import math
+from random import random
 from typing import Any, Callable, Iterator, Optional, Type, Union
 
 import librosa
@@ -675,8 +676,8 @@ class Compressor(EventAugmentation):
                 )
             )
         )
-        if self.threshold_db > 0:
-            self.threshold_db = -self.threshold_db
+        # Threshold dB value should always be negative
+        self.threshold_db = -abs(self.threshold_db)
 
         self.ratio = int(
             utils.sanitise_positive_number(
@@ -811,8 +812,8 @@ class Clipping(EventAugmentation):
                 )
             )
         )
-        if self.threshold_db > 0:
-            self.threshold_db = -self.threshold_db
+        # Threshold dB value should always be negative
+        self.threshold_db = -abs(self.threshold_db)
         self.params = dict(threshold_db=self.threshold_db)
 
         from pedalboard import Clipping as PBClipping
@@ -855,8 +856,8 @@ class Limiter(EventAugmentation):
                 )
             )
         )
-        if self.threshold_db > 0:
-            self.threshold_db = -self.threshold_db
+        # Threshold dB value should always be negative
+        self.threshold_db = -abs(self.threshold_db)
 
         self.release_ms = utils.sanitise_positive_number(
             self.sample_value(
@@ -1116,6 +1117,17 @@ class MP3Compressor(EventAugmentation):
     """
 
     VBR_MIN, VBR_MAX = 2.001, 9.999
+    SUPPORTED_SAMPLE_RATES = [
+        8000,
+        11025,
+        12000,
+        16000,
+        22050,
+        24000,
+        32000,
+        44100,
+        48000,
+    ]
 
     def __init__(
         self,
@@ -1123,6 +1135,15 @@ class MP3Compressor(EventAugmentation):
         vbr_quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(sample_rate)
+
+        # Explicitly raise an error if the sample rate is not supported
+        if self.sample_rate not in self.SUPPORTED_SAMPLE_RATES:
+            supporteds = " Hz, ".join([str(i) for i in self.SUPPORTED_SAMPLE_RATES])
+            raise ValueError(
+                f"Expected sample rate to be one of {supporteds}, but got {self.sample_rate}"
+            )
+
+        # Sample VBR quality and construct parameters dictionary
         self.vbr_quality = utils.sanitise_positive_number(
             self.sample_value(
                 vbr_quality, stats.uniform(self.VBR_MIN, self.VBR_MAX - self.VBR_MIN)
@@ -1150,10 +1171,6 @@ class PitchShift(EventAugmentation):
     """
 
     MIN_SEMITONES, MAX_SEMITONES = -3, 3
-
-    # Used in testing to indicate an augmentation that may sometimes have no effect
-    #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
-    _FLAKY = True
 
     def __init__(
         self,
@@ -1198,9 +1215,9 @@ class PitchShift(EventAugmentation):
         return super().process(input_array)
 
 
-class TimeShift(EventAugmentation):
+class SpeedUp(EventAugmentation):
     """
-    Applies time-stretching to the audio.
+    Changes the speed of the audio.
 
     Using a higher stretch_factor will shorten the audio - i.e., a stretch_factor of 2.0 will double the speed of the
     audio and halve the length of the audio, without changing the pitch of the audio. When the output audio is shorter
@@ -1340,9 +1357,6 @@ class Fade(EventAugmentation):
         "none",
     ]
 
-    # Can be flaky if we assign "none" for fade-in and fade-out!
-    _FLAKY = True
-
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
@@ -1457,7 +1471,7 @@ class Fade(EventAugmentation):
         return input_audio * fade
 
 
-class _TimeWarpAugmentation(EventAugmentation):
+class TimeWarp(EventAugmentation):
     """
     Parent class for all time-warping augmentations.
 
@@ -1485,10 +1499,6 @@ class _TimeWarpAugmentation(EventAugmentation):
 
     MIN_PROB, MAX_PROB = 0.05, 0.15
     MIN_FPS, MAX_FPS = 2, 10.0
-
-    # Used in testing to indicate an augmentation that may sometimes have no effect
-    #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
-    _FLAKY = True
 
     def __init__(
         self,
@@ -1518,7 +1528,8 @@ class _TimeWarpAugmentation(EventAugmentation):
 
         This should operate on a list of audio frames obtained using `slice_frames`.
         """
-        raise NotImplementedError
+        # Parent class: just return the list of frames
+        return sliced_audio_frames
 
     def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
         """
@@ -1549,7 +1560,7 @@ class _TimeWarpAugmentation(EventAugmentation):
             return input_audio
 
 
-class TimeWarpSilence(_TimeWarpAugmentation):
+class TimeWarpSilence(TimeWarp):
     """
     Applies a time-warping effect (silence) to the audio.
 
@@ -1566,13 +1577,13 @@ class TimeWarpSilence(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, zero the frame
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 frame = np.zeros(len(frame))
             combframes.append(frame)
         return combframes
 
 
-class TimeWarpDuplicate(_TimeWarpAugmentation):
+class TimeWarpDuplicate(TimeWarp):
     """
     Applies a time-warping effect (silence) to the audio.
 
@@ -1589,13 +1600,13 @@ class TimeWarpDuplicate(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, append the frame to the list twice
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 combframes.append(frame)
             combframes.append(frame)
         return combframes
 
 
-class TimeWarpRemove(_TimeWarpAugmentation):
+class TimeWarpRemove(TimeWarp):
     """
     Applies a time-warping effect (silence) to the audio.
 
@@ -1612,13 +1623,13 @@ class TimeWarpRemove(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, skip the frame
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 continue
             combframes.append(frame)
         return combframes
 
 
-class TimeWarpReverse(_TimeWarpAugmentation):
+class TimeWarpReverse(TimeWarp):
     """
     Applies a time-warping effect (reverse) to the audio.
 
@@ -1635,7 +1646,7 @@ class TimeWarpReverse(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, flip it horizontally
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 frame = np.flip(frame, axis=0)
             combframes.append(frame)
         return combframes
@@ -1655,7 +1666,7 @@ ALL_EVENT_AUGMENTATIONS = [
     GSMFullRateCompressor,
     MP3Compressor,
     PitchShift,
-    TimeShift,
+    SpeedUp,
     TimeWarpRemove,
     TimeWarpSilence,
     TimeWarpDuplicate,
