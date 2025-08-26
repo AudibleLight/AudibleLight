@@ -394,7 +394,7 @@ class WorldState:
         # Update the ray-tracing sources
         #  We have to clear sources out regardless of number of emitters because it is possible that, if we have
         #  removed an event (e.g. `Scene.remove_event(...)`), we'll "orphan" some sources otherwise
-        if self.ctx.get_source_count():
+        if self.ctx.get_source_count() > 0:
             self.ctx.clear_sources()
         if self.num_emitters > 0:
             emitter_counter = 0
