@@ -12,6 +12,7 @@ from audiblelight import utils
 from audiblelight.augmentation import (
     Augmentation,
     Compressor,
+    EventAugmentation,
     LowpassFilter,
     MultibandEqualizer,
     Phaser,
@@ -263,6 +264,7 @@ def test_magic_methods(audio_fpath: str, oyens_space):
         _ = ev.to_dict()
 
 
+# noinspection PyUnreachableCode
 @pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
 # Define some example augmentation chains
 @pytest.mark.parametrize(
@@ -290,9 +292,45 @@ def test_add_augmentations(audio_fpath, augmentations):
     # Audio should be different to the initial form after augmentation
     aug_audio = ev.load_audio()
     assert not np.array_equal(init_audio, aug_audio)
+    assert ev.audio is not None
 
     # However, audio should have the same shape after augmentation
     try:
         utils.validate_shape(aug_audio.shape, init_audio.shape)
     except ValueError as e:
         pytest.fail(reason=e)
+
+    # Should be able to get the augmentation from the index
+    aug = ev.get_augmentation(0)
+    assert issubclass(type(aug), EventAugmentation)
+
+    # Clear the augmentations: should invalidate cached audio
+    ev.clear_augmentation(0)
+    ev.clear_augmentations()
+    assert ev.audio is None
+    assert len(ev.augmentations) == 0
+
+
+def test_add_bad_augmentation():
+    ev = Event(
+        utils_tests.TEST_AUDIOS[0],
+        "test_event",
+    )
+
+    # Mismatching sample rate
+    aug = Compressor(sample_rate=8000)
+    with pytest.raises(ValueError, match="Augmentation has mismatching sample rate!"):
+        ev.register_augmentations([aug])
+
+    # Will raise an error when called with "sample rate" kwarg
+    aug = int
+    with pytest.raises(TypeError, match="'sample_rate' is an invalid keyword argument"):
+        ev.register_augmentations([aug])
+
+    # Should not be able to get any augmentations
+    with pytest.raises(IndexError, match="No augmentation with index 1000"):
+        _ = ev.get_augmentation(1000)
+
+    # Should not be able to clear augmentation
+    with pytest.raises(IndexError, match="No augmentation found at index 1000"):
+        ev.clear_augmentation(1000)
