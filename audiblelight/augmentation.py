@@ -19,6 +19,7 @@ some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for Audible
 """
 
 import math
+from random import random
 from typing import Any, Callable, Iterator, Optional, Type, Union
 
 import librosa
@@ -1586,7 +1587,7 @@ class TimeWarpSilence(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, zero the frame
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 frame = np.zeros(len(frame))
             combframes.append(frame)
         return combframes
@@ -1609,7 +1610,7 @@ class TimeWarpDuplicate(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, append the frame to the list twice
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 combframes.append(frame)
             combframes.append(frame)
         return combframes
@@ -1632,7 +1633,7 @@ class TimeWarpRemove(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, skip the frame
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 continue
             combframes.append(frame)
         return combframes
@@ -1655,7 +1656,7 @@ class TimeWarpReverse(_TimeWarpAugmentation):
         # Iterate over all the frames
         for frame in sliced_audio_frames:
             # If we trigger the effect, flip it horizontally
-            if np.random.uniform(0.0, 1.0) < self.prob:
+            if random() < self.prob:
                 frame = np.flip(frame, axis=0)
             combframes.append(frame)
         return combframes
