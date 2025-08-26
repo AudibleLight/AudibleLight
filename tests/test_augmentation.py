@@ -296,3 +296,15 @@ def test_fade(fx_params, audio_fpath):
         assert out[0] == 0.0
         fade_time = round(utils.SAMPLE_RATE * fx_params["fade_in_len"])
         assert np.mean(np.abs(out[:fade_time])) < np.mean(np.abs(loaded[:fade_time]))
+
+
+@pytest.mark.parametrize(
+    "sample_rate,raises", [(44100, False), (8001, True), (11025, False), (48000, False)]
+)
+def test_mp3_compressor(sample_rate, raises):
+    if raises:
+        with pytest.raises(ValueError):
+            _ = MP3Compressor(sample_rate)
+    else:
+        aug = MP3Compressor(sample_rate)
+        assert aug.sample_rate == sample_rate

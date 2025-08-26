@@ -1116,6 +1116,17 @@ class MP3Compressor(EventAugmentation):
     """
 
     VBR_MIN, VBR_MAX = 2.001, 9.999
+    SUPPORTED_SAMPLE_RATES = [
+        8000,
+        11025,
+        12000,
+        16000,
+        22050,
+        24000,
+        32000,
+        44100,
+        48000,
+    ]
 
     def __init__(
         self,
@@ -1123,6 +1134,15 @@ class MP3Compressor(EventAugmentation):
         vbr_quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(sample_rate)
+
+        # Explicitly raise an error if the sample rate is not supported
+        if self.sample_rate not in self.SUPPORTED_SAMPLE_RATES:
+            supporteds = " Hz, ".join([str(i) for i in self.SUPPORTED_SAMPLE_RATES])
+            raise ValueError(
+                f"Expected sample rate to be one of {supporteds}, but got {self.sample_rate}"
+            )
+
+        # Sample VBR quality and construct parameters dictionary
         self.vbr_quality = utils.sanitise_positive_number(
             self.sample_value(
                 vbr_quality, stats.uniform(self.VBR_MIN, self.VBR_MAX - self.VBR_MIN)
