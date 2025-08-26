@@ -64,12 +64,23 @@ jobs:
         with:
           timeout_minutes: 200
           max_attempts: 5
-          command: poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5
+          command: poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 | tee output.log
           retry_wait_seconds: 30
           continue_on_error: false
 
+      # Only upload coverage if all workers returned successfully
+      - name: Check for failed coverage workers
+        id: check_coverage
+        run: |
+          if grep -q "coverage: failed workers" pytest_output.log; then
+            echo "Coverage workers failed."
+            echo "upload_coverage=false" >> $GITHUB_OUTPUT
+          else
+            echo "upload_coverage=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.11'
+        if: steps.check_coverage.outputs.upload_coverage == 'true'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
