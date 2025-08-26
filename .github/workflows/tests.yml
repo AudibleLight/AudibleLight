@@ -114,7 +114,7 @@ jobs:
           exit 1
 
       - name: Upload coverage to Codecov
-        if: success() && matrix.python-version == '3.11'
+        if: matrix.python-version == '3.11'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
