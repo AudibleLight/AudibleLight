@@ -380,7 +380,8 @@ class WorldState:
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
         """
         # Update the ray-tracing listeners
-        self.ctx.clear_listeners()
+        if self.ctx.get_listener_count() > 0:
+            self.ctx.clear_listeners()
         if len(self.microphones) > 0:
             all_caps = np.vstack(
                 [m.coordinates_absolute for m in self.microphones.values()]
@@ -393,7 +394,8 @@ class WorldState:
         # Update the ray-tracing sources
         #  We have to clear sources out regardless of number of emitters because it is possible that, if we have
         #  removed an event (e.g. `Scene.remove_event(...)`), we'll "orphan" some sources otherwise
-        self.ctx.clear_sources()
+        if self.ctx.get_source_count():
+            self.ctx.clear_sources()
         if self.num_emitters > 0:
             emitter_counter = 0
             for emitter_alias, emitter_list in self.emitters.items():
