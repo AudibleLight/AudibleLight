@@ -5,11 +5,7 @@
 
 import os
 
-from tqdm import tqdm
-
 from audiblelight import utils
-
-tqdm.monitor_interval = 0  # disables the background thread
 
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
 SOUNDEVENT_DIR = TEST_RESOURCES / "soundevents"

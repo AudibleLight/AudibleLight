@@ -5,10 +5,13 @@
 from typing import Callable
 
 import pytest
+from tqdm import tqdm
 
 from audiblelight.core import Scene
 from audiblelight.worldstate import WorldState
 from tests import utils_tests
+
+tqdm.monitor_interval = 0  # disables the background thread
 
 
 @pytest.fixture(scope="function")
