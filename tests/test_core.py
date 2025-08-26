@@ -668,7 +668,7 @@ def test_magic_methods(filepath, kwargs, oyens_scene_no_overlap):
         ([Phaser], 1),
         (
             [Phaser, LowpassFilter],
-            5000,
+            5,
         ),  # requesting more augs than we have available, coerced to 2
     ],
 )
