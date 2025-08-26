@@ -304,6 +304,7 @@ class WorldState:
         empty_space_around_capsule: Optional[
             utils.Numeric
         ] = EMPTY_SPACE_AROUND_CAPSULE,
+        add_to_context: Optional[bool] = True,
         ensure_minimum_weighted_average_ray_length: Optional[bool] = False,
         minimum_weighted_average_ray_length: Optional[
             utils.Numeric
@@ -320,6 +321,9 @@ class WorldState:
             empty_space_around_emitter (float): minimum meters new emitters/mics will be placed from other emitters
             empty_space_around_surface (float): minimum meters new emitters/mics will be placed from mesh emitters
             empty_space_around_capsule (float): minimum meters new emitters/mics will be placed from mic capsules
+            add_to_context (bool): if False, the ray-tracing context will ONLY be updated when running
+                `WorldState.simulate`. This is ideal in large-scale data generation pipelines. If True, the state
+                will be updated every time a new Microphone or Emitter is added. This is ideal for interactive use.
             ensure_minimum_weighted_average_ray_length (bool): if True, random points can only be sampled from within
                 the mesh when they have a weighted average ray length of at least `minimum_weighted_average_ray_length`
             minimum_weighted_average_ray_length (float): value to consider when locating points in the mesh; only
@@ -333,6 +337,8 @@ class WorldState:
         self.emitters = OrderedDict()
         self.microphones = OrderedDict()
         self._irs = None  # will be updated when calling `simulate`
+
+        self.add_to_state = add_to_context
 
         # Distances from objects/mesh surfaces
         self.empty_space_around_mic = utils.sanitise_positive_number(
@@ -604,7 +610,8 @@ class WorldState:
 
         # If placed successfully, update the state
         else:
-            self._update()
+            if self.add_to_state:
+                self._update()
 
     def add_microphones(
         self,
@@ -707,7 +714,8 @@ class WorldState:
                     logger.warning(msg)
 
         # Update the state after placing everything
-        self._update()
+        if self.add_to_state:
+            self._update()
 
     def add_microphone_and_emitter(
         self,
@@ -832,7 +840,8 @@ class WorldState:
                 logger.info(f"Emitter '{emitter_alias}' at: {emitter_pos}")
 
                 # Update the state and return
-                self._update()
+                if self.add_to_state:
+                    self._update()
                 return
 
             # Log progress every 100 attempts
@@ -1205,7 +1214,8 @@ class WorldState:
 
         # Update the state with the new emitter
         else:
-            self._update()
+            if self.add_to_state:
+                self._update()
 
     def add_emitters(
         self,
@@ -1308,7 +1318,8 @@ class WorldState:
                     raise ValueError(msg)
 
         # Update the state after placing everything
-        self._update()
+        if self.add_to_state:
+            self._update()
 
     def get_valid_position_with_max_distance(
         self,
@@ -1597,7 +1608,8 @@ class WorldState:
                 self.emitters[alias] = [emitter]
 
         # Update the state after placing everything
-        self._update()
+        if self.add_to_state:
+            self._update()
 
     def _simulation_sanity_check(self) -> None:
         """
@@ -1634,6 +1646,8 @@ class WorldState:
         """
         Simulates audio propagation in the state with the current listener and sound emitter positions.
         """
+        # Update the ray-tracing engine with our current emitters, microphones, etc.
+        self._update()
         # Sanity check that we actually have emitters and microphones in the state
         self._simulation_sanity_check()
         # Clear out any existing IRs
@@ -1967,6 +1981,7 @@ class WorldState:
         Removes all current microphones.
         """
         self.microphones = OrderedDict()
+        # Always update the state after clearing, regardless of `add_to_state` setting
         self._update()
 
     def clear_emitters(self) -> None:
@@ -1974,6 +1989,7 @@ class WorldState:
         Removes all current emitters.
         """
         self.emitters = OrderedDict()
+        # Always update the state after clearing, regardless of `add_to_state` setting
         self._update()
 
     def clear_microphone(self, alias: str) -> None:
@@ -1982,6 +1998,7 @@ class WorldState:
         """
         if alias in self.microphones.keys():
             del self.microphones[alias]
+            # Always update the state after clearing, regardless of `add_to_state` setting
             self._update()
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
@@ -1992,6 +2009,7 @@ class WorldState:
         """
         if alias in self.emitters.keys():
             del self.emitters[alias]
+            # Always update the state after clearing, regardless of `add_to_state` setting
             self._update()
         else:
             raise KeyError("Emitter alias '{}' not found.".format(alias))

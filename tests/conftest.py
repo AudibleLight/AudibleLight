@@ -19,6 +19,7 @@ def oyens_space() -> WorldState:
     """Returns a WorldState object with the Oyens mesh (Gibson)"""
     space = WorldState(
         utils_tests.OYENS_PATH,
+        add_to_context=True,  # update worldstate with every addition
         empty_space_around_emitter=0.2,  # all in meters
         empty_space_around_mic=0.1,  # all in meters
         empty_space_around_surface=0.2,  # all in meters
