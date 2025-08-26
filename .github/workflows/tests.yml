@@ -80,7 +80,7 @@ jobs:
           fi
 
       - name: Upload coverage to Codecov
-        if: steps.check_coverage.outputs.upload_coverage == 'true'
+        if: success() && steps.check_coverage.outputs.upload_coverage == 'true'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
