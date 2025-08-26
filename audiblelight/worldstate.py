@@ -529,7 +529,6 @@ class WorldState:
                 break
         return False
 
-    @utils.update_state
     def add_microphone(
         self,
         microphone_type: Optional[Union[str, Type["MicArray"]]] = None,
@@ -593,7 +592,10 @@ class WorldState:
                     f"Consider reducing `empty_space_around` arguments."
                 )
 
-    @utils.update_state
+        # If placed successfully, update the state
+        else:
+            self._update()
+
     def add_microphones(
         self,
         microphone_types: Optional[list[Union[str, Type["MicArray"]]]] = None,
@@ -694,7 +696,9 @@ class WorldState:
                 else:
                     logger.warning(msg)
 
-    @utils.update_state
+        # Update the state after placing everything
+        self._update()
+
     def add_microphone_and_emitter(
         self,
         position: Optional[Union[np.ndarray, float]] = None,
@@ -816,6 +820,9 @@ class WorldState:
                 )
                 logger.info(f"Microphone '{mic_alias}' at: {mic_pos}")
                 logger.info(f"Emitter '{emitter_alias}' at: {emitter_pos}")
+
+                # Update the state and return
+                self._update()
                 return
 
             # Log progress every 100 attempts
@@ -1106,7 +1113,6 @@ class WorldState:
         else:
             raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
-    @utils.update_state
     def add_emitter(
         self,
         position: Optional[Union[list, np.ndarray]] = None,
@@ -1187,7 +1193,10 @@ class WorldState:
                     f"or the `empty_space_around` arguments."
                 )
 
-    @utils.update_state
+        # Update the state with the new emitter
+        else:
+            self._update()
+
     def add_emitters(
         self,
         positions: Optional[Union[list, np.ndarray]] = None,
@@ -1287,6 +1296,9 @@ class WorldState:
                 # Raise the error if required
                 if raise_on_error:
                     raise ValueError(msg)
+
+        # Update the state after placing everything
+        self._update()
 
     def get_valid_position_with_max_distance(
         self,
@@ -1545,7 +1557,6 @@ class WorldState:
             f"- Decreasing `max_distance` (currently {max_distance:.3f})"
         )
 
-    @utils.update_state
     def _add_emitters_without_validating(
         self,
         emitters: Union[list, np.ndarray],
@@ -1574,6 +1585,9 @@ class WorldState:
                 self.emitters[alias].append(emitter)
             else:
                 self.emitters[alias] = [emitter]
+
+        # Update the state after placing everything
+        self._update()
 
     def _simulation_sanity_check(self) -> None:
         """
@@ -1935,36 +1949,36 @@ class WorldState:
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
 
-    @utils.update_state
     def clear_microphones(self) -> None:
         """
         Removes all current microphones.
         """
         self.microphones = OrderedDict()
+        self._update()
 
-    @utils.update_state
     def clear_emitters(self) -> None:
         """
         Removes all current emitters.
         """
         self.emitters = OrderedDict()
+        self._update()
 
-    @utils.update_state
     def clear_microphone(self, alias: str) -> None:
         """
         Given an alias for a microphone, clear that microphone if it exists and update the state.
         """
         if alias in self.microphones.keys():
             del self.microphones[alias]
+            self._update()
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
 
-    @utils.update_state
     def clear_emitter(self, alias: str) -> None:
         """
         Given an alias for an emitter, clear that emitter and update the state.
         """
         if alias in self.emitters.keys():
             del self.emitters[alias]
+            self._update()
         else:
             raise KeyError("Emitter alias '{}' not found.".format(alias))
