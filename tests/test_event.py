@@ -16,7 +16,7 @@ from audiblelight.augmentation import (
     MultibandEqualizer,
     Phaser,
     PitchShift,
-    TimeShift,
+    SpeedUp,
 )
 from audiblelight.event import Event
 from tests import utils_tests
@@ -243,7 +243,7 @@ def test_magic_methods(audio_fpath: str, oyens_space):
     emitter = oyens_space.get_emitters("test_emitter")
     ev = Event(audio_fpath, "test_event", emitters=emitter)
     # Add some augmentations
-    ev.register_augmentations(TimeShift)
+    ev.register_augmentations(SpeedUp)
     ev.register_augmentations([PitchShift, LowpassFilter])
 
     # Iterate over all the magic methods that return strings
@@ -270,7 +270,7 @@ def test_magic_methods(audio_fpath: str, oyens_space):
     [
         (LowpassFilter, MultibandEqualizer, Compressor),
         (Phaser, Compressor),
-        (PitchShift, TimeShift),
+        (PitchShift, SpeedUp),
     ],
 )
 def test_add_augmentations(audio_fpath, augmentations):

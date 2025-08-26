@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from audiblelight import utils
-from audiblelight.augmentation import LowpassFilter, Phaser, TimeShift
+from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
@@ -29,7 +29,7 @@ from tests import utils_tests
             duration=5,
             event_start=5,
             scene_start=5,
-            augmentations=TimeShift(stretch_factor=0.5),
+            augmentations=SpeedUp(stretch_factor=0.5),
         ),
         # Test 2: explicit event keywords and filepath, but no emitter keywords
         dict(filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3", snr=5),
@@ -128,7 +128,7 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             scene_start=5,
             shape="circular",
             filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
-            augmentations=TimeShift,
+            augmentations=SpeedUp,
         ),
         dict(
             filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
@@ -664,7 +664,7 @@ def test_magic_methods(filepath, kwargs, oyens_scene_no_overlap):
 @pytest.mark.parametrize(
     "aug_list, n_augs",
     [
-        ([Phaser, LowpassFilter, TimeShift], 2),
+        ([Phaser, LowpassFilter, SpeedUp], 2),
         ([Phaser], 1),
         (
             [Phaser, LowpassFilter],
@@ -710,14 +710,14 @@ def test_add_events_with_random_augmentations(aug_list, n_augs, event_type):
         ),
         (
             [
-                (TimeShift, dict(stretch_factor=np.random.rand)),
+                (SpeedUp, dict(stretch_factor=np.random.rand)),
                 (LowpassFilter, dict(cutoff_frequency_hz=5000)),
             ],
             1,
         ),
         (
             [
-                (TimeShift, dict(stretch_factor=np.random.rand)),
+                (SpeedUp, dict(stretch_factor=np.random.rand)),
                 (
                     Phaser,
                     dict(

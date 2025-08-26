@@ -1219,9 +1219,9 @@ class PitchShift(EventAugmentation):
         return super().process(input_array)
 
 
-class TimeShift(EventAugmentation):
+class SpeedUp(EventAugmentation):
     """
-    Applies time-stretching to the audio.
+    Changes the speed of the audio.
 
     Using a higher stretch_factor will shorten the audio - i.e., a stretch_factor of 2.0 will double the speed of the
     audio and halve the length of the audio, without changing the pitch of the audio. When the output audio is shorter
@@ -1676,7 +1676,7 @@ ALL_EVENT_AUGMENTATIONS = [
     GSMFullRateCompressor,
     MP3Compressor,
     PitchShift,
-    TimeShift,
+    SpeedUp,
     TimeWarpRemove,
     TimeWarpSilence,
     TimeWarpDuplicate,
