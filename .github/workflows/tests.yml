@@ -69,7 +69,7 @@ jobs:
 #          continue_on_error: false
       - name: Run tests without retrying
         run: | 
-          poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+          poetry run pytest -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
