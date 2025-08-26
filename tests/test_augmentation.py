@@ -11,7 +11,9 @@ from scipy import stats
 from audiblelight import utils
 from audiblelight.augmentation import (
     ALL_EVENT_AUGMENTATIONS,
+    Augmentation,
     Chorus,
+    Clipping,
     Compressor,
     Deemphasis,
     Delay,
@@ -21,12 +23,20 @@ from audiblelight.augmentation import (
     Gain,
     GSMFullRateCompressor,
     HighpassFilter,
+    Limiter,
     LowpassFilter,
     MP3Compressor,
     MultibandEqualizer,
     Phaser,
+    SpeedUp,
+    TimeWarp,
     TimeWarpDuplicate,
+    TimeWarpRemove,
+    TimeWarpReverse,
+    TimeWarpSilence,
+    validate_event_augmentation,
 )
+from audiblelight.event import Event
 from tests import utils_tests
 
 
@@ -258,44 +268,74 @@ def test_load_from_dict(fx_class):
     out_dict = fx_init.to_dict()
     reloaded = EventAugmentation.from_dict(out_dict)
     assert isinstance(reloaded, fx_class)
+
+    # testing equality
     assert reloaded == fx_init
+    assert reloaded != 123
+    assert reloaded != "another dtype"
+
+    # Should be different to other audiblelight types, including the same augmentation with a different sample rate
+    assert reloaded != Event(alias="123", filepath=utils_tests.TEST_AUDIOS[0])
+    assert reloaded != fx_class(sample_rate=8000)
 
 
+def test_load_from_dict_bad():
+    cls = Augmentation(sample_rate=8000)
+
+    outp = cls.to_dict()
+    outp.pop("name")
+    with pytest.raises(
+        KeyError, match="Augmentation name must be specified in dictionary"
+    ):
+        _ = Augmentation.from_dict(outp)
+
+    outp["name"] = "breaker"
+    with pytest.raises(KeyError, match="Augmentation class breaker not found"):
+        _ = Augmentation.from_dict(outp)
+
+
+# Tests all combinations of fade shapes
 @pytest.mark.parametrize("audio_fpath", utils_tests.TEST_MUSICS[:3])
-@pytest.mark.parametrize(
-    "fx_params",
-    [
-        # Fade-out only, long
-        dict(fade_in_shape="none", fade_out_shape="linear", fade_out_len=5.0),
-        # Fade-in only, long
-        dict(fade_out_shape="none", fade_in_shape="linear", fade_in_len=5.0),
-        # Both fades
-        dict(
-            fade_out_shape="linear",
-            fade_in_shape="linear",
-            fade_in_len=5.0,
-            fade_out_len=5.0,
-        ),
-    ],
-)
-def test_fade(fx_params, audio_fpath):
+@pytest.mark.parametrize("fade_in_shape", Fade.FADE_SHAPES + [None])
+@pytest.mark.parametrize("fade_out_shape", Fade.FADE_SHAPES + [None])
+def test_fade(fade_in_shape, fade_out_shape, audio_fpath):
     # Load up the audio file in librosa
     loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
 
     # Process the audio with the augmentation
-    fader = Fade(**fx_params)
+    #  Length of the fade in and fade out should always be 5 seconds
+    fader = Fade(
+        fade_in_len=5,
+        fade_out_len=5,
+        fade_in_shape=fade_in_shape,
+        fade_out_shape=fade_out_shape,
+    )
     out = fader(loaded)
 
     # Consider final sample and average volume of final N seconds
-    if fx_params["fade_out_shape"] != "none":
-        assert out[-1] == 0.0
-        fade_time = round(utils.SAMPLE_RATE * fx_params["fade_out_len"])
-        assert np.mean(np.abs(out[-fade_time:])) < np.mean(np.abs(loaded[-fade_time:]))
+    if fader.fade_out_shape != "none":
+        assert np.isclose(out[-1], 0.0, atol=1e-4)
+        fade_time = round(utils.SAMPLE_RATE * fader.fade_out_len)
+        assert np.mean(np.abs(out[-fade_time:])) <= np.mean(np.abs(loaded[-fade_time:]))
 
-    if fx_params["fade_in_shape"] != "none":
-        assert out[0] == 0.0
-        fade_time = round(utils.SAMPLE_RATE * fx_params["fade_in_len"])
-        assert np.mean(np.abs(out[:fade_time])) < np.mean(np.abs(loaded[:fade_time]))
+    # Consider first sample and average volume of first N seconds
+    if fader.fade_in_shape != "none":
+        assert np.isclose(out[0], 0.0, atol=1e-4)
+        fade_time = round(utils.SAMPLE_RATE * fader.fade_in_len)
+        assert np.mean(np.abs(out[:fade_time])) <= np.mean(np.abs(loaded[:fade_time]))
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        dict(fade_in_shape="bad"),
+        dict(fade_out_shape="bad"),
+        dict(fade_in_shape="bad", fade_out_shape="bad"),
+    ],
+)
+def test_bad_fade_shape(params):
+    with pytest.raises(ValueError):
+        _ = Fade(**params)
 
 
 @pytest.mark.parametrize(
@@ -308,3 +348,149 @@ def test_mp3_compressor(sample_rate, raises):
     else:
         aug = MP3Compressor(sample_rate)
         assert aug.sample_rate == sample_rate
+
+
+@pytest.mark.parametrize("threshold_db", [100, -100, -10])
+@pytest.mark.parametrize("augmentation_class", [Limiter, Clipping, Compressor])
+def test_threshold_db(threshold_db, augmentation_class):
+    # Threshold dB value should always be negative
+    cls = augmentation_class(threshold_db=threshold_db)
+    assert cls.threshold_db == -abs(threshold_db)
+
+
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_MUSICS[:3])
+@pytest.mark.parametrize("stretch_factor", [0.5, 1.0, 1.5])
+def test_speed_up(audio_fpath, stretch_factor):
+    # Load up the audio file in librosa
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+
+    # Process the audio
+    cls = SpeedUp(stretch_factor=stretch_factor)
+    out = cls(loaded)
+
+    # Should be the same shape
+    try:
+        utils.validate_shape(loaded.shape, out.shape)
+    except ValueError as e:
+        pytest.fail(e)
+
+    # With a stretch factor of 1.0, audio should be equal
+    if stretch_factor == 1.0:
+        assert np.array_equal(out, loaded)
+
+    # With a stretch factor of more than 1.0, audio should be right padded with zeros
+    elif stretch_factor > 1.0:
+        assert np.array_equal(out[-100:], np.zeros(100))
+        assert not np.array_equal(loaded[-100:], np.zeros(100))
+        assert not np.array_equal(out, loaded)
+
+    else:
+        assert not np.array_equal(out, loaded)
+
+
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_MUSICS[:3])
+@pytest.mark.parametrize(
+    "augmentation_class",
+    [TimeWarpSilence, TimeWarpReverse, TimeWarpRemove, TimeWarpDuplicate, TimeWarp],
+)
+@pytest.mark.parametrize(
+    "params",
+    [dict(fps=0.01, prob=0.5), dict(fps=10, prob=0.0), dict(prob=0.5, fps=2.5)],
+)
+def test_timewarp_effects(audio_fpath, augmentation_class, params):
+    # Load up the audio file in librosa
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+
+    # Process the audio
+    cls = augmentation_class(**params)
+    out = cls(loaded)
+
+    # Should be the same shape output
+    try:
+        utils.validate_shape(loaded.shape, out.shape)
+    except ValueError as e:
+        pytest.fail(e)
+
+
+def test_magic_methods():
+    cls = Augmentation(sample_rate=utils.SAMPLE_RATE)
+
+    # test magic methods
+    assert isinstance(cls.__repr__(), str)
+    assert isinstance(cls.__str__(), str)
+    assert len(cls) == 1
+    assert len(list(iter(cls))) == 1
+
+
+@pytest.mark.parametrize(
+    "params,raises",
+    [
+        (dict(), False),
+        (
+            dict(
+                n_bands=5,
+                gain_db=[1, 2, 3, 4, 5],
+                q=lambda: np.random.rand(),
+                cutoff_frequency_hz=500,
+            ),
+            False,
+        ),
+        (dict(n_bands=3, gain_db=[1, 2]), True),
+        (dict(n_bands=3, gain_db="123"), True),
+    ],
+)
+def test_multiband_equalizer(params, raises):
+    if raises:
+        with pytest.raises((TypeError, ValueError)):
+            _ = MultibandEqualizer(**params)
+
+    else:
+        cls = MultibandEqualizer(**params)
+        audio = np.random.rand(1000)
+        out = cls(audio)
+        assert not np.array_equal(out, audio)
+
+
+@pytest.mark.parametrize(
+    "override,raises",
+    [(None, False), (123, False), (lambda: np.random.rand(), False), ("asdf", True)],
+)
+def test_sample_value(override, raises):
+    params = dict(override=override, default_dist=lambda: np.random.rand())
+
+    if raises:
+        with pytest.raises(TypeError):
+            _ = Augmentation().sample_value(**params)
+    else:
+        out = Augmentation().sample_value(**params)
+        assert isinstance(out, utils.Numeric)
+
+
+def test_validate_event_augmentation():
+    # Not callable
+    with pytest.raises(ValueError, match="Augmentation object must be callable"):
+        validate_event_augmentation(123)
+
+    # A type, not an instance
+    with pytest.raises(
+        ValueError, match="Augmentation object must be an instance of a class"
+    ):
+        validate_event_augmentation(Distortion)
+
+    # Not a subclass of EventAugmentation
+    with pytest.raises(ValueError, match="Augmentation object must be a subclass"):
+        validate_event_augmentation(Augmentation())
+
+    # Does not have attributes
+    temp = Distortion()
+    del temp.fx
+    with pytest.raises(
+        AttributeError, match="Augmentation object must have 'fx' attribute"
+    ):
+        validate_event_augmentation(temp)
+
+    # Different augmentation type
+    temp.fx = lambda x: x
+    temp.AUGMENTATION_TYPE = "bad"
+    with pytest.raises(ValueError, match="Augmentation type must be 'event'"):
+        validate_event_augmentation(temp)

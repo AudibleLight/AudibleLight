@@ -676,8 +676,8 @@ class Compressor(EventAugmentation):
                 )
             )
         )
-        if self.threshold_db > 0:
-            self.threshold_db = -self.threshold_db
+        # Threshold dB value should always be negative
+        self.threshold_db = -abs(self.threshold_db)
 
         self.ratio = int(
             utils.sanitise_positive_number(
@@ -812,8 +812,8 @@ class Clipping(EventAugmentation):
                 )
             )
         )
-        if self.threshold_db > 0:
-            self.threshold_db = -self.threshold_db
+        # Threshold dB value should always be negative
+        self.threshold_db = -abs(self.threshold_db)
         self.params = dict(threshold_db=self.threshold_db)
 
         from pedalboard import Clipping as PBClipping
@@ -856,8 +856,8 @@ class Limiter(EventAugmentation):
                 )
             )
         )
-        if self.threshold_db > 0:
-            self.threshold_db = -self.threshold_db
+        # Threshold dB value should always be negative
+        self.threshold_db = -abs(self.threshold_db)
 
         self.release_ms = utils.sanitise_positive_number(
             self.sample_value(
@@ -1478,7 +1478,7 @@ class Fade(EventAugmentation):
         return input_audio * fade
 
 
-class _TimeWarpAugmentation(EventAugmentation):
+class TimeWarp(EventAugmentation):
     """
     Parent class for all time-warping augmentations.
 
@@ -1539,7 +1539,8 @@ class _TimeWarpAugmentation(EventAugmentation):
 
         This should operate on a list of audio frames obtained using `slice_frames`.
         """
-        raise NotImplementedError
+        # Parent class: just return the list of frames
+        return sliced_audio_frames
 
     def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
         """
@@ -1570,7 +1571,7 @@ class _TimeWarpAugmentation(EventAugmentation):
             return input_audio
 
 
-class TimeWarpSilence(_TimeWarpAugmentation):
+class TimeWarpSilence(TimeWarp):
     """
     Applies a time-warping effect (silence) to the audio.
 
@@ -1593,7 +1594,7 @@ class TimeWarpSilence(_TimeWarpAugmentation):
         return combframes
 
 
-class TimeWarpDuplicate(_TimeWarpAugmentation):
+class TimeWarpDuplicate(TimeWarp):
     """
     Applies a time-warping effect (silence) to the audio.
 
@@ -1616,7 +1617,7 @@ class TimeWarpDuplicate(_TimeWarpAugmentation):
         return combframes
 
 
-class TimeWarpRemove(_TimeWarpAugmentation):
+class TimeWarpRemove(TimeWarp):
     """
     Applies a time-warping effect (silence) to the audio.
 
@@ -1639,7 +1640,7 @@ class TimeWarpRemove(_TimeWarpAugmentation):
         return combframes
 
 
-class TimeWarpReverse(_TimeWarpAugmentation):
+class TimeWarpReverse(TimeWarp):
     """
     Applies a time-warping effect (reverse) to the audio.
 
