@@ -3956,6 +3956,21 @@ pytest = ">=6.2.5"
 testing = ["fields", "hunter", "process-tests", "pytest-xdist", "virtualenv"]
 
 [[package]]
+name = "pytest-random-order"
+version = "1.2.0"
+description = "Randomise the order in which pytest tests are run with some control over the randomness"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "pytest_random_order-1.2.0-py3-none-any.whl", hash = "sha256:78d1d6f346222cdf26a7302c502d2f1cab19454529af960b8b9e1427a99ab277"},
+    {file = "pytest_random_order-1.2.0.tar.gz", hash = "sha256:12b2d4ee977ec9922b5e3575afe13c22cbdb06e3d03e550abc43df137b90439a"},
+]
+
+[package.dependencies]
+pytest = "*"
+
+[[package]]
 name = "pytest-rerunfailures"
 version = "15.1"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
@@ -5623,4 +5638,4 @@ dev = ["black (>=19.3b0) ; python_version >= \"3.6\"", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "d5d1e94f911031bd4f6d68beb22de2a5199f69099d84f1d24383cd8a3132b240"
+content-hash = "5cbd45f8c67d01a7c6e852d4e9c0bb4f93d4a53611ef1b4de2943a7ee3bd5cd8"
