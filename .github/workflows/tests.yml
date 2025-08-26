@@ -72,7 +72,7 @@ jobs:
       - name: Check for failed coverage workers
         id: check_coverage
         run: |
-          if grep -q "coverage: failed workers" pytest_output.log; then
+          if grep -q "coverage: failed workers" output.log; then
             echo "Coverage workers failed."
             echo "upload_coverage=false" >> $GITHUB_OUTPUT
           else
