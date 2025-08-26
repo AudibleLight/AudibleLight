@@ -71,3 +71,14 @@ def oyens_scene_factory() -> Callable:
 def run_gc_after_test():
     yield
     gc.collect()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+    setattr(item, "rep_" + rep.when, rep)
+
+    # Remove exception info, since it causes excessive memory usage and workers crash
+    if call.excinfo and isinstance(call.excinfo, pytest.ExceptionInfo):
+        call.excinfo = None
