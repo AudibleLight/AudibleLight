@@ -371,17 +371,26 @@ class WorldState:
                 repair_mesh(self.mesh)
 
         # Setting up audio context
-        cfg = self._parse_rlr_config(rlr_kwargs)
-        self.ctx = Context(cfg)
+        self.cfg = self._parse_rlr_config(rlr_kwargs)
+        self.ctx = Context(self.cfg)
         self._setup_audio_context()
 
+    # noinspection PyUnreachableCode
     def _update(self) -> None:
         """
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
         """
-        # Update the ray-tracing listeners
+        # Destroy the old context
+        self.ctx.reset(self.cfg)
         if self.ctx.get_listener_count() > 0:
             self.ctx.clear_listeners()
+        if self.ctx.get_source_count() > 0:
+            self.ctx.clear_sources()
+
+        # Remake the context
+        self._setup_audio_context()
+
+        # Update the ray-tracing listeners
         if len(self.microphones) > 0:
             all_caps = np.vstack(
                 [m.coordinates_absolute for m in self.microphones.values()]
@@ -389,13 +398,12 @@ class WorldState:
             for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
                 # Add a single listener for each individual capsule
                 self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
-                self.ctx.set_listener_position(caps_idx, caps_pos.tolist())
+                self.ctx.set_listener_position(
+                    caps_idx,
+                    caps_pos.tolist() if isinstance(caps_pos, np.ndarray) else caps_pos,
+                )
 
         # Update the ray-tracing sources
-        #  We have to clear sources out regardless of number of emitters because it is possible that, if we have
-        #  removed an event (e.g. `Scene.remove_event(...)`), we'll "orphan" some sources otherwise
-        if self.ctx.get_source_count() > 0:
-            self.ctx.clear_sources()
         if self.num_emitters > 0:
             emitter_counter = 0
             for emitter_alias, emitter_list in self.emitters.items():
@@ -1610,6 +1618,9 @@ class WorldState:
         assert (
             self.ctx.get_source_count() > 0
         ), "Must have emitters added to the ray tracing engine"
+        assert (
+            self.ctx.get_object_count() == 1
+        ), "Must have only one mesh added to the ray tracing engine"
         # Check we have the expected number of sources and listeners
         assert (
             sum(len(em) for em in self.emitters.values()) == self.ctx.get_source_count()
