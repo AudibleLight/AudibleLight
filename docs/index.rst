@@ -23,9 +23,18 @@ In contrast to other projects (e.g., `sonicsim <https://github.com/JusperLee/Son
    :caption: Getting Started:
 
    installation
-   _examples/example_generation
-   _examples/augmentations
-   _examples/plot_mic_arrays
+   _examples/quickstart
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorials:
+
+   _examples/1.0.0_make_scene
+   _examples/1.1.0_add_listeners
+   _examples/1.2.0_add_events
+   _examples/1.2.1_add_augmentations
+   _examples/1.3.0_add_ambience
+   _examples/2.0.0_synthesis
 
 .. toctree::
    :maxdepth: 1
