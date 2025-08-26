@@ -89,10 +89,8 @@ Before making a PR, ensure that you run the following commands:
 
 ```bash
 poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
-poetry run pytest -n auto -vv --cov-report term-missing --cov-report=xml --cov=audiblelight tests
+poetry poetry run pytest -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
 ```
-
-These are identical to the commands currently run by our CI pipeline.
 
 ## Roadmap
 

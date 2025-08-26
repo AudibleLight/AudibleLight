@@ -1172,10 +1172,6 @@ class PitchShift(EventAugmentation):
 
     MIN_SEMITONES, MAX_SEMITONES = -3, 3
 
-    # Used in testing to indicate an augmentation that may sometimes have no effect
-    #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
-    _FLAKY = True
-
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
@@ -1361,9 +1357,6 @@ class Fade(EventAugmentation):
         "none",
     ]
 
-    # Can be flaky if we assign "none" for fade-in and fade-out!
-    _FLAKY = True
-
     def __init__(
         self,
         sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
@@ -1506,10 +1499,6 @@ class TimeWarp(EventAugmentation):
 
     MIN_PROB, MAX_PROB = 0.05, 0.15
     MIN_FPS, MAX_FPS = 2, 10.0
-
-    # Used in testing to indicate an augmentation that may sometimes have no effect
-    #  E.g., for pitch-shifting with a randomly sampled value of +/- 0 semitones
-    _FLAKY = True
 
     def __init__(
         self,

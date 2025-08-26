@@ -666,14 +666,23 @@ def test_magic_methods(filepath, kwargs, oyens_scene_no_overlap):
     [
         ([Phaser, LowpassFilter, SpeedUp], 2),
         ([Phaser], 1),
-        (
-            [Phaser, LowpassFilter],
-            5000,
-        ),  # requesting more augs than we have available, coerced to 2
+        # requesting more augs than we have available, coerced to 2
+        ([Phaser, LowpassFilter], 5),
     ],
 )
-@pytest.mark.parametrize("event_type", ["static", "moving"])
-def test_add_events_with_random_augmentations(aug_list, n_augs, event_type):
+@pytest.mark.parametrize(
+    "params",
+    [
+        dict(event_type="static"),
+        dict(
+            event_type="moving",
+            spatial_resolution=1,
+            spatial_velocity=1,
+            shape="linear",
+        ),
+    ],
+)
+def test_add_events_with_random_augmentations(aug_list, n_augs, params):
     """
     Add events with N random augmentations, drawn from our list
     """
@@ -684,7 +693,12 @@ def test_add_events_with_random_augmentations(aug_list, n_augs, event_type):
         fg_path=utils_tests.SOUNDEVENT_DIR,
         max_overlap=1,
     )
-    ev = sc.add_event(augmentations=n_augs, event_type=event_type)
+    ev = sc.add_event(
+        augmentations=n_augs,
+        filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+        duration=1,
+        **params,
+    )
     augs = ev.get_augmentations()
 
     # All augs should be sampled from our list
