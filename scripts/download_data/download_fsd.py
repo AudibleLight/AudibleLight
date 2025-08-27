@@ -6,6 +6,7 @@
 import argparse
 import os
 import shutil
+import subprocess
 
 from utils import BaseDataSetup, download_txt
 
@@ -13,6 +14,7 @@ from audiblelight.utils import get_project_root
 
 try:
     import soundata
+    import soundata.download_utils
 except ImportError:
     raise ImportError(
         "'soundata' is required to download FSD50K; install it with 'poetry run pip install soundata'"
@@ -22,6 +24,31 @@ except ImportError:
 DEFAULT_PATH = str(get_project_root() / "resources/soundevents")
 DEFAULT_CLEANUP = False
 DCASE_FSD50K_SELECTED = "https://zenodo.org/record/6406873/files/FSD50K_selected.txt"
+
+
+def download_multipart_zip(zip_remotes, save_dir, force_overwrite, cleanup):
+    """
+    Download and unzip a multipart zip file.
+    """
+    for l_ in range(len(zip_remotes)):
+        soundata.download_utils.download_from_remote(
+            zip_remotes[l_], save_dir, force_overwrite
+        )
+    zip_path = os.path.join(
+        save_dir,
+        next((part.filename for part in zip_remotes if ".zip" in part.filename), None),
+    )
+    out_path = zip_path.replace(".zip", "_single.zip")
+    subprocess.run(["zip", "-s", "0", zip_path, "--out", out_path])
+    if cleanup:
+        for l_ in range(len(zip_remotes)):
+            zip_path = os.path.join(save_dir, zip_remotes[l_].filename)
+            os.remove(zip_path)
+    soundata.download_utils.unzip(out_path, cleanup=cleanup)
+
+
+# Patch soundata multipart zip function
+soundata.download_utils.download_multipart_zip = download_multipart_zip
 
 
 class FSD50KDataSetup(BaseDataSetup):
