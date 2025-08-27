@@ -4,8 +4,10 @@
 """Generate a simple scene with random moving, static, and ambient sound events and render to audio and JSON."""
 
 import argparse
+import json
 import os
 from pathlib import Path
+from time import time
 
 from loguru import logger
 from scipy import stats
@@ -190,6 +192,7 @@ def main(
     output_path = Path(output_folder)
     output_path.mkdir(parents=True, exist_ok=True)
 
+    start = time()
     scene = Scene(
         duration=duration,
         mesh_path=Path(mesh_path),
@@ -220,9 +223,18 @@ def main(
         audio_path=audio_path,
         metadata_path=metadata_path,
     )
+    end = time() - start
+
+    # Add the time taken into the metadata dictionary
+    js = scene.to_dict()
+    js["time"] = end
+
+    # Dump the metadata to a JSON
+    with open(metadata_path, "w") as f:
+        json.dump(js, f, indent=4, ensure_ascii=False)
 
     logger.info(
-        f"Finished rendering.\n"
+        f"Finished rendering in {end:.4f} seconds.\n"
         f"  - The saved audio is in {audio_path}\n"
         f"  - The metadata is in {metadata_path}\n"
     )
