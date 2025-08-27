@@ -32,7 +32,13 @@ DEFAULT_REMOTE = "fma_small"
 
 
 class FMADataSetup(BaseDataSetup):
-    def __init__(self, dataset_name: str = "fma_small", ntracks_genre: int = 20, split_prob: float = 0.6, **kwargs):
+    def __init__(
+        self,
+        dataset_name: str = "fma_small",
+        ntracks_genre: int = 20,
+        split_prob: float = 0.6,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.ntracks_genre = ntracks_genre
         self.split_prob = split_prob
@@ -137,7 +143,9 @@ def main(path: str, cleanup: bool, remote: list[str]):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Download and prepare Free Music Archive database.")
+    parser = argparse.ArgumentParser(
+        description="Download and prepare Free Music Archive database."
+    )
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,
@@ -147,15 +155,15 @@ if __name__ == "__main__":
         "--cleanup",
         action="store_true",
         help=f"Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}",
-        default=True
+        default=True,
     )
     parser.add_argument(
-        '--remote',
-        nargs='*',
+        "--remote",
+        nargs="*",
         default=[DEFAULT_REMOTE],
-        help=f'Remote files to download: defaults to {DEFAULT_REMOTE}. '
-             f'Provide multiple values to download multiple datasets, e.g. --remote aaa --remote bbb --remote ccc. '
-             f'Each value must be one of {", ".join(list(REMOTES.keys()))}'
+        help=f"Remote files to download: defaults to {DEFAULT_REMOTE}. "
+        f"Provide multiple values to download multiple datasets, e.g. --remote aaa --remote bbb --remote ccc. "
+        f'Each value must be one of {", ".join(list(REMOTES.keys()))}',
     )
     args = vars(parser.parse_args())
     main(**args)

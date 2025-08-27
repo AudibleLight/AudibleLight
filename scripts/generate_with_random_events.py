@@ -14,26 +14,30 @@ from audiblelight import utils
 from audiblelight.core import Scene
 
 # OUTPUT DIRECTORY
-OUTFOLDER = utils.get_project_root() / 'spatial_scenes'
+OUTFOLDER = utils.get_project_root() / "spatial_scenes"
 if not os.path.isdir(OUTFOLDER):
     os.makedirs(OUTFOLDER)
 
 # PATHS
 FG_FOLDER = utils.get_project_root() / "tests/test_resources/soundevents"
-MESH_PATH = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"  # Mesh can be a "building"
-AMBIENCE_FILE = utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav"
+MESH_PATH = (
+    utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
+)  # Mesh can be a "building"
+AMBIENCE_FILE = (
+    utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav"
+)
 
 # SCENE SETTINGS
 DURATION = 30.0  # seconds
-MIC_ARRAY_NAME = 'ambeovr'
+MIC_ARRAY_NAME = "ambeovr"
 N_STATIC_EVENTS = 4
 N_MOVING_EVENTS = 1
 MAX_OVERLAP = 3
 
 # SCENE-WIDE DISTRIBUTIONS
-MIN_VELOCITY, MAX_VELOCITY = 0.5, 1.5    # meters per second
+MIN_VELOCITY, MAX_VELOCITY = 0.5, 1.5  # meters per second
 MIN_SNR, MAX_SNR = 2, 8
-MIN_RESOLUTION, MAX_RESOLUTION = 0.25, 2.0    # Hz/IRs per second
+MIN_RESOLUTION, MAX_RESOLUTION = 0.25, 2.0  # Hz/IRs per second
 REF_DB = -50
 
 
@@ -44,38 +48,102 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate a simple audio scene with a set number of moving and static sound sources in particular positions."
     )
-    parser.add_argument('--duration', type=float, default=DURATION,
-                        help=f'Duration of the scene in seconds (default: {DURATION}).')
-    parser.add_argument('--n-static', type=int, default=N_STATIC_EVENTS,
-                        help=f'Number of static events to include (default: {N_STATIC_EVENTS}).')
-    parser.add_argument('--n-moving', type=int, default=N_MOVING_EVENTS,
-                        help=f'Number of moving events to include (default: {N_MOVING_EVENTS}).')
-    parser.add_argument('--ambience', type=str, default=AMBIENCE_FILE,
-                        help=f'Filepath of ambience audio file to use (default: {AMBIENCE_FILE}).')
-    parser.add_argument('--max-overlap', type=int, default=MAX_OVERLAP,
-                        help=f'Maximum number of overlapping events (default: {MAX_OVERLAP}).')
-    parser.add_argument('--micarray', type=str, default=MIC_ARRAY_NAME,
-                        help=f'Microphone array name or alias (default: {MIC_ARRAY_NAME}).')
-    parser.add_argument('--output-folder', type=str, default=str(OUTFOLDER),
-                        help=f'Output directory for audio and metadata (default: {str(OUTFOLDER)}).')
-    parser.add_argument('--fg-folder', type=str, default=str(FG_FOLDER),
-                        help=f'Foreground sound events folder (default: {str(FG_FOLDER)}).')
-    parser.add_argument('--mesh-path', type=str, default=str(MESH_PATH),
-                        help=f'Path to mesh file (e.g., a building) (default: {str(MESH_PATH)}).')
-    parser.add_argument('--ref-db', type=float, default=REF_DB,
-                        help=f'Reference decibel level (default: {REF_DB}).')
-    parser.add_argument('--min-snr', type=int, default=MIN_SNR,
-                        help=f'Minimum signal-to-noise ratio for placed sound events (default: {MIN_SNR}).')
-    parser.add_argument('--max-snr', type=int, default=MAX_SNR,
-                        help=f'Maximum signal-to-noise ratio for placed sound events (default: {MAX_SNR}).')
-    parser.add_argument('--min-velocity', type=float, default=MIN_VELOCITY,
-                        help=f'Minimum velocity (m/s) for placed sound events (default: {MIN_VELOCITY}).')
-    parser.add_argument('--max-velocity', type=float, default=MAX_VELOCITY,
-                        help=f'Maximum velocity (m/s) for placed sound events (default: {MAX_VELOCITY}).')
-    parser.add_argument('--min-resolution', type=float, default=MIN_RESOLUTION,
-                        help=f'Minimum resolution (Hz) for placed sound events (default: {MIN_RESOLUTION}).')
-    parser.add_argument('--max-resolution', type=float, default=MAX_RESOLUTION,
-                        help=f'Maximum resolution (Hz) for placed sound events (default: {MAX_RESOLUTION}).')
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=DURATION,
+        help=f"Duration of the scene in seconds (default: {DURATION}).",
+    )
+    parser.add_argument(
+        "--n-static",
+        type=int,
+        default=N_STATIC_EVENTS,
+        help=f"Number of static events to include (default: {N_STATIC_EVENTS}).",
+    )
+    parser.add_argument(
+        "--n-moving",
+        type=int,
+        default=N_MOVING_EVENTS,
+        help=f"Number of moving events to include (default: {N_MOVING_EVENTS}).",
+    )
+    parser.add_argument(
+        "--ambience",
+        type=str,
+        default=AMBIENCE_FILE,
+        help=f"Filepath of ambience audio file to use (default: {AMBIENCE_FILE}).",
+    )
+    parser.add_argument(
+        "--max-overlap",
+        type=int,
+        default=MAX_OVERLAP,
+        help=f"Maximum number of overlapping events (default: {MAX_OVERLAP}).",
+    )
+    parser.add_argument(
+        "--micarray",
+        type=str,
+        default=MIC_ARRAY_NAME,
+        help=f"Microphone array name or alias (default: {MIC_ARRAY_NAME}).",
+    )
+    parser.add_argument(
+        "--output-folder",
+        type=str,
+        default=str(OUTFOLDER),
+        help=f"Output directory for audio and metadata (default: {str(OUTFOLDER)}).",
+    )
+    parser.add_argument(
+        "--fg-folder",
+        type=str,
+        default=str(FG_FOLDER),
+        help=f"Foreground sound events folder (default: {str(FG_FOLDER)}).",
+    )
+    parser.add_argument(
+        "--mesh-path",
+        type=str,
+        default=str(MESH_PATH),
+        help=f"Path to mesh file (e.g., a building) (default: {str(MESH_PATH)}).",
+    )
+    parser.add_argument(
+        "--ref-db",
+        type=float,
+        default=REF_DB,
+        help=f"Reference decibel level (default: {REF_DB}).",
+    )
+    parser.add_argument(
+        "--min-snr",
+        type=int,
+        default=MIN_SNR,
+        help=f"Minimum signal-to-noise ratio for placed sound events (default: {MIN_SNR}).",
+    )
+    parser.add_argument(
+        "--max-snr",
+        type=int,
+        default=MAX_SNR,
+        help=f"Maximum signal-to-noise ratio for placed sound events (default: {MAX_SNR}).",
+    )
+    parser.add_argument(
+        "--min-velocity",
+        type=float,
+        default=MIN_VELOCITY,
+        help=f"Minimum velocity (m/s) for placed sound events (default: {MIN_VELOCITY}).",
+    )
+    parser.add_argument(
+        "--max-velocity",
+        type=float,
+        default=MAX_VELOCITY,
+        help=f"Maximum velocity (m/s) for placed sound events (default: {MAX_VELOCITY}).",
+    )
+    parser.add_argument(
+        "--min-resolution",
+        type=float,
+        default=MIN_RESOLUTION,
+        help=f"Minimum resolution (Hz) for placed sound events (default: {MIN_RESOLUTION}).",
+    )
+    parser.add_argument(
+        "--max-resolution",
+        type=float,
+        default=MAX_RESOLUTION,
+        help=f"Maximum resolution (Hz) for placed sound events (default: {MAX_RESOLUTION}).",
+    )
 
     return vars(parser.parse_args())
 
@@ -133,7 +201,7 @@ def main(
         snr_dist=stats.uniform(min_snr, max_snr),
         fg_path=Path(fg_folder),
         max_overlap=max_overlap,
-        ref_db=ref_db
+        ref_db=ref_db,
     )
 
     scene.add_microphone(microphone_type=micarray, alias=micarray)

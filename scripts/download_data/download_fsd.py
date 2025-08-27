@@ -14,7 +14,9 @@ from audiblelight.utils import get_project_root
 try:
     import soundata
 except ImportError:
-    raise ImportError("'soundata' is required to download FSD50K; install it with 'poetry run pip install soundata'")
+    raise ImportError(
+        "'soundata' is required to download FSD50K; install it with 'poetry run pip install soundata'"
+    )
 
 
 DEFAULT_PATH = str(get_project_root() / "resources/soundevents")
@@ -78,7 +80,10 @@ class FSD50KDataSetup(BaseDataSetup):
             shutil.copy(src_file, os.path.join(dest_path, new_dir, filename))
 
 
-def main(path: str, cleanup: bool, ):
+def main(
+    path: str,
+    cleanup: bool,
+):
     print("---- FSD50K download script ----")
     print(f"Datasets will be downloaded to: {path}")
 
@@ -94,7 +99,9 @@ def main(path: str, cleanup: bool, ):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Download and prepare FSD50K database.")
+    parser = argparse.ArgumentParser(
+        description="Download and prepare FSD50K database."
+    )
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,
@@ -104,7 +111,7 @@ if __name__ == "__main__":
         "--cleanup",
         action="store_true",
         help=f"Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}",
-        default=True
+        default=True,
     )
     args = vars(parser.parse_args())
     main(**args)
