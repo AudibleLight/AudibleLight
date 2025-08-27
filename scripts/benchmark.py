@@ -27,9 +27,9 @@ from tqdm import tqdm
 from audiblelight import utils
 
 AUDIO_DIR = utils.get_project_root() / "resources/soundevents"
-AUDIOS = AUDIO_DIR.glob("*.mp3")
+AUDIOS = list(AUDIO_DIR.glob("*.mp3"))
 MESH_DIR = utils.get_project_root() / "resources/meshes"
-MESHES = MESH_DIR.glob("*.glb")
+MESHES = list(MESH_DIR.glob("*.glb"))
 
 OUTPUT_DIR = utils.get_project_root() / "spatial_scenes"
 
