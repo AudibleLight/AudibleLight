@@ -73,7 +73,16 @@ class BaseDataSetup:
         print("Deleting source files that are not needed to use AudibleLight")
 
         # Remove files with these extensions
-        removers = (".zip", ".csv", ".txt", ".navmesh", "checksums", ".pickle")
+        multiparts = (f".z{str(i).zfill(2)}" for i in range(99))
+        removers = (
+            ".zip",
+            ".csv",
+            ".txt",
+            ".navmesh",
+            "checksums",
+            ".pickle",
+            *multiparts,
+        )
         for root, dirs, files in os.walk(self.dataset_home):
             for file in files:
                 if file.endswith(removers):

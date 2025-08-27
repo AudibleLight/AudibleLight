@@ -121,6 +121,15 @@ def main(
     fsd50k.to_dcase_format()
     if cleanup:
         fsd50k.cleanup()
+        dirs = [
+            "FSD50K.dev_audio",
+            "FSD50K.eval_audio",
+            "FSD50K.doc",
+            "FSD50K.metadata",
+            "FSD50K.ground_truth",
+        ]
+        for d in dirs:
+            shutil.rmtree(os.path.join(path, d))
 
 
 if __name__ == "__main__":
