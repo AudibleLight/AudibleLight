@@ -3,6 +3,9 @@
 
 """Utility variables, functions for downloading existing datasets"""
 
+import fnmatch
+import os
+import shutil
 import tarfile
 import zipfile
 
@@ -47,3 +50,31 @@ def download_file(url: str, destination: str, block_size: int = 1024) -> None:
 
     except requests.RequestException as e:
         raise RuntimeError(f"Failed to download file: {e}")
+
+
+class BaseDataSetup:
+    """
+    Base class for dataset setup
+    """
+
+    def __init__(self, dataset_home: str = None, metadata_path: str = None):
+        self.dataset_home = dataset_home
+        self.metadata_path = metadata_path
+
+    def cleanup(self, target_subdir: str) -> None:
+        print("Deleting source files that are not needed to use AudibleLight")
+
+        for subdir in os.listdir(self.dataset_home):
+            # Construct the full path to the subdirectory
+            full_path = os.path.join(self.dataset_home, subdir)
+
+            # Check if it is a directory and not the target directory
+            if os.path.isdir(full_path) and subdir != target_subdir:
+                # Remove the directory
+                shutil.rmtree(full_path)
+
+        # Delete non-matching files
+        for file in os.listdir(self.dataset_home):
+            full_path = os.path.join(self.dataset_home, file)
+            if os.path.isfile(full_path) and not fnmatch.fnmatch(file, target_subdir):
+                os.remove(full_path)
