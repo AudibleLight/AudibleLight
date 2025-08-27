@@ -52,6 +52,15 @@ def download_file(url: str, destination: str, block_size: int = 1024) -> None:
         raise RuntimeError(f"Failed to download file: {e}")
 
 
+def download_txt(url: str) -> list[str]:
+    """
+    Download file from a given URL to a list of strings
+    """
+    response = requests.get(url)
+    response.raise_for_status()  # Check if the download was successful
+    return response.text.splitlines()
+
+
 class BaseDataSetup:
     """
     Base class for dataset setup
