@@ -3,7 +3,6 @@
 
 """Utility variables, functions for downloading existing datasets"""
 
-import fnmatch
 import os
 import shutil
 import tarfile
@@ -70,20 +69,20 @@ class BaseDataSetup:
         self.dataset_home = dataset_home
         self.metadata_path = metadata_path
 
-    def cleanup(self, target_subdir: str) -> None:
+    def cleanup(self) -> None:
         print("Deleting source files that are not needed to use AudibleLight")
 
-        for subdir in os.listdir(self.dataset_home):
-            # Construct the full path to the subdirectory
-            full_path = os.path.join(self.dataset_home, subdir)
+        # Remove files with these extensions
+        removers = (".zip", ".csv", ".txt", ".navmesh", "checksums", ".pickle")
+        for root, dirs, files in os.walk(self.dataset_home):
+            for file in files:
+                if file.endswith(removers):
+                    full_path = os.path.join(root, file)
+                    os.remove(full_path)
 
-            # Check if it is a directory and not the target directory
-            if os.path.isdir(full_path) and subdir != target_subdir:
-                # Remove the directory
-                shutil.rmtree(full_path)
-
-        # Delete non-matching files
-        for file in os.listdir(self.dataset_home):
-            full_path = os.path.join(self.dataset_home, file)
-            if os.path.isfile(full_path) and not fnmatch.fnmatch(file, target_subdir):
-                os.remove(full_path)
+        # Remove empty directories
+        for root, dirs, files in os.walk(self.dataset_home, topdown=False):
+            for dir_name in dirs:
+                full_path = os.path.join(root, dir_name)
+                if not os.listdir(full_path):
+                    shutil.rmtree(full_path)

@@ -93,7 +93,7 @@ def main(
     fsd50k.prepare_dataset()
     fsd50k.to_dcase_format()
     if cleanup:
-        fsd50k.cleanup(path)
+        fsd50k.cleanup()
 
 
 if __name__ == "__main__":
