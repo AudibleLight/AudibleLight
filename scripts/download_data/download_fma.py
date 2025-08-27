@@ -141,9 +141,14 @@ def main(path: str, cleanup: bool, remote: list[str], ntracks: int):
         fma.prepare_dataset()
         if cleanup:
             fma.cleanup()
+
             # Remove additional folders we've created
-            shutil.rmtree(os.path.join(path, rem))
-            shutil.rmtree(os.path.join(path, "fma_metadata"))
+            #  Try block is needed as we might have removed these inside `cleanup` method
+            for f in [rem, "fma_metadata"]:
+                try:
+                    shutil.rmtree(os.path.join(path, f))
+                except FileNotFoundError:
+                    continue
 
 
 if __name__ == "__main__":

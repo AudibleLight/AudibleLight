@@ -121,6 +121,9 @@ def main(
     fsd50k.to_dcase_format()
     if cleanup:
         fsd50k.cleanup()
+
+        # Remove additional folders we've created
+        #  Try block is needed as we might have removed these inside `cleanup` method
         dirs = [
             "FSD50K.dev_audio",
             "FSD50K.eval_audio",
@@ -129,7 +132,10 @@ def main(
             "FSD50K.ground_truth",
         ]
         for d in dirs:
-            shutil.rmtree(os.path.join(path, d))
+            try:
+                shutil.rmtree(os.path.join(path, d))
+            except FileNotFoundError:
+                continue
 
 
 if __name__ == "__main__":
