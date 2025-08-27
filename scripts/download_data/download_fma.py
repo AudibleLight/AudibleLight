@@ -27,7 +27,7 @@ SKIP_GENRES = ["Electronic", "Experimental", "Instrumental"]
 DCASE_FSD50K_SELECTED = "https://zenodo.org/record/6406873/files/FSD50K_selected.txt"
 
 DEFAULT_PATH = str(get_project_root() / "resources/soundevents")
-DEFAULT_CLEANUP = True
+DEFAULT_CLEANUP = False
 DEFAULT_REMOTE = "fma_small"
 
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         "--cleanup",
         action="store_true",
         help=f"Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}",
-        default=True,
+        default=DEFAULT_CLEANUP,
     )
     parser.add_argument(
         "--remote",

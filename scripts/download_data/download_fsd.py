@@ -20,9 +20,7 @@ except ImportError:
 
 
 DEFAULT_PATH = str(get_project_root() / "resources/soundevents")
-DEFAULT_CLEANUP = True
-DEFAULT_REMOTE = "fma_small"
-
+DEFAULT_CLEANUP = False
 DCASE_FSD50K_SELECTED = "https://zenodo.org/record/6406873/files/FSD50K_selected.txt"
 
 
@@ -111,7 +109,7 @@ if __name__ == "__main__":
         "--cleanup",
         action="store_true",
         help=f"Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}",
-        default=True,
+        default=DEFAULT_CLEANUP,
     )
     args = vars(parser.parse_args())
     main(**args)

@@ -26,7 +26,7 @@ DEFAULT_PATH = str(utils.get_project_root() / "resources/meshes")
 if not os.path.exists(DEFAULT_PATH):
     os.makedirs(DEFAULT_PATH)
 
-DEFAULT_CLEANUP = True
+DEFAULT_CLEANUP = False
 DEFAULT_REMOTE = "habitat_1.5gb"
 
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
         "--cleanup",
         action="store_true",
         help=f"Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}",
-        default=True,
+        default=DEFAULT_CLEANUP,
     )
     parser.add_argument(
         "--remote",
