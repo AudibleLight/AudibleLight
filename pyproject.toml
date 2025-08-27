@@ -54,6 +54,9 @@ black = "24.4.2"
 isort = "5.13.2"
 flake8 = "7.0.0"
 
+[tool.poetry.group.datasets.dependencies]
+soundata = "*"
+
 [tool.poetry.group.docs.dependencies]
 notebook = "^7.4.5"
 sphinx = "*"
