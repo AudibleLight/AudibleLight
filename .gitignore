@@ -36,6 +36,7 @@ coverage.xml
 *.h5
 *.reapeaks
 *.json
+*.csv
 
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
