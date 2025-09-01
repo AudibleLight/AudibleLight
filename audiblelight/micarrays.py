@@ -240,7 +240,7 @@ class MicArray:
                 expected = getattr(self, attr_name)
                 # Need to use different equality comparisons for arrays vs non-arrays
                 eq = (
-                    np.isclose(expected, value, atol=1e-4).all()
+                    np.isclose(expected, value, atol=utils.SMALL).all()
                     if isinstance(value, np.ndarray)
                     else expected == value
                 )

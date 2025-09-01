@@ -371,12 +371,12 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
         assert isinstance(src, Emitter)
         # coordinates_relative dict should be as expected
         assert np.allclose(
-            src.coordinates_relative_cartesian["tester"], position, atol=1e-4
+            src.coordinates_relative_cartesian["tester"], position, atol=utils.SMALL
         )
         assert np.allclose(
             src.coordinates_relative_polar["tester"],
             utils.cartesian_to_polar(position),
-            atol=1e-4,
+            atol=utils.SMALL,
         )
 
 
@@ -452,12 +452,12 @@ def test_add_emitters_relative_to_mic(
                 assert np.allclose(
                     emitter.coordinates_relative_cartesian["testmic"],
                     position,
-                    atol=1e-4,
+                    atol=utils.SMALL,
                 )
                 assert np.allclose(
                     emitter.coordinates_relative_polar["testmic"],
                     utils.cartesian_to_polar(position),
-                    atol=1e-4,
+                    atol=utils.SMALL,
                 )
                 assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
 
@@ -508,7 +508,9 @@ def test_add_emitters_at_specific_position(
     for position, is_added, alias in zip(test_position, expected, emit_alias):
         if is_added:
             for emitter in oyens_space[alias]:
-                assert np.allclose(emitter.coordinates_absolute, position, atol=1e-4)
+                assert np.allclose(
+                    emitter.coordinates_absolute, position, atol=utils.SMALL
+                )
 
 
 def test_add_emitters_invalid(oyens_space: WorldState):
@@ -702,7 +704,7 @@ def test_add_microphone_and_emitter(
             placed_at = placed_at[0]
 
         # Should be equivalent with what we passed in
-        assert np.allclose(placed_at, position, atol=1e-4)
+        assert np.allclose(placed_at, position, atol=utils.SMALL)
         # Should be a direct path between the emitter and mic if required
         if ensure_direct_path:
             mic = oyens_space.get_microphone("main_mic")
@@ -908,7 +910,7 @@ def test_define_trajectory(
 
         # If we've explicitly provided a starting and ending position, these should be maintained in the trajectory
         if starting_position is not None:
-            assert np.allclose(trajectory[0, :], starting_position, atol=1e-4)
+            assert np.allclose(trajectory[0, :], starting_position, atol=utils.SMALL)
 
         # Check that speed constraints are never violated between points
         deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
@@ -917,7 +919,7 @@ def test_define_trajectory(
 
         # If the shape is linear, check that the distance between all points is roughly equivalent
         if shape == "linear":
-            assert np.allclose(deltas, deltas[0], atol=1e-4)
+            assert np.allclose(deltas, deltas[0], atol=utils.SMALL)
 
         # Check distance between starting and ending point
         total_distance = np.linalg.norm(trajectory[-1, :] - trajectory[0, :])
