@@ -40,7 +40,7 @@ MAX_DEFAULT_DURATION = 10
 
 def infer_dcase_label_idx_from_filepath(
     filepath: Union[Path, str]
-) -> Union[tuple[str, int], tuple[None, None]]:
+) -> Union[tuple[int, str], tuple[None, None]]:
     """
     Given a filepath, infer the DCASE class label and index from this.
 
@@ -73,12 +73,12 @@ def infer_dcase_label_idx_from_filepath(
             else:
                 raise ValueError(
                     f"Found multiple possible DCASE classes for filepath {str(filepath)}. "
-                    f"However, this filepath also matched both classes {cls} and {part}. "
-                    f"Please adjust your filepaths as necessary."
+                    f"This filepath matches both classes {cls} and {part}. "
+                    f"Please adjust your filepaths as necessary so that they only contain one DCASE class."
                 )
 
     # This will just return None, None if no matches
-    return cls, idx
+    return idx, cls
 
 
 def _infer_missing_dcase_values(

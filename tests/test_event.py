@@ -368,6 +368,6 @@ def test_infer_dcase_from_filepath(
             _, __ = infer_dcase_label_idx_from_filepath(filepath)
 
     else:
-        actual_cls, actual_idx = infer_dcase_label_idx_from_filepath(filepath)
+        actual_idx, actual_cls = infer_dcase_label_idx_from_filepath(filepath)
         assert actual_cls == expected_class
         assert actual_idx == expected_idx
