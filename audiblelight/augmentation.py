@@ -1513,6 +1513,10 @@ class TimeWarp(EventAugmentation):
                 stats.uniform(self.MIN_FPS, self.MAX_FPS - self.MIN_FPS),
             )
         )
+        # Need this check or we'll raise zerodivisionerror later
+        if self.fps == 0.0:
+            raise ValueError(f"Expected fps to be greater than 0 but got {fps}")
+
         self.prob = utils.sanitise_positive_number(
             self.sample_value(
                 prob,

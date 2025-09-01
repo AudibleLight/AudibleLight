@@ -411,6 +411,15 @@ def test_timewarp_effects(audio_fpath, augmentation_class, params):
         pytest.fail(e)
 
 
+@pytest.mark.parametrize(
+    "augmentation_class",
+    [TimeWarpSilence, TimeWarpReverse, TimeWarpRemove, TimeWarpDuplicate, TimeWarp],
+)
+def test_timewarp_bad(augmentation_class):
+    with pytest.raises(ValueError, match="Expected fps to be greater than 0"):
+        _ = augmentation_class(fps=0, sample_rate=utils.SAMPLE_RATE)
+
+
 def test_magic_methods():
     cls = Augmentation(sample_rate=utils.SAMPLE_RATE)
 

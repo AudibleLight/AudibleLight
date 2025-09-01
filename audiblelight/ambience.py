@@ -303,7 +303,7 @@ def powerlaw_psd_gaussian(
     # Validate / normalise fmin
     fmin = utils.sanitise_positive_number(fmin)
     if 0 <= fmin <= 0.5:
-        fmin = max(fmin, 1.0 / samples)  # Low frequency cutoff
+        fmin = max(fmin, 1.0 / (samples + utils.tiny(samples)))  # Low frequency cutoff
     else:
         raise ValueError(
             f"Argument `fmin` must be chosen between 0 and 0.5 but got {fmin:.2f}."
@@ -319,7 +319,7 @@ def powerlaw_psd_gaussian(
     # Calculate theoretical output standard deviation from scaling
     w = s_scale[1:].copy()
     w[-1] *= (1 + (samples % 2)) / 2.0  # correct f = +-0.5
-    sigma = 2 * np.sqrt(np.sum(w**2)) / samples
+    sigma = 2 * np.sqrt(np.sum(w**2)) / (samples + utils.tiny(samples))
 
     # Adjust size to generate one Fourier component per frequency
     size[-1] = len(f)
