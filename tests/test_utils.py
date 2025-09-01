@@ -55,10 +55,10 @@ from tests import utils_tests
 )
 def test_polar_to_cartesian(polar, expected):
     result = utils.polar_to_cartesian(polar)
-    assert np.allclose(result, expected, atol=1e-4)
+    assert np.allclose(result, expected, atol=utils.SMALL)
     # Round trip check
     inverse = utils.cartesian_to_polar(result)
-    assert np.allclose(inverse, polar, atol=1e-4)
+    assert np.allclose(inverse, polar, atol=utils.SMALL)
 
 
 @pytest.mark.parametrize(
@@ -95,10 +95,10 @@ def test_polar_to_cartesian(polar, expected):
 )
 def test_cartesian_to_polar(cartesian, expected):
     result = utils.cartesian_to_polar(cartesian)
-    np.testing.assert_allclose(result, expected, atol=1e-4)
+    np.testing.assert_allclose(result, expected, atol=utils.SMALL)
     # Round trip check
     inverse = utils.polar_to_cartesian(result)
-    assert np.allclose(inverse, cartesian, atol=1e-4)
+    assert np.allclose(inverse, cartesian, atol=utils.SMALL)
 
 
 @pytest.mark.parametrize(
@@ -121,7 +121,7 @@ def test_cartesian_to_polar(cartesian, expected):
 )
 def test_polar_relative_to(polar, reference, expected):
     result = reference + utils.polar_to_cartesian(polar)
-    assert np.allclose(result, expected, atol=1e-4)
+    assert np.allclose(result, expected, atol=utils.SMALL)
 
 
 @pytest.mark.parametrize(
@@ -506,7 +506,7 @@ def test_generate_circular_trajectory(
     radius = np.linalg.norm(xyz_end - xyz_start) / 2
     distances = np.linalg.norm(traj - midpoint, axis=1)
     assert np.allclose(
-        distances, radius, atol=1e-4
+        distances, radius, atol=utils.SMALL
     ), "Points not equidistant from midpoint"
 
 
@@ -534,7 +534,7 @@ def test_generate_random_trajectory(
     # Check each step is within max_step length
     steps = np.diff(traj, axis=0)
     step_lengths = np.linalg.norm(steps, axis=1)
-    assert np.all(step_lengths <= max_step + 1e-4), "Step exceeds max_step"
+    assert np.all(step_lengths <= max_step + utils.SMALL), "Step exceeds max_step"
 
 
 @pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])
@@ -545,3 +545,12 @@ def test_center_coords(x: int, y: int, z: int):
     # Everything should be centered around the mean
     #  As we only passed in one row, this will mean that every coordinate becomes a 0
     assert np.allclose(np.mean(coords_dict_centered, axis=0), [0, 0, 0])
+
+
+@pytest.mark.parametrize("x", [0.0, np.random.rand(1000), 0, np.array([1, 2, 3, 4, 5])])
+def test_tiny(x):
+    tiny_out = utils.tiny(x)
+    assert np.isfinite(tiny_out)
+    assert not np.isnan(tiny_out)
+    assert not np.isinf(tiny_out)
+    assert np.isclose(tiny_out, 0, atol=utils.SMALL)

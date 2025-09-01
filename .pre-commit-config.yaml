@@ -6,7 +6,7 @@ repos:
         args: [--target-version, py310]
         language_version: python3
         types: [python]
-        files: ^(tests|audiblelight)/
+        files: ^(tests|audiblelight|scripts)/
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:

@@ -8,6 +8,7 @@ import json
 import numpy as np
 import pytest
 
+from audiblelight import utils
 from audiblelight.micarrays import (
     MICARRAY_LIST,
     AmbeoVR,
@@ -142,7 +143,7 @@ def test_micarray_from_dict(input_dict):
         if isinstance(input_dict[k], (np.ndarray, list)) and not isinstance(
             input_dict[k][0], str
         ):
-            assert np.isclose(input_dict[k], out_dict[k], atol=1e-4).all()
+            assert np.isclose(input_dict[k], out_dict[k], atol=utils.SMALL).all()
         else:
             assert input_dict[k] == out_dict[k]
 

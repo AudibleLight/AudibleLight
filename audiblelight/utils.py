@@ -17,32 +17,35 @@ import numpy as np
 import torch
 from loguru import logger
 
-MESH_UNITS = "meters"  # will convert to this if
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-FOREGROUND_DIR = "FSD50K_FMA_SMALL"
-RIR_DIR = None
-FORMAT = "foa"  # First-order ambisonics by default
-N_EVENTS_MEAN = 15  # Mean number of foreground events in a soundscape
-N_EVENTS_STD = 6  # Standard deviation of the number of foreground events
-DURATION = 60.0  # Duration in seconds of each soundscape
-SR = 24000  # SpatialScaper default sampling rate for the audio files
-OUTPUT_DIR = "output"  # Directory to store the generated soundscapes
-REF_DB = (
-    -65
-)  # Reference decibel level for the background ambient noise. Try making this random too!
-NSCAPES = 20
+# Units for mesh
+MESH_UNITS = "meters"
+# Device for any torch code: default to GPU, then MPS (on macOS), then CPU
+DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.mps.is_available() else "cpu"
+)
+# Reference decibel level for the background ambient noise.
+REF_DB = -65
+# Seed used for randomisation
 SEED = 42
-SAMPLE_RATE = 44100  # Default to 44.1kHz sample rate
-MAX_PLACE_ATTEMPTS = 1000  # Max number of times we'll attempt to place a source or microphone before giving up
+# Default to 44.1kHz sample rate
+SAMPLE_RATE = 44100
+# Max number of times we'll attempt to place a source or microphone before giving up
+MAX_PLACE_ATTEMPTS = 1000
+# Useful as a constant for tolerance checking, when `utils.tiny(...)` is going to be too small
+SMALL = 1e-4
 
+# Numeric dtypes: useful for isinstance(x, ...) checking
 NUMERIC_DTYPES = (
     int,
     float,
     complex,
     np.integer,
     np.floating,
-)  # used for isinstance(x, ...) checking
-Numeric = Union[int, float, complex, np.integer, np.floating]  # used as a typehint
+)
+# Used as a typehint
+Numeric = Union[int, float, complex, np.integer, np.floating]
 
 AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
 
@@ -648,3 +651,21 @@ def pad_or_truncate_audio(audio: np.ndarray, desired_samples: Numeric) -> np.nda
     # Audio is just right
     else:
         return audio
+
+
+def tiny(x: Union[float, np.ndarray]) -> Numeric:
+    """
+    Compute the tiny-value corresponding to an input's data type, preventing underflow and divide-by-zero errors
+    """
+    # Make sure we have an array view
+    x = np.asarray(x)
+
+    # Only floating types generate a tiny
+    if np.issubdtype(x.dtype, np.floating) or np.issubdtype(
+        x.dtype, np.complexfloating
+    ):
+        dtype = x.dtype
+    else:
+        dtype = np.dtype(np.float32)
+
+    return np.finfo(dtype).tiny

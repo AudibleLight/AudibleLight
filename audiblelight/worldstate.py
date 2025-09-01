@@ -1418,7 +1418,7 @@ class WorldState:
 
         # Check distance between every step
         step_deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
-        if np.any(step_deltas > step_distance + 1e-4):
+        if np.any(step_deltas > step_distance + utils.SMALL):
             return False
 
         # Validate all positions in the trajectory WRT the rest of the mesh

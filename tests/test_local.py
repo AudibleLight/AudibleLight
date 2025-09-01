@@ -127,7 +127,7 @@ def test_save_wavs(oyens_space: WorldState):
             )
             # Compare to the original IR
             x = oyens_space.irs["mic000"][caps_idx][0]
-            assert np.allclose(y, x, atol=1e-4)
+            assert np.allclose(y, x, atol=utils.SMALL)
     # Temporary directory is implicitly cleaned up
 
 

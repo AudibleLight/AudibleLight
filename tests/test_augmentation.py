@@ -313,13 +313,13 @@ def test_fade(fade_in_shape, fade_out_shape, audio_fpath):
 
     # Consider final sample and average volume of final N seconds
     if fader.fade_out_shape != "none":
-        assert np.isclose(out[-1], 0.0, atol=1e-4)
+        assert np.isclose(out[-1], 0.0, atol=utils.SMALL)
         fade_time = round(utils.SAMPLE_RATE * fader.fade_out_len)
         assert np.mean(np.abs(out[-fade_time:])) <= np.mean(np.abs(loaded[-fade_time:]))
 
     # Consider first sample and average volume of first N seconds
     if fader.fade_in_shape != "none":
-        assert np.isclose(out[0], 0.0, atol=1e-4)
+        assert np.isclose(out[0], 0.0, atol=utils.SMALL)
         fade_time = round(utils.SAMPLE_RATE * fader.fade_in_len)
         assert np.mean(np.abs(out[:fade_time])) <= np.mean(np.abs(loaded[:fade_time]))
 
@@ -409,6 +409,15 @@ def test_timewarp_effects(audio_fpath, augmentation_class, params):
         utils.validate_shape(loaded.shape, out.shape)
     except ValueError as e:
         pytest.fail(e)
+
+
+@pytest.mark.parametrize(
+    "augmentation_class",
+    [TimeWarpSilence, TimeWarpReverse, TimeWarpRemove, TimeWarpDuplicate, TimeWarp],
+)
+def test_timewarp_bad(augmentation_class):
+    with pytest.raises(ValueError, match="Expected fps to be greater than 0"):
+        _ = augmentation_class(fps=0, sample_rate=utils.SAMPLE_RATE)
 
 
 def test_magic_methods():

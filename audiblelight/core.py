@@ -999,6 +999,7 @@ class Scene:
                 intersections += 1
         return intersections >= self.max_overlap
 
+    # noinspection PyProtectedMember
     def generate(
         self,
         audio_path: Optional[Union[str, Path]] = None,
@@ -1026,6 +1027,7 @@ class Scene:
         #  This renders the IRs inside the worldstate
         #  It then populates the `.spatial_audio` attribute inside each Event
         #  And populates the `audio` attribute inside this instance
+        self.state._update()
         validate_scene(self)
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
