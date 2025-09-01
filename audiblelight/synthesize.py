@@ -35,7 +35,7 @@ def db_to_multiplier(db: utils.Numeric, x: utils.Numeric) -> float:
     Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
     reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
 
-    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/utils.py#L287)
+    Adapted from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/utils.py#L287)
 
     Arguments:
         db (float): The target decibel change to be applied.
@@ -44,7 +44,9 @@ def db_to_multiplier(db: utils.Numeric, x: utils.Numeric) -> float:
     Returns:
         float: The multiplier factor.
     """
-    return 10 ** (db / 20) / x
+    # Need to add a small value here to prevent divide by zero errors
+    #  These can cause the audio buffer to become filled with NaNs, which leads to errors later on
+    return 10 ** (db / 20) / (x + utils.tiny(x))
 
 
 def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:

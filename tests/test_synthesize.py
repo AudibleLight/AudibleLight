@@ -6,6 +6,7 @@
 
 from time import time
 
+import librosa.util
 import numpy as np
 import pytest
 
@@ -246,3 +247,36 @@ def test_validate_scene(oyens_scene_factory):
     scn.state.microphones["asdf"] = TempMic()
     with pytest.raises(ValueError, match="Mismatching number of microphones"):
         syn.validate_scene(scn)
+
+
+@pytest.mark.parametrize(
+    "db, x, expected_multiplier",
+    [
+        (0, 1.0, 1.0),
+        (6.0206, 1.0, 2.0),
+        (-6.0206, 1.0, 0.5),
+        (20.0, 0.1, 100.0),
+        (-20.0, 10.0, 0.01),
+    ],
+)
+def test_db_to_multiplier(db, x, expected_multiplier):
+    result = syn.db_to_multiplier(db, x)
+
+    # we expect a small but finite multiplier, not exactly 0
+    assert np.isfinite(result), "Result should be finite even when x is 0"
+    assert result > 0, "Multiplier should be positive"
+    assert not np.isnan(result), "Result should not be NaN"
+    assert not np.isinf(result), "Result should not be Inf"
+
+    # should be near expected value
+    assert np.isclose(result, expected_multiplier, atol=1e-4)
+
+    # now multiply by the scalar
+    audio = np.random.rand(1000)
+
+    # should be valid after scaling
+    scaled = audio * result
+    try:
+        librosa.util.valid_audio(scaled)
+    except librosa.util.exceptions.ParameterError as e:
+        pytest.fail(e)
