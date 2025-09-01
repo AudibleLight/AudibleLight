@@ -39,8 +39,11 @@ MAX_OVERLAP = 3
 # SCENE-WIDE DISTRIBUTIONS
 MIN_VELOCITY, MAX_VELOCITY = 0.5, 1.5  # meters per second
 MIN_SNR, MAX_SNR = 2, 8
-MIN_RESOLUTION, MAX_RESOLUTION = 0.25, 2.0  # Hz/IRs per second
+MIN_RESOLUTION, MAX_RESOLUTION = 0.25, 1.5  # Hz/IRs per second
 REF_DB = -50
+
+# EVENT VARIABLES
+EVENT_DURATION = 5.0  # events capped to a maximum duration of 5 seconds
 
 
 def parse_arguments():
@@ -205,15 +208,16 @@ def main(
         fg_path=Path(fg_folder),
         max_overlap=max_overlap,
         ref_db=ref_db,
+        state_kwargs=dict(add_to_context=False),
     )
 
     scene.add_microphone(microphone_type=micarray, alias=micarray)
 
     for _ in range(n_static):
-        scene.add_event(event_type="static")
+        scene.add_event(event_type="static", duration=EVENT_DURATION)
 
     for _ in range(n_moving):
-        scene.add_event(event_type="moving")
+        scene.add_event(event_type="moving", duration=EVENT_DURATION)
 
     scene.add_ambience(filepath=ambience)
 

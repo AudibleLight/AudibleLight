@@ -27,17 +27,17 @@ from tqdm import tqdm
 from audiblelight import utils
 
 AUDIO_DIR = utils.get_project_root() / "resources/soundevents"
-AUDIOS = AUDIO_DIR.glob("*.mp3")
+AUDIOS = list(AUDIO_DIR.rglob("*.mp3"))
 MESH_DIR = utils.get_project_root() / "resources/meshes"
-MESHES = MESH_DIR.glob("*.glb")
+MESHES = list(MESH_DIR.rglob("*.glb"))
 
 OUTPUT_DIR = utils.get_project_root() / "spatial_scenes"
 
 N_SCENES = 1000
 
 # Distributions to sample
-STATIC_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(1, 4)))
-MOVING_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(1, 4)))
+STATIC_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(1, 3)))
+MOVING_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(0, 3)))
 MAX_OVERLAP = utils.sanitise_distribution(lambda: random.choice(range(2, 5)))
 DURATION = 50.0
 
@@ -59,6 +59,10 @@ def main(n_scenes: int, outdir: str):
         # Output folder is just the index to prevent overwriting when we use the same mesh multiple times
         #  A folder with this name will be created inside `make_a_scene`, no need to do this now
         output_dir = outdir / f"scene_{str(scene_idx).zfill(3)}"
+
+        # Skip over existing files
+        if os.path.isdir(output_dir):
+            continue
 
         # Make the scene with the mesh
         make_a_scene(
