@@ -605,8 +605,10 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
 
     for event in scene.get_events():
         # Determine frame indices for event start and end
-        start_idx = np.where(frames == round(event.scene_start, 1))[0][0]
-        end_idx = np.where(frames == round(event.scene_end, 1))[0][0]
+        start_idx = np.where(frames == round(max(event.scene_start, 0.0), 1))[0][0]
+        end_idx = np.where(frames == round(min(event.scene_end, scene.duration), 1))[0][
+            0
+        ]
 
         event_range = np.arange(start_idx, end_idx + 1)
 
