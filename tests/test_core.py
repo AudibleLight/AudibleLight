@@ -791,7 +791,7 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
                 # Call the function N times and check that the actual value is within the range
                 sampled_values = [v() for _ in range(1000)]
                 assert (
-                    (min(sampled_values) - 1e-4)
+                    (min(sampled_values) - utils.SMALL)
                     < getattr(actual_aug, k)
-                    < (max(sampled_values) + 1e-4)
+                    < (max(sampled_values) + utils.SMALL)
                 )
