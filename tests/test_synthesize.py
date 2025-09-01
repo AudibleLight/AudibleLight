@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 import audiblelight.synthesize as syn
+from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.worldstate import Emitter
 from tests import utils_tests
@@ -280,3 +281,44 @@ def test_db_to_multiplier(db, x, expected_multiplier):
         librosa.util.valid_audio(scaled)
     except librosa.util.exceptions.ParameterError as e:
         pytest.fail(e)
+
+
+@pytest.mark.parametrize("duration", [20, 30])
+def test_generate_dcase_2024_metadata(duration: int):
+    # Create a scene, add two music objects (one static, one moving)
+    scene = Scene(duration=duration, mesh_path=utils_tests.OYENS_PATH)
+    scene.add_microphone(microphone_type="ambeovr")
+    scene.add_event(
+        event_type="static",
+        filepath=utils_tests.TEST_MUSICS[0],
+        duration=1.0,
+        scene_start=1.0,
+    )
+    scene.add_event(
+        event_type="moving",
+        filepath=utils_tests.TEST_MUSICS[1],
+        duration=5.0,
+        spatial_velocity=1.0,
+        spatial_resolution=2.5,
+        scene_start=5.0,
+    )
+    # Generate the dcase metadata
+    dcase_out = syn.generate_dcase2024_metadata(scene)
+    # Scene only has one listener, so we should only have one dataframe
+    assert len(dcase_out) == 1
+    dcase = dcase_out["mic000"]
+    # Should have two different unique class IDs (we have two music objects)
+    #  But we should only have one active class index (only one class, == music)
+    assert dcase["source_number_index"].nunique() == 2
+    assert dcase["active_class_index"].nunique() == 1
+    # Number of frames should be smaller than total duration of scene / dcase_resolution
+    assert dcase.index.max() <= (scene.duration / 0.1)
+    # Azimuth/elevation should be in expected format
+    assert dcase["azimuth"].min() >= -180
+    assert dcase["azimuth"].max() <= 180
+    assert dcase["elevation"].min() >= -90
+    assert dcase["elevation"].max() <= 90
+    # Altering one of the class indices: should lead to an error as we expect this to be an int
+    scene.events["event000"].class_id = "asdf"
+    with pytest.raises(ValueError):
+        _ = syn.generate_dcase2024_metadata(scene)

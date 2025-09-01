@@ -3,11 +3,13 @@
 
 """Modules and functions for "synthesizing" outputs (including audio, video, image, metadata)"""
 
+from collections import Counter
 from time import time
 from typing import Optional
 
 import librosa
 import numpy as np
+import pandas as pd
 from loguru import logger
 from scipy import fft, signal
 from tqdm import tqdm
@@ -16,6 +18,16 @@ from audiblelight import utils
 from audiblelight.ambience import Ambience
 from audiblelight.core import Scene
 from audiblelight.event import Event
+
+# See https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation
+DCASE_2024_COLUMNS = [
+    "frame_number",
+    "active_class_index",
+    "source_number_index",
+    "azimuth",
+    "elevation",
+    "distance",
+]
 
 
 def apply_snr(x: np.ndarray, snr: utils.Numeric) -> np.ndarray:
@@ -551,3 +563,122 @@ def validate_scene(scene: Scene) -> None:
 
     if any(not ev.has_emitters for ev in scene.events.values()):
         raise ValueError("Some events have no emitters registered to them!")
+
+
+def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
+    """
+    Given a Scene, generate metadata for each microphone in the DCASE 2024 format.
+
+    The output format is given as {"mic_alias_0": <pd.DataFrame>, "mic_alias_1": <pd.DataFrame>} for every microphone
+    added to the scene. The exact specification of the metadata can be found on the [DCASE 2024 challenge website]
+    (https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation)
+
+    In particular, the columns of each dataframe are as follows:
+    - frame number (int): the index of the frame
+    - active class index (int): the index of the soundevent: see `audiblelight.event.DCASE_SOUND_EVENT_CLASSES` for
+        a complete mapping.
+    - source number index (int): a unique integer identifier for each event in the scene.
+    - azimuth (int): the azimuth, increasing counter-clockwise (ϕ=90∘ at the left, ϕ=0∘ at the front).
+    - elevation (int): the elevation angle (θ=0∘ at the front).
+    - distance (int): the distance from the microphone, measured in centimeters.
+
+    The audio is quantised to 10 frames per second (i.e., frame length = 100 ms). In cases of moving trajectories, the
+    position of each IR is linearly interpolated throughout the duration of the audio file in order to obtain a value
+    for azimuth, elevation, and distance estimated at every frame.
+
+    Note that the `source number index` value is assigned independently for each class: thus, with two `telephone`
+    classes and one `femaleSpeech`, we would expect to see values of 0 and 1 for the two `telephone` instances and
+    only `0` for the `femaleSpeech` instance.
+
+    Finally, note that frames without sound events are omitted from the output.
+    """
+
+    # Produce an array of frames, lasting as long as the scene itself.
+    frames = np.round(np.arange(0, scene.duration + 0.1, 0.1), 1)
+
+    # Aliases for all microphones
+    microphones = list(scene.state.microphones.keys())
+    res = {mic: [] for mic in microphones}
+
+    # This mapping will be used to count the number of times that each class IDX appears
+    unique_ids = Counter()
+
+    for event in scene.get_events():
+        # Determine frame indices for event start and end
+        start_idx = np.where(frames == round(event.scene_start, 1))[0][0]
+        end_idx = np.where(frames == round(event.scene_end, 1))[0][0]
+
+        event_range = np.arange(start_idx, end_idx + 1)
+
+        # Raise an error if the event has no DCASE class idx or this is somehow invalid otherwise
+        if not isinstance(event.class_id, int):
+            raise ValueError(
+                "Can't convert Event to DCASE format without valid DCASE class indices"
+            )
+
+        # Get the unique index for every class
+        source_idx = unique_ids.get(event.class_id, 0)
+        unique_ids[event.class_id] = source_idx + 1
+
+        # Start iterating over all emitters within this event
+        for emitter in event.emitters:
+            positions = emitter.coordinates_relative_polar
+            # Iterate over all microphones
+            for mic in microphones:
+                # Static events: we just want the first emitter positions
+                if not event.is_moving:
+                    az, elv, dist = positions[mic][0]
+                    # DCASE expects azimuth = [-180, 180], with 0 == front, increasing counter-clockwise
+                    #  Currently, we are using [0, 360], with 0 == front, increasing counter-clockwise
+                    #  So, we need to convert it here.
+                    if az % 360 > 180:
+                        az = (az % 360) - 180
+                    az, elv, dist = round(az), round(elv), round(dist * 100)
+                    # We want a new row for every frame
+                    frame_data = [
+                        [int(idx), event.class_id, source_idx, az, elv, dist]
+                        for idx in event_range
+                    ]
+                    res[mic].extend(frame_data)
+
+                # Moving events: we need to consider all emitter positions
+                else:
+                    # Interpolate between the positions of all emitters for all frames
+                    timepoints = frames[event_range]
+                    coord_times = np.linspace(
+                        timepoints[0], timepoints[-1], num=len(positions)
+                    )
+                    coords = np.array(positions[mic])
+                    interpolated = np.stack(
+                        [
+                            np.interp(timepoints, coord_times, coords[:, dim])
+                            for dim in range(coords.shape[1])
+                        ],
+                        axis=1,
+                    )
+
+                    # Create a separate row for each frame
+                    for idx, (az, elv, dist) in zip(event_range, interpolated):
+                        if az % 360 > 180:
+                            az = (az % 360) - 180
+                        az, elv, dist = round(az), round(elv), round(dist * 100)
+                        frame_data = [
+                            int(idx),
+                            event.class_id,
+                            source_idx,
+                            az,
+                            elv,
+                            dist,
+                        ]
+                        res[mic].append(frame_data)
+
+    # Output dataframes
+    res_df = {mic: None for mic in microphones}
+    for mic, data in res.items():
+        res_df[mic] = (
+            pd.DataFrame(data, columns=DCASE_2024_COLUMNS)
+            .set_index("frame_number")
+            .sort_index()
+        )
+
+    return res_df
