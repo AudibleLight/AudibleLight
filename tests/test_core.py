@@ -440,9 +440,10 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
         # Use a short duration here so we don't run into issues with placing events
         oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
 
-    oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
+    # Suffixes will be stripped out
+    oyens_scene_no_overlap.generate(audio_fname="tmp.wav", metadata_fname="tmp.json")
 
-    for fout in ["tmp.wav", "tmp.json"]:
+    for fout in ["tmp.wav", "tmp.json", "tmp_mic000.csv"]:
         assert os.path.isfile(fout)
         os.remove(fout)
 

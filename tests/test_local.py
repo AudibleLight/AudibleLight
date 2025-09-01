@@ -43,7 +43,7 @@ def test_pipeline(mesh_fpath, n_events, duration, max_overlap, mic_type):
             event_type="static",
         )
     # Generate everything and check the files exist
-    sc.generate(audio_path="audio_out.wav", metadata_path="metadata_out.json")
+    sc.generate(audio_fname="audio_out.wav", metadata_fname="metadata_out.json")
     for path in ["audio_out.wav", "metadata_out.json"]:
         assert os.path.isfile(path)
         os.remove(path)

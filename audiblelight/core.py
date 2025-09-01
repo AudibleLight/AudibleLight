@@ -1002,26 +1002,42 @@ class Scene:
     # noinspection PyProtectedMember
     def generate(
         self,
-        audio_path: Optional[Union[str, Path]] = None,
-        metadata_path: Optional[Union[str, Path]] = None,
+        output_dir: Optional[Union[str, Path]] = None,
+        audio_fname: Optional[Union[str, Path]] = "audio_out",
+        metadata_fname: Optional[Union[str, Path]] = "metadata_out",
         spatial_audio_format: Optional[str] = "A",
     ) -> None:
         """
         Render scene to disk. Currently only audio and metadata are rendered.
 
         Arguments:
-            audio_path: Path to the audio file.
-            metadata_path: Path to the metadata file.
+            output_dir: directory to save the output, defaults to a temp directory inside AudibleLight/spatial_scenes
+            audio_fname: name to use for the output audio file, default to "audio_out"
+            metadata_fname: name to use for the output metadata, default to "metadata_out"
             spatial_audio_format: Format to use for saving spatial audio, defaults to ambisonics "A" format
 
         Returns:
             None
         """
         from audiblelight.synthesize import (
+            generate_dcase2024_metadata,
             generate_scene_audio_from_events,
             render_audio_for_all_scene_events,
             validate_scene,
         )
+
+        # Sanitise output directory
+        #  Create a new temporary directory inside project root if not provided
+        if output_dir is None:
+            output_dir = Path.cwd()
+        if not isinstance(output_dir, Path):
+            output_dir = Path(output_dir)
+        if not output_dir.is_dir():
+            raise FileNotFoundError(f"Output directory {output_dir} does not exist")
+
+        # Sanitise filepaths: strip out suffixes, we'll add these in later
+        audio_path = (output_dir / audio_fname).with_suffix("")
+        metadata_path = (output_dir / metadata_fname).with_suffix("")
 
         # Render all the audio
         #  This renders the IRs inside the worldstate
@@ -1033,15 +1049,24 @@ class Scene:
         generate_scene_audio_from_events(self)
 
         # Write the audio output
-        sf.write(audio_path, self.audio.T, int(self.state.ctx.config.sample_rate))
+        sf.write(audio_path.with_suffix(".wav"), self.audio.T, int(self.sample_rate))
 
         # Get the metadata and add the spatial audio format in
         metadata = self.to_dict()
         metadata["spatial_format"] = spatial_audio_format
 
         # Dump the metadata to a JSON
-        with open(metadata_path, "w") as f:
+        with open(metadata_path.with_suffix(".json"), "w") as f:
             json.dump(metadata, f, indent=4, ensure_ascii=False)
+
+        # Generate DCASE-2024 style metadata
+        dcase_meta = generate_dcase2024_metadata(self)
+        # Save a single CSV file for every microphone we have
+        for mic, df in dcase_meta.items():
+            outp = metadata_path.with_suffix(".csv").with_stem(
+                f"{metadata_path.name}_{mic}"
+            )
+            df.to_csv(outp, sep=",", encoding="utf-8")
 
     def to_dict(self) -> dict:
         """
