@@ -442,7 +442,7 @@ def render_event_audio(
 
 
 def render_audio_for_all_scene_events(
-    scene: Scene, ignore_cache: Optional[bool] = True
+    scene: Scene, ignore_cache: Optional[bool] = False
 ) -> None:
     """
     Renders audio for all `Events` associated with a given `Scene` object.
@@ -457,7 +457,7 @@ def render_audio_for_all_scene_events(
 
     Arguments:
         scene: Scene object with associated `WorldState`, `Emitter`, `MicArray`, `Event` objects added.
-        ignore_cache (optional): If True (default), cached Event audio will be ignored
+        ignore_cache (optional): If True, cached Event audio will be ignored
 
     Returns:
         None
