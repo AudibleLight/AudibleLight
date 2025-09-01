@@ -22,7 +22,9 @@ def process_json(filepath: Path) -> None:
     sc = Scene.from_json(filepath)
     dcase_meta = generate_dcase2024_metadata(sc)
     for mic, df in dcase_meta.items():
-        outp = filepath.with_suffix(".csv").with_stem(f"{filepath.name}_{mic}")
+        outp = filepath.with_suffix(".csv").with_stem(
+            f"{filepath.with_suffix('').name}_{mic}"
+        )
         df.to_csv(outp, sep=",", encoding="utf-8")
 
 
