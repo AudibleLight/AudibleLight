@@ -18,7 +18,19 @@ coverage.xml
 
 # Ignore outputs
 *.wav
+*.mp3
+*.aac
+*.mpeg4
+*.m4a
+*.flac
 *.png
+*.gif
+*.jpeg
+*.bpm
+*.ico
+!/docs/_static/favicon.ico
+!/icon.png
+*.jpg
 !icon.png
 *.sofa
 *.h5
