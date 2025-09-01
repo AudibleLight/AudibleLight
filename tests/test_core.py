@@ -449,6 +449,28 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
 
 
 @pytest.mark.parametrize(
+    "dirpath,raises",
+    [(None, False), (os.getcwd(), False), ("not/a/dir", FileNotFoundError)],
+)
+def test_generate_parse_filepaths(dirpath, raises, oyens_scene_no_overlap):
+    oyens_scene_no_overlap.clear_events()
+    # Use a short duration here so we don't run into issues with placing events
+    oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+
+    if not raises:
+        oyens_scene_no_overlap.generate(output_dir=dirpath)
+        assert oyens_scene_no_overlap.audio is not None
+        # Cleanup
+        for fout in ["audio_out.wav", "metadata_out.json", "metadata_out_mic000.csv"]:
+            assert os.path.isfile(fout)
+            os.remove(fout)
+    else:
+        with pytest.raises(raises):
+            oyens_scene_no_overlap.generate(output_dir=dirpath)
+        assert oyens_scene_no_overlap.audio is None
+
+
+@pytest.mark.parametrize(
     "noise, filepath",
     [
         ("white", None),
