@@ -545,3 +545,12 @@ def test_center_coords(x: int, y: int, z: int):
     # Everything should be centered around the mean
     #  As we only passed in one row, this will mean that every coordinate becomes a 0
     assert np.allclose(np.mean(coords_dict_centered, axis=0), [0, 0, 0])
+
+
+@pytest.mark.parametrize("x", [0.0, np.random.rand(1000), 0, np.array([1, 2, 3, 4, 5])])
+def test_tiny(x):
+    tiny_out = utils.tiny(x)
+    assert np.isfinite(tiny_out)
+    assert not np.isnan(tiny_out)
+    assert not np.isinf(tiny_out)
+    assert np.isclose(tiny_out, 0, atol=utils.SMALL)
