@@ -259,6 +259,13 @@ def sanitise_filepath(filepath: Any) -> Path:
         )
 
 
+def sanitise_filepaths(filepaths: list[Any]) -> list[Path]:
+    """
+    Equivalent to [sanitise_filepath(fp) for fp in filepaths]
+    """
+    return [sanitise_filepath(fp) for fp in filepaths]
+
+
 def sanitise_directory(directory: Any) -> Path:
     """
     Validate that a directory exists on the disk and coerce to a `Path` object
