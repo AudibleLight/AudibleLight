@@ -16,23 +16,10 @@ from deepdiff import DeepDiff
 from loguru import logger
 from rlr_audio_propagation import ChannelLayout, ChannelLayoutType, Config, Context
 
-from audiblelight import utils
+from audiblelight import config, types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
-
-MIN_AVG_RAY_LENGTH = 3.0
-
-EMPTY_SPACE_AROUND_EMITTER = 0.2  # Minimum distance one emitter can be from another
-EMPTY_SPACE_AROUND_MIC = 0.1  # Minimum distance one emitter can be from the mic
-EMPTY_SPACE_AROUND_SURFACE = 0.2  # Minimum distance from the nearest mesh surface
-EMPTY_SPACE_AROUND_CAPSULE = (
-    0.05  # Minimum distance from individual microphone capsules
-)
-
-WARN_WHEN_EFFICIENCY_BELOW = (
-    0.5  # when the ray efficiency is below this value, raise a warning in .simulate
-)
 
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
@@ -50,11 +37,11 @@ def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
         mesh_fpath, file_type=mesh_fpath.suffix, metadata=metadata
     )
     # Convert the units of the mesh to meters, if this is not provided
-    if loaded_mesh.units != utils.MESH_UNITS:
+    if loaded_mesh.units != config.MESH_UNITS:
         logger.warning(
-            f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}"
+            f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {config.MESH_UNITS}"
         )
-        loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
+        loaded_mesh = loaded_mesh.convert_units(config.MESH_UNITS, guess=True)
     return loaded_mesh
 
 
@@ -88,7 +75,7 @@ def add_sphere(
     scene: trimesh.Scene,
     pos: np.ndarray,
     color: Optional[list[int]] = None,
-    r: Optional[utils.Numeric] = 0.2,
+    r: Optional[types.Numeric] = 0.2,
 ) -> None:
     """
     Adds a sphere object to a scene with given position, color, and radius
@@ -289,22 +276,22 @@ class WorldState:
     def __init__(
         self,
         mesh: Union[str, Path],
-        empty_space_around_mic: Optional[utils.Numeric] = EMPTY_SPACE_AROUND_MIC,
+        empty_space_around_mic: Optional[types.Numeric] = config.EMPTY_SPACE_AROUND_MIC,
         empty_space_around_emitter: Optional[
-            utils.Numeric
-        ] = EMPTY_SPACE_AROUND_EMITTER,
+            types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_EMITTER,
         empty_space_around_surface: Optional[
-            utils.Numeric
-        ] = EMPTY_SPACE_AROUND_SURFACE,
+            types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_SURFACE,
         empty_space_around_capsule: Optional[
-            utils.Numeric
-        ] = EMPTY_SPACE_AROUND_CAPSULE,
+            types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_CAPSULE,
         add_to_context: Optional[bool] = True,
         ensure_minimum_weighted_average_ray_length: Optional[bool] = False,
         minimum_weighted_average_ray_length: Optional[
-            utils.Numeric
-        ] = MIN_AVG_RAY_LENGTH,
-        repair_threshold: Optional[utils.Numeric] = None,
+            types.Numeric
+        ] = config.MIN_AVG_RAY_LENGTH,
+        repair_threshold: Optional[types.Numeric] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
         """
@@ -452,8 +439,8 @@ class WorldState:
             return self._irs
 
     def calculate_weighted_average_ray_length(
-        self, point: np.ndarray, num_rays: Optional[utils.Numeric] = 100
-    ) -> utils.Numeric:
+        self, point: np.ndarray, num_rays: Optional[types.Numeric] = config.NUM_RAYS
+    ) -> types.Numeric:
         """
         Estimate how spatially "open" a point is by computing the weighted average length of rays cast from that point.
 
@@ -524,7 +511,7 @@ class WorldState:
         if alias in self.microphones.keys():
             raise KeyError(f"Alias {alias} already exists in microphone dictionary")
 
-        for attempt in range(utils.MAX_PLACE_ATTEMPTS):
+        for attempt in range(config.MAX_PLACE_ATTEMPTS):
             # Grab a random position for the microphone if required
             pos = position if position is not None else self.get_random_position()
             assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
@@ -593,7 +580,7 @@ class WorldState:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place microphone in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                     f"Consider reducing `empty_space_around` arguments."
                 )
             # If we were trying to add it to a specific position
@@ -692,7 +679,7 @@ class WorldState:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (
-                        f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Could not place microphone in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                         f"Consider reducing `empty_space_around` arguments."
                     )
                 # If we were trying to add it to a specific position
@@ -722,7 +709,7 @@ class WorldState:
         keep_existing_mics: Optional[bool] = True,
         keep_existing_emitters: Optional[bool] = True,
         ensure_direct_path: Optional[bool] = True,
-        max_place_attempts: Optional[int] = utils.MAX_PLACE_ATTEMPTS,
+        max_place_attempts: Optional[int] = config.MAX_PLACE_ATTEMPTS,
     ) -> None:
         """
         Add both a microphone and emitter with specified relationship.
@@ -870,7 +857,7 @@ class WorldState:
 
         # If we care about checking vs minimum weighted average ray length, we need to iterate
         if self.ensure_minimum_weighted_average_ray_length:
-            for attempt in range(utils.MAX_PLACE_ATTEMPTS):
+            for attempt in range(config.MAX_PLACE_ATTEMPTS):
 
                 # Compute the weighted average ray length with this position and return if the position is acceptable
                 if (
@@ -886,14 +873,14 @@ class WorldState:
 
             # If we haven't found an acceptable position, log this and use the most recent one.
             logger.error(
-                f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not find a suitable position after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Using the last attempted position: {mic_pos}."
             )
 
         return mic_pos
 
     def get_random_point_inside_mesh(
-        self, batch_size: Optional[utils.Numeric] = 10
+        self, batch_size: Optional[types.Numeric] = config.POINT_BATCH_SIZE
     ) -> np.ndarray:
         """
         Generates a random valid point inside the mesh.
@@ -1017,7 +1004,7 @@ class WorldState:
         position_is_assigned = position is not None
         # If we have already provided a position, this loop will only iterate once
         #  Otherwise, we want a random position, so we iterate N times until the position is valid
-        for attempt in range(1 if position_is_assigned else utils.MAX_PLACE_ATTEMPTS):
+        for attempt in range(1 if position_is_assigned else config.MAX_PLACE_ATTEMPTS):
             # Get a random position if required or use the assigned one
             pos = position if position_is_assigned else self.get_random_position()
             if len(pos) != 3:
@@ -1195,7 +1182,7 @@ class WorldState:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                     f"If this is happening frequently, consider reducing the number of `emitters`, "
                     f"or the `empty_space_around` arguments."
                 )
@@ -1298,7 +1285,7 @@ class WorldState:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (
-                        f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                         f"Consider reducing `empty_space_around` arguments."
                     )
                 # If we were trying to add it to a specific position
@@ -1319,16 +1306,16 @@ class WorldState:
     def get_valid_position_with_max_distance(
         self,
         ref: np.ndarray,
-        r: utils.Numeric,
-        n: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
+        r: types.Numeric,
+        n: Optional[types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> np.ndarray:
         """
         Generate a sphere with origin `ref` and radius `r` and sample a valid position from within its volume.
 
         Arguments:
             ref (np.ndarray): the reference point, treated as the origin of the sphere
-            r (utils.Numeric): the maximum distance for the sampled point from `ref`
-            n (utils.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
+            r (types.Numeric): the maximum distance for the sampled point from `ref`
+            n (types.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
 
         Raises:
             ValueError: if a valid point from within `n` samples cannot be found
@@ -1369,8 +1356,8 @@ class WorldState:
     def _validate_trajectory(
         self,
         trajectory: np.ndarray,
-        max_distance: utils.Numeric,
-        step_distance: utils.Numeric,
+        max_distance: types.Numeric,
+        step_distance: types.Numeric,
         requires_direct_line: bool,
     ) -> bool:
         """
@@ -1379,8 +1366,8 @@ class WorldState:
         Arguments:
             trajectory (np.ndarray): the trajectory to be validated
             requires_direct_line (bool): whether a direct line must exist between the starting and ending position
-            max_distance (utils.Numeric): the maximum distance traversed in the trajectory, from start to end
-            step_distance (utils.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            max_distance (types.Numeric): the maximum distance traversed in the trajectory, from start to end
+            step_distance (types.Numeric): the maximum distance traversed from one step to the next in the trajectory
 
         Returns:
             bool: whether the trajectory is valid
@@ -1422,12 +1409,12 @@ class WorldState:
     # @utils.timer("define trajectory")
     def define_trajectory(
         self,
-        duration: utils.Numeric,
+        duration: types.Numeric,
         starting_position: Optional[Union[np.ndarray, list]] = None,
-        velocity: Optional[utils.Numeric] = None,
-        resolution: Optional[utils.Numeric] = None,
-        shape: Optional[str] = None,
-        max_place_attempts: Optional[utils.Numeric] = None,
+        velocity: Optional[types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
+        resolution: Optional[types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        max_place_attempts: Optional[types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ):
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
@@ -1457,22 +1444,6 @@ class WorldState:
         Returns:
             np.ndarray: the sanitised trajectory, with shape (n_points, 3)
         """
-        # Use defaults if not provided
-        shape = "linear" if shape is None else shape
-        velocity = (
-            (utils.MAX_VELOCITY / utils.MIN_VELOCITY) if velocity is None else velocity
-        )
-        resolution = (
-            utils.MAX_RESOLUTION / utils.MIN_RESOLUTION
-            if resolution is None
-            else resolution
-        )
-        max_place_attempts = (
-            utils.MAX_PLACE_ATTEMPTS
-            if max_place_attempts is None
-            else max_place_attempts
-        )
-
         # Compute the number of samples based on duration and resolution
         n_points = (
             utils.sanitise_positive_number(duration * resolution, cast_to=round) + 1
@@ -1663,9 +1634,9 @@ class WorldState:
         logger.info(
             f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}"
         )
-        if efficiency < WARN_WHEN_EFFICIENCY_BELOW:
+        if efficiency < config.WARN_WHEN_RAY_EFFICIENCY_BELOW:
             logger.warning(
-                f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
+                f"Ray efficiency is below {config.WARN_WHEN_RAY_EFFICIENCY_BELOW :.0%}. It is possible that the mesh "
                 f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
                 f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh."
             )
@@ -1699,8 +1670,8 @@ class WorldState:
 
     def create_scene(
         self,
-        mic_radius: Optional[utils.Numeric] = 0.2,
-        emitter_radius: Optional[utils.Numeric] = 0.1,
+        mic_radius: Optional[types.Numeric] = 0.2,
+        emitter_radius: Optional[types.Numeric] = 0.1,
     ) -> trimesh.Scene:
         """
         Creates a trimesh.Scene with the Space's mesh, microphone position, and emitters all added

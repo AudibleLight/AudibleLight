@@ -10,12 +10,11 @@ import random
 from pathlib import Path
 from time import time
 
-from generate_with_random_events import MAX_DURATION, MIC_ARRAY_NAME, MIN_DURATION
 from generate_with_random_events import main as make_a_scene
 from loguru import logger
 from tqdm import tqdm
 
-from audiblelight import utils
+from audiblelight import config, utils
 
 FG_DIR = utils.get_project_root() / "resources/soundevents"
 BG_DIR = FG_DIR / "domesticSounds"
@@ -24,13 +23,13 @@ MESHES = list(MESH_DIR.rglob("*.glb"))
 
 OUTPUT_DIR = utils.get_project_root() / "spatial_scenes"
 
-N_SCENES = 1000
-
 # Distributions to sample
-STATIC_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(1, 4)))
-MOVING_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(0, 3)))
-MAX_OVERLAP = utils.sanitise_distribution(lambda: random.choice(range(2, 5)))
-DURATION = 50.0
+STATIC_EVENTS = utils.sanitise_distribution(
+    lambda: random.choice(range(config.MIN_STATIC_EVENTS, config.MAX_STATIC_EVENTS))
+)
+MOVING_EVENTS = utils.sanitise_distribution(
+    lambda: random.choice(range(config.MIN_MOVING_EVENTS, config.MIN_MOVING_EVENTS))
+)
 
 
 def main(n_scenes: int, outdir: str):
@@ -57,30 +56,30 @@ def main(n_scenes: int, outdir: str):
 
         # Make the scene with the mesh
         make_a_scene(
-            duration=DURATION,
+            duration=config.SCENE_DURATION,
             n_static=STATIC_EVENTS.rvs(),
             n_moving=MOVING_EVENTS.rvs(),
-            max_overlap=MAX_OVERLAP.rvs(),
-            micarray=MIC_ARRAY_NAME,
+            max_overlap=config.MAX_OVERLAP,
+            micarray=config.MIC_ARRAY_TYPE,
             output_folder=output_dir,
             fg_folder=FG_DIR,
             mesh_path=mesh,
-            ref_db=utils.REF_DB,
-            min_snr=utils.MIN_SNR,
-            max_snr=utils.MAX_SNR,
-            min_velocity=utils.MIN_VELOCITY,
-            max_velocity=utils.MAX_VELOCITY,
-            min_resolution=utils.MIN_RESOLUTION,
-            max_resolution=utils.MAX_RESOLUTION,
-            min_duration=MIN_DURATION,
-            max_duration=MAX_DURATION,
+            ref_db=config.REF_DB,
+            min_snr=config.MIN_EVENT_SNR,
+            max_snr=config.MAX_EVENT_SNR,
+            min_velocity=config.MIN_EVENT_VELOCITY,
+            max_velocity=config.MAX_EVENT_VELOCITY,
+            min_resolution=config.MIN_EVENT_RESOLUTION,
+            max_resolution=config.MAX_EVENT_RESOLUTION,
+            min_duration=config.MIN_EVENT_DURATION,
+            max_duration=config.MAX_EVENT_DURATION,
             bg_folder=BG_DIR,
         )
 
     # Log the time taken
     full_end = time() - full_start
     logger.info(f"Finished in {full_end:.4f} seconds.")
-    logger.info(f"Average time per scene: {(full_end / N_SCENES):.4f} seconds")
+    logger.info(f"Average time per scene: {(full_end / n_scenes):.4f} seconds")
 
 
 if __name__ == "__main__":
@@ -90,8 +89,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n-scenes",
         type=int,
-        default=N_SCENES,
-        help=f"Number of scenes to generate, defaults to {N_SCENES}",
+        default=config.N_SCENES,
+        help=f"Number of scenes to generate, defaults to {config.N_SCENES}",
     )
     parser.add_argument(
         "--outdir",

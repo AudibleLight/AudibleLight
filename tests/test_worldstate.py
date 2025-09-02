@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from trimesh import Scene, Trimesh
 
-from audiblelight import utils
+from audiblelight import config, utils
 from audiblelight.micarrays import (
     MICARRAY_LIST,
     AmbeoVR,
@@ -28,7 +28,7 @@ def test_load_mesh_from_fpath(mesh_fpath: str):
     assert loaded.metadata["fpath"] == str(
         mesh_fpath
     )  # need both to be a string, or we'll get TypeError
-    assert loaded.units == utils.MESH_UNITS  # units should be in meters
+    assert loaded.units == config.MESH_UNITS  # units should be in meters
     # If we try to load from a mesh object, should raise an error
     with pytest.raises(TypeError):
         # noinspection PyTypeChecker

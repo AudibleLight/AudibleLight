@@ -17,14 +17,12 @@ from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
-from audiblelight import __version__, utils
+from audiblelight import __version__, config, types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState
-
-WARN_WHEN_DURATION_LOWER_THAN = 5
 
 
 class Scene:
@@ -37,19 +35,19 @@ class Scene:
 
     def __init__(
         self,
-        duration: utils.Numeric,
+        duration: types.Numeric,
         mesh_path: Union[str, Path],
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
-        ref_db: Optional[utils.Numeric] = utils.REF_DB,
-        scene_start_dist: Optional[utils.DistributionLike] = None,
-        event_start_dist: Optional[utils.DistributionLike] = None,
-        event_duration_dist: Optional[utils.DistributionLike] = None,
-        event_velocity_dist: Optional[utils.DistributionLike] = None,
-        event_resolution_dist: Optional[utils.DistributionLike] = None,
-        snr_dist: Optional[utils.DistributionLike] = None,
-        max_overlap: Optional[utils.Numeric] = utils.MAX_OVERLAP,
+        ref_db: Optional[types.Numeric] = config.REF_DB,
+        scene_start_dist: Optional[types.DistributionLike] = None,
+        event_start_dist: Optional[types.DistributionLike] = None,
+        event_duration_dist: Optional[types.DistributionLike] = None,
+        event_velocity_dist: Optional[types.DistributionLike] = None,
+        event_resolution_dist: Optional[types.DistributionLike] = None,
+        snr_dist: Optional[types.DistributionLike] = None,
+        max_overlap: Optional[types.Numeric] = config.MAX_OVERLAP,
         event_augmentations: Optional[
             Union[
                 Iterable[Type[EventAugmentation]],
@@ -96,12 +94,12 @@ class Scene:
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
         # Raise a warning when the duration is very short.
-        if self.duration < WARN_WHEN_DURATION_LOWER_THAN:
+        if self.duration < config.WARN_WHEN_SCENE_DURATION_BELOW:
             logger.warning(
                 f"The duration for this Scene is very short ({duration:.2f} seconds). "
                 f"You may encounter issues with Events overlapping or being truncated to fit the "
                 f"duration of the Scene. It is recommended to increase the duration to at least "
-                f"{WARN_WHEN_DURATION_LOWER_THAN} seconds."
+                f"{config.WARN_WHEN_SCENE_DURATION_BELOW} seconds."
             )
         self.ref_db = utils.sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
@@ -126,16 +124,20 @@ class Scene:
         #  Events move between 0.25 and 2.0 metres per second
         if event_velocity_dist is None:
             event_velocity_dist = stats.uniform(
-                utils.MIN_VELOCITY, utils.MAX_VELOCITY - utils.MIN_VELOCITY
+                config.MIN_EVENT_VELOCITY,
+                config.MAX_EVENT_VELOCITY - config.MIN_EVENT_VELOCITY,
             )
         #  Events have a resolution of between 1-4 Hz (i.e., number of IRs per second)
         if event_resolution_dist is None:
             event_resolution_dist = stats.uniform(
-                utils.MIN_RESOLUTION, utils.MAX_RESOLUTION - utils.MIN_RESOLUTION
+                config.MIN_EVENT_RESOLUTION,
+                config.MAX_EVENT_RESOLUTION - config.MIN_EVENT_RESOLUTION,
             )
         #  Events have an SNR between 2 and 8
         if snr_dist is None:
-            snr_dist = stats.uniform(utils.MIN_SNR, utils.MAX_SNR - utils.MIN_SNR)
+            snr_dist = stats.uniform(
+                config.MIN_EVENT_SNR, config.MAX_EVENT_SNR - config.MIN_EVENT_SNR
+            )
 
         # No distribution for `event_start` and `event_distribution`
         #  Unless a distribution is passed, we default to using the full duration of the audio (capped at 10 seconds)
@@ -198,7 +200,7 @@ class Scene:
         Introspect a list of audio directories to obtain all valid audio files
         """
         audio_paths = []
-        for ext in utils.AUDIO_EXTS:
+        for ext in types.AUDIO_EXTS:
             for fg in audio_dir:
                 audio_paths.extend((fg.rglob(f"*.{ext}")))
         return utils.sanitise_filepaths(audio_paths)
@@ -406,9 +408,9 @@ class Scene:
     def add_ambience(
         self,
         filepath: Optional[Union[str, Path]] = None,
-        noise: Optional[Union[str, utils.Numeric]] = None,
+        noise: Optional[Union[str, types.Numeric]] = None,
         channels: Optional[int] = None,
-        ref_db: Optional[utils.Numeric] = None,
+        ref_db: Optional[types.Numeric] = None,
         alias: Optional[str] = None,
         **kwargs,
     ):
@@ -503,7 +505,7 @@ class Scene:
             k is not None in event_kwargs
             for k in ("scene_start", "event_start", "duration")
         )
-        max_place_attempts = utils.MAX_PLACE_ATTEMPTS if not has_overrides else 1
+        max_place_attempts = config.MAX_PLACE_ATTEMPTS if not has_overrides else 1
 
         # Pre-resolve all user-specified override values (only done once)
         overrides = {
@@ -639,7 +641,7 @@ class Scene:
         )[0]
 
     def _get_n_random_event_augmentations(
-        self, n_augmentations: utils.Numeric
+        self, n_augmentations: types.Numeric
     ) -> list[Type[EventAugmentation]]:
         """
         Given a number N, get N random, unique Event augmentations
@@ -686,22 +688,22 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[types.Numeric] = None,
+        event_start: Optional[types.Numeric] = None,
+        duration: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = config.DEFAULT_EVENT_SNR,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        shape: Optional[str] = None,
-        spatial_resolution: Optional[utils.Numeric] = None,
-        spatial_velocity: Optional[utils.Numeric] = None,
+        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        spatial_resolution: Optional[types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        spatial_velocity: Optional[types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
     ) -> Event:
         """
         Add an event to the foreground, either "static" or "moving"
@@ -826,17 +828,17 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[types.Numeric] = None,
+        event_start: Optional[types.Numeric] = None,
+        duration: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = config.DEFAULT_EVENT_SNR,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
     ) -> Event:
@@ -905,7 +907,7 @@ class Scene:
             position = self._coerce_polar_position(position, mic)
 
         # Sample N random augmentations from our list, if required
-        if isinstance(augmentations, utils.Numeric):
+        if isinstance(augmentations, types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Construct kwargs dictionary for emitter and event
@@ -952,7 +954,7 @@ class Scene:
             #  we should probably truncate to a sensible maximum duration
             #  based on the duration of the scene
             raise ValueError(
-                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not place event in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
                 f"`duration` of the scene (currently {self.duration})."
             )
@@ -973,21 +975,21 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
-        shape: Optional[str] = None,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        scene_start: Optional[types.Numeric] = None,
+        event_start: Optional[types.Numeric] = None,
+        duration: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = config.DEFAULT_EVENT_SNR,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        spatial_resolution: Optional[utils.Numeric] = None,
-        spatial_velocity: Optional[utils.Numeric] = None,
+        spatial_resolution: Optional[types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        spatial_velocity: Optional[types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
@@ -1053,7 +1055,7 @@ class Scene:
                 )
 
         # Sample N random augmentations from our list, if required
-        if isinstance(augmentations, utils.Numeric):
+        if isinstance(augmentations, types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
@@ -1086,7 +1088,7 @@ class Scene:
         if not placed:
             # No need to clear out any emitters (as in `add_event_static`) because we haven't placed them yet
             raise ValueError(
-                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not place event in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
                 f"`duration` of the scene (currently {self.duration})."
             )

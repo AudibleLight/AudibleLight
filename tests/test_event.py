@@ -8,7 +8,7 @@ from typing import Optional
 import numpy as np
 import pytest
 
-from audiblelight import utils
+from audiblelight import config, utils
 from audiblelight.augmentation import (
     Augmentation,
     Compressor,
@@ -69,7 +69,7 @@ def test_load_audio(
         emitters=emitter,
         duration=duration,
         event_start=start_time,
-        sample_rate=utils.SAMPLE_RATE,
+        sample_rate=config.SAMPLE_RATE,
     )
     # Try and load the audio
     audio = ev.load_audio(ignore_cache=True)
@@ -81,7 +81,7 @@ def test_load_audio(
     assert np.array_equal(audio, audio2)
     # If we've passed in a custom duration, this should be respected
     if duration is not None:
-        assert len(audio) / utils.SAMPLE_RATE == duration
+        assert len(audio) / config.SAMPLE_RATE == duration
         # We should set the end time correctly
         if start_time is not None:
             assert ev.event_end == start_time + duration
@@ -106,7 +106,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
         alias="test_event",
         emitters=emitter,
         duration=duration,
-        sample_rate=utils.SAMPLE_RATE,
+        sample_rate=config.SAMPLE_RATE,
     )
     parsed_duration = round(ev._parse_duration(duration))  # should be 30 seconds
     assert np.isclose(parsed_duration, expected)

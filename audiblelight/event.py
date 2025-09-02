@@ -12,7 +12,7 @@ import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
 
-from audiblelight import utils
+from audiblelight import config, types, utils
 from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
 from audiblelight.worldstate import Emitter
 
@@ -35,7 +35,6 @@ DCASE_SOUND_EVENT_CLASSES = {
 _DCASE_SOUND_EVENT_CLASSES_INV = {v: k for v, k in DCASE_SOUND_EVENT_CLASSES.items()}
 
 # If no duration override passed in, this will be the maximum duration for an event
-MAX_DEFAULT_DURATION = 10
 
 
 def infer_dcase_label_idx_from_filepath(
@@ -117,7 +116,7 @@ class Event:
         event_start: Optional[float] = None,
         duration: Optional[float] = None,
         snr: Optional[float] = None,
-        sample_rate: Optional[int] = utils.SAMPLE_RATE,
+        sample_rate: Optional[int] = config.SAMPLE_RATE,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
         spatial_resolution: Optional[Union[int, float]] = None,
@@ -432,7 +431,7 @@ class Event:
         else:
             raise TypeError("Cannot parse emitters with type {}".format(type(emitters)))
 
-    def _parse_audio_start(self, audio_start: Optional[utils.Numeric] = None) -> float:
+    def _parse_audio_start(self, audio_start: Optional[types.Numeric] = None) -> float:
         """
         Safely handle getting the start/offset time for an audio event, with an optional override.
         """

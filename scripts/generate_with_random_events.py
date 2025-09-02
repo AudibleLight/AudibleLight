@@ -12,7 +12,7 @@ from time import time
 from loguru import logger
 from scipy import stats
 
-from audiblelight import utils
+from audiblelight import config, utils
 from audiblelight.core import Scene
 
 # OUTPUT DIRECTORY
@@ -23,21 +23,7 @@ if not os.path.isdir(OUTFOLDER):
 # PATHS
 FG_FOLDER = utils.get_project_root() / "tests/test_resources/soundevents"
 BG_FOLDER = FG_FOLDER / "domesticSounds"
-MESH_PATH = (
-    utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
-)  # Mesh can be a "building"
-AMBIENCE_FILE = (
-    utils.get_project_root() / "tests/test_resources/soundevents/waterTap/95709.wav"
-)
-
-# SCENE SETTINGS
-DURATION = 30.0  # seconds
-MIC_ARRAY_NAME = "ambeovr"
-N_STATIC_EVENTS = 4
-N_MOVING_EVENTS = 1
-
-# EVENT VARIABLES
-MIN_DURATION, MAX_DURATION = 1.0, 5.0  # event duration between 1 and 5 seconds
+MESH_PATH = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
 
 
 def parse_arguments():
@@ -50,38 +36,32 @@ def parse_arguments():
     parser.add_argument(
         "--duration",
         type=float,
-        default=DURATION,
-        help=f"Duration of the scene in seconds (default: {DURATION}).",
+        default=config.SCENE_DURATION,
+        help=f"Duration of the scene in seconds (default: {config.SCENE_DURATION}).",
     )
     parser.add_argument(
         "--n-static",
         type=int,
-        default=N_STATIC_EVENTS,
-        help=f"Number of static events to include (default: {N_STATIC_EVENTS}).",
+        default=config.DEFAULT_STATIC_EVENTS,
+        help=f"Number of static events to include (default: {config.DEFAULT_STATIC_EVENTS}).",
     )
     parser.add_argument(
         "--n-moving",
         type=int,
-        default=N_MOVING_EVENTS,
-        help=f"Number of moving events to include (default: {N_MOVING_EVENTS}).",
-    )
-    parser.add_argument(
-        "--ambience",
-        type=str,
-        default=AMBIENCE_FILE,
-        help=f"Filepath of ambience audio file to use (default: {AMBIENCE_FILE}).",
+        default=config.DEFAULT_MOVING_EVENTS,
+        help=f"Number of moving events to include (default: {config.DEFAULT_MOVING_EVENTS}).",
     )
     parser.add_argument(
         "--max-overlap",
         type=int,
-        default=utils.MAX_OVERLAP,
-        help=f"Maximum number of overlapping events (default: {utils.MAX_OVERLAP}).",
+        default=config.MAX_OVERLAP,
+        help=f"Maximum number of overlapping events (default: {config.MAX_OVERLAP}).",
     )
     parser.add_argument(
         "--micarray",
         type=str,
-        default=MIC_ARRAY_NAME,
-        help=f"Microphone array name or alias (default: {MIC_ARRAY_NAME}).",
+        default=config.MIC_ARRAY_TYPE,
+        help=f"Microphone array name or alias (default: {config.MIC_ARRAY_TYPE}).",
     )
     parser.add_argument(
         "--output-folder",
@@ -110,56 +90,56 @@ def parse_arguments():
     parser.add_argument(
         "--ref-db",
         type=float,
-        default=utils.REF_DB,
-        help=f"Reference decibel level (default: {utils.REF_DB}).",
+        default=config.REF_DB,
+        help=f"Reference decibel level (default: {config.REF_DB}).",
     )
     parser.add_argument(
         "--min-snr",
         type=int,
-        default=utils.MIN_SNR,
-        help=f"Minimum signal-to-noise ratio for placed sound events (default: {utils.MIN_SNR}).",
+        default=config.MIN_EVENT_SNR,
+        help=f"Minimum signal-to-noise ratio for placed sound events (default: {config.MIN_EVENT_SNR}).",
     )
     parser.add_argument(
         "--max-snr",
         type=int,
-        default=utils.MAX_SNR,
-        help=f"Maximum signal-to-noise ratio for placed sound events (default: {utils.MAX_SNR}).",
+        default=config.MAX_EVENT_SNR,
+        help=f"Maximum signal-to-noise ratio for placed sound events (default: {config.MAX_EVENT_SNR}).",
     )
     parser.add_argument(
         "--min-velocity",
         type=float,
-        default=utils.MIN_VELOCITY,
-        help=f"Minimum velocity (m/s) for placed sound events (default: {utils.MIN_VELOCITY}).",
+        default=config.MIN_EVENT_VELOCITY,
+        help=f"Minimum velocity (m/s) for placed sound events (default: {config.MIN_EVENT_VELOCITY}).",
     )
     parser.add_argument(
         "--max-velocity",
         type=float,
-        default=utils.MAX_VELOCITY,
-        help=f"Maximum velocity (m/s) for placed sound events (default: {utils.MAX_VELOCITY}).",
+        default=config.MAX_EVENT_VELOCITY,
+        help=f"Maximum velocity (m/s) for placed sound events (default: {config.MAX_EVENT_VELOCITY}).",
     )
     parser.add_argument(
         "--min-resolution",
         type=float,
-        default=utils.MIN_RESOLUTION,
-        help=f"Minimum resolution (Hz) for placed sound events (default: {utils.MIN_RESOLUTION}).",
+        default=config.MIN_EVENT_RESOLUTION,
+        help=f"Minimum resolution (Hz) for placed sound events (default: {config.MIN_EVENT_RESOLUTION}).",
     )
     parser.add_argument(
         "--max-resolution",
         type=float,
-        default=utils.MAX_RESOLUTION,
-        help=f"Maximum resolution (Hz) for placed sound events (default: {utils.MAX_RESOLUTION}).",
+        default=config.MAX_EVENT_RESOLUTION,
+        help=f"Maximum resolution (Hz) for placed sound events (default: {config.MAX_EVENT_RESOLUTION}).",
     )
     parser.add_argument(
         "--min-duration",
         type=float,
-        default=MIN_DURATION,
-        help=f"Minimum duration (seconds) for placed sound events (default: {MIN_DURATION}).",
+        default=config.MIN_EVENT_DURATION,
+        help=f"Minimum duration (seconds) for placed sound events (default: {config.MIN_EVENT_DURATION}).",
     )
     parser.add_argument(
         "--max-duration",
         type=float,
-        default=MAX_DURATION,
-        help=f"Maximum duration (seconds) for placed sound events (default: {MAX_DURATION}).",
+        default=config.MAX_EVENT_DURATION,
+        help=f"Maximum duration (seconds) for placed sound events (default: {config.MAX_EVENT_DURATION}).",
     )
 
     return vars(parser.parse_args())
