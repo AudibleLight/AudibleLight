@@ -25,8 +25,6 @@ DEVICE = (
     if torch.cuda.is_available()
     else "mps" if torch.mps.is_available() else "cpu"
 )
-# Reference decibel level for the background ambient noise.
-REF_DB = -65
 # Seed used for randomisation
 SEED = 42
 # Default to 44.1kHz sample rate
@@ -35,6 +33,15 @@ SAMPLE_RATE = 44100
 MAX_PLACE_ATTEMPTS = 1000
 # Useful as a constant for tolerance checking, when `utils.tiny(...)` is going to be too small
 SMALL = 1e-4
+
+# TODO: these should be moved to `constants.py`
+# Constants for Scene, Event, Ambience, etc
+# Reference decibel level for the background ambient noise.
+REF_DB = -65
+MAX_OVERLAP = 3
+MIN_VELOCITY, MAX_VELOCITY = 0.25, 2.0  # meters per second
+MIN_SNR, MAX_SNR = 2, 8
+MIN_RESOLUTION, MAX_RESOLUTION = 1.0, 4.0  # Hz/IRs per second
 
 # Numeric dtypes: useful for isinstance(x, ...) checking
 NUMERIC_DTYPES = (

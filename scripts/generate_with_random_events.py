@@ -34,13 +34,6 @@ DURATION = 30.0  # seconds
 MIC_ARRAY_NAME = "ambeovr"
 N_STATIC_EVENTS = 4
 N_MOVING_EVENTS = 1
-MAX_OVERLAP = 3
-
-# SCENE-WIDE DISTRIBUTIONS
-MIN_VELOCITY, MAX_VELOCITY = 0.5, 1.5  # meters per second
-MIN_SNR, MAX_SNR = 2, 8
-MIN_RESOLUTION, MAX_RESOLUTION = 0.25, 1.5  # Hz/IRs per second
-REF_DB = -50
 
 # EVENT VARIABLES
 EVENT_DURATION = 5.0  # events capped to a maximum duration of 5 seconds
@@ -80,8 +73,8 @@ def parse_arguments():
     parser.add_argument(
         "--max-overlap",
         type=int,
-        default=MAX_OVERLAP,
-        help=f"Maximum number of overlapping events (default: {MAX_OVERLAP}).",
+        default=utils.MAX_OVERLAP,
+        help=f"Maximum number of overlapping events (default: {utils.MAX_OVERLAP}).",
     )
     parser.add_argument(
         "--micarray",
@@ -110,44 +103,44 @@ def parse_arguments():
     parser.add_argument(
         "--ref-db",
         type=float,
-        default=REF_DB,
-        help=f"Reference decibel level (default: {REF_DB}).",
+        default=utils.REF_DB,
+        help=f"Reference decibel level (default: {utils.REF_DB}).",
     )
     parser.add_argument(
         "--min-snr",
         type=int,
-        default=MIN_SNR,
-        help=f"Minimum signal-to-noise ratio for placed sound events (default: {MIN_SNR}).",
+        default=utils.MIN_SNR,
+        help=f"Minimum signal-to-noise ratio for placed sound events (default: {utils.MIN_SNR}).",
     )
     parser.add_argument(
         "--max-snr",
         type=int,
-        default=MAX_SNR,
-        help=f"Maximum signal-to-noise ratio for placed sound events (default: {MAX_SNR}).",
+        default=utils.MAX_SNR,
+        help=f"Maximum signal-to-noise ratio for placed sound events (default: {utils.MAX_SNR}).",
     )
     parser.add_argument(
         "--min-velocity",
         type=float,
-        default=MIN_VELOCITY,
-        help=f"Minimum velocity (m/s) for placed sound events (default: {MIN_VELOCITY}).",
+        default=utils.MIN_VELOCITY,
+        help=f"Minimum velocity (m/s) for placed sound events (default: {utils.MIN_VELOCITY}).",
     )
     parser.add_argument(
         "--max-velocity",
         type=float,
-        default=MAX_VELOCITY,
-        help=f"Maximum velocity (m/s) for placed sound events (default: {MAX_VELOCITY}).",
+        default=utils.MAX_VELOCITY,
+        help=f"Maximum velocity (m/s) for placed sound events (default: {utils.MAX_VELOCITY}).",
     )
     parser.add_argument(
         "--min-resolution",
         type=float,
-        default=MIN_RESOLUTION,
-        help=f"Minimum resolution (Hz) for placed sound events (default: {MIN_RESOLUTION}).",
+        default=utils.MIN_RESOLUTION,
+        help=f"Minimum resolution (Hz) for placed sound events (default: {utils.MIN_RESOLUTION}).",
     )
     parser.add_argument(
         "--max-resolution",
         type=float,
-        default=MAX_RESOLUTION,
-        help=f"Maximum resolution (Hz) for placed sound events (default: {MAX_RESOLUTION}).",
+        default=utils.MAX_RESOLUTION,
+        help=f"Maximum resolution (Hz) for placed sound events (default: {utils.MAX_RESOLUTION}).",
     )
 
     return vars(parser.parse_args())

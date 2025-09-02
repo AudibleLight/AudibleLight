@@ -10,16 +10,7 @@ import random
 from pathlib import Path
 from time import time
 
-from generate_with_random_events import (
-    MAX_RESOLUTION,
-    MAX_SNR,
-    MAX_VELOCITY,
-    MIC_ARRAY_NAME,
-    MIN_RESOLUTION,
-    MIN_SNR,
-    MIN_VELOCITY,
-    REF_DB,
-)
+from generate_with_random_events import MIC_ARRAY_NAME
 from generate_with_random_events import main as make_a_scene
 from loguru import logger
 from tqdm import tqdm
@@ -74,13 +65,13 @@ def main(n_scenes: int, outdir: str):
             output_folder=output_dir,
             fg_folder=AUDIO_DIR,
             mesh_path=mesh,
-            ref_db=REF_DB,
-            min_snr=MIN_SNR,
-            max_snr=MAX_SNR,
-            min_velocity=MIN_VELOCITY,
-            max_velocity=MAX_VELOCITY,
-            min_resolution=MIN_RESOLUTION,
-            max_resolution=MAX_RESOLUTION,
+            ref_db=utils.REF_DB,
+            min_snr=utils.MIN_SNR,
+            max_snr=utils.MAX_SNR,
+            min_velocity=utils.MIN_VELOCITY,
+            max_velocity=utils.MAX_VELOCITY,
+            min_resolution=utils.MIN_RESOLUTION,
+            max_resolution=utils.MAX_RESOLUTION,
             ambience=random.choice(AUDIOS),
         )
 
