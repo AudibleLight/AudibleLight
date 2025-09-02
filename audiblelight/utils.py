@@ -277,7 +277,7 @@ def sanitise_directory(directory: Any) -> Path:
         # Raise a nicer error when the file can't be found
         if not directory.is_dir():
             raise FileNotFoundError(
-                f"Cannot find file at {str(directory)}, does it exist?"
+                f"Cannot find directory at {str(directory)}, does it exist?"
             )
         else:
             if not any(directory.iterdir()):
@@ -287,8 +287,15 @@ def sanitise_directory(directory: Any) -> Path:
             return directory
     else:
         raise TypeError(
-            f"Expected filepath to be either a string or Path object, but got {type(directory)}"
+            f"Expected directory to be either a string or Path object, but got {type(directory)}"
         )
+
+
+def sanitise_directories(directories: list[Any]) -> list[Path]:
+    """
+    Equivalent to [sanitise_directory(dir) for dir in directories]
+    """
+    return [sanitise_directory(dir_) for dir_ in directories]
 
 
 def sanitise_positive_number(x: Any, cast_to: type = float) -> Optional[Numeric]:
