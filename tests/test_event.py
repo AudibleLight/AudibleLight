@@ -19,7 +19,7 @@ from audiblelight.augmentation import (
     PitchShift,
     SpeedUp,
 )
-from audiblelight.event import Event
+from audiblelight.event import Event, infer_dcase_label_idx_from_filepath
 from tests import utils_tests
 
 
@@ -119,8 +119,8 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "alias": "test_event",
             "filename": "000010.mp3",
             "filepath": str(utils_tests.SOUNDEVENT_DIR / "music/000010.mp3"),
-            "class_id": None,
-            "class_label": None,
+            "class_id": 8,
+            "class_label": "music",
             "is_moving": False,
             "scene_start": 0.0,
             "scene_end": 0.3922902494331066,
@@ -142,8 +142,8 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "alias": "test_event",
             "filename": "000010.mp3",
             "filepath": str(utils_tests.SOUNDEVENT_DIR / "music/000010.mp3"),
-            "class_id": None,
-            "class_label": None,
+            "class_id": 8,
+            "class_label": "music",
             "is_moving": True,
             "scene_start": 5.0,
             "scene_end": 10.0,
@@ -334,3 +334,40 @@ def test_add_bad_augmentation():
     # Should not be able to clear augmentation
     with pytest.raises(IndexError, match="No augmentation found at index 1000"):
         ev.clear_augmentation(1000)
+
+
+@pytest.mark.parametrize(
+    "filepath,expected_class,expected_idx,raises",
+    [
+        (
+            "/AudibleLight/resources/soundevents/music/train/Pop/001649.mp3",
+            "music",
+            8,
+            False,
+        ),
+        (
+            "/AudibleLight/resources/soundevents/femaleSpeech/train/Female_speech_and_woman_speaking/109902.wav",
+            "femaleSpeech",
+            0,
+            False,
+        ),
+        (
+            "i/will/never/get/a/match/butitsok.wav",
+            None,
+            None,
+            False,
+        ),
+        ("i/will/match/both/music/and/femaleSpeech/sowillfail.wav", None, None, True),
+    ],
+)
+def test_infer_dcase_from_filepath(
+    filepath, expected_class: str, expected_idx: int, raises: bool
+):
+    if raises:
+        with pytest.raises(ValueError):
+            _, __ = infer_dcase_label_idx_from_filepath(filepath)
+
+    else:
+        actual_idx, actual_cls = infer_dcase_label_idx_from_filepath(filepath)
+        assert actual_cls == expected_class
+        assert actual_idx == expected_idx

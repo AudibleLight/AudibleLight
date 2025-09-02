@@ -224,8 +224,8 @@ def main(
     audio_path = str(output_path / "audio_out.wav")
     metadata_path = str(output_path / "metadata_out.json")
     scene.generate(
-        audio_path=audio_path,
-        metadata_path=metadata_path,
+        audio_fname=audio_path,
+        metadata_fname=metadata_path,
     )
     end = time() - start
 

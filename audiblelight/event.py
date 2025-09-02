@@ -38,7 +38,50 @@ _DCASE_SOUND_EVENT_CLASSES_INV = {v: k for v, k in DCASE_SOUND_EVENT_CLASSES.ite
 MAX_DEFAULT_DURATION = 10
 
 
-def _infer_dcase_class_id_labels(
+def infer_dcase_label_idx_from_filepath(
+    filepath: Union[Path, str]
+) -> Union[tuple[int, str], tuple[None, None]]:
+    """
+    Given a filepath, infer the DCASE class label and index from this.
+
+    Returns a tuple of None, None if the DCASE class label cannot be inferred.
+
+    Arguments:
+        filepath: the path to infer the class label from
+
+    Examples:
+        >>> fpath = "/AudibleLight/resources/soundevents/maleSpeech/train/Male_speech_and_man_speaking/67669.wav"
+        >>> cls, idx = infer_dcase_label_idx_from_filepath(fpath)
+        >>> print(cls, idx)
+        tuple("maleSpeech", 1)
+    """
+    # Coerce paths
+    if not isinstance(filepath, Path):
+        filepath = Path(filepath)
+
+    cls, idx = None, None
+    # Search for the label key in the path
+    for part in filepath.parts:
+        if part in DCASE_SOUND_EVENT_CLASSES.keys():
+
+            # Update the variables, only if we haven't already done so
+            if not cls and not idx:
+                cls = part
+                idx = DCASE_SOUND_EVENT_CLASSES[cls]
+
+            # Raise if we have multiple possible matches
+            else:
+                raise ValueError(
+                    f"Found multiple possible DCASE classes for filepath {str(filepath)}. "
+                    f"This filepath matches both classes {cls} and {part}. "
+                    f"Please adjust your filepaths as necessary so that they only contain one DCASE class."
+                )
+
+    # This will just return None, None if no matches
+    return idx, cls
+
+
+def _infer_missing_dcase_values(
     class_id: Optional[int], class_label: Optional[str]
 ) -> tuple[Optional[int], Optional[str]]:
     """
@@ -126,10 +169,17 @@ class Event:
 
         # Metadata attributes
         self.filename = self.filepath.name
+
         #  Attempt to infer class ID and labels in cases where only one is provided
-        self.class_id, self.class_label = _infer_dcase_class_id_labels(
-            class_id, class_label
-        )
+        if class_id or class_label:
+            self.class_id, self.class_label = _infer_missing_dcase_values(
+                class_id, class_label
+            )
+        # Otherwise, try and infer both the ID and the label from the filepath
+        else:
+            self.class_id, self.class_label = infer_dcase_label_idx_from_filepath(
+                self.filepath
+            )
 
         # Get the full duration of the audio file
         self.audio_full_duration = utils.sanitise_positive_number(

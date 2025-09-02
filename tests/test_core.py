@@ -440,11 +440,34 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
         # Use a short duration here so we don't run into issues with placing events
         oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
 
-    oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
+    # Suffixes will be stripped out
+    oyens_scene_no_overlap.generate(audio_fname="tmp.wav", metadata_fname="tmp.json")
 
-    for fout in ["tmp.wav", "tmp.json"]:
+    for fout in ["tmp.wav", "tmp.json", "tmp_mic000.csv"]:
         assert os.path.isfile(fout)
         os.remove(fout)
+
+
+@pytest.mark.parametrize(
+    "dirpath,raises",
+    [(None, False), (os.getcwd(), False), ("not/a/dir", FileNotFoundError)],
+)
+def test_generate_parse_filepaths(dirpath, raises, oyens_scene_no_overlap):
+    oyens_scene_no_overlap.clear_events()
+    # Use a short duration here so we don't run into issues with placing events
+    oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+
+    if not raises:
+        oyens_scene_no_overlap.generate(output_dir=dirpath)
+        assert oyens_scene_no_overlap.audio is not None
+        # Cleanup
+        for fout in ["audio_out.wav", "metadata_out.json", "metadata_out_mic000.csv"]:
+            assert os.path.isfile(fout)
+            os.remove(fout)
+    else:
+        with pytest.raises(raises):
+            oyens_scene_no_overlap.generate(output_dir=dirpath)
+        assert oyens_scene_no_overlap.audio is None
 
 
 @pytest.mark.parametrize(
@@ -501,8 +524,8 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                     "alias": "test_event",
                     "filename": "000010.mp3",
                     "filepath": str(utils_tests.SOUNDEVENT_DIR / "music/000010.mp3"),
-                    "class_id": None,
-                    "class_label": None,
+                    "class_id": 8,
+                    "class_label": "music",
                     "is_moving": False,
                     "scene_start": 0.0,
                     "scene_end": 0.3922902494331066,
