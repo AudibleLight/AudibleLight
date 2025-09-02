@@ -24,8 +24,6 @@ from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState
 
-WARN_WHEN_DURATION_LOWER_THAN = 5
-
 
 class Scene:
     """
@@ -96,12 +94,12 @@ class Scene:
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
         # Raise a warning when the duration is very short.
-        if self.duration < WARN_WHEN_DURATION_LOWER_THAN:
+        if self.duration < config.WARN_WHEN_SCENE_DURATION_BELOW:
             logger.warning(
                 f"The duration for this Scene is very short ({duration:.2f} seconds). "
                 f"You may encounter issues with Events overlapping or being truncated to fit the "
                 f"duration of the Scene. It is recommended to increase the duration to at least "
-                f"{WARN_WHEN_DURATION_LOWER_THAN} seconds."
+                f"{config.WARN_WHEN_SCENE_DURATION_BELOW} seconds."
             )
         self.ref_db = utils.sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)

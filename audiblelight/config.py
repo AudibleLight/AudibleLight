@@ -11,6 +11,7 @@ BUFFER_SIZE = 8192
 SCENE_DURATION = 60
 REF_DB = -65
 MAX_OVERLAP = 2
+WARN_WHEN_SCENE_DURATION_BELOW = 5
 
 # Event
 DEFAULT_MOVING_TRAJECTORY = "linear"
@@ -41,7 +42,7 @@ EMPTY_SPACE_AROUND_SURFACE = 0.2
 #  Minimum distance from individual microphone capsules
 EMPTY_SPACE_AROUND_CAPSULE = 0.05
 #  When the ray efficiency is below this value, raise a warning in .simulate
-WARN_WHEN_EFFICIENCY_BELOW = 0.5
+WARN_WHEN_RAY_EFFICIENCY_BELOW = 0.5
 # Max number of times we'll attempt to place a source or microphone before giving up
 MAX_PLACE_ATTEMPTS = 1000
 

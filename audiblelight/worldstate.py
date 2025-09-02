@@ -1634,9 +1634,9 @@ class WorldState:
         logger.info(
             f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}"
         )
-        if efficiency < config.WARN_WHEN_EFFICIENCY_BELOW:
+        if efficiency < config.WARN_WHEN_RAY_EFFICIENCY_BELOW:
             logger.warning(
-                f"Ray efficiency is below {config.WARN_WHEN_EFFICIENCY_BELOW :.0%}. It is possible that the mesh "
+                f"Ray efficiency is below {config.WARN_WHEN_RAY_EFFICIENCY_BELOW :.0%}. It is possible that the mesh "
                 f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
                 f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh."
             )

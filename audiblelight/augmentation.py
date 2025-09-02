@@ -30,8 +30,6 @@ from scipy import stats
 
 from audiblelight import config, utils
 
-MIN_FPS, MAX_FPS = 0.5, 5
-
 
 def _identity(input_array: np.ndarray, *_, **__) -> np.ndarray:
     return input_array
