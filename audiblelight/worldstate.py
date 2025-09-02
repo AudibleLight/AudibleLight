@@ -439,7 +439,7 @@ class WorldState:
             return self._irs
 
     def calculate_weighted_average_ray_length(
-        self, point: np.ndarray, num_rays: Optional[types.Numeric] = 100
+        self, point: np.ndarray, num_rays: Optional[types.Numeric] = config.NUM_RAYS
     ) -> types.Numeric:
         """
         Estimate how spatially "open" a point is by computing the weighted average length of rays cast from that point.
@@ -880,7 +880,7 @@ class WorldState:
         return mic_pos
 
     def get_random_point_inside_mesh(
-        self, batch_size: Optional[types.Numeric] = 10
+        self, batch_size: Optional[types.Numeric] = config.POINT_BATCH_SIZE
     ) -> np.ndarray:
         """
         Generates a random valid point inside the mesh.
@@ -1314,8 +1314,8 @@ class WorldState:
 
         Arguments:
             ref (np.ndarray): the reference point, treated as the origin of the sphere
-            r (utils.Numeric): the maximum distance for the sampled point from `ref`
-            n (utils.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
+            r (types.Numeric): the maximum distance for the sampled point from `ref`
+            n (types.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
 
         Raises:
             ValueError: if a valid point from within `n` samples cannot be found
@@ -1366,8 +1366,8 @@ class WorldState:
         Arguments:
             trajectory (np.ndarray): the trajectory to be validated
             requires_direct_line (bool): whether a direct line must exist between the starting and ending position
-            max_distance (utils.Numeric): the maximum distance traversed in the trajectory, from start to end
-            step_distance (utils.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            max_distance (types.Numeric): the maximum distance traversed in the trajectory, from start to end
+            step_distance (types.Numeric): the maximum distance traversed from one step to the next in the trajectory
 
         Returns:
             bool: whether the trajectory is valid
@@ -1411,8 +1411,8 @@ class WorldState:
         self,
         duration: types.Numeric,
         starting_position: Optional[Union[np.ndarray, list]] = None,
-        velocity: Optional[types.Numeric] = config.AVG_EVENT_VELOCITY,
-        resolution: Optional[types.Numeric] = config.AVG_EVENT_RESOLUTION,
+        velocity: Optional[types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
+        resolution: Optional[types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
         shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
         max_place_attempts: Optional[types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ):

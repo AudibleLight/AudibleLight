@@ -698,12 +698,12 @@ class Scene:
         scene_start: Optional[types.Numeric] = None,
         event_start: Optional[types.Numeric] = None,
         duration: Optional[types.Numeric] = None,
-        snr: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = config.DEFAULT_EVENT_SNR,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        shape: Optional[str] = None,
-        spatial_resolution: Optional[types.Numeric] = None,
-        spatial_velocity: Optional[types.Numeric] = None,
+        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        spatial_resolution: Optional[types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        spatial_velocity: Optional[types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
     ) -> Event:
         """
         Add an event to the foreground, either "static" or "moving"
@@ -838,7 +838,7 @@ class Scene:
         scene_start: Optional[types.Numeric] = None,
         event_start: Optional[types.Numeric] = None,
         duration: Optional[types.Numeric] = None,
-        snr: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = config.DEFAULT_EVENT_SNR,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
     ) -> Event:
@@ -981,15 +981,15 @@ class Scene:
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
-        shape: Optional[str] = None,
+        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
         scene_start: Optional[types.Numeric] = None,
         event_start: Optional[types.Numeric] = None,
         duration: Optional[types.Numeric] = None,
-        snr: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = config.DEFAULT_EVENT_SNR,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        spatial_resolution: Optional[types.Numeric] = None,
-        spatial_velocity: Optional[types.Numeric] = None,
+        spatial_resolution: Optional[types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        spatial_velocity: Optional[types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
