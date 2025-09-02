@@ -43,6 +43,7 @@ class Scene:
         mesh_path: Union[str, Path],
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
+        allow_duplicate_audios: bool = True,
         ref_db: Optional[utils.Numeric] = REF_DB,
         scene_start_dist: Optional[utils.DistributionLike] = None,
         event_start_dist: Optional[utils.DistributionLike] = None,
@@ -70,6 +71,7 @@ class Scene:
                 introspected recursively, such that audio files within any subdirectories will be detected also.
             bg_path: a directory (or list of directories pointing to background audio. Note that directories will be
                 introspected recursively, such that audio files within any subdirectories will be detected also.
+            allow_duplicate_audios: if True (default), the same audio file can appear multiple times in the Scene.
             ref_db: reference decibel level for scene noise floor, defaults to -50 dB
             scene_start_dist: distribution-like object or callable used to sample starting times for any Event objects
                 applied to the scene. If not provided, will be a uniform distribution between 0 and `Scene.duration`
@@ -160,6 +162,9 @@ class Scene:
         )
         self.bg_audios = self._introspect_audio_directories(self.bg_paths)
 
+        # If False, we'll ensure that all randomly sampled event/ambience audio is unique when sampling
+        self.allow_duplicate_audios = allow_duplicate_audios
+
         # Events will be stored within here
         self.events = OrderedDict()
 
@@ -185,7 +190,7 @@ class Scene:
         """
         if not isinstance(audio_dir, list):
             audio_dir = [audio_dir]
-        return [utils.sanitise_directory(fg) for fg in audio_dir]
+        return utils.sanitise_directories(audio_dir)
 
     @staticmethod
     def _introspect_audio_directories(audio_dir: list[Path]) -> list[Path]:
@@ -196,7 +201,7 @@ class Scene:
         for ext in utils.AUDIO_EXTS:
             for fg in audio_dir:
                 audio_paths.extend((fg.rglob(f"*.{ext}")))
-        return [utils.sanitise_filepath(fp) for fp in audio_paths]
+        return utils.sanitise_filepaths(audio_paths)
 
     def _parse_event_augmentations(
         self,
@@ -426,6 +431,11 @@ class Scene:
         """
         # If the number of channels is not provided, try and get this from the number of microphone capsules
         if channels is None:
+            if len(self.state.microphones) == 0:
+                raise ValueError(
+                    "Cannot infer ambience channels when no microphones have been added to the WorldState."
+                )
+
             available_mics = [mic.n_capsules for mic in self.state.microphones.values()]
             # Raise an error when added microphones have a different number of channels
             if not all([a == available_mics[0] for a in available_mics]):
@@ -446,9 +456,25 @@ class Scene:
                 f"Ambience event with alias {alias} has already been added to the scene!"
             )
 
-        # If we haven't passed in either a filepath or a noise type, try getting a random background audio file
-        if filepath is None and noise is None:
-            filepath = self._get_random_audio(self.bg_audios)
+        # Handling filepaths
+        if noise is None:
+            # Get a random filepath when neither noise or filepath provided
+            if filepath is None:
+                filepath = self._get_random_audio(self.bg_audios)
+            # Otherwise, check provided filepath is valid
+            else:
+                filepath = utils.sanitise_filepath(filepath)
+
+            # If we don't want to allow for duplicate filepaths, check this now
+            if not self.allow_duplicate_audios:
+                seen_audios = self._get_used_audios()
+                if filepath in seen_audios:
+                    raise ValueError(
+                        f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                        f"Either increase the number of `bg_paths` in Scene.__init__, "
+                        f"choose a different audio file, "
+                        f"or set `Scene.allow_duplicate_audios=False`."
+                    )
 
         # Add the ambience to the dictionary
         self.ambience[alias] = Ambience(
@@ -541,6 +567,15 @@ class Scene:
 
         return False
 
+    def _get_used_audios(self) -> list[Path]:
+        """
+        Gets a list of audio files used in all Ambience and Event objects currently added to the Scene
+        """
+        # Get all Ambience and Event objects
+        events_ambs = self.get_events() + self.get_ambiences()
+        # Get audio files: note that `filepath` can be None for ambience objects using noise types instead
+        return [ev.filepath for ev in events_ambs if ev.filepath is not None]
+
     def _get_random_audio(self, audio_paths: Optional[list[Path]] = None) -> Path:
         """
         Gets a path to a random audio file from the provided list of directories
@@ -552,10 +587,13 @@ class Scene:
         if audio_paths is None:
             audio_paths = self.fg_audios
 
-        # TODO: remove any duplicate audio files here
-        # # Get all audio files used in all Event objects
-        # events = self.get_events() + self.get_ambiences()
-        # event_audios = [ev.filepath for ev in events]
+        # Sanitise all audio paths (converting to pathlib.Path objects, checking they exist...)
+        audio_paths = utils.sanitise_filepaths(audio_paths)
+
+        # If we want to ensure that the same audio file is not used multiple times across Events/Ambiences, do this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            audio_paths = [i for i in audio_paths if i not in seen_audios]
 
         # Raise an error when no audio files available
         if len(audio_paths) == 0:
@@ -564,8 +602,8 @@ class Scene:
                 "Make sure you pass a value to `fg_path` in Scene.__init__`."
             )
 
-        # Choose a random filepath and make sure its valid
-        return utils.sanitise_filepath(random.choice(audio_paths))
+        # Choose a random filepath: no need to sanitise, we did this already
+        return random.choice(audio_paths)
 
     def _coerce_polar_position(
         self,
@@ -847,6 +885,17 @@ class Scene:
             else utils.sanitise_filepath(filepath)
         )
 
+        # If we don't want to allow for duplicate filepaths, check this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            if filepath in seen_audios:
+                raise ValueError(
+                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                    f"Either increase the number of `fg_paths` in Scene.__init__, "
+                    f"choose a different audio file, "
+                    f"or set `Scene.allow_duplicate_audios=False`."
+                )
+
         # Convert polar positions to cartesian here
         if polar:
             position = self._coerce_polar_position(position, mic)
@@ -987,6 +1036,17 @@ class Scene:
             if filepath is None
             else utils.sanitise_filepath(filepath)
         )
+
+        # If we don't want to allow for duplicate filepaths, check this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            if filepath in seen_audios:
+                raise ValueError(
+                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                    f"Either increase the number of `fg_paths` in Scene.__init__, "
+                    f"choose a different audio file, "
+                    f"or set `Scene.allow_duplicate_audios=False`."
+                )
 
         # Sample N random augmentations from our list, if required
         if isinstance(augmentations, utils.Numeric):

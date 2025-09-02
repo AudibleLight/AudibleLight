@@ -844,3 +844,62 @@ def test_parse_audio_paths(fg_path, bg_path):
             assert len(audios) == 0
             with pytest.raises(FileNotFoundError):
                 _ = sc._get_random_audio(audios)
+
+
+@pytest.mark.parametrize("bad_event_type", ["static", "moving"])
+def test_add_duplicated_event_audio(bad_event_type):
+    sc = Scene(
+        duration=50, mesh_path=utils_tests.OYENS_PATH, allow_duplicate_audios=False
+    )
+
+    # Add the audio in the first time: should be fine
+    ok_event_type = "static" if bad_event_type == "moving" else "moving"
+    sc.add_event(
+        event_type=ok_event_type,
+        alias="ok",
+        filepath=utils_tests.TEST_MUSICS[0],
+        duration=1.0,
+    )
+
+    # Add the audio in the second time: should raise an error
+    with pytest.raises(ValueError, match="Audio file"):
+        sc.add_event(
+            event_type=bad_event_type,
+            alias="bad",
+            filepath=utils_tests.TEST_MUSICS[0],
+            duration=1.0,
+        )
+
+
+def test_add_duplicated_ambience_audio():
+    sc = Scene(
+        duration=50, mesh_path=utils_tests.OYENS_PATH, allow_duplicate_audios=False
+    )
+
+    # Add the audio in the first time should be fine
+    sc.add_ambience(alias="ok", filepath=utils_tests.TEST_MUSICS[0], channels=4)
+
+    # Add the ambience in the second time, should raise
+    with pytest.raises(ValueError, match="Audio file"):
+        sc.add_ambience(alias="bad", filepath=utils_tests.TEST_MUSICS[0], channels=4)
+
+
+@pytest.mark.parametrize("allow_dupes", [True, False])
+def test_get_random_audio_dupes(allow_dupes):
+    sc = Scene(
+        mesh_path=utils_tests.OYENS_PATH,
+        duration=50,
+        allow_duplicate_audios=allow_dupes,
+    )
+
+    chosen_audio = utils.sanitise_filepath(utils_tests.TEST_MUSICS[0])
+    sc.add_event(duration=1, event_type="static", filepath=chosen_audio)
+
+    # Get N random audios
+    randoms = [sc._get_random_audio(utils_tests.TEST_MUSICS) for _ in range(50)]
+
+    # Allow for duplicates in the result or not depending on the argument
+    if allow_dupes:
+        assert chosen_audio in randoms
+    else:
+        assert chosen_audio not in randoms
