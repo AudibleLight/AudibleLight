@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from audiblelight import utils
+from audiblelight.ambience import Ambience
 from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
 from audiblelight.core import Scene
 from audiblelight.event import Event
@@ -349,6 +350,7 @@ def test_get_event(oyens_scene_no_overlap):
 
 def test_get_funcs(oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.add_event(event_type="static")
+    oyens_scene_no_overlap.add_ambience(alias="tester", noise="white")
     # Test all the get functions
     mic = oyens_scene_no_overlap.get_microphone("mic000")
     assert issubclass(type(mic), MicArray)
@@ -359,6 +361,12 @@ def test_get_funcs(oyens_scene_no_overlap: Scene):
     events = oyens_scene_no_overlap.get_events()
     assert isinstance(events, list)
     assert isinstance(events[0], Event)
+    ambience = oyens_scene_no_overlap.get_ambience("tester")
+    assert isinstance(ambience, Ambience)
+    ambiences = oyens_scene_no_overlap.get_ambiences()
+    assert isinstance(ambiences, list)
+    assert isinstance(ambiences[0], Ambience)
+    assert ambiences[0] == ambience
 
 
 def test_clear_funcs(oyens_scene_no_overlap: Scene):

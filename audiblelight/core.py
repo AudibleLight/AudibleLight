@@ -552,6 +552,11 @@ class Scene:
         if audio_paths is None:
             audio_paths = self.fg_audios
 
+        # TODO: remove any duplicate audio files here
+        # # Get all audio files used in all Event objects
+        # events = self.get_events() + self.get_ambiences()
+        # event_audios = [ev.filepath for ev in events]
+
         # Raise an error when no audio files available
         if len(audio_paths) == 0:
             raise FileNotFoundError(
@@ -1324,6 +1329,12 @@ class Scene:
             return self.ambience[alias]
         else:
             raise KeyError("Ambience alias '{}' not found.".format(alias))
+
+    def get_ambiences(self) -> list[Ambience]:
+        """
+        Get all ambience objects, as in `self.ambience.values()`
+        """
+        return list(self.ambience.values())
 
     # noinspection PyProtectedMember
     def clear_events(self) -> None:
