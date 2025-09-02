@@ -16,7 +16,7 @@ import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
 
-from audiblelight import utils
+from audiblelight import config, utils
 
 # This dictionary maps popular "names" to β values for generating noise
 #  In general, higher β values cause more energy in high frequency parts of the power spectral density
@@ -36,8 +36,8 @@ class Ambience:
         alias: str,
         filepath: Optional[Union[str, Path]] = None,
         noise: Optional[Union[str, utils.Numeric]] = None,
-        ref_db: Optional[utils.Numeric] = utils.REF_DB,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        ref_db: Optional[utils.Numeric] = config.REF_DB,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         **kwargs,
     ):
         """

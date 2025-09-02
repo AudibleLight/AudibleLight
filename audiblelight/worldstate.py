@@ -16,23 +16,10 @@ from deepdiff import DeepDiff
 from loguru import logger
 from rlr_audio_propagation import ChannelLayout, ChannelLayoutType, Config, Context
 
-from audiblelight import utils
+from audiblelight import config, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
-
-MIN_AVG_RAY_LENGTH = 3.0
-
-EMPTY_SPACE_AROUND_EMITTER = 0.2  # Minimum distance one emitter can be from another
-EMPTY_SPACE_AROUND_MIC = 0.1  # Minimum distance one emitter can be from the mic
-EMPTY_SPACE_AROUND_SURFACE = 0.2  # Minimum distance from the nearest mesh surface
-EMPTY_SPACE_AROUND_CAPSULE = (
-    0.05  # Minimum distance from individual microphone capsules
-)
-
-WARN_WHEN_EFFICIENCY_BELOW = (
-    0.5  # when the ray efficiency is below this value, raise a warning in .simulate
-)
 
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
@@ -50,11 +37,11 @@ def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
         mesh_fpath, file_type=mesh_fpath.suffix, metadata=metadata
     )
     # Convert the units of the mesh to meters, if this is not provided
-    if loaded_mesh.units != utils.MESH_UNITS:
+    if loaded_mesh.units != config.MESH_UNITS:
         logger.warning(
-            f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}"
+            f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {config.MESH_UNITS}"
         )
-        loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
+        loaded_mesh = loaded_mesh.convert_units(config.MESH_UNITS, guess=True)
     return loaded_mesh
 
 
@@ -289,21 +276,21 @@ class WorldState:
     def __init__(
         self,
         mesh: Union[str, Path],
-        empty_space_around_mic: Optional[utils.Numeric] = EMPTY_SPACE_AROUND_MIC,
+        empty_space_around_mic: Optional[utils.Numeric] = config.EMPTY_SPACE_AROUND_MIC,
         empty_space_around_emitter: Optional[
             utils.Numeric
-        ] = EMPTY_SPACE_AROUND_EMITTER,
+        ] = config.EMPTY_SPACE_AROUND_EMITTER,
         empty_space_around_surface: Optional[
             utils.Numeric
-        ] = EMPTY_SPACE_AROUND_SURFACE,
+        ] = config.EMPTY_SPACE_AROUND_SURFACE,
         empty_space_around_capsule: Optional[
             utils.Numeric
-        ] = EMPTY_SPACE_AROUND_CAPSULE,
+        ] = config.EMPTY_SPACE_AROUND_CAPSULE,
         add_to_context: Optional[bool] = True,
         ensure_minimum_weighted_average_ray_length: Optional[bool] = False,
         minimum_weighted_average_ray_length: Optional[
             utils.Numeric
-        ] = MIN_AVG_RAY_LENGTH,
+        ] = config.MIN_AVG_RAY_LENGTH,
         repair_threshold: Optional[utils.Numeric] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
@@ -524,7 +511,7 @@ class WorldState:
         if alias in self.microphones.keys():
             raise KeyError(f"Alias {alias} already exists in microphone dictionary")
 
-        for attempt in range(utils.MAX_PLACE_ATTEMPTS):
+        for attempt in range(config.MAX_PLACE_ATTEMPTS):
             # Grab a random position for the microphone if required
             pos = position if position is not None else self.get_random_position()
             assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
@@ -593,7 +580,7 @@ class WorldState:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place microphone in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                     f"Consider reducing `empty_space_around` arguments."
                 )
             # If we were trying to add it to a specific position
@@ -692,7 +679,7 @@ class WorldState:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (
-                        f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Could not place microphone in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                         f"Consider reducing `empty_space_around` arguments."
                     )
                 # If we were trying to add it to a specific position
@@ -722,7 +709,7 @@ class WorldState:
         keep_existing_mics: Optional[bool] = True,
         keep_existing_emitters: Optional[bool] = True,
         ensure_direct_path: Optional[bool] = True,
-        max_place_attempts: Optional[int] = utils.MAX_PLACE_ATTEMPTS,
+        max_place_attempts: Optional[int] = config.MAX_PLACE_ATTEMPTS,
     ) -> None:
         """
         Add both a microphone and emitter with specified relationship.
@@ -870,7 +857,7 @@ class WorldState:
 
         # If we care about checking vs minimum weighted average ray length, we need to iterate
         if self.ensure_minimum_weighted_average_ray_length:
-            for attempt in range(utils.MAX_PLACE_ATTEMPTS):
+            for attempt in range(config.MAX_PLACE_ATTEMPTS):
 
                 # Compute the weighted average ray length with this position and return if the position is acceptable
                 if (
@@ -886,7 +873,7 @@ class WorldState:
 
             # If we haven't found an acceptable position, log this and use the most recent one.
             logger.error(
-                f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not find a suitable position after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Using the last attempted position: {mic_pos}."
             )
 
@@ -1017,7 +1004,7 @@ class WorldState:
         position_is_assigned = position is not None
         # If we have already provided a position, this loop will only iterate once
         #  Otherwise, we want a random position, so we iterate N times until the position is valid
-        for attempt in range(1 if position_is_assigned else utils.MAX_PLACE_ATTEMPTS):
+        for attempt in range(1 if position_is_assigned else config.MAX_PLACE_ATTEMPTS):
             # Get a random position if required or use the assigned one
             pos = position if position_is_assigned else self.get_random_position()
             if len(pos) != 3:
@@ -1195,7 +1182,7 @@ class WorldState:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                     f"If this is happening frequently, consider reducing the number of `emitters`, "
                     f"or the `empty_space_around` arguments."
                 )
@@ -1298,7 +1285,7 @@ class WorldState:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (
-                        f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                         f"Consider reducing `empty_space_around` arguments."
                     )
                 # If we were trying to add it to a specific position
@@ -1320,7 +1307,7 @@ class WorldState:
         self,
         ref: np.ndarray,
         r: utils.Numeric,
-        n: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
+        n: Optional[utils.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> np.ndarray:
         """
         Generate a sphere with origin `ref` and radius `r` and sample a valid position from within its volume.
@@ -1468,7 +1455,7 @@ class WorldState:
             else resolution
         )
         max_place_attempts = (
-            utils.MAX_PLACE_ATTEMPTS
+            config.MAX_PLACE_ATTEMPTS
             if max_place_attempts is None
             else max_place_attempts
         )
@@ -1663,9 +1650,9 @@ class WorldState:
         logger.info(
             f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}"
         )
-        if efficiency < WARN_WHEN_EFFICIENCY_BELOW:
+        if efficiency < config.WARN_WHEN_EFFICIENCY_BELOW:
             logger.warning(
-                f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
+                f"Ray efficiency is below {config.WARN_WHEN_EFFICIENCY_BELOW :.0%}. It is possible that the mesh "
                 f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
                 f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh."
             )

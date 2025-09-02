@@ -17,7 +17,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
-from audiblelight import __version__, utils
+from audiblelight import __version__, config, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
@@ -42,14 +42,14 @@ class Scene:
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
-        ref_db: Optional[utils.Numeric] = utils.REF_DB,
+        ref_db: Optional[utils.Numeric] = config.REF_DB,
         scene_start_dist: Optional[utils.DistributionLike] = None,
         event_start_dist: Optional[utils.DistributionLike] = None,
         event_duration_dist: Optional[utils.DistributionLike] = None,
         event_velocity_dist: Optional[utils.DistributionLike] = None,
         event_resolution_dist: Optional[utils.DistributionLike] = None,
         snr_dist: Optional[utils.DistributionLike] = None,
-        max_overlap: Optional[utils.Numeric] = utils.MAX_OVERLAP,
+        max_overlap: Optional[utils.Numeric] = config.MAX_OVERLAP,
         event_augmentations: Optional[
             Union[
                 Iterable[Type[EventAugmentation]],
@@ -503,7 +503,7 @@ class Scene:
             k is not None in event_kwargs
             for k in ("scene_start", "event_start", "duration")
         )
-        max_place_attempts = utils.MAX_PLACE_ATTEMPTS if not has_overrides else 1
+        max_place_attempts = config.MAX_PLACE_ATTEMPTS if not has_overrides else 1
 
         # Pre-resolve all user-specified override values (only done once)
         overrides = {
@@ -952,7 +952,7 @@ class Scene:
             #  we should probably truncate to a sensible maximum duration
             #  based on the duration of the scene
             raise ValueError(
-                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not place event in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
                 f"`duration` of the scene (currently {self.duration})."
             )
@@ -1086,7 +1086,7 @@ class Scene:
         if not placed:
             # No need to clear out any emitters (as in `add_event_static`) because we haven't placed them yet
             raise ValueError(
-                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not place event in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
                 f"`duration` of the scene (currently {self.duration})."
             )

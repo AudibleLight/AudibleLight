@@ -28,9 +28,8 @@ from deepdiff import DeepDiff
 from pedalboard import time_stretch
 from scipy import stats
 
-from audiblelight import utils
+from audiblelight import config, utils
 
-BUFFER_SIZE = 8192
 MIN_FPS, MAX_FPS = 0.5, 5
 
 
@@ -57,7 +56,7 @@ class Augmentation:
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
     ):
         self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
         self.fx: Union[Callable, list[Callable]] = _identity
@@ -109,7 +108,10 @@ class Augmentation:
         # Process all the FX in sequence
         for fx in self.fx if isinstance(self.fx, list) else [self.fx]:
             out = fx(
-                out, sample_rate=self.sample_rate, buffer_size=BUFFER_SIZE, reset=True
+                out,
+                sample_rate=self.sample_rate,
+                buffer_size=config.BUFFER_SIZE,
+                reset=True,
             )
 
         # Temporary convert mono to stereo for pad function
@@ -276,7 +278,7 @@ class Bitcrush(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         bit_depth: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(
@@ -313,7 +315,7 @@ class LowpassFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
         ] = None,
@@ -360,7 +362,7 @@ class HighShelfFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
@@ -414,7 +416,7 @@ class HighpassFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
         ] = None,
@@ -459,7 +461,7 @@ class LowShelfFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         cutoff_frequency_hz: Optional[
             Union[utils.Numeric, utils.DistributionLike]
@@ -523,7 +525,7 @@ class MultibandEqualizer(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         n_bands: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         gain_db: Optional[
             Union[list[utils.Numeric], utils.Numeric, utils.DistributionLike]
@@ -659,7 +661,7 @@ class Compressor(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         ratio: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         attack_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
@@ -732,7 +734,7 @@ class Chorus(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         rate_hz: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         depth: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         centre_delay_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
@@ -799,7 +801,7 @@ class Clipping(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: utils.Numeric = utils.SAMPLE_RATE,
+        sample_rate: utils.Numeric = config.SAMPLE_RATE,
         threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(sample_rate)
@@ -839,7 +841,7 @@ class Limiter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         threshold_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         release_ms: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
@@ -889,7 +891,7 @@ class Distortion(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: utils.Numeric = utils.SAMPLE_RATE,
+        sample_rate: utils.Numeric = config.SAMPLE_RATE,
         drive_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(
@@ -932,7 +934,7 @@ class Phaser(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         rate_hz: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         depth: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         centre_frequency_hz: Optional[
@@ -1001,7 +1003,7 @@ class Delay(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: utils.Numeric = utils.SAMPLE_RATE,
+        sample_rate: utils.Numeric = config.SAMPLE_RATE,
         delay_seconds: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         feedback: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         mix: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
@@ -1051,7 +1053,7 @@ class Gain(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: utils.Numeric = utils.SAMPLE_RATE,
+        sample_rate: utils.Numeric = config.SAMPLE_RATE,
         gain_db: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(
@@ -1085,7 +1087,7 @@ class GSMFullRateCompressor(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: utils.Numeric = utils.SAMPLE_RATE,
+        sample_rate: utils.Numeric = config.SAMPLE_RATE,
         quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(sample_rate)
@@ -1131,7 +1133,7 @@ class MP3Compressor(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: utils.Numeric = utils.SAMPLE_RATE,
+        sample_rate: utils.Numeric = config.SAMPLE_RATE,
         vbr_quality: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(sample_rate)
@@ -1174,7 +1176,7 @@ class PitchShift(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         semitones: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(
@@ -1235,7 +1237,7 @@ class SpeedUp(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         stretch_factor: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(sample_rate)
@@ -1289,7 +1291,7 @@ class Preemphasis(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         coef: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
         super().__init__(sample_rate)
@@ -1359,7 +1361,7 @@ class Fade(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         fade_in_len: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         fade_out_len: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         fade_in_shape: Optional[str] = None,
@@ -1502,7 +1504,7 @@ class TimeWarp(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        sample_rate: Optional[utils.Numeric] = config.SAMPLE_RATE,
         fps: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
         prob: Optional[Union[utils.Numeric, utils.DistributionLike]] = None,
     ):
