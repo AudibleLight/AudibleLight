@@ -22,6 +22,7 @@ if not os.path.isdir(OUTFOLDER):
 
 # PATHS
 FG_FOLDER = utils.get_project_root() / "tests/test_resources/soundevents"
+BG_FOLDER = FG_FOLDER / "domesticSounds"
 MESH_PATH = (
     utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
 )  # Mesh can be a "building"
@@ -36,7 +37,7 @@ N_STATIC_EVENTS = 4
 N_MOVING_EVENTS = 1
 
 # EVENT VARIABLES
-EVENT_DURATION = 5.0  # events capped to a maximum duration of 5 seconds
+MIN_DURATION, MAX_DURATION = 1.0, 5.0  # event duration between 1 and 5 seconds
 
 
 def parse_arguments():
@@ -95,6 +96,12 @@ def parse_arguments():
         help=f"Foreground sound events folder (default: {str(FG_FOLDER)}).",
     )
     parser.add_argument(
+        "--bg-folder",
+        type=str,
+        default=str(BG_FOLDER),
+        help=f"Background sound events folder (default: {str(BG_FOLDER)}).",
+    )
+    parser.add_argument(
         "--mesh-path",
         type=str,
         default=str(MESH_PATH),
@@ -142,6 +149,18 @@ def parse_arguments():
         default=utils.MAX_RESOLUTION,
         help=f"Maximum resolution (Hz) for placed sound events (default: {utils.MAX_RESOLUTION}).",
     )
+    parser.add_argument(
+        "--min-duration",
+        type=float,
+        default=MIN_DURATION,
+        help=f"Minimum duration (seconds) for placed sound events (default: {MIN_DURATION}).",
+    )
+    parser.add_argument(
+        "--max-duration",
+        type=float,
+        default=MAX_DURATION,
+        help=f"Maximum duration (seconds) for placed sound events (default: {MAX_DURATION}).",
+    )
 
     return vars(parser.parse_args())
 
@@ -154,9 +173,11 @@ def main(
     micarray: str,
     output_folder: str,
     fg_folder: str,
+    bg_folder: str,
     mesh_path: str,
     ref_db: float,
-    ambience: str,
+    min_duration: float,
+    max_duration: float,
     min_snr: int,
     max_snr: int,
     min_velocity: float,
@@ -177,10 +198,11 @@ def main(
         f"  - Microphone array: {micarray}\n"
         f"  - Output folder: {output_folder}\n"
         f"  - Foreground folder: {fg_folder}\n"
+        f"  - Background folder: {bg_folder}\n"
         f"  - Mesh path: {mesh_path}\n"
-        f"  - Ambience file: {ambience}\n"
         f"  - Reference dB: {ref_db}\n"
         f"  - SNR range: {min_snr}–{max_snr} dB\n"
+        f"  - Duration range: {min_duration}–{max_duration} s\n"
         f"  - Velocity range: {min_velocity}–{max_velocity} m/s\n"
         f"  - Resolution range: {min_resolution}–{max_resolution} Hz"
     )
@@ -194,25 +216,29 @@ def main(
         mesh_path=Path(mesh_path),
         scene_start_dist=stats.uniform(0.0, duration - 1),
         event_start_dist=None,
-        event_duration_dist=None,
-        event_velocity_dist=stats.uniform(min_velocity, max_velocity),
-        event_resolution_dist=stats.uniform(min_resolution, max_resolution),
-        snr_dist=stats.uniform(min_snr, max_snr),
+        event_duration_dist=stats.uniform(min_duration, max_duration - min_duration),
+        event_velocity_dist=stats.uniform(min_velocity, max_velocity - min_velocity),
+        event_resolution_dist=stats.uniform(
+            min_resolution, max_resolution - min_resolution
+        ),
+        snr_dist=stats.uniform(min_snr, max_snr - min_snr),
         fg_path=Path(fg_folder),
+        bg_path=Path(bg_folder),
         max_overlap=max_overlap,
         ref_db=ref_db,
         state_kwargs=dict(add_to_context=False),
+        allow_duplicate_audios=False,
     )
 
     scene.add_microphone(microphone_type=micarray, alias=micarray)
 
     for _ in range(n_static):
-        scene.add_event(event_type="static", duration=EVENT_DURATION)
+        scene.add_event(event_type="static")
 
     for _ in range(n_moving):
-        scene.add_event(event_type="moving", duration=EVENT_DURATION)
+        scene.add_event(event_type="moving")
 
-    scene.add_ambience(filepath=ambience)
+    scene.add_ambience()
 
     audio_path = str(output_path / "audio_out.wav")
     metadata_path = str(output_path / "metadata_out.json")
