@@ -1000,21 +1000,26 @@ class Scene:
         return intersections >= self.max_overlap
 
     # noinspection PyProtectedMember
+    # noinspection PyUnboundLocalVariable
     def generate(
         self,
         output_dir: Optional[Union[str, Path]] = None,
+        audio: bool = True,
+        metadata_json: bool = True,
+        metadata_dcase: bool = True,
         audio_fname: Optional[Union[str, Path]] = "audio_out",
         metadata_fname: Optional[Union[str, Path]] = "metadata_out",
-        spatial_audio_format: Optional[str] = "A",
     ) -> None:
         """
         Render scene to disk. Currently only audio and metadata are rendered.
 
         Arguments:
             output_dir: directory to save the output, defaults to a temp directory inside AudibleLight/spatial_scenes
+            audio: whether to save audio as an output, default to `True`
+            metadata_json: whether to save metadata JSON file, default to `True`
+            metadata_dcase: whether to save metadata CSVs in DCASE format, default to `True`
             audio_fname: name to use for the output audio file, default to "audio_out"
             metadata_fname: name to use for the output metadata, default to "metadata_out"
-            spatial_audio_format: Format to use for saving spatial audio, defaults to ambisonics "A" format
 
         Returns:
             None
@@ -1049,24 +1054,29 @@ class Scene:
         generate_scene_audio_from_events(self)
 
         # Write the audio output
-        sf.write(audio_path.with_suffix(".wav"), self.audio.T, int(self.sample_rate))
+        if audio:
+            sf.write(
+                audio_path.with_suffix(".wav"), self.audio.T, int(self.sample_rate)
+            )
 
         # Get the metadata and add the spatial audio format in
-        metadata = self.to_dict()
-        metadata["spatial_format"] = spatial_audio_format
+        if metadata_json or metadata_dcase:
+            metadata = self.to_dict()
 
         # Dump the metadata to a JSON
-        with open(metadata_path.with_suffix(".json"), "w") as f:
-            json.dump(metadata, f, indent=4, ensure_ascii=False)
+        if metadata_json:
+            with open(metadata_path.with_suffix(".json"), "w") as f:
+                json.dump(metadata, f, indent=4, ensure_ascii=False)
 
         # Generate DCASE-2024 style metadata
-        dcase_meta = generate_dcase2024_metadata(self)
-        # Save a single CSV file for every microphone we have
-        for mic, df in dcase_meta.items():
-            outp = metadata_path.with_suffix(".csv").with_stem(
-                f"{metadata_path.name}_{mic}"
-            )
-            df.to_csv(outp, sep=",", encoding="utf-8")
+        if metadata_dcase:
+            dcase_meta = generate_dcase2024_metadata(self)
+            # Save a single CSV file for every microphone we have
+            for mic, df in dcase_meta.items():
+                outp = metadata_path.with_suffix(".csv").with_stem(
+                    f"{metadata_path.name}_{mic}"
+                )
+                df.to_csv(outp, sep=",", encoding="utf-8")
 
     def to_dict(self) -> dict:
         """
