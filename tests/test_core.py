@@ -478,6 +478,49 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
     assert ambience_audio.shape == (4, expected_duration)
 
 
+def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
+    # Trying to add ambience with channels not specified and no microphones
+    oyens_scene_no_overlap.clear_microphones()
+    with pytest.raises(
+        ValueError,
+        match="Cannot infer Ambience channels when no microphones have been added to the WorldState",
+    ):
+        oyens_scene_no_overlap.add_ambience()
+
+    # Trying to add ambience with microphones with different number of channels
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr")
+    oyens_scene_no_overlap.add_microphone(
+        microphone_type="eigenmike32", alias="will_break_later"
+    )
+    with pytest.raises(
+        ValueError,
+        match="Cannot infer Ambience channels when available microphones have different number of capsules",
+    ):
+        oyens_scene_no_overlap.add_ambience()
+    # Cleanup so we don't get the same error in the next test
+    oyens_scene_no_overlap.clear_microphone(alias="will_break_later")
+
+    # Trying to add ambience with duplicate aliases
+    oyens_scene_no_overlap.add_ambience(
+        filepath=utils_tests.TEST_MUSICS[0], alias="dupe_alias"
+    )
+    with pytest.raises(KeyError, match="Ambience with alias"):
+        oyens_scene_no_overlap.add_ambience(alias="dupe_alias")
+
+    # Trying to add ambience with duplicate audio file when this not permitted
+    oyens_scene_no_overlap.allow_duplicate_audios = False
+    with pytest.raises(ValueError, match="Audio file"):
+        oyens_scene_no_overlap.add_ambience(
+            alias="ok", filepath=utils_tests.TEST_MUSICS[0]
+        )
+
+    # Reset back to default
+    oyens_scene_no_overlap.clear_ambience()
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr")
+    oyens_scene_no_overlap.allow_duplicate_audios = True
+
+
 @pytest.mark.parametrize(
     "input_dict",
     [

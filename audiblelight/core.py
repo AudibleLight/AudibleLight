@@ -433,14 +433,14 @@ class Scene:
         if channels is None:
             if len(self.state.microphones) == 0:
                 raise ValueError(
-                    "Cannot infer ambience channels when no microphones have been added to the WorldState."
+                    "Cannot infer Ambience channels when no microphones have been added to the WorldState."
                 )
 
             available_mics = [mic.n_capsules for mic in self.state.microphones.values()]
             # Raise an error when added microphones have a different number of channels
             if not all([a == available_mics[0] for a in available_mics]):
-                raise TypeError(
-                    "Cannot infer noise channels when available microphones have different number of capsules"
+                raise ValueError(
+                    "Cannot infer Ambience channels when available microphones have different number of capsules"
                 )
             else:
                 channels = available_mics[0]
@@ -453,7 +453,7 @@ class Scene:
         )
         if alias in self.ambience:
             raise KeyError(
-                f"Ambience event with alias {alias} has already been added to the scene!"
+                f"Ambience with alias '{alias}' has already been added to the Scene!"
             )
 
         # Handling filepaths
