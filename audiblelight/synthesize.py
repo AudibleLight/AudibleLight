@@ -14,7 +14,7 @@ from loguru import logger
 from scipy import fft, signal
 from tqdm import tqdm
 
-from audiblelight import types, utils
+from audiblelight import config, types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.core import Scene
 from audiblelight.event import Event
@@ -101,9 +101,9 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
 
 def stft(
     y: np.ndarray,
-    fft_size: Optional[types.Numeric] = 512,
-    win_size: Optional[types.Numeric] = 256,
-    hop_size: Optional[types.Numeric] = 128,
+    fft_size: Optional[types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[types.Numeric] = config.HOP_SIZE,
     stft_dims_first: Optional[bool] = True,
 ) -> np.ndarray:
     """
@@ -140,8 +140,8 @@ def stft(
 
 def generate_interpolation_matrix(
     ir_times: np.ndarray,
-    sr: types.Numeric,
-    hop_size: types.Numeric,
+    sr: types.Numeric = config.SAMPLE_RATE,
+    hop_size: types.Numeric = config.HOP_SIZE,
     n_frames: Optional[types.Numeric] = None,
 ) -> np.ndarray:
     """
@@ -247,9 +247,9 @@ def perform_time_variant_convolution(
 
 def istft_overlap_synthesis(
     spatial_stft: np.ndarray,
-    fft_size: types.Numeric,
-    win_size: types.Numeric,
-    hop_size: types.Numeric,
+    fft_size: types.Numeric = config.FFT_SIZE,
+    win_size: types.Numeric = config.WIN_SIZE,
+    hop_size: types.Numeric = config.HOP_SIZE,
 ) -> np.ndarray:
     """
     Given a stft, recompose it into audio samples using overlap-add synthesis.
@@ -270,8 +270,9 @@ def istft_overlap_synthesis(
 def time_variant_convolution(
     irs: np.ndarray,
     event: Event,
-    win_size: types.Numeric,
-    hop_size: Optional[types.Numeric] = None,
+    fft_size: Optional[types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[types.Numeric] = config.HOP_SIZE,
 ) -> np.ndarray:
     """
     Performs time-variant convolution for given IRs and Event object
@@ -282,10 +283,8 @@ def time_variant_convolution(
 
     # Get parameters and shapes
     win_size = utils.sanitise_positive_number(win_size, cast_to=int)
-    if hop_size is None:
-        hop_size = win_size // 2
     hop_size = utils.sanitise_positive_number(hop_size, cast_to=int)
-    fft_size = 2 * win_size
+    fft_size = utils.sanitise_positive_number(fft_size, cast_to=int)
 
     # Compute the spectrograms for both the IRs and the audio
     # Output is (n_frames, n_freq_bins, n_capsules, n_sources)
@@ -371,10 +370,11 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
 def render_event_audio(
     event: Event,
     irs: np.ndarray,
-    ref_db: types.Numeric,
+    ref_db: types.Numeric = config.REF_DB,
     ignore_cache: Optional[bool] = True,
-    win_size: Optional[types.Numeric] = 512,
-    hop_size: Optional[types.Numeric] = None,
+    fft_size: Optional[types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[types.Numeric] = config.HOP_SIZE,
 ) -> None:
     """
     Renders audio for a given `Event` object.
@@ -389,10 +389,11 @@ def render_event_audio(
     Arguments:
         event (Event): the Event object to render audio for
         irs (np.ndarray): the IR audio array for the given event, taken from the WorldState and this event's Emitters
-        ref_db (utils.Numeric): the noise floor for the Scene
+        ref_db (types.Numeric): the noise floor for the Scene
         ignore_cache (bool): if True, any cached spatial audio from a previous call to this function will be discarded
-        win_size (int): the window size of the FFT, defaults to 512 samples
-        hop_size (utils.Numeric): the size of the hop between FFTs, defaults to (win_size // 2) samples
+        fft_size (types.Numeric): size of the FFT, defaults to 512 samples
+        win_size (int): the window size of the FFT, defaults to 256 samples
+        hop_size (types.Numeric): the size of the hop between FFTs, defaults to 128 samples
 
     Returns:
         None
@@ -435,7 +436,7 @@ def render_event_audio(
             raise ValueError(
                 "Expected a moving event!"
             )  # something has gone very wrong to hit this
-        spatial = time_variant_convolution(irs, event, win_size, hop_size)
+        spatial = time_variant_convolution(irs, event, fft_size, win_size, hop_size)
 
     # Pad or truncate the audio to match the desired number of samples
     spatial = utils.pad_or_truncate_audio(spatial, n_audio_samples)
