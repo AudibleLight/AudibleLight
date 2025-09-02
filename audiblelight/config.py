@@ -6,6 +6,9 @@
 # Audio
 SAMPLE_RATE = 44100
 BUFFER_SIZE = 8192
+FFT_SIZE = 512
+WIN_SIZE = 256
+HOP_SIZE = 128
 
 # Scene
 SCENE_DURATION = 60
@@ -22,17 +25,22 @@ MIN_EVENT_SNR, MAX_EVENT_SNR = 5.0, 30.0
 #  Define averages: these are helpful in cases where we need a "single"
 #  default value, i.e. where a range or distribution isn't needed
 #  We just use the midpoint between the two extremes, but this could be anything
-AVG_EVENT_VELOCITY = (MAX_EVENT_VELOCITY - MIN_EVENT_VELOCITY) / 2
-AVG_EVENT_RESOLUTION = (MAX_EVENT_RESOLUTION - MIN_EVENT_RESOLUTION) / 2
-AVG_EVENT_DURATION = (MAX_EVENT_DURATION - MIN_EVENT_DURATION) / 2
-AVG_EVENT_SNR = (MAX_EVENT_SNR - MIN_EVENT_SNR) / 2
+DEFAULT_EVENT_VELOCITY = (MAX_EVENT_VELOCITY - MIN_EVENT_VELOCITY) / 2
+DEFAULT_EVENT_RESOLUTION = (MAX_EVENT_RESOLUTION - MIN_EVENT_RESOLUTION) / 2
+DEFAULT_EVENT_DURATION = (MAX_EVENT_DURATION - MIN_EVENT_DURATION) / 2
+DEFAULT_EVENT_SNR = (MAX_EVENT_SNR - MIN_EVENT_SNR) / 2
 
 #  Note: Scene and Event constants taken from SpatialScaper.Scaper.__init__
 #  + example_generation.py files. latter takes precedence for any conflict
 
 # WorldState
 MESH_UNITS = "meters"
+#  Reject a candidate point if the weighted average ray length is below this value
 MIN_AVG_RAY_LENGTH = 3.0
+#  Default number of rays cast when computing weighted avg ray length from a point
+NUM_RAYS = 100
+#  When sampling a random point, we'll try this many individual points in parallel
+POINT_BATCH_SIZE = 10
 #  Minimum distance one emitter can be from another
 EMPTY_SPACE_AROUND_EMITTER = 0.2
 #  Minimum distance one emitter can be from the mic
