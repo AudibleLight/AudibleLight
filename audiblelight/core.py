@@ -24,8 +24,6 @@ from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState
 
-MAX_OVERLAPPING_EVENTS = 3
-REF_DB = -50
 WARN_WHEN_DURATION_LOWER_THAN = 5
 
 
@@ -44,14 +42,14 @@ class Scene:
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
-        ref_db: Optional[utils.Numeric] = REF_DB,
+        ref_db: Optional[utils.Numeric] = utils.REF_DB,
         scene_start_dist: Optional[utils.DistributionLike] = None,
         event_start_dist: Optional[utils.DistributionLike] = None,
         event_duration_dist: Optional[utils.DistributionLike] = None,
         event_velocity_dist: Optional[utils.DistributionLike] = None,
         event_resolution_dist: Optional[utils.DistributionLike] = None,
         snr_dist: Optional[utils.DistributionLike] = None,
-        max_overlap: Optional[utils.Numeric] = MAX_OVERLAPPING_EVENTS,
+        max_overlap: Optional[utils.Numeric] = utils.MAX_OVERLAP,
         event_augmentations: Optional[
             Union[
                 Iterable[Type[EventAugmentation]],
@@ -85,8 +83,8 @@ class Scene:
                 uniform distribution between 0.25 and 2.0 metres-per-second will be used.
             event_resolution_dist: distribution-like object used to sample Event spatial resolutions. If not provided,
                 a uniform distribution between 1.0 and 4.0 Hz (i.e., IRs-per-second) will be used.
-            snr_dist: distribution-like object used to sample Event signal-to-noise ratios. If not provided, a normal
-                distribution with mean = 5 dB, SD = 1, and truncated at 2 and 8 will be used.
+            snr_dist: distribution-like object used to sample Event signal-to-noise ratios. If not provided, a uniform
+                distribution between 2 and 8 will be used.
             max_overlap: the maximum number of overlapping audio Events allowed in the Scene, defaults to 3.
             event_augmentations: an iterable of `audiblelight.EventAugmentation` objects that can be applied to Event
                 objects. The number of augmentations sampled from this list can be controlled by setting the value of
@@ -123,19 +121,21 @@ class Scene:
 
         # Define defaults for all distributions
         #  Events can start any time within the duration of the scene, minus some padding
-        # TODO: this is not consistent with how `stats.uniform` actually works.
-        #  see https://stackoverflow.com/questions/44572109/what-are-the-arguments-for-scipy-stats-uniform
         if scene_start_dist is None:
             scene_start_dist = stats.uniform(0.0, self.duration - 1)
         #  Events move between 0.25 and 2.0 metres per second
         if event_velocity_dist is None:
-            event_velocity_dist = stats.uniform(0.25, 2.0)
+            event_velocity_dist = stats.uniform(
+                utils.MIN_VELOCITY, utils.MAX_VELOCITY - utils.MIN_VELOCITY
+            )
         #  Events have a resolution of between 1-4 Hz (i.e., number of IRs per second)
         if event_resolution_dist is None:
-            event_resolution_dist = stats.uniform(1.0, 4.0)
-        #  Events have an SNR with a mean of 5, SD of 1, and boundary between 2 and 8
+            event_resolution_dist = stats.uniform(
+                utils.MIN_RESOLUTION, utils.MAX_RESOLUTION - utils.MIN_RESOLUTION
+            )
+        #  Events have an SNR between 2 and 8
         if snr_dist is None:
-            snr_dist = stats.truncnorm(a=-3, b=3, loc=5, scale=1)
+            snr_dist = stats.uniform(utils.MIN_SNR, utils.MAX_SNR - utils.MIN_SNR)
 
         # No distribution for `event_start` and `event_distribution`
         #  Unless a distribution is passed, we default to using the full duration of the audio (capped at 10 seconds)
