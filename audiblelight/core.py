@@ -557,8 +557,12 @@ class Scene:
 
             # Reject this attempt if overlap would be exceeded
             if self._would_exceed_temporal_overlap(
-                current_event.scene_start, current_event.duration
+                current_event.scene_start, current_event.scene_end
             ):
+                continue
+
+            # Reject this attempt if the duration exceeds the duration of the scene
+            if current_event.scene_end > self.duration:
                 continue
 
             # Store the event: we'll register the emitters later in the function
@@ -1116,14 +1120,13 @@ class Scene:
         return event
 
     def _would_exceed_temporal_overlap(
-        self, new_event_start: float, new_event_duration: float
+        self, new_event_start: float, new_event_end: float
     ) -> bool:
         """
         Determine whether an event is overlapping with other events more than `max_overlap` times.
         """
 
         intersections = 0
-        new_event_end = new_event_start + new_event_duration
         for event_alias, event in self.events.items():
             # Check if intervals [new_start, new_end] and [existing_start, existing_end] overlap
             if new_event_start < event.scene_end and new_event_end > event.scene_start:

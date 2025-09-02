@@ -53,6 +53,12 @@ from tests import utils_tests
             scene_start=0.0,
             augmentations=[LowpassFilter, Phaser()],
         ),
+        # Test 6: event right at the end of the scene (but valid)
+        dict(
+            filepath=utils.sanitise_filepath(utils_tests.TEST_MUSICS[0]),
+            scene_start=45,
+            duration=4.99,
+        ),
     ],
 )
 def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
@@ -76,6 +82,10 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
     assert not ev.is_moving
     assert ev.has_emitters
     assert len(ev) == 1
+
+    # Check that the starting and end time of the event is within temporal bounds for the scene
+    assert ev.scene_start >= 0
+    assert ev.scene_end < oyens_scene_no_overlap.duration
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     desired_position = kwargs.get("position", None)
@@ -186,6 +196,10 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     assert ev.has_emitters
     assert len(ev) >= 2
 
+    # Check that the starting and end time of the event is within temporal bounds for the scene
+    assert ev.scene_start >= 0
+    assert ev.scene_end < oyens_scene_no_overlap.duration
+
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     desired_position = kwargs.get("position", None)
 
@@ -291,6 +305,19 @@ def test_add_bad_event(
             filepath=new_event_audio,
             alias="bad_event",
             **event_kwargs,
+        )
+
+
+@pytest.mark.parametrize("event_type", ["static", "moving"])
+def test_add_event_exceeds_scene_duration(event_type, oyens_scene_no_overlap):
+    # This event is too long to be added to the scene, should be rejected
+    with pytest.raises(ValueError):
+        oyens_scene_no_overlap.add_event(
+            event_type=event_type,
+            duration=20,
+            scene_start=40,
+            event_start=0,
+            filepath=utils_tests.TEST_MUSICS[0],
         )
 
 
