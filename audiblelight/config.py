@@ -8,12 +8,26 @@ SAMPLE_RATE = 44100
 BUFFER_SIZE = 8192
 
 # Scene
+SCENE_DURATION = 60
 REF_DB = -65
-MAX_OVERLAP = 3
-MAX_DEFAULT_DURATION = 10
+MAX_OVERLAP = 2
 
 # Event
+DEFAULT_MOVING_TRAJECTORY = "linear"
+MIN_EVENT_VELOCITY, MAX_EVENT_VELOCITY = 1.0, 2.0
+MIN_EVENT_RESOLUTION, MAX_EVENT_RESOLUTION = 1.0, 4.0
+MIN_EVENT_DURATION, MAX_EVENT_DURATION = 2.0, 10.0
+MIN_EVENT_SNR, MAX_EVENT_SNR = 5.0, 30.0
+#  Define averages: these are helpful in cases where we need a "single"
+#  default value, i.e. where a range or distribution isn't needed
+#  We just use the midpoint between the two extremes, but this could be anything
+AVG_EVENT_VELOCITY = (MAX_EVENT_VELOCITY - MIN_EVENT_VELOCITY) / 2
+AVG_EVENT_RESOLUTION = (MAX_EVENT_RESOLUTION - MIN_EVENT_RESOLUTION) / 2
+AVG_EVENT_DURATION = (MAX_EVENT_DURATION - MIN_EVENT_DURATION) / 2
+AVG_EVENT_SNR = (MAX_EVENT_SNR - MIN_EVENT_SNR) / 2
 
+#  Note: Scene and Event constants taken from SpatialScaper.Scaper.__init__
+#  + example_generation.py files. latter takes precedence for any conflict
 
 # WorldState
 MESH_UNITS = "meters"
@@ -30,3 +44,8 @@ EMPTY_SPACE_AROUND_CAPSULE = 0.05
 WARN_WHEN_EFFICIENCY_BELOW = 0.5
 # Max number of times we'll attempt to place a source or microphone before giving up
 MAX_PLACE_ATTEMPTS = 1000
+
+# Benchmarking settings
+N_STATIC_EVENTS = 4
+N_MOVING_EVENTS = 1
+MIC_ARRAY_TYPE = "ambeovr"

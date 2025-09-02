@@ -126,16 +126,20 @@ class Scene:
         #  Events move between 0.25 and 2.0 metres per second
         if event_velocity_dist is None:
             event_velocity_dist = stats.uniform(
-                utils.MIN_VELOCITY, utils.MAX_VELOCITY - utils.MIN_VELOCITY
+                config.MIN_EVENT_VELOCITY,
+                config.MAX_EVENT_VELOCITY - config.MIN_EVENT_VELOCITY,
             )
         #  Events have a resolution of between 1-4 Hz (i.e., number of IRs per second)
         if event_resolution_dist is None:
             event_resolution_dist = stats.uniform(
-                utils.MIN_RESOLUTION, utils.MAX_RESOLUTION - utils.MIN_RESOLUTION
+                config.MIN_EVENT_RESOLUTION,
+                config.MAX_EVENT_RESOLUTION - config.MIN_EVENT_RESOLUTION,
             )
         #  Events have an SNR between 2 and 8
         if snr_dist is None:
-            snr_dist = stats.uniform(utils.MIN_SNR, utils.MAX_SNR - utils.MIN_SNR)
+            snr_dist = stats.uniform(
+                config.MIN_EVENT_SNR, config.MAX_EVENT_SNR - config.MIN_EVENT_SNR
+            )
 
         # No distribution for `event_start` and `event_distribution`
         #  Unless a distribution is passed, we default to using the full duration of the audio (capped at 10 seconds)

@@ -1411,10 +1411,10 @@ class WorldState:
         self,
         duration: utils.Numeric,
         starting_position: Optional[Union[np.ndarray, list]] = None,
-        velocity: Optional[utils.Numeric] = None,
-        resolution: Optional[utils.Numeric] = None,
-        shape: Optional[str] = None,
-        max_place_attempts: Optional[utils.Numeric] = None,
+        velocity: Optional[utils.Numeric] = config.AVG_EVENT_VELOCITY,
+        resolution: Optional[utils.Numeric] = config.AVG_EVENT_RESOLUTION,
+        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        max_place_attempts: Optional[utils.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ):
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
@@ -1444,22 +1444,6 @@ class WorldState:
         Returns:
             np.ndarray: the sanitised trajectory, with shape (n_points, 3)
         """
-        # Use defaults if not provided
-        shape = "linear" if shape is None else shape
-        velocity = (
-            (utils.MAX_VELOCITY / utils.MIN_VELOCITY) if velocity is None else velocity
-        )
-        resolution = (
-            utils.MAX_RESOLUTION / utils.MIN_RESOLUTION
-            if resolution is None
-            else resolution
-        )
-        max_place_attempts = (
-            config.MAX_PLACE_ATTEMPTS
-            if max_place_attempts is None
-            else max_place_attempts
-        )
-
         # Compute the number of samples based on duration and resolution
         n_points = (
             utils.sanitise_positive_number(duration * resolution, cast_to=round) + 1
