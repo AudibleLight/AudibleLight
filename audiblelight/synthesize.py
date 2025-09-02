@@ -14,7 +14,7 @@ from loguru import logger
 from scipy import fft, signal
 from tqdm import tqdm
 
-from audiblelight import utils
+from audiblelight import types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.core import Scene
 from audiblelight.event import Event
@@ -30,7 +30,7 @@ DCASE_2024_COLUMNS = [
 ]
 
 
-def apply_snr(x: np.ndarray, snr: utils.Numeric) -> np.ndarray:
+def apply_snr(x: np.ndarray, snr: types.Numeric) -> np.ndarray:
     """
     Scale an audio signal to a given maximum SNR.
 
@@ -42,7 +42,7 @@ def apply_snr(x: np.ndarray, snr: utils.Numeric) -> np.ndarray:
     return x * snr / np.abs(x).max(initial=1e-15)
 
 
-def db_to_multiplier(db: utils.Numeric, x: utils.Numeric) -> float:
+def db_to_multiplier(db: types.Numeric, x: types.Numeric) -> float:
     """
     Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
     reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
@@ -101,9 +101,9 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
 
 def stft(
     y: np.ndarray,
-    fft_size: Optional[utils.Numeric] = 512,
-    win_size: Optional[utils.Numeric] = 256,
-    hop_size: Optional[utils.Numeric] = 128,
+    fft_size: Optional[types.Numeric] = 512,
+    win_size: Optional[types.Numeric] = 256,
+    hop_size: Optional[types.Numeric] = 128,
     stft_dims_first: Optional[bool] = True,
 ) -> np.ndarray:
     """
@@ -140,9 +140,9 @@ def stft(
 
 def generate_interpolation_matrix(
     ir_times: np.ndarray,
-    sr: utils.Numeric,
-    hop_size: utils.Numeric,
-    n_frames: Optional[utils.Numeric] = None,
+    sr: types.Numeric,
+    hop_size: types.Numeric,
+    n_frames: Optional[types.Numeric] = None,
 ) -> np.ndarray:
     """
     Generate impulse response interpolation weights that determines how the source moves through space.
@@ -178,8 +178,8 @@ def perform_time_variant_convolution(
     s_audio: np.ndarray,
     s_ir: np.ndarray,
     w_ir: np.ndarray,
-    ir_slice_min: utils.Numeric = 0,
-    ir_relevant_ratio_max: utils.Numeric = 0.5,
+    ir_slice_min: types.Numeric = 0,
+    ir_relevant_ratio_max: types.Numeric = 0.5,
 ) -> np.ndarray:
     """
     Convolve a bank of time-varying impulse responses with an audio spectrogram.
@@ -247,9 +247,9 @@ def perform_time_variant_convolution(
 
 def istft_overlap_synthesis(
     spatial_stft: np.ndarray,
-    fft_size: utils.Numeric,
-    win_size: utils.Numeric,
-    hop_size: utils.Numeric,
+    fft_size: types.Numeric,
+    win_size: types.Numeric,
+    hop_size: types.Numeric,
 ) -> np.ndarray:
     """
     Given a stft, recompose it into audio samples using overlap-add synthesis.
@@ -270,8 +270,8 @@ def istft_overlap_synthesis(
 def time_variant_convolution(
     irs: np.ndarray,
     event: Event,
-    win_size: utils.Numeric,
-    hop_size: Optional[utils.Numeric] = None,
+    win_size: types.Numeric,
+    hop_size: Optional[types.Numeric] = None,
 ) -> np.ndarray:
     """
     Performs time-variant convolution for given IRs and Event object
@@ -371,10 +371,10 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
 def render_event_audio(
     event: Event,
     irs: np.ndarray,
-    ref_db: utils.Numeric,
+    ref_db: types.Numeric,
     ignore_cache: Optional[bool] = True,
-    win_size: Optional[utils.Numeric] = 512,
-    hop_size: Optional[utils.Numeric] = None,
+    win_size: Optional[types.Numeric] = 512,
+    hop_size: Optional[types.Numeric] = None,
 ) -> None:
     """
     Renders audio for a given `Event` object.

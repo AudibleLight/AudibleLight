@@ -17,7 +17,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
-from audiblelight import __version__, config, utils
+from audiblelight import __version__, config, types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
@@ -35,19 +35,19 @@ class Scene:
 
     def __init__(
         self,
-        duration: utils.Numeric,
+        duration: types.Numeric,
         mesh_path: Union[str, Path],
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
-        ref_db: Optional[utils.Numeric] = config.REF_DB,
-        scene_start_dist: Optional[utils.DistributionLike] = None,
-        event_start_dist: Optional[utils.DistributionLike] = None,
-        event_duration_dist: Optional[utils.DistributionLike] = None,
-        event_velocity_dist: Optional[utils.DistributionLike] = None,
-        event_resolution_dist: Optional[utils.DistributionLike] = None,
-        snr_dist: Optional[utils.DistributionLike] = None,
-        max_overlap: Optional[utils.Numeric] = config.MAX_OVERLAP,
+        ref_db: Optional[types.Numeric] = config.REF_DB,
+        scene_start_dist: Optional[types.DistributionLike] = None,
+        event_start_dist: Optional[types.DistributionLike] = None,
+        event_duration_dist: Optional[types.DistributionLike] = None,
+        event_velocity_dist: Optional[types.DistributionLike] = None,
+        event_resolution_dist: Optional[types.DistributionLike] = None,
+        snr_dist: Optional[types.DistributionLike] = None,
+        max_overlap: Optional[types.Numeric] = config.MAX_OVERLAP,
         event_augmentations: Optional[
             Union[
                 Iterable[Type[EventAugmentation]],
@@ -200,7 +200,7 @@ class Scene:
         Introspect a list of audio directories to obtain all valid audio files
         """
         audio_paths = []
-        for ext in utils.AUDIO_EXTS:
+        for ext in types.AUDIO_EXTS:
             for fg in audio_dir:
                 audio_paths.extend((fg.rglob(f"*.{ext}")))
         return utils.sanitise_filepaths(audio_paths)
@@ -408,9 +408,9 @@ class Scene:
     def add_ambience(
         self,
         filepath: Optional[Union[str, Path]] = None,
-        noise: Optional[Union[str, utils.Numeric]] = None,
+        noise: Optional[Union[str, types.Numeric]] = None,
         channels: Optional[int] = None,
-        ref_db: Optional[utils.Numeric] = None,
+        ref_db: Optional[types.Numeric] = None,
         alias: Optional[str] = None,
         **kwargs,
     ):
@@ -641,7 +641,7 @@ class Scene:
         )[0]
 
     def _get_n_random_event_augmentations(
-        self, n_augmentations: utils.Numeric
+        self, n_augmentations: types.Numeric
     ) -> list[Type[EventAugmentation]]:
         """
         Given a number N, get N random, unique Event augmentations
@@ -688,22 +688,22 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[types.Numeric] = None,
+        event_start: Optional[types.Numeric] = None,
+        duration: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
         shape: Optional[str] = None,
-        spatial_resolution: Optional[utils.Numeric] = None,
-        spatial_velocity: Optional[utils.Numeric] = None,
+        spatial_resolution: Optional[types.Numeric] = None,
+        spatial_velocity: Optional[types.Numeric] = None,
     ) -> Event:
         """
         Add an event to the foreground, either "static" or "moving"
@@ -828,17 +828,17 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[types.Numeric] = None,
+        event_start: Optional[types.Numeric] = None,
+        duration: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
     ) -> Event:
@@ -907,7 +907,7 @@ class Scene:
             position = self._coerce_polar_position(position, mic)
 
         # Sample N random augmentations from our list, if required
-        if isinstance(augmentations, utils.Numeric):
+        if isinstance(augmentations, types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Construct kwargs dictionary for emitter and event
@@ -975,21 +975,21 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         shape: Optional[str] = None,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[types.Numeric] = None,
+        event_start: Optional[types.Numeric] = None,
+        duration: Optional[types.Numeric] = None,
+        snr: Optional[types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        spatial_resolution: Optional[utils.Numeric] = None,
-        spatial_velocity: Optional[utils.Numeric] = None,
+        spatial_resolution: Optional[types.Numeric] = None,
+        spatial_velocity: Optional[types.Numeric] = None,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
@@ -1055,7 +1055,7 @@ class Scene:
                 )
 
         # Sample N random augmentations from our list, if required
-        if isinstance(augmentations, utils.Numeric):
+        if isinstance(augmentations, types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
