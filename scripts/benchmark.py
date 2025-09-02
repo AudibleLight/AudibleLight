@@ -15,6 +15,7 @@ from generate_with_random_events import main as make_a_scene
 from loguru import logger
 from tqdm import tqdm
 
+import audiblelight.config
 from audiblelight import utils
 
 FG_DIR = utils.get_project_root() / "resources/soundevents"
@@ -65,7 +66,7 @@ def main(n_scenes: int, outdir: str):
             output_folder=output_dir,
             fg_folder=FG_DIR,
             mesh_path=mesh,
-            ref_db=utils.REF_DB,
+            ref_db=audiblelight.config.REF_DB,
             min_snr=utils.MIN_SNR,
             max_snr=utils.MAX_SNR,
             min_velocity=utils.MIN_VELOCITY,

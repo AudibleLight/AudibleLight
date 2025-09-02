@@ -12,6 +12,7 @@ from time import time
 from loguru import logger
 from scipy import stats
 
+import audiblelight.config
 from audiblelight import utils
 from audiblelight.core import Scene
 
@@ -74,8 +75,8 @@ def parse_arguments():
     parser.add_argument(
         "--max-overlap",
         type=int,
-        default=utils.MAX_OVERLAP,
-        help=f"Maximum number of overlapping events (default: {utils.MAX_OVERLAP}).",
+        default=audiblelight.config.MAX_OVERLAP,
+        help=f"Maximum number of overlapping events (default: {audiblelight.config.MAX_OVERLAP}).",
     )
     parser.add_argument(
         "--micarray",
@@ -110,8 +111,8 @@ def parse_arguments():
     parser.add_argument(
         "--ref-db",
         type=float,
-        default=utils.REF_DB,
-        help=f"Reference decibel level (default: {utils.REF_DB}).",
+        default=audiblelight.config.REF_DB,
+        help=f"Reference decibel level (default: {audiblelight.config.REF_DB}).",
     )
     parser.add_argument(
         "--min-snr",
