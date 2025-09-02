@@ -4,7 +4,6 @@
 """Core modules and functions for generation and synthesis."""
 
 import json
-import os
 import random
 from collections import OrderedDict
 from datetime import datetime
@@ -43,7 +42,7 @@ class Scene:
         duration: utils.Numeric,
         mesh_path: Union[str, Path],
         fg_path: Optional[Union[str, Path]] = None,
-        state_kwargs: Optional[dict] = None,
+        bg_path: Optional[Union[str, Path]] = None,
         ref_db: Optional[utils.Numeric] = REF_DB,
         scene_start_dist: Optional[utils.DistributionLike] = None,
         event_start_dist: Optional[utils.DistributionLike] = None,
@@ -59,7 +58,41 @@ class Scene:
                 Type[EventAugmentation],
             ]
         ] = None,
+        state_kwargs: Optional[dict] = None,
     ):
+        """
+        Initializes the Scene with a given duration and mesh.
+
+        Arguments:
+            duration: the length of time the scene audio should last for.
+            mesh_path: the name of the mesh file. Units will be coerced to meters when loading.
+            fg_path: a directory (or list of directories) pointing to foreground audio. Note that directories will be
+                introspected recursively, such that audio files within any subdirectories will be detected also.
+            bg_path: a directory (or list of directories pointing to background audio. Note that directories will be
+                introspected recursively, such that audio files within any subdirectories will be detected also.
+            ref_db: reference decibel level for scene noise floor, defaults to -50 dB
+            scene_start_dist: distribution-like object or callable used to sample starting times for any Event objects
+                applied to the scene. If not provided, will be a uniform distribution between 0 and `Scene.duration`
+            event_start_dist: distribution-like object used to sample starting (offset) times for Event audio files.
+                If not provided, Event audio files will always start at 0 seconds. Note that this can be overridden
+                by passing a value into `Scene.add_event(event_start=...)`
+            event_duration_dist: distribution-like object used to sample Event audio duration times. If not provided,
+                Event audio files will always use their full duration. Note that this can be overridden by passing a
+                value into `Scene.add_event(duration=...)`
+            event_velocity_dist: distribution-like object used to sample Event spatial velocities. If not provided, a
+                uniform distribution between 0.25 and 2.0 metres-per-second will be used.
+            event_resolution_dist: distribution-like object used to sample Event spatial resolutions. If not provided,
+                a uniform distribution between 1.0 and 4.0 Hz (i.e., IRs-per-second) will be used.
+            snr_dist: distribution-like object used to sample Event signal-to-noise ratios. If not provided, a normal
+                distribution with mean = 5 dB, SD = 1, and truncated at 2 and 8 will be used.
+            max_overlap: the maximum number of overlapping audio Events allowed in the Scene, defaults to 3.
+            event_augmentations: an iterable of `audiblelight.EventAugmentation` objects that can be applied to Event
+                objects. The number of augmentations sampled from this list can be controlled by setting the value of
+                `augmentations` when calling `Scene.add_event`, i.e. `Scene.add_event(augmentations=3)` will sample
+                3 random augmentations from `event_augmentations` and apply them to the Event.
+            state_kwargs: keyword arguments passed to `audiblelight.WorldState`.
+        """
+
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
         # Raise a warning when the duration is very short.
@@ -70,10 +103,6 @@ class Scene:
                 f"duration of the Scene. It is recommended to increase the duration to at least "
                 f"{WARN_WHEN_DURATION_LOWER_THAN} seconds."
             )
-
-        self.fg_path = (
-            utils.sanitise_directory(fg_path) if fg_path is not None else None
-        )
         self.ref_db = utils.sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
         self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
@@ -120,12 +149,16 @@ class Scene:
         self.event_resolution_dist = utils.sanitise_distribution(event_resolution_dist)
         self.snr_dist = utils.sanitise_distribution(snr_dist)
 
-        # Assuming path structure with audio files organized in directories per category of interest
-        self.fg_category_paths = (
-            utils.list_deepest_directories(self.fg_path)
-            if self.fg_path is not None
-            else None
+        # Parse foreground audio directory (or directories) and obtain all valid audio files from within it
+        self.fg_paths = (
+            self._parse_audio_directories(fg_path) if fg_path is not None else []
         )
+        self.fg_audios = self._introspect_audio_directories(self.fg_paths)
+        # Do the same for background audio
+        self.bg_paths = (
+            self._parse_audio_directories(bg_path) if bg_path is not None else []
+        )
+        self.bg_audios = self._introspect_audio_directories(self.bg_paths)
 
         # Events will be stored within here
         self.events = OrderedDict()
@@ -142,6 +175,28 @@ class Scene:
         self.ambience = OrderedDict()
 
         self.audio = None
+
+    @staticmethod
+    def _parse_audio_directories(
+        audio_dir: Union[str, Path, list[str], list[Path]]
+    ) -> tuple[list[Path], list[Path]]:
+        """
+        Validate audio directory (or list of directories) and return as a list of Path objects
+        """
+        if not isinstance(audio_dir, list):
+            audio_dir = [audio_dir]
+        return [utils.sanitise_directory(fg) for fg in audio_dir]
+
+    @staticmethod
+    def _introspect_audio_directories(audio_dir: list[Path]) -> list[Path]:
+        """
+        Introspect a list of audio directories to obtain all valid audio files
+        """
+        audio_paths = []
+        for ext in utils.AUDIO_EXTS:
+            for fg in audio_dir:
+                audio_paths.extend((fg.rglob(f"*.{ext}")))
+        return [utils.sanitise_filepath(fp) for fp in audio_paths]
 
     def _parse_event_augmentations(
         self,
@@ -361,9 +416,10 @@ class Scene:
 
         Arguments:
             channels (int): the number of channels to generate noise for. If None, will be inferred from available mics.
-            filepath (str or Path): a path to an audio file on the disk. Must be provided when `noise` is None.
+            filepath (str or Path): a path to an audio file on the disk. If None (and `noise` is None), will try and
+                sample a random audio file from `Scene.bg_audios`.
             noise (str): either the type of noise to generate, e.g. "white", "red", or an arbitrary numeric exponent to
-                use when generating noise with `powerlaw_psd_gaussian`. Must be provided if `filepath` is None.
+                use when generating noise with `powerlaw_psd_gaussian`.
             ref_db (Numeric): the noise floor, in decibels
             alias (str): string reference to refer to this `Ambience` object inside `Scene.ambience`
             kwargs: additional keyword arguments passed to `audiblelight.ambience.powerlaw_psd_gaussian`
@@ -389,6 +445,10 @@ class Scene:
             raise KeyError(
                 f"Ambience event with alias {alias} has already been added to the scene!"
             )
+
+        # If we haven't passed in either a filepath or a noise type, try getting a random background audio file
+        if filepath is None and noise is None:
+            filepath = self._get_random_audio(self.bg_audios)
 
         # Add the ambience to the dictionary
         self.ambience[alias] = Ambience(
@@ -481,20 +541,26 @@ class Scene:
 
         return False
 
-    def _get_random_foreground_audio(self) -> Path:
+    def _get_random_audio(self, audio_paths: Optional[list[Path]] = None) -> Path:
         """
-        Gets a path to a random foreground audio file from the provided directory
+        Gets a path to a random audio file from the provided list of directories
+
+        Arguments:
+            audio_paths: a list of audio paths; if not provided, use `fg_audios`
         """
-        if self.fg_category_paths is None:
-            raise ValueError("No foreground audio path specified!")
-        audios = []
-        for fg_category_path in self.fg_category_paths:
-            for i_ in os.listdir(fg_category_path):
-                if i_.endswith(utils.AUDIO_EXTS):
-                    audios.append(fg_category_path / Path(i_))
-        if len(audios) == 0:
-            raise FileNotFoundError("No audio files found!")
-        return utils.sanitise_filepath(random.choice(audios))
+        # Use foreground audio paths by default
+        if audio_paths is None:
+            audio_paths = self.fg_audios
+
+        # Raise an error when no audio files available
+        if len(audio_paths) == 0:
+            raise FileNotFoundError(
+                "No audio files found to sample from! "
+                "Make sure you pass a value to `fg_path` in Scene.__init__`."
+            )
+
+        # Choose a random filepath and make sure its valid
+        return utils.sanitise_filepath(random.choice(audio_paths))
 
     def _coerce_polar_position(
         self,
@@ -771,7 +837,7 @@ class Scene:
             utils.get_default_alias("event", self.events) if alias is None else alias
         )
         filepath = (
-            self._get_random_foreground_audio()
+            self._get_random_audio(self.fg_audios)
             if filepath is None
             else utils.sanitise_filepath(filepath)
         )
@@ -912,7 +978,7 @@ class Scene:
             utils.get_default_alias("event", self.events) if alias is None else alias
         )
         filepath = (
-            self._get_random_foreground_audio()
+            self._get_random_audio(self.fg_audios)
             if filepath is None
             else utils.sanitise_filepath(filepath)
         )
@@ -1089,7 +1155,8 @@ class Scene:
             duration=self.duration,
             ref_db=self.ref_db,
             max_overlap=self.max_overlap,
-            fg_path=str(self.fg_path),
+            fg_path=[str(fg.resolve()) for fg in self.fg_paths],
+            bg_path=[str(fg.resolve()) for fg in self.bg_paths],
             ambience={k: a.to_dict() for k, a in self.ambience.items()},
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
@@ -1158,6 +1225,7 @@ class Scene:
             duration=input_dict["duration"],
             mesh_path=input_dict["state"]["mesh"]["fpath"],
             fg_path=input_dict["fg_path"],
+            bg_path=input_dict["bg_path"],
             ref_db=input_dict["ref_db"],
             max_overlap=input_dict["max_overlap"],
         )
