@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from audiblelight import utils
+from audiblelight import config, utils
 from audiblelight.augmentation import (
     ALL_EVENT_AUGMENTATIONS,
     Augmentation,
@@ -232,7 +232,7 @@ def test_equalizer(params):
 @pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
 def test_process_audio(fx_class, audio_fpath):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Initialise FX with default parameters and process the audio
     fx_init = fx_class()
@@ -299,7 +299,7 @@ def test_load_from_dict_bad():
 @pytest.mark.parametrize("fade_out_shape", Fade.FADE_SHAPES + [None])
 def test_fade(fade_in_shape, fade_out_shape, audio_fpath):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Process the audio with the augmentation
     #  Length of the fade in and fade out should always be 5 seconds
@@ -314,13 +314,13 @@ def test_fade(fade_in_shape, fade_out_shape, audio_fpath):
     # Consider final sample and average volume of final N seconds
     if fader.fade_out_shape != "none":
         assert np.isclose(out[-1], 0.0, atol=utils.SMALL)
-        fade_time = round(utils.SAMPLE_RATE * fader.fade_out_len)
+        fade_time = round(config.SAMPLE_RATE * fader.fade_out_len)
         assert np.mean(np.abs(out[-fade_time:])) <= np.mean(np.abs(loaded[-fade_time:]))
 
     # Consider first sample and average volume of first N seconds
     if fader.fade_in_shape != "none":
         assert np.isclose(out[0], 0.0, atol=utils.SMALL)
-        fade_time = round(utils.SAMPLE_RATE * fader.fade_in_len)
+        fade_time = round(config.SAMPLE_RATE * fader.fade_in_len)
         assert np.mean(np.abs(out[:fade_time])) <= np.mean(np.abs(loaded[:fade_time]))
 
 
@@ -361,7 +361,7 @@ def test_threshold_db(threshold_db, augmentation_class):
 @pytest.mark.parametrize("stretch_factor", [0.5, 1.0, 1.5])
 def test_speed_up(audio_fpath, stretch_factor):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Process the audio
     cls = SpeedUp(stretch_factor=stretch_factor)
@@ -398,7 +398,7 @@ def test_speed_up(audio_fpath, stretch_factor):
 )
 def test_timewarp_effects(audio_fpath, augmentation_class, params):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Process the audio
     cls = augmentation_class(**params)
@@ -417,11 +417,11 @@ def test_timewarp_effects(audio_fpath, augmentation_class, params):
 )
 def test_timewarp_bad(augmentation_class):
     with pytest.raises(ValueError, match="Expected fps to be greater than 0"):
-        _ = augmentation_class(fps=0, sample_rate=utils.SAMPLE_RATE)
+        _ = augmentation_class(fps=0, sample_rate=config.SAMPLE_RATE)
 
 
 def test_magic_methods():
-    cls = Augmentation(sample_rate=utils.SAMPLE_RATE)
+    cls = Augmentation(sample_rate=config.SAMPLE_RATE)
 
     # test magic methods
     assert isinstance(cls.__repr__(), str)
