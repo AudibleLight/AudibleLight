@@ -294,34 +294,6 @@ def test_add_bad_event(
 
 
 @pytest.mark.parametrize(
-    "fg_path,raises",
-    [
-        (
-            [utils_tests.SOUNDEVENT_DIR / "music"],
-            False,
-        ),  # this folder has some audio files inside it, so it's all good
-        (None, ValueError),  # as if we've not provided `fp_path` to `Scene.__init__`
-        (
-            [utils.get_project_root() / "tests"],
-            FileNotFoundError,
-        ),  # no audio files inside this folder!
-    ],
-)
-def test_get_random_foreground_audio(
-    fg_path: str, raises, oyens_scene_no_overlap: Scene
-):
-    setattr(oyens_scene_no_overlap, "fg_category_paths", fg_path)
-    if not raises:
-        out = oyens_scene_no_overlap._get_random_foreground_audio()
-        assert str(out).endswith(utils.AUDIO_EXTS)
-        assert os.path.isfile(out)
-        assert isinstance(out, Path)
-    else:
-        with pytest.raises(raises):
-            _ = oyens_scene_no_overlap._get_random_foreground_audio()
-
-
-@pytest.mark.parametrize(
     "mic_arrays",
     [
         (
@@ -482,6 +454,8 @@ def test_generate_parse_filepaths(dirpath, raises, oyens_scene_no_overlap):
             None,
             utils_tests.TEST_RESOURCES / "spatialsoundevents/voice_whitenoise_foa.wav",
         ),
+        # Neither noise nor filepath specified, get random audio from background directory
+        (None, None),
     ],
 )
 def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
@@ -506,7 +480,8 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
             "duration": 50.0,
             "ref_db": -50,
             "max_overlap": 1,
-            "fg_path": str(utils_tests.SOUNDEVENT_DIR),
+            "fg_path": [str(utils_tests.SOUNDEVENT_DIR)],
+            "bg_path": [str(utils_tests.SOUNDEVENT_DIR)],
             "ambience": {
                 "test_ambience": {
                     "alias": "test_ambience",
@@ -818,3 +793,46 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
                     < getattr(actual_aug, k)
                     < (max(sampled_values) + utils.SMALL)
                 )
+
+
+@pytest.mark.parametrize(
+    "fg_path,bg_path",
+    [
+        # Single paths
+        (
+            utils_tests.SOUNDEVENT_DIR / "music",
+            str(utils_tests.SOUNDEVENT_DIR / "waterTap"),
+        ),
+        # list of paths
+        (
+            [
+                utils_tests.SOUNDEVENT_DIR / "music",
+                utils_tests.SOUNDEVENT_DIR / "femaleSpeech",
+            ],
+            [
+                utils_tests.SOUNDEVENT_DIR / "waterTap",
+                str(utils_tests.SOUNDEVENT_DIR / "maleSpeech"),
+            ],
+        ),
+        # No paths
+        (None, None),
+    ],
+)
+def test_parse_audio_paths(fg_path, bg_path):
+    sc = Scene(
+        duration=50, mesh_path=utils_tests.OYENS_PATH, fg_path=fg_path, bg_path=bg_path
+    )
+    assert isinstance(sc.fg_audios, list)
+    assert isinstance(sc.bg_audios, list)
+
+    for path, audios in zip([fg_path, bg_path], [sc.fg_audios, sc.bg_audios]):
+        if path is not None:
+            assert len(audios) > 0
+            out = sc._get_random_audio(audios)
+            assert isinstance(out, Path)
+            assert out.is_file()
+            assert out.suffix.replace(".", "") in utils.AUDIO_EXTS
+        else:
+            assert len(audios) == 0
+            with pytest.raises(FileNotFoundError):
+                _ = sc._get_random_audio(audios)
