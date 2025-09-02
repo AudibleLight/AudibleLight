@@ -25,8 +25,6 @@ DEVICE = (
     if torch.cuda.is_available()
     else "mps" if torch.mps.is_available() else "cpu"
 )
-# Reference decibel level for the background ambient noise.
-REF_DB = -65
 # Seed used for randomisation
 SEED = 42
 # Default to 44.1kHz sample rate
@@ -35,6 +33,15 @@ SAMPLE_RATE = 44100
 MAX_PLACE_ATTEMPTS = 1000
 # Useful as a constant for tolerance checking, when `utils.tiny(...)` is going to be too small
 SMALL = 1e-4
+
+# TODO: these should be moved to `constants.py`
+# Constants for Scene, Event, Ambience, etc
+# Reference decibel level for the background ambient noise.
+REF_DB = -65
+MAX_OVERLAP = 3
+MIN_VELOCITY, MAX_VELOCITY = 0.25, 2.0  # meters per second
+MIN_SNR, MAX_SNR = 2, 8
+MIN_RESOLUTION, MAX_RESOLUTION = 1.0, 4.0  # Hz/IRs per second
 
 # Numeric dtypes: useful for isinstance(x, ...) checking
 NUMERIC_DTYPES = (
@@ -259,6 +266,13 @@ def sanitise_filepath(filepath: Any) -> Path:
         )
 
 
+def sanitise_filepaths(filepaths: list[Any]) -> list[Path]:
+    """
+    Equivalent to [sanitise_filepath(fp) for fp in filepaths]
+    """
+    return [sanitise_filepath(fp) for fp in filepaths]
+
+
 def sanitise_directory(directory: Any) -> Path:
     """
     Validate that a directory exists on the disk and coerce to a `Path` object
@@ -270,7 +284,7 @@ def sanitise_directory(directory: Any) -> Path:
         # Raise a nicer error when the file can't be found
         if not directory.is_dir():
             raise FileNotFoundError(
-                f"Cannot find file at {str(directory)}, does it exist?"
+                f"Cannot find directory at {str(directory)}, does it exist?"
             )
         else:
             if not any(directory.iterdir()):
@@ -280,8 +294,15 @@ def sanitise_directory(directory: Any) -> Path:
             return directory
     else:
         raise TypeError(
-            f"Expected filepath to be either a string or Path object, but got {type(directory)}"
+            f"Expected directory to be either a string or Path object, but got {type(directory)}"
         )
+
+
+def sanitise_directories(directories: list[Any]) -> list[Path]:
+    """
+    Equivalent to [sanitise_directory(dir) for dir in directories]
+    """
+    return [sanitise_directory(dir_) for dir_ in directories]
 
 
 def sanitise_positive_number(x: Any, cast_to: type = float) -> Optional[Numeric]:

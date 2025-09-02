@@ -10,24 +10,15 @@ import random
 from pathlib import Path
 from time import time
 
-from generate_with_random_events import (
-    MAX_RESOLUTION,
-    MAX_SNR,
-    MAX_VELOCITY,
-    MIC_ARRAY_NAME,
-    MIN_RESOLUTION,
-    MIN_SNR,
-    MIN_VELOCITY,
-    REF_DB,
-)
+from generate_with_random_events import MAX_DURATION, MIC_ARRAY_NAME, MIN_DURATION
 from generate_with_random_events import main as make_a_scene
 from loguru import logger
 from tqdm import tqdm
 
 from audiblelight import utils
 
-AUDIO_DIR = utils.get_project_root() / "resources/soundevents"
-AUDIOS = list(AUDIO_DIR.rglob("*.mp3"))
+FG_DIR = utils.get_project_root() / "resources/soundevents"
+BG_DIR = FG_DIR / "domesticSounds"
 MESH_DIR = utils.get_project_root() / "resources/meshes"
 MESHES = list(MESH_DIR.rglob("*.glb"))
 
@@ -36,7 +27,7 @@ OUTPUT_DIR = utils.get_project_root() / "spatial_scenes"
 N_SCENES = 1000
 
 # Distributions to sample
-STATIC_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(1, 3)))
+STATIC_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(1, 4)))
 MOVING_EVENTS = utils.sanitise_distribution(lambda: random.choice(range(0, 3)))
 MAX_OVERLAP = utils.sanitise_distribution(lambda: random.choice(range(2, 5)))
 DURATION = 50.0
@@ -72,16 +63,18 @@ def main(n_scenes: int, outdir: str):
             max_overlap=MAX_OVERLAP.rvs(),
             micarray=MIC_ARRAY_NAME,
             output_folder=output_dir,
-            fg_folder=AUDIO_DIR,
+            fg_folder=FG_DIR,
             mesh_path=mesh,
-            ref_db=REF_DB,
-            min_snr=MIN_SNR,
-            max_snr=MAX_SNR,
-            min_velocity=MIN_VELOCITY,
-            max_velocity=MAX_VELOCITY,
-            min_resolution=MIN_RESOLUTION,
-            max_resolution=MAX_RESOLUTION,
-            ambience=random.choice(AUDIOS),
+            ref_db=utils.REF_DB,
+            min_snr=utils.MIN_SNR,
+            max_snr=utils.MAX_SNR,
+            min_velocity=utils.MIN_VELOCITY,
+            max_velocity=utils.MAX_VELOCITY,
+            min_resolution=utils.MIN_RESOLUTION,
+            max_resolution=utils.MAX_RESOLUTION,
+            min_duration=MIN_DURATION,
+            max_duration=MAX_DURATION,
+            bg_folder=BG_DIR,
         )
 
     # Log the time taken

@@ -34,11 +34,6 @@ WARN_WHEN_EFFICIENCY_BELOW = (
     0.5  # when the ray efficiency is below this value, raise a warning in .simulate
 )
 
-MOVING_EMITTER_MAX_SPEED = 1  # meters per second
-MOVING_EMITTER_TEMPORAL_RESOLUTION = (
-    4  # number of IRs created per second for a moving emitter
-)
-
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     """
@@ -1464,9 +1459,13 @@ class WorldState:
         """
         # Use defaults if not provided
         shape = "linear" if shape is None else shape
-        velocity = MOVING_EMITTER_MAX_SPEED if velocity is None else velocity
+        velocity = (
+            (utils.MAX_VELOCITY / utils.MIN_VELOCITY) if velocity is None else velocity
+        )
         resolution = (
-            MOVING_EMITTER_TEMPORAL_RESOLUTION if resolution is None else resolution
+            utils.MAX_RESOLUTION / utils.MIN_RESOLUTION
+            if resolution is None
+            else resolution
         )
         max_place_attempts = (
             utils.MAX_PLACE_ATTEMPTS

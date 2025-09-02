@@ -142,6 +142,23 @@ def test_sanitise_filepath(fpath, expected):
 
 
 @pytest.mark.parametrize(
+    "filepaths, raises",
+    [
+        (utils_tests.TEST_MUSICS, False),
+        (["a/fake/filepath", utils_tests.TEST_MUSICS[0]], True),
+    ],
+)
+def test_sanitise_filepaths(filepaths, raises):
+    if raises:
+        with pytest.raises(FileNotFoundError):
+            _ = utils.sanitise_filepaths(filepaths)
+    else:
+        out = utils.sanitise_filepaths(filepaths)
+        for fp in out:
+            assert isinstance(fp, Path)
+
+
+@pytest.mark.parametrize(
     "num,expected", [(1, 1.0), (0.5, 0.5), (-1 / 3, ValueError), ("asdf", TypeError)]
 )
 def test_sanitise_positive_number(num, expected):
