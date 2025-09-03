@@ -499,6 +499,7 @@ def test_generated_csv(oyens_scene_no_overlap: Scene):
     _fid.close()
     # Should have stored some values
     assert len(_output_dict) > 0
+    os.remove("tmp_mic000.csv")
 
 
 @pytest.mark.parametrize(
