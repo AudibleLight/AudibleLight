@@ -159,6 +159,35 @@ def test_sanitise_filepaths(filepaths, raises):
 
 
 @pytest.mark.parametrize(
+    "directory, create, expected",
+    [
+        (utils_tests.SOUNDEVENT_DIR, False, Path(utils_tests.SOUNDEVENT_DIR)),
+        (Path(utils_tests.SOUNDEVENT_DIR), False, Path(utils_tests.SOUNDEVENT_DIR)),
+        ("a/broken/filepath", False, FileNotFoundError),
+        (123456, False, TypeError),
+        (
+            str(utils.get_project_root() / "makedir"),
+            True,
+            Path(utils.get_project_root() / "makedir"),
+        ),
+    ],
+)
+def test_sanitise_directory(directory, create, expected):
+    if isinstance(expected, type) and issubclass(expected, Exception):
+        with pytest.raises(expected):
+            _ = utils.sanitise_directory(directory, create_if_missing=create)
+    else:
+        result = utils.sanitise_directory(directory, create_if_missing=create)
+        assert result == expected
+        assert isinstance(result, Path)
+        assert result.is_dir()
+
+        # If we're creating the directory, tidy it up
+        if create:
+            os.removedirs(directory)
+
+
+@pytest.mark.parametrize(
     "num,expected", [(1, 1.0), (0.5, 0.5), (-1 / 3, ValueError), ("asdf", TypeError)]
 )
 def test_sanitise_positive_number(num, expected):
