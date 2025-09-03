@@ -25,7 +25,7 @@ def process_json(filepath: Path) -> None:
         outp = filepath.with_suffix(".csv").with_stem(
             f"{filepath.with_suffix('').name}_{mic}"
         )
-        df.to_csv(outp, sep=",", encoding="utf-8")
+        df.to_csv(outp, sep=",", encoding="utf-8", header=None)
 
 
 def main(dirpath: str):

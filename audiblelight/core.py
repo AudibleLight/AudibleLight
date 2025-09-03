@@ -1212,7 +1212,7 @@ class Scene:
                 outp = metadata_path.with_suffix(".csv").with_stem(
                     f"{metadata_path.name}_{mic}"
                 )
-                df.to_csv(outp, sep=",", encoding="utf-8")
+                df.to_csv(outp, sep=",", encoding="utf-8", header=None)
 
     def to_dict(self) -> dict:
         """

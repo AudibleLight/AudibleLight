@@ -455,6 +455,52 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
         os.remove(fout)
 
 
+def test_generated_csv(oyens_scene_no_overlap: Scene):
+    # Add a single event in
+    oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+
+    # Do the generation, save metadata csv file only
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_fname="tmp"
+    )
+
+    # This code is copied from this repo https://github.com/sharathadavanne/seld-dcase2023
+    _fid = open("tmp_mic000.csv", "r")
+    _output_dict = {}
+    for _line in _fid:
+        _words = _line.strip().split(",")
+        _frame_ind = int(_words[0])
+        if _frame_ind not in _output_dict:
+            _output_dict[_frame_ind] = []
+        if (
+            len(_words) == 5
+        ):  # frame, class idx, source_id, polar coordinates(2), no distance data
+            _output_dict[_frame_ind].append(
+                [int(_words[1]), int(_words[2]), float(_words[3]), float(_words[4])]
+            )
+        if (
+            len(_words) == 6
+        ):  # frame, class idx, source_id, polar coordinates(2), distance
+            _output_dict[_frame_ind].append(
+                [int(_words[1]), int(_words[2]), float(_words[3]), float(_words[4])]
+            )
+        elif (
+            len(_words) == 7
+        ):  # frame, class idx, source_id, cartesian coordinates(3), distance
+            _output_dict[_frame_ind].append(
+                [
+                    int(_words[1]),
+                    int(_words[2]),
+                    float(_words[3]),
+                    float(_words[4]),
+                    float(_words[5]),
+                ]
+            )
+    _fid.close()
+    # Should have stored some values
+    assert len(_output_dict) > 0
+
+
 @pytest.mark.parametrize(
     "dirpath,raises",
     [(None, False), (os.getcwd(), False), ("not/a/dir", FileNotFoundError)],
