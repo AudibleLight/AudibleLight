@@ -254,9 +254,11 @@ def sanitise_filepaths(filepaths: list[Any]) -> list[Path]:
     return [sanitise_filepath(fp) for fp in filepaths]
 
 
-def sanitise_directory(directory: Any) -> Path:
+def sanitise_directory(directory: Any, create_if_missing: bool = False) -> Path:
     """
-    Validate that a directory exists on the disk and coerce to a `Path` object
+    Validate that a directory exists on the disk and coerce to a `Path` object.
+
+    If `create_if_missing` and the folder does not exist, it will be created
     """
     if isinstance(directory, (str, Path)):
         # Coerce string types to Path
@@ -264,9 +266,13 @@ def sanitise_directory(directory: Any) -> Path:
             directory = Path(directory)
         # Raise a nicer error when the file can't be found
         if not directory.is_dir():
-            raise FileNotFoundError(
-                f"Cannot find directory at {str(directory)}, does it exist?"
-            )
+            if create_if_missing:
+                directory.mkdir(parents=True, exist_ok=True)
+                return directory
+            else:
+                raise FileNotFoundError(
+                    f"Cannot find directory at {str(directory)}, does it exist?"
+                )
         else:
             if not any(directory.iterdir()):
                 logger.warning(
@@ -279,11 +285,13 @@ def sanitise_directory(directory: Any) -> Path:
         )
 
 
-def sanitise_directories(directories: list[Any]) -> list[Path]:
+def sanitise_directories(
+    directories: list[Any], create_if_missing: bool = False
+) -> list[Path]:
     """
     Equivalent to [sanitise_directory(dir) for dir in directories]
     """
-    return [sanitise_directory(dir_) for dir_ in directories]
+    return [sanitise_directory(dir_, create_if_missing) for dir_ in directories]
 
 
 def sanitise_positive_number(x: Any, cast_to: type = float) -> Optional[Numeric]:
