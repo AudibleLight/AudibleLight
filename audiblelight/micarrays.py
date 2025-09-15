@@ -10,7 +10,7 @@ from typing import Any, Type
 import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
-from rlr_audio_propagation import ChannelLayoutType
+from rlr_audio_propagation import ChannelLayout, ChannelLayoutType
 
 from audiblelight import utils
 
@@ -22,7 +22,7 @@ __all__ = [
     "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST",
-    "get_channel_layout_type",
+    "get_channel_layout",
     "FOACapsule",
 ]
 
@@ -562,21 +562,21 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
         return next(ma for ma in MICARRAY_LIST if ma.name == micarray_name)
 
 
-def get_channel_layout_type(micarray: Any) -> ChannelLayoutType:
+def get_channel_layout(micarray: Any) -> ChannelLayout:
     """
-    Given a microphone array, get the channel layout type
+    Given a microphone array, get the channel layout
     """
     # Sanitise microphone array, raise error if required
     micarray = sanitize_microphone_input(micarray)
 
     # Parse channel layout
     if micarray.channel_layout_type == "mono":
-        return ChannelLayoutType.Mono
+        return ChannelLayout(ChannelLayoutType.Mono, 1)
     elif micarray.channel_layout_type == "foa":
-        return ChannelLayoutType.Ambisonics
+        return ChannelLayout(ChannelLayoutType.Ambisonics, 4)
     else:
         raise ValueError(
-            "Expected channel_layout_type to be one of 'mono' or 'foa', but got {}".format(
+            "Expected micarray.channel_layout_type to be one of 'mono' or 'foa', but got {}".format(
                 micarray.channel_layout_type
             )
         )

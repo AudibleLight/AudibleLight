@@ -17,7 +17,7 @@ from audiblelight.micarrays import (
     FOACapsule,
     MicArray,
     MonoCapsule,
-    get_channel_layout_type,
+    get_channel_layout,
     sanitize_microphone_input,
 )
 
@@ -172,11 +172,12 @@ def test_magic_methods(mictype):
 @pytest.mark.parametrize(
     "mictype, expected",
     [
-        (MonoCapsule, ChannelLayoutType.Mono),
-        (FOACapsule, ChannelLayoutType.Ambisonics),
-        ("ambeovr", ChannelLayoutType.Mono),
+        (MonoCapsule, (ChannelLayoutType.Mono, 1)),
+        (FOACapsule, (ChannelLayoutType.Ambisonics, 4)),
+        ("ambeovr", (ChannelLayoutType.Mono, 1)),
     ],
 )
-def test_get_channel_layout_type(mictype, expected):
-    out = get_channel_layout_type(mictype)
-    assert out == expected
+def test_get_channel_layout(mictype, expected):
+    out = get_channel_layout(mictype)
+    assert out.type == expected[0]
+    assert out.channel_count == expected[1]
