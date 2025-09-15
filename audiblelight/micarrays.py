@@ -77,6 +77,26 @@ class MicArray:
         return ChannelLayout(layout_type, self.n_capsules)
 
     @property
+    def n_listeners(self) -> int:
+        """
+        Returns the number of listeners this `MicArray` should be associated with in the engine.
+
+        If channel_layout == foa, we will only have 1 listener, but 4 "capsules" and IRs.
+        Otherwise, if channel_layout == mono, we will have as many listeners as capsules.
+        """
+        if self.channel_layout_type == "mono":
+            return self.n_capsules
+        elif self.channel_layout_type == "foa":
+            return 1
+        elif self.channel_layout_type == "binaural":
+            return 1
+        else:
+            raise ValueError(
+                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"but got '{self.channel_layout_type}'"
+            )
+
+    @property
     def coordinates_polar(self) -> np.ndarray:
         raise NotImplementedError
 
