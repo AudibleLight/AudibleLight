@@ -576,7 +576,7 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
     acceptable_values = [ma().name for ma in MICARRAY_LIST]
     if micarray_name not in acceptable_values:
         raise ValueError(
-            f"Cannot find array {micarray_name}: expected one of {','.join(acceptable_values)}"
+            f"Cannot find array {micarray_name}: expected one of {', '.join(acceptable_values)}"
         )
     else:
         # Using `next` avoids having to build the whole list
