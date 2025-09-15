@@ -753,6 +753,7 @@ def test_emitter_from_dict(input_dict):
                     "micarray_type": "AmbeoVR",
                     "is_spherical": True,
                     "n_capsules": 4,
+                    "channel_layout_type": "mono",
                     "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                     "coordinates_absolute": [
                         [-0.38804551239949914, -8.630788873071257, 1.4665762923251686],
