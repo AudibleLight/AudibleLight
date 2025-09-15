@@ -321,7 +321,11 @@ class MonoCapsule(MicArray):
 @dataclass(repr=False, eq=False)
 class FOACapsule(MicArray):
     """
-    A single FOA capsule that will render four channels from a single coordinate
+    First Order Ambisonics (FOA) microphone "capsule"
+
+    This implementation uses a single listener with 4 ambisonics channels (W, X, Y, Z)
+    following the AmbiX convention. Unlike `AmbeoVR` which places 4 separate mono capsules,
+    this represents a single point in space with 4-channel ambisonics encoding.
     """
 
     name: str = "foacapsule"
