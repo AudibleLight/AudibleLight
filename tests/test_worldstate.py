@@ -957,3 +957,37 @@ def test_get_valid_position_with_max_distance(ref, r, n, raises, oyens_space):
     else:
         with pytest.raises(ValueError):
             _ = oyens_space.get_valid_position_with_max_distance(ref, r, n)
+
+
+def test_add_foa_capsule(oyens_space):
+    # Add many different types of microphone in
+    oyens_space.add_microphone(
+        microphone_type="foacapsule",
+        position=[-0.5, -0.5, 0.5],
+        keep_existing=False,
+        alias="foa_tester",
+    )
+    oyens_space.add_microphone(
+        microphone_type="monocapsule", keep_existing=True, alias="mono_tester"
+    )
+    oyens_space.add_microphone(
+        microphone_type="ambeovr", keep_existing=True, alias="ambeo_tester"
+    )
+
+    # Add two emitters in
+    oyens_space.add_emitter(alias="tester")
+    oyens_space.add_emitter(keep_existing=True, alias="tester2")
+
+    # Simulate the IR
+    oyens_space.simulate()
+
+    # Grab FOA microphone
+    mic = oyens_space.get_microphone("foa_tester")
+    assert mic.channel_layout_type == "foa"
+
+    # Test all microphones IRs as expected
+    for mic in oyens_space.microphones.values():
+        n_caps, n_emits, n_samps = mic.irs.shape
+        assert n_caps == mic.n_capsules
+        assert n_emits == 2
+        assert n_samps >= 1
