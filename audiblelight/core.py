@@ -181,7 +181,9 @@ class Scene:
         #  if not None (i.e., with a call to `add_ambience`), will be added to audio when synthesising
         self.ambience = OrderedDict()
 
-        self.audio = None
+        # Spatialized audio
+        #  Note that this is a dictionary to support multiple microphones
+        self.audio = OrderedDict()
 
     @staticmethod
     def _parse_audio_directories(
@@ -1189,11 +1191,16 @@ class Scene:
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
 
-        # Write the audio output
+        # Write the audio output to a separate .wav, one per mic
         if audio:
-            sf.write(
-                audio_path.with_suffix(".wav"), self.audio.T, int(self.sample_rate)
-            )
+            for mic_alias, mic_audio in self.audio.items():
+                sf.write(
+                    audio_path.with_suffix(".wav").with_stem(
+                        f"{audio_path.name}_{mic_alias}"
+                    ),
+                    mic_audio.T,
+                    int(self.sample_rate),
+                )
 
         # Get the metadata and add the spatial audio format in
         if metadata_json or metadata_dcase:
