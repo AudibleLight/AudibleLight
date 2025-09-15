@@ -991,3 +991,5 @@ def test_add_foa_capsule(oyens_space):
         assert n_caps == mic.n_capsules
         assert n_emits == 2
         assert n_samps >= 1
+        # Should not be just zeroes
+        assert not np.all(mic.irs == 0)
