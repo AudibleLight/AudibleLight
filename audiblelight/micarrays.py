@@ -22,7 +22,6 @@ __all__ = [
     "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST",
-    "get_channel_layout",
     "FOACapsule",
 ]
 
@@ -58,6 +57,24 @@ class MicArray:
     irs: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_absolute: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_center: np.ndarray = field(default=None, init=False, repr=False)
+
+    @property
+    def channel_layout(self) -> ChannelLayout:
+        """
+        Returns the ray-tracing engine ChannelLayout object for this MicArray
+        """
+        if self.channel_layout_type == "mono":
+            layout_type = ChannelLayoutType.Mono
+        elif self.channel_layout_type == "foa":
+            layout_type = ChannelLayoutType.Ambisonics
+        elif self.channel_layout_type == "binaural":
+            layout_type = ChannelLayoutType.Binaural
+        else:
+            raise ValueError(
+                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"but got '{self.channel_layout_type}'"
+            )
+        return ChannelLayout(layout_type, self.n_capsules)
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -560,23 +577,3 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
     else:
         # Using `next` avoids having to build the whole list
         return next(ma for ma in MICARRAY_LIST if ma.name == micarray_name)
-
-
-def get_channel_layout(micarray: Any) -> ChannelLayout:
-    """
-    Given a microphone array, get the channel layout
-    """
-    # Sanitise microphone array, raise error if required
-    micarray = sanitize_microphone_input(micarray)
-
-    # Parse channel layout
-    if micarray.channel_layout_type == "mono":
-        return ChannelLayout(ChannelLayoutType.Mono, 1)
-    elif micarray.channel_layout_type == "foa":
-        return ChannelLayout(ChannelLayoutType.Ambisonics, 4)
-    else:
-        raise ValueError(
-            "Expected micarray.channel_layout_type to be one of 'mono' or 'foa', but got {}".format(
-                micarray.channel_layout_type
-            )
-        )

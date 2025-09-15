@@ -7,17 +7,15 @@ import json
 
 import numpy as np
 import pytest
-from rlr_audio_propagation import ChannelLayoutType
+from rlr_audio_propagation import ChannelLayout
 
 from audiblelight import utils
 from audiblelight.micarrays import (
     MICARRAY_LIST,
     AmbeoVR,
     Eigenmike32,
-    FOACapsule,
     MicArray,
     MonoCapsule,
-    get_channel_layout,
     sanitize_microphone_input,
 )
 
@@ -170,15 +168,10 @@ def test_magic_methods(mictype):
     assert instant == instant2
 
 
-@pytest.mark.parametrize(
-    "mictype, expected",
-    [
-        (MonoCapsule, (ChannelLayoutType.Mono, 1)),
-        (FOACapsule, (ChannelLayoutType.Ambisonics, 4)),
-        ("ambeovr", (ChannelLayoutType.Mono, 1)),
-    ],
-)
-def test_get_channel_layout(mictype, expected):
-    out = get_channel_layout(mictype)
-    assert out.type == expected[0]
-    assert out.channel_count == expected[1]
+@pytest.mark.parametrize("mictype", MICARRAY_LIST)
+def test_channel_layout(mictype):
+    micarray = mictype()
+    assert hasattr(micarray, "channel_layout")
+    assert hasattr(micarray, "channel_layout_type")
+    assert isinstance(micarray.channel_layout, ChannelLayout)
+    assert micarray.channel_layout.channel_count == micarray.n_capsules
