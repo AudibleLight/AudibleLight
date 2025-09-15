@@ -7,14 +7,17 @@ import json
 
 import numpy as np
 import pytest
+from rlr_audio_propagation import ChannelLayoutType
 
 from audiblelight import utils
 from audiblelight.micarrays import (
     MICARRAY_LIST,
     AmbeoVR,
     Eigenmike32,
+    FOACapsule,
     MicArray,
     MonoCapsule,
+    get_channel_layout_type,
     sanitize_microphone_input,
 )
 
@@ -22,9 +25,10 @@ from audiblelight.micarrays import (
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
 def test_string_attributes(micarray):
     # The class should have all the desired attributes as non-empty strings
-    assert hasattr(micarray(), "name")
-    assert isinstance(getattr(micarray(), "name"), str)
-    assert getattr(micarray(), "name") != ""
+    for attr in ["name", "channel_layout_type"]:
+        assert hasattr(micarray(), attr)
+        assert isinstance(getattr(micarray(), attr), str)
+        assert getattr(micarray(), attr) != ""
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
@@ -115,6 +119,7 @@ def test_sanitize_microphone_input(array_name: str, expected: object):
             "name": "ambeovr",
             "micarray_type": "AmbeoVR",
             "is_spherical": True,
+            "channel_layout_type": "mono",
             "n_capsules": 4,
             "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
             "coordinates_absolute": [
@@ -162,3 +167,16 @@ def test_magic_methods(mictype):
     # Compare equality
     instant2 = mictype.from_dict(instant.to_dict())
     assert instant == instant2
+
+
+@pytest.mark.parametrize(
+    "mictype, expected",
+    [
+        (MonoCapsule, ChannelLayoutType.Mono),
+        (FOACapsule, ChannelLayoutType.Ambisonics),
+        ("ambeovr", ChannelLayoutType.Mono),
+    ],
+)
+def test_get_channel_layout_type(mictype, expected):
+    out = get_channel_layout_type(mictype)
+    assert out == expected
