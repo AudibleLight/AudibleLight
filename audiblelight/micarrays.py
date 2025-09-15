@@ -317,7 +317,7 @@ class FOACapsule(MicArray):
 
     @property
     def capsule_names(self) -> list[str]:
-        return ["foa"]
+        return ["w", "x", "y", "z"]
 
 
 @dataclass(repr=False, eq=False)

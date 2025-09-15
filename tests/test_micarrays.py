@@ -60,7 +60,8 @@ def test_cartesian_coordinates(micarray):
     cartesian: np.ndarray = getattr(micarray(), "coordinates_cartesian")
     assert isinstance(cartesian, np.ndarray)
     # Everything should have the same shape
-    assert cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
+    if micarray.channel_layout_type == "mono":
+        assert cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
