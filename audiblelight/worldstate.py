@@ -1619,12 +1619,8 @@ class WorldState:
         assert (
             sum(len(em) for em in self.emitters.values()) == self.ctx.get_source_count()
         )
-        # TODO: dirty hack
         assert (
-            sum(
-                m.n_capsules if m.channel_layout_type != "foa" else 1
-                for m in self.microphones.values()
-            )
+            sum(m.n_listeners for m in self.microphones.values())
             == self.ctx.get_listener_count()
         )
 
@@ -1677,14 +1673,12 @@ class WorldState:
 
         # Do a first pass to get the maximum length of a single IR
         for mic in self.microphones.values():
-            for i in range(listener_counter, listener_counter + mic.n_capsules):
+            for i in range(listener_counter, listener_counter + mic.n_listeners):
                 for j in range(self.ctx.get_source_count()):
                     for k in range(self.ctx.get_ir_channel_count(i, j)):
                         ir_ijk = self.ctx.get_listener_source_channel_audio(i, j, k)
                         maxlen_samples = max(maxlen_samples, len(ir_ijk))
-            listener_counter += (
-                1 if mic.channel_layout_type == "foa" else mic.n_capsules
-            )
+            listener_counter += mic.n_listeners
 
         # Now that we know the maximum length of an IR, we can do another pass with padding
         listener_counter = 0
@@ -1698,14 +1692,14 @@ class WorldState:
                 range(listener_counter, listener_counter + mic.n_capsules),
                 range(mic.n_capsules),
             ):
+                if i_ctx >= self.ctx.get_listener_count():
+                    break
                 for j in range(self.ctx.get_source_count()):
                     for k in range(self.ctx.get_ir_channel_count(i_ctx, j)):
                         ir_ijk = self.ctx.get_listener_source_channel_audio(i_ctx, j, k)
                         zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
             mic.irs = zero_arr
-            listener_counter += (
-                1 if mic.channel_layout_type == "foa" else mic.n_capsules
-            )
+            listener_counter += mic.n_listeners
 
         # Returns a dictionary with shape {mic1: (N_capsules, N_emitters, N_samples), ...}
         return OrderedDict({m_alias: m.irs for m_alias, m in self.microphones.items()})
