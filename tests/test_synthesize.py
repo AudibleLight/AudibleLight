@@ -243,7 +243,7 @@ def test_validate_scene(oyens_scene_factory):
     # Do the same for the capsules
     class TempMic:
         @property
-        def n_capsules(self):
+        def n_listeners(self):
             return 5
 
     scn = oyens_scene_factory()
