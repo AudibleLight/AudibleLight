@@ -1803,10 +1803,10 @@ class SwitchboardStrong(SpecAugmentPolicy):
 
 class TimeFrequencyMasking(SceneAugmentation):
     """
-    Applies time-frequency masking to multi-channel Scene audio using SpecAugment.
+    Applies time-frequency masking to multichannel Scene audio.
 
     Note that only time and frequency masking are implemented; time-warping is NOT used, as is the case in [1].
-    Policy should be an instance of `SpecAugmentPolicy`: see [2] for a full description.
+    Policy should be an instance of `SpecAugmentPolicy`: see [2] for a full description of the parameters here.
 
     When processing the input audio, it is first converted to a mel spectrogram with the given arguments, then masking
     is applied to the spectrogram, and finally it is inverted back to audio using the Griffin-Lim algorithm. If
@@ -1818,6 +1818,7 @@ class TimeFrequencyMasking(SceneAugmentation):
         sample_rate (types.Numeric): the sample rate for the effect to use.
         mel_kwargs (dict): dictionary of kwargs to pass to `librosa.feature.melspectrogram`.
         return_spectrogram (bool): if True, the augmentation will return a mel spectrogram, not a waveform
+        replace_with_zero (bool): if True, masked values are filled with zeroes; otherwise, the channel mean is used.
         policy: an instance of `SpecAugmentPolicy` or dict, or a list of `SpecAugmentPolicy`/dicts
 
     References:
@@ -1841,6 +1842,7 @@ class TimeFrequencyMasking(SceneAugmentation):
         sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
         mel_kwargs: dict = None,
         return_spectrogram: Optional[bool] = False,
+        replace_with_zero: Optional[bool] = False,
         policy: Optional[
             Union[
                 Type["SpecAugmentPolicy"],
@@ -1852,15 +1854,18 @@ class TimeFrequencyMasking(SceneAugmentation):
     ):
         super().__init__(sample_rate)
         self.return_spectrogram = return_spectrogram
+        self.replace_with_zero = replace_with_zero
 
         # Validate arguments for melspectrogram
+        if mel_kwargs is None:
+            mel_kwargs = dict()
         mel_kwargs["sr"] = self.sample_rate
         utils.validate_kwargs(librosa.feature.melspectrogram, **mel_kwargs)
         self.mel_kwargs = mel_kwargs
 
         # Create a list of all possible policies, then sample one
         policy_list = self.get_policy(policy)
-        self.policy = np.random.choice(policy_list, 1)
+        self.policy: Type["SpecAugmentPolicy"] = np.random.choice(policy_list, 1)[0]
 
     def get_policy(self, policy: Any) -> list[Type["SpecAugmentPolicy"]]:
         """
@@ -1886,38 +1891,80 @@ class TimeFrequencyMasking(SceneAugmentation):
         return validate_policies
 
     def _apply_fx(self, input_array: np.ndarray, *_, **__) -> np.ndarray:
+        """
+        Apply the augmentation: frequency and time masking
+        """
         # Compute the mel spectrogram with required kwargs
         mel = librosa.feature.melspectrogram(y=input_array, **self.mel_kwargs)
+
+        # Handle mono audio
+        if mel.ndim == 2:
+            mel = np.expand_dims(mel, axis=0)
+
         # Apply frequency and time masking
         freq_masked = self.freq_mask(mel)
         out = self.time_mask(freq_masked)
+
         # Convert back to waveform (default setting)
         if not self.return_spectrogram:
             out = librosa.feature.inverse.mel_to_audio(mel, **self.mel_kwargs)
+
         return out
 
     def freq_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
         """
-        Applies frequency masking to the input spectrogram
+        Applies frequency masking to the input (multi-channel) mel spectrogram
         """
         out = mel_spectrogram.copy()
-        v = out.shape[1]  # no. of mel bins
-        # apply m_F frequency masks to the mel spectrogram
-        for i in range(self.policy.m_F):
-            f = int(np.random.uniform(0, self.policy.F))  # [0, F)
-            f0 = np.random.randint(0, v - f)  # [0, v - f)
-            out[:, f0 : f0 + f, :, :] = 0
+        num_mel_channels = out.shape[1]
+
+        # Iterate through the number of frequency bands to mask
+        for i in range(0, self.policy.m_F):
+            f = np.random.randint(0, self.policy.F)  # [0, F)
+            f0 = np.random.randint(0, num_mel_channels - f)  # [0, v - f)
+
+            # Avoids error if values are equal and range is empty
+            if f0 == f0 + f:
+                continue
+
+            # Ending point for the mask
+            mask_end = np.random.randint(f0, f0 + f)
+
+            # Do the frequency masking: either with zeroes or mean from that channel
+            if self.replace_with_zero:
+                for c in out:
+                    c[f0:mask_end] = 0.0
+            else:
+                for c in out:
+                    c[f0:mask_end] = c.mean()
+
         return out
 
     def time_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
         """
-        Applies time masking to the input mel spectrogram
+        Applies time masking to the input (multi-channel) mel spectrogram
         """
         out = mel_spectrogram.copy()
         tau = out.shape[2]  # time frames
+
         # apply m_T time masks to the mel spectrogram
-        for i in range(self.policy.m_T):
-            t = int(np.random.uniform(0, self.policy.T))  # [0, T)
+        for i in range(0, self.policy.m_T):
+            t = np.random.randint(0, self.policy.T)  # [0, T)
             t0 = np.random.randint(0, tau - t)  # [0, tau - t)
-            out[:, :, t0 : t0 + t, :] = 0
+
+            # avoids randrange error if values are equal and range is empty
+            if t0 == t0 + t:
+                continue
+
+            # Ending point for the mask
+            mask_end = np.random.randint(t0, t0 + t)
+
+            # Do the time masking: either with zeroes or mean from that channel
+            if self.replace_with_zero:
+                for c in out:
+                    c[:, t0:mask_end] = 0
+            else:
+                for c in out:
+                    c[:, t0:mask_end] = c.mean()
+
         return out
