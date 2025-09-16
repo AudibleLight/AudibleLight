@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from audiblelight import types, utils
+from audiblelight import custom_types, utils
 from tests import utils_tests
 
 
@@ -381,7 +381,7 @@ def test_validate_shape(
 def test_sample_distribution(distribution, override, raises):
     if not raises:
         out = utils.sample_distribution(distribution, override)
-        assert isinstance(out, types.Numeric)
+        assert isinstance(out, custom_types.Numeric)
     else:
         with pytest.raises(raises):
             _ = utils.sample_distribution(distribution, override)
@@ -565,7 +565,7 @@ def test_generate_circular_trajectory(
     ],
 )
 def test_generate_random_trajectory(
-    xyz_start: np.ndarray, max_step: types.Numeric, n_points: int
+    xyz_start: np.ndarray, max_step: custom_types.Numeric, n_points: int
 ):
     traj = utils.generate_random_trajectory(xyz_start, max_step, n_points)
 

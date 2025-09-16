@@ -12,7 +12,7 @@ import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
 
-from audiblelight import config, types, utils
+from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
 from audiblelight.worldstate import Emitter
 
@@ -431,7 +431,9 @@ class Event:
         else:
             raise TypeError("Cannot parse emitters with type {}".format(type(emitters)))
 
-    def _parse_audio_start(self, audio_start: Optional[types.Numeric] = None) -> float:
+    def _parse_audio_start(
+        self, audio_start: Optional[custom_types.Numeric] = None
+    ) -> float:
         """
         Safely handle getting the start/offset time for an audio event, with an optional override.
         """
