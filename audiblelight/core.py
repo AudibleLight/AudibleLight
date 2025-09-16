@@ -111,7 +111,7 @@ class Scene:
         utils.validate_kwargs(WorldState.__init__, **state_kwargs)
         self.state = WorldState(mesh_path, **state_kwargs)
 
-        self.sample_rate = self.state.ctx.config.sample_rate
+        self.sample_rate = self.state.cfg.sample_rate
 
         # Grab some attributes from the WorldState to make them easier to access
         self.mesh = self.state.mesh
@@ -1166,7 +1166,6 @@ class Scene:
             generate_dcase2024_metadata,
             generate_scene_audio_from_events,
             render_audio_for_all_scene_events,
-            validate_scene,
         )
 
         # Sanitise output directory
@@ -1186,8 +1185,6 @@ class Scene:
         #  This renders the IRs inside the worldstate
         #  It then populates the `.spatial_audio` attribute inside each Event
         #  And populates the `audio` attribute inside this instance
-        self.state._update()
-        validate_scene(self)
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
 

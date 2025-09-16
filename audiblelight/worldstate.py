@@ -359,24 +359,19 @@ class WorldState:
             if len(broken_faces) / self.mesh.faces.shape[0] < repair_threshold:
                 repair_mesh(self.mesh)
 
-        # Setting up audio context
+        # Setting up audio configuration
         self.cfg = self._parse_rlr_config(rlr_kwargs)
-        self.ctx = Context(self.cfg)
-        self._setup_audio_context()
+        self.ctx = None
+        # If required, create the audio context now
+        if self.add_to_state:
+            self._setup_audio_context()
 
     # noinspection PyUnreachableCode
     def _update(self) -> None:
         """
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
         """
-        # Destroy the old context
-        self.ctx.reset(self.cfg)
-        if self.ctx.get_listener_count() > 0:
-            self.ctx.clear_listeners()
-        if self.ctx.get_source_count() > 0:
-            self.ctx.clear_sources()
-
-        # Remake the context
+        # (re)make the audio context
         self._setup_audio_context()
 
         # Update the ray-tracing listeners
@@ -507,6 +502,18 @@ class WorldState:
                 "Do not call `WorldState.ctx.get_audio` directly: instead, use `WorldState.get_irs`."
             )
 
+        # If the context doesn't exist, make it
+        if self.ctx is None:
+            self.ctx = Context(self.cfg)
+        # If the context does exist, reset it
+        else:
+            self.ctx.reset(self.cfg)
+            if self.ctx.get_listener_count() > 0:
+                self.ctx.clear_listeners()
+            if self.ctx.get_source_count() > 0:
+                self.ctx.clear_sources()
+
+        # Add the mesh into the context
         self.ctx.add_object()
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
         self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
