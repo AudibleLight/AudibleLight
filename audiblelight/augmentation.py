@@ -19,18 +19,16 @@ some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for Audible
 """
 
 import math
-from dataclasses import dataclass
 from random import random
 from typing import Any, Callable, Iterator, Optional, Type, Union
 
 import librosa
-import librosa.feature
 import numpy as np
 from deepdiff import DeepDiff
 from pedalboard import time_stretch
 from scipy import stats
 
-from audiblelight import config, types, utils
+from audiblelight import config, custom_types, utils
 
 
 def _identity(input_array: np.ndarray, *_, **__) -> np.ndarray:
@@ -46,7 +44,7 @@ class Augmentation:
     default. The user can also pass a numeric override for a parameter, in which case it will always be used.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
 
     Properties:
         fx (Callable): the callable function applied to the audio.
@@ -56,7 +54,7 @@ class Augmentation:
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
     ):
         self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
         self.fx: Union[Callable, list[Callable]] = _identity
@@ -64,9 +62,9 @@ class Augmentation:
 
     @staticmethod
     def sample_value(
-        override: Optional[Union[types.Numeric, types.DistributionLike]],
-        default_dist: types.DistributionLike,
-    ) -> types.Numeric:
+        override: Optional[Union[custom_types.Numeric, custom_types.DistributionLike]],
+        default_dist: custom_types.DistributionLike,
+    ) -> custom_types.Numeric:
         """
         Samples a value according to the following method:
             - If override is not provided, a value will be sampled from the `default_dist` distribution.
@@ -79,7 +77,7 @@ class Augmentation:
             return utils.sanitise_distribution(default_dist).rvs()
 
         # Override is numeric, use this
-        elif isinstance(override, types.Numeric):
+        elif isinstance(override, custom_types.Numeric):
             return override
 
         else:
@@ -270,7 +268,7 @@ class Bitcrush(EventAugmentation):
     number of unique values, controlled by the bit depth.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         bit_depth: the bit depth to quantize the signal to; will be sampled between 8 and 32 bits if not provided.
     """
 
@@ -278,8 +276,10 @@ class Bitcrush(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        bit_depth: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        bit_depth: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(
             sample_rate,
@@ -305,8 +305,8 @@ class LowpassFilter(EventAugmentation):
     exact cutoff frequency or a distribution to sample this from can be provided as arguments to the function.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
-        cutoff_frequency_hz (Union[types.Numeric, custom_types.DistributionLike]): the cutoff frequency for the filter, or a
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
+        cutoff_frequency_hz (Union[custom_types.Numeric, custom_custom_types.DistributionLike]): the cutoff frequency for the filter, or a
             distribution-like object to sample this from. Will default to sampling from uniform distribution
             between 5512 and 22050 Hz if not provided.
     """
@@ -315,9 +315,9 @@ class LowpassFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         cutoff_frequency_hz: Optional[
-            Union[types.Numeric, types.DistributionLike]
+            Union[custom_types.Numeric, custom_types.DistributionLike]
         ] = None,
     ):
         # Initialise the parent class
@@ -350,7 +350,7 @@ class HighShelfFilter(EventAugmentation):
     above this value will be boosted by the provided gain, given in decibels.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         cutoff_frequency_hz: the cutoff frequency for the filter; will be sampled between 5512 and 22050 Hz if not given
         gain_db: the gain of the filter, in dB; will be sampled between -20 and 10 dB, if not given
         q: the Q (or sharpness) of the filter; will be sampled between 0.1 and 1.0 if not given
@@ -362,12 +362,14 @@ class HighShelfFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        gain_db: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        cutoff_frequency_hz: Optional[
-            Union[types.Numeric, types.DistributionLike]
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        gain_db: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
         ] = None,
-        q: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        cutoff_frequency_hz: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        q: Optional[Union[custom_types.Numeric, custom_types.DistributionLike]] = None,
     ):
         super().__init__(
             sample_rate,
@@ -406,8 +408,8 @@ class HighpassFilter(EventAugmentation):
     exact cutoff frequency or a distribution to sample this from can be provided as arguments to the function.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
-        cutoff_frequency_hz (Union[types.Numeric, custom_types.DistributionLike]): the cutoff frequency for the filter, or a
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
+        cutoff_frequency_hz (Union[custom_types.Numeric, custom_custom_types.DistributionLike]): the cutoff frequency for the filter, or a
             distribution-like object to sample this from. Will default to sampling from uniform distribution
             between 32 and 1024 Hz if not provided.
     """
@@ -416,9 +418,9 @@ class HighpassFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         cutoff_frequency_hz: Optional[
-            Union[types.Numeric, types.DistributionLike]
+            Union[custom_types.Numeric, custom_types.DistributionLike]
         ] = None,
     ):
         # Initialise the parent class
@@ -449,7 +451,7 @@ class LowShelfFilter(EventAugmentation):
     below this value will be boosted by the provided gain, given in decibels.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         cutoff_frequency_hz: the cutoff frequency for the filter; will be sampled between 32 and 1024 Hz if not given
         gain_db: the gain of the filter, in dB; will be sampled between -20 and 10 dB, if not given
         q: the Q (or sharpness) of the filter; will be sampled between 0.1 and 1.0 if not given
@@ -461,12 +463,14 @@ class LowShelfFilter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        gain_db: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        cutoff_frequency_hz: Optional[
-            Union[types.Numeric, types.DistributionLike]
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        gain_db: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
         ] = None,
-        q: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        cutoff_frequency_hz: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        q: Optional[Union[custom_types.Numeric, custom_types.DistributionLike]] = None,
     ):
         super().__init__(
             sample_rate,
@@ -510,7 +514,7 @@ class MultibandEqualizer(EventAugmentation):
     and `LowpassFilter`.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         n_bands: the number of peak filters to use in the equalizer. Defaults to a random integer between 1 and 8.
         gain_db: the gain values for each peak. Can be either a single value, a list of N values, or a distribution.
             If a single value, will be repeated N times. If a distribution, will be sampled from N times.
@@ -525,16 +529,30 @@ class MultibandEqualizer(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        n_bands: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        n_bands: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
         gain_db: Optional[
-            Union[list[types.Numeric], types.Numeric, types.DistributionLike]
+            Union[
+                list[custom_types.Numeric],
+                custom_types.Numeric,
+                custom_types.DistributionLike,
+            ]
         ] = None,
         cutoff_frequency_hz: Optional[
-            Union[list[types.Numeric], types.Numeric, types.DistributionLike]
+            Union[
+                list[custom_types.Numeric],
+                custom_types.Numeric,
+                custom_types.DistributionLike,
+            ]
         ] = None,
         q: Optional[
-            Union[list[types.Numeric], types.Numeric, types.DistributionLike]
+            Union[
+                list[custom_types.Numeric],
+                custom_types.Numeric,
+                custom_types.DistributionLike,
+            ]
         ] = None,
     ):
         super().__init__(
@@ -574,9 +592,13 @@ class MultibandEqualizer(EventAugmentation):
     # noinspection PyUnreachableCode,PyUnresolvedReferences
     def sample_peak_filter_params(
         self,
-        override: Union[types.Numeric, list[types.Numeric], types.DistributionLike],
-        default_dist: types.DistributionLike,
-    ) -> list[types.Numeric]:
+        override: Union[
+            custom_types.Numeric,
+            list[custom_types.Numeric],
+            custom_types.DistributionLike,
+        ],
+        default_dist: custom_types.DistributionLike,
+    ) -> list[custom_types.Numeric]:
         """
         Samples all values (e.g., all Q values, all frequencies) for all N peak filters.
 
@@ -602,7 +624,7 @@ class MultibandEqualizer(EventAugmentation):
             return override if isinstance(override, list) else override.tolist()
 
         # Override is a single value: return this value N times
-        elif isinstance(override, types.Numeric):
+        elif isinstance(override, custom_types.Numeric):
             return [override for _ in range(self.n_bands)]
 
         else:
@@ -643,7 +665,7 @@ class Compressor(EventAugmentation):
     a lossy compression algorithm that introduces noise or artifacts, see `MP3Compressor` or `GSMCompressor`.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         threshold_db: the dB threshold after which the compressor is active. Sampled between -40 and -20 dB if not given
         ratio: the compressor ratio, i.e. `ratio=4` reduces the signal volume by 4 dB for every 1 dB over the threshold.
             If not provided, sampled from [4, 8, 12, 20] (i.e., the ratio values on the famous UREI 1176 compressor)
@@ -661,11 +683,19 @@ class Compressor(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        threshold_db: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        ratio: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        attack_ms: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        release_ms: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        threshold_db: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        ratio: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        attack_ms: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        release_ms: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
 
@@ -718,7 +748,7 @@ class Chorus(EventAugmentation):
     a mix control, a feedback control, and the centre delay of the modulation.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         rate_hz: the speed of the LFO controlling the frequency response. By default, sampled between 0 and 10 Hz
         depth: the depth of the LFO controlling the frequency response. By default, sampled between 0 and 1.0.
         centre_delay_ms: the centre delay of the modulation. By default, sampled between 1 and 20 ms.
@@ -734,12 +764,22 @@ class Chorus(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        rate_hz: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        depth: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        centre_delay_ms: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        feedback: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        mix: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        rate_hz: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        depth: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        centre_delay_ms: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        feedback: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        mix: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(
             sample_rate,
@@ -793,7 +833,7 @@ class Clipping(EventAugmentation):
     Clips the audio signal at the provided threshold, in decibels.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         threshold_db: the dB level of the distortion effect. By default, will be sampled between -10 and -1 dB.
     """
 
@@ -801,8 +841,10 @@ class Clipping(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: types.Numeric = config.SAMPLE_RATE,
-        threshold_db: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: custom_types.Numeric = config.SAMPLE_RATE,
+        threshold_db: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
         # Set all FX parameters
@@ -830,7 +872,7 @@ class Limiter(EventAugmentation):
     A simple limiter with a hard clipper set to 0 dB. Release and threshold dB can be controlled by the user.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         threshold_db: the dB threshold after which the compressor is active. Sampled between -40 and -20 dB if not given
         release_ms: the time taken for the compressor to return to 0 dB after exceeding the threshold. If not provided,
             will be sampled between 50 and 1100 ms (again, inspired by the UREI 1176).
@@ -841,9 +883,13 @@ class Limiter(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        threshold_db: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        release_ms: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        threshold_db: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        release_ms: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(
             sample_rate,
@@ -883,7 +929,7 @@ class Distortion(EventAugmentation):
     to a signal.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         drive_db: the dB level of the distortion effect. By default, will be sampled between 10 and 30 dB.
     """
 
@@ -891,8 +937,10 @@ class Distortion(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: types.Numeric = config.SAMPLE_RATE,
-        drive_db: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: custom_types.Numeric = config.SAMPLE_RATE,
+        drive_db: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(
             sample_rate,
@@ -918,7 +966,7 @@ class Phaser(EventAugmentation):
     controlling the frequency response, a mix control, a feedback control, and the centre frequency of the modulation.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         rate_hz: the speed of the LFO controlling the frequency response. By default, sampled between 0 and 10 Hz
         depth: the depth of the LFO controlling the frequency response. By default, sampled between 0 and 1.0.
         centre_frequency_hz: the centre frequency of the modulation. By default, sampled between 1 and 20 ms.
@@ -934,14 +982,22 @@ class Phaser(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        rate_hz: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        depth: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        centre_frequency_hz: Optional[
-            Union[types.Numeric, types.DistributionLike]
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        rate_hz: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
         ] = None,
-        feedback: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        mix: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        depth: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        centre_frequency_hz: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        feedback: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        mix: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
         self.rate_hz = utils.sanitise_positive_number(
@@ -991,7 +1047,7 @@ class Delay(EventAugmentation):
     A digital delay plugin with controllable delay time, feedback percentage, and dry/wet mix.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         delay_seconds: the delay time for the effect, in seconds. By default, sampled between 0.01 and 1.0 seconds.
         feedback: the feedback of the effect. By default, sampled between 0.1 and 0.5.
         mix: the dry/wet mix of the effect. By default, sampled between 0.1 and 0.5
@@ -1003,10 +1059,16 @@ class Delay(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: types.Numeric = config.SAMPLE_RATE,
-        delay_seconds: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        feedback: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        mix: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: custom_types.Numeric = config.SAMPLE_RATE,
+        delay_seconds: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        feedback: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        mix: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
         self.delay_seconds = utils.sanitise_positive_number(
@@ -1045,7 +1107,7 @@ class Gain(EventAugmentation):
     provided value (in decibels). No distortion or other effects are applied.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         gain_db: the gain to apply to the signal. By default, sampled between -10 and 10 dB.
     """
 
@@ -1053,8 +1115,10 @@ class Gain(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: types.Numeric = config.SAMPLE_RATE,
-        gain_db: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: custom_types.Numeric = config.SAMPLE_RATE,
+        gain_db: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(
             sample_rate,
@@ -1078,7 +1142,7 @@ class GSMFullRateCompressor(EventAugmentation):
     of 8kHz (required by the GSM Full Rate codec), although the quality of the resampling algorithm can be specified.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         quality: the quality of the resampling. By default, will be sampled between 0 and 3 (inclusive).
     """
 
@@ -1087,8 +1151,10 @@ class GSMFullRateCompressor(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: types.Numeric = config.SAMPLE_RATE,
-        quality: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: custom_types.Numeric = config.SAMPLE_RATE,
+        quality: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
         self.quality = int(
@@ -1114,7 +1180,7 @@ class MP3Compressor(EventAugmentation):
     thrown at processing time.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         vbr_quality: the quality of the resampling. By default, will be sampled between 2 and 10.
     """
 
@@ -1133,8 +1199,10 @@ class MP3Compressor(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: types.Numeric = config.SAMPLE_RATE,
-        vbr_quality: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: custom_types.Numeric = config.SAMPLE_RATE,
+        vbr_quality: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
 
@@ -1167,7 +1235,7 @@ class PitchShift(EventAugmentation):
     than many other existing pitch shifting algorithms, including `librosa` and `pyrubberband`.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         semitones: the number of semitones to shift the audio by. By default, will be sampled from between +/- 3
             semitones (i.e., up or down a minor third).
     """
@@ -1176,8 +1244,10 @@ class PitchShift(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        semitones: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        semitones: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(
             sample_rate,
@@ -1227,7 +1297,7 @@ class SpeedUp(EventAugmentation):
     than the input, it will be truncated to maintain the correct dim.
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         stretch_factor: the time-stretching factor to apply. Values above 1 will increase the speed of the audio, while
             values below 1 will decrease the speed. A value of 1 will have no effect. By default, will be sampled
             from between 0.7 and 1.5.
@@ -1237,8 +1307,10 @@ class SpeedUp(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        stretch_factor: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        stretch_factor: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
         self.stretch_factor = utils.sanitise_positive_number(
@@ -1282,7 +1354,7 @@ class Preemphasis(EventAugmentation):
         y[n] = y[n] - \text{coef} \times y[n-1], \ \text{where coef} \in \{0, 1\}
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         coef: the coefficient for pre-emphasis, sampled between 0 and 1 when not provided.
             At `coef=0`, the signal is unchanged. At `coef=1`, the result is the first-order difference of the signal.
     """
@@ -1291,8 +1363,10 @@ class Preemphasis(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        coef: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        coef: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
         self.coef = utils.sanitise_positive_number(
@@ -1342,7 +1416,7 @@ class Fade(EventAugmentation):
         https://docs.pytorch.org/audio/main/generated/torchaudio.transforms.Fade.html
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         fade_in_len: the length of time for the fade in (seconds), sampled between 0 and 1 if not given.
         fade_out_len: the length of time for the fade out (seconds), sampled between 0 and 1 if not given.
         fade_in_shape: the shape of the fade in, sampled randomly from an available option (see above) if not given
@@ -1361,9 +1435,13 @@ class Fade(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        fade_in_len: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        fade_out_len: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        fade_in_len: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        fade_out_len: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
         fade_in_shape: Optional[str] = None,
         fade_out_shape: Optional[str] = None,
     ):
@@ -1487,7 +1565,7 @@ class TimeWarp(EventAugmentation):
     augmentations in both music sample identification [1] and cover song identification [2].
 
     Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
+        sample_rate (custom_types.Numeric): the sample rate for the effect to use.
         fps: the number of frames-per-second to use. Will be sampled between 2 and 10 FPS if not given.
         prob: the probability of activating the effect for every frame. Will be sampled between 5 and 15% if not given.
 
@@ -1504,9 +1582,13 @@ class TimeWarp(EventAugmentation):
 
     def __init__(
         self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        fps: Optional[Union[types.Numeric, types.DistributionLike]] = None,
-        prob: Optional[Union[types.Numeric, types.DistributionLike]] = None,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        fps: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
+        prob: Optional[
+            Union[custom_types.Numeric, custom_types.DistributionLike]
+        ] = None,
     ):
         super().__init__(sample_rate)
         self.fps = utils.sanitise_positive_number(
@@ -1731,240 +1813,3 @@ def validate_event_augmentation(augmentation_obj: Any) -> None:
     aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
     if aug_type != "event":
         raise ValueError(f"Augmentation type must be 'event', but got '{aug_type}'")
-
-
-class AudioChannelSwapping(SceneAugmentation):
-    pass
-
-
-@dataclass
-class SpecAugmentPolicy:
-    """
-    A basic policy for SpecAugment. See [1] for a full description of arguments
-
-    References:
-        [1] D. S. Park et al., “SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition,” in
-        Interspeech 2019, Sept. 2019, pp. 2613–2617. doi: 10.21437/Interspeech.2019-2680.
-    """
-
-    F: int = 0
-    m_F: int = 0
-    T: int = 0
-    m_T: int = 0
-
-
-@dataclass
-class LibriSpeechBasic(SpecAugmentPolicy):
-    """
-    LibriSpeech Basic (LB) SpecAugment policy
-    """
-
-    F: int = 27
-    m_F: int = 1
-    T: int = 100
-    m_T: int = 1
-
-
-@dataclass
-class LibriSpeechDouble(SpecAugmentPolicy):
-    """
-    LibriSpeech Double (LD) SpecAugment policy
-    """
-
-    F: int = 27
-    m_F: int = 2
-    T: int = 100
-    m_T: int = 2
-
-
-@dataclass
-class SwitchboardMild(SpecAugmentPolicy):
-    """
-    Switchboard Mild (SM) SpecAugment policy
-    """
-
-    F: int = 15
-    m_F: int = 2
-    T: int = 70
-    m_T: int = 2
-
-
-@dataclass
-class SwitchboardStrong(SpecAugmentPolicy):
-    """
-    Switchboard Strong (SD) SpecAugment policy
-    """
-
-    F: int = 27
-    m_F: int = 2
-    T: int = 70
-    m_T: int = 2
-
-
-class TimeFrequencyMasking(SceneAugmentation):
-    """
-    Applies time-frequency masking to multichannel Scene audio.
-
-    Note that only time and frequency masking are implemented; time-warping is NOT used, as is the case in [1].
-    Policy should be an instance of `SpecAugmentPolicy`: see [2] for a full description of the parameters here.
-
-    When processing the input audio, it is first converted to a mel spectrogram with the given arguments, then masking
-    is applied to the spectrogram, and finally it is inverted back to audio using the Griffin-Lim algorithm. If
-    `return_spectrogram` is True, the output spectrogram will be returned after masking: note that this will probably
-    break downstream applications in e.g. `audiblelight.core.Scene`, which expect audio to be returned from
-    augmentations.
-
-    Arguments:
-        sample_rate (types.Numeric): the sample rate for the effect to use.
-        mel_kwargs (dict): dictionary of kwargs to pass to `librosa.feature.melspectrogram`.
-        return_spectrogram (bool): if True, the augmentation will return a mel spectrogram, not a waveform
-        replace_with_zero (bool): if True, masked values are filled with zeroes; otherwise, the channel mean is used.
-        policy: an instance of `SpecAugmentPolicy` or dict, or a list of `SpecAugmentPolicy`/dicts
-
-    References:
-        [1] Q. Wang, J. Du, H.-X. Wu, J. Pan, F. Ma, and C.-H. Lee, “A Four-Stage Data Augmentation Approach to
-        ResNet-Conformer Based Acoustic Modeling for Sound Event Localization and Detection,” IEEE/ACM Trans. Audio
-        Speech Lang. Process., vol. 31, pp. 1251–1264, 2023, doi: 10.1109/TASLP.2023.3256088.
-        [2] D. S. Park et al., “SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition,” in
-        Interspeech 2019, Sept. 2019, pp. 2613–2617. doi: 10.21437/Interspeech.2019-2680.
-
-    """
-
-    DEFAULT_POLICIES = [
-        LibriSpeechBasic,
-        LibriSpeechDouble,
-        SwitchboardMild,
-        SwitchboardStrong,
-    ]
-
-    def __init__(
-        self,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
-        mel_kwargs: dict = None,
-        return_spectrogram: Optional[bool] = False,
-        replace_with_zero: Optional[bool] = False,
-        policy: Optional[
-            Union[
-                Type["SpecAugmentPolicy"],
-                list[Type["SpecAugmentPolicy"]],
-                dict,
-                list[dict],
-            ]
-        ] = None,
-    ):
-        super().__init__(sample_rate)
-        self.return_spectrogram = return_spectrogram
-        self.replace_with_zero = replace_with_zero
-
-        # Validate arguments for melspectrogram
-        if mel_kwargs is None:
-            mel_kwargs = dict()
-        mel_kwargs["sr"] = self.sample_rate
-        utils.validate_kwargs(librosa.feature.melspectrogram, **mel_kwargs)
-        self.mel_kwargs = mel_kwargs
-
-        # Create a list of all possible policies, then sample one
-        policy_list = self.get_policy(policy)
-        self.policy: Type["SpecAugmentPolicy"] = np.random.choice(policy_list, 1)[0]
-
-    def get_policy(self, policy: Any) -> list[Type["SpecAugmentPolicy"]]:
-        """
-        Given a potential override, return a list of 'SpecAugmentPolicy' instances to sample from
-        """
-        if policy is None:
-            return self.DEFAULT_POLICIES
-
-        # The policy that we'll use to compute specaugment
-        validate_policies = []
-        if not isinstance(policy, list):
-            policy = [policy]
-        for p in policy:
-            if isinstance(p, dict):
-                p = SpecAugmentPolicy(**p)
-            if not issubclass(type(p), SpecAugmentPolicy):
-                raise TypeError(
-                    f"Expected a subclass of `SpecAugmentPolicy`, but got {type(p)}"
-                )
-            validate_policies.append(p)
-        if len(validate_policies) == 0:
-            raise ValueError("No valid policies found!")
-        return validate_policies
-
-    def _apply_fx(self, input_array: np.ndarray, *_, **__) -> np.ndarray:
-        """
-        Apply the augmentation: frequency and time masking
-        """
-        # Compute the mel spectrogram with required kwargs
-        mel = librosa.feature.melspectrogram(y=input_array, **self.mel_kwargs)
-
-        # Handle mono audio
-        if mel.ndim == 2:
-            mel = np.expand_dims(mel, axis=0)
-
-        # Apply frequency and time masking
-        freq_masked = self.freq_mask(mel)
-        out = self.time_mask(freq_masked)
-
-        # Convert back to waveform (default setting)
-        if not self.return_spectrogram:
-            out = librosa.feature.inverse.mel_to_audio(mel, **self.mel_kwargs)
-
-        return out
-
-    def freq_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
-        """
-        Applies frequency masking to the input (multi-channel) mel spectrogram
-        """
-        out = mel_spectrogram.copy()
-        num_mel_channels = out.shape[1]
-
-        # Iterate through the number of frequency bands to mask
-        for i in range(0, self.policy.m_F):
-            f = np.random.randint(0, self.policy.F)  # [0, F)
-            f0 = np.random.randint(0, num_mel_channels - f)  # [0, v - f)
-
-            # Avoids error if values are equal and range is empty
-            if f0 == f0 + f:
-                continue
-
-            # Ending point for the mask
-            mask_end = np.random.randint(f0, f0 + f)
-
-            # Do the frequency masking: either with zeroes or mean from that channel
-            if self.replace_with_zero:
-                for c in out:
-                    c[f0:mask_end] = 0.0
-            else:
-                for c in out:
-                    c[f0:mask_end] = c.mean()
-
-        return out
-
-    def time_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
-        """
-        Applies time masking to the input (multi-channel) mel spectrogram
-        """
-        out = mel_spectrogram.copy()
-        tau = out.shape[2]  # time frames
-
-        # apply m_T time masks to the mel spectrogram
-        for i in range(0, self.policy.m_T):
-            t = np.random.randint(0, self.policy.T)  # [0, T)
-            t0 = np.random.randint(0, tau - t)  # [0, tau - t)
-
-            # avoids randrange error if values are equal and range is empty
-            if t0 == t0 + t:
-                continue
-
-            # Ending point for the mask
-            mask_end = np.random.randint(t0, t0 + t)
-
-            # Do the time masking: either with zeroes or mean from that channel
-            if self.replace_with_zero:
-                for c in out:
-                    c[:, t0:mask_end] = 0
-            else:
-                for c in out:
-                    c[:, t0:mask_end] = c.mean()
-
-        return out

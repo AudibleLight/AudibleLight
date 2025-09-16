@@ -16,7 +16,7 @@ import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
 
-from audiblelight import config, types, utils
+from audiblelight import config, custom_types, utils
 
 # This dictionary maps popular "names" to β values for generating noise
 #  In general, higher β values cause more energy in high frequency parts of the power spectral density
@@ -32,12 +32,12 @@ class Ambience:
     def __init__(
         self,
         channels: int,
-        duration: types.Numeric,
+        duration: custom_types.Numeric,
         alias: str,
         filepath: Optional[Union[str, Path]] = None,
-        noise: Optional[Union[str, types.Numeric]] = None,
-        ref_db: Optional[types.Numeric] = config.REF_DB,
-        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
+        noise: Optional[Union[str, custom_types.Numeric]] = None,
+        ref_db: Optional[custom_types.Numeric] = config.REF_DB,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         **kwargs,
     ):
         """
@@ -251,9 +251,9 @@ class Ambience:
 
 # noinspection PyUnreachableCode
 def powerlaw_psd_gaussian(
-    beta: types.Numeric,
+    beta: custom_types.Numeric,
     shape: Union[int, Iterable[int]],
-    fmin: Optional[types.Numeric] = 0.0,
+    fmin: Optional[custom_types.Numeric] = 0.0,
     seed: Optional[int] = utils.SEED,
 ) -> np.ndarray:
     """Generate Gaussian (1 / f) ** β noise.
@@ -370,7 +370,7 @@ def _parse_beta(noise: Any) -> float:
             raise KeyError(f"Expected a string in {keys} but got {noise}.")
 
     # Otherwise, exponent must be numeric
-    elif isinstance(noise, types.Numeric):
+    elif isinstance(noise, custom_types.Numeric):
         return noise
 
     # Must provide either a color or exponent
