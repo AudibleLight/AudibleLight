@@ -35,7 +35,7 @@ utils.seed_everything(utils.SEED)
 FG_DIR = utils.get_project_root() / "resources/soundevents"
 MESH_DIR = utils.get_project_root() / "resources/meshes"
 MESHES = list(MESH_DIR.rglob("*.glb"))
-OUTPUT_DIR = utils.get_project_root() / "spatial_scenes_dcase_synthetic_like"
+OUTPUT_DIR = utils.get_project_root() / "spatial_scenes_dcase_synthetic"
 
 # Data splits
 TRAIN_N_ROOMS, TEST_N_ROOMS = 6, 3
@@ -66,6 +66,16 @@ def generate(
     """
     Make a single generation with required arguments
     """
+    # Output filepaths
+    fold = 1 if split == "train" else 2
+    common = f"dev-{split}-alight/fold{fold}_scene{scene_num}_{str(scape_num).zfill(3)}"
+    audio_path = output_dir / f"mic_dev/{common}.wav"
+    metadata_path = output_dir / f"metadata_dev/{common}.csv"
+
+    # Skip over this generation if files already exist
+    if audio_path.exists() and metadata_path.exists():
+        return
+
     scene = Scene(
         duration=DURATION,
         mesh_path=Path(mesh_path),
@@ -95,34 +105,35 @@ def generate(
         allow_duplicate_audios=False,
     )
 
-    scene.add_microphone(
-        microphone_type=config.MIC_ARRAY_TYPE, alias=config.MIC_ARRAY_TYPE
-    )
-
+    # Add the microphone, static + moving events, and ambience
+    scene.add_microphone(microphone_type=config.MIC_ARRAY_TYPE, alias="mic")
     for _ in range(STATIC_EVENTS.rvs()):
         scene.add_event(event_type="static")
-
     for _ in range(MOVING_EVENTS.rvs()):
         scene.add_event(event_type="moving")
-
     scene.add_ambience(noise=random.choice(NOISE_TYPES))
 
-    fold = 1 if split == "train" else 2
-    common = f"dev-{split}-alight/fold{fold}_scene{scene_num}_{str(scape_num).zfill(3)}"
-    audio_path = str(output_dir / f"mic_dev/{common}.wav")
-    metadata_path = str(output_dir / f"metadata_dev/{common}.csv")
-
+    # Do the generation: create audio and DCASE metadata
     scene.generate(
         audio_fname=audio_path,
         metadata_fname=metadata_path,
+        audio=True,
+        metadata_json=False,
+        metadata_dcase=True,
     )
 
 
 def main(outdir: str):
-    # Create the output folder if it doesn't currently exist
-    if not os.path.isdir(outdir):
-        os.makedirs(outdir)
+    # Create the output folders if they don't currently exist
     outdir = Path(outdir)
+    for fp in [
+        outdir / "metadata_dev/dev-train-alight",
+        outdir / "metadata_dev/dev-test-alight",
+        outdir / "mic_dev/dev-train-alight",
+        outdir / "mic_dev/dev-test-alight",
+    ]:
+        if not fp.exists():
+            os.makedirs(fp)
 
     # Start iterating to create the required number of training scenes
     logger.info("Generating training scenes...")
