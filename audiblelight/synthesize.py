@@ -496,6 +496,9 @@ def render_audio_for_all_scene_events(
         except AttributeError:
             scene.state.simulate()
 
+    # Validate the scene
+    validate_scene(scene)
+
     # Grab the IRs from the WorldState
     #  This is a dictionary with format {mic000: [N_channels, N_emitters, N_samples], ...}
     irs = scene.state.get_irs()
