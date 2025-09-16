@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from audiblelight import config, types, utils
+from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import (
     ALL_EVENT_AUGMENTATIONS,
     Augmentation,
@@ -219,7 +219,7 @@ def test_equalizer(params):
         if param_name == "n_bands":
             continue
 
-        if isinstance(param_val, types.Numeric):
+        if isinstance(param_val, custom_types.Numeric):
             assert np.array_equal(
                 getattr(init_fx, param_name),
                 [param_val for _ in range(params["n_bands"])],
@@ -471,7 +471,7 @@ def test_sample_value(override, raises):
             _ = Augmentation().sample_value(**params)
     else:
         out = Augmentation().sample_value(**params)
-        assert isinstance(out, types.Numeric)
+        assert isinstance(out, custom_types.Numeric)
 
 
 def test_validate_event_augmentation():
