@@ -19,10 +19,12 @@ some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for Audible
 """
 
 import math
+from dataclasses import dataclass
 from random import random
 from typing import Any, Callable, Iterator, Optional, Type, Union
 
 import librosa
+import librosa.feature
 import numpy as np
 from deepdiff import DeepDiff
 from pedalboard import time_stretch
@@ -304,7 +306,7 @@ class LowpassFilter(EventAugmentation):
 
     Arguments:
         sample_rate (types.Numeric): the sample rate for the effect to use.
-        cutoff_frequency_hz (Union[types.Numeric, types.DistributionLike]): the cutoff frequency for the filter, or a
+        cutoff_frequency_hz (Union[types.Numeric, custom_types.DistributionLike]): the cutoff frequency for the filter, or a
             distribution-like object to sample this from. Will default to sampling from uniform distribution
             between 5512 and 22050 Hz if not provided.
     """
@@ -405,7 +407,7 @@ class HighpassFilter(EventAugmentation):
 
     Arguments:
         sample_rate (types.Numeric): the sample rate for the effect to use.
-        cutoff_frequency_hz (Union[types.Numeric, types.DistributionLike]): the cutoff frequency for the filter, or a
+        cutoff_frequency_hz (Union[types.Numeric, custom_types.DistributionLike]): the cutoff frequency for the filter, or a
             distribution-like object to sample this from. Will default to sampling from uniform distribution
             between 32 and 1024 Hz if not provided.
     """
@@ -1729,3 +1731,193 @@ def validate_event_augmentation(augmentation_obj: Any) -> None:
     aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
     if aug_type != "event":
         raise ValueError(f"Augmentation type must be 'event', but got '{aug_type}'")
+
+
+class AudioChannelSwapping(SceneAugmentation):
+    pass
+
+
+@dataclass
+class SpecAugmentPolicy:
+    """
+    A basic policy for SpecAugment. See [1] for a full description of arguments
+
+    References:
+        [1] D. S. Park et al., “SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition,” in
+        Interspeech 2019, Sept. 2019, pp. 2613–2617. doi: 10.21437/Interspeech.2019-2680.
+    """
+
+    F: int = 0
+    m_F: int = 0
+    T: int = 0
+    m_T: int = 0
+
+
+@dataclass
+class LibriSpeechBasic(SpecAugmentPolicy):
+    """
+    LibriSpeech Basic (LB) SpecAugment policy
+    """
+
+    F: int = 27
+    m_F: int = 1
+    T: int = 100
+    m_T: int = 1
+
+
+@dataclass
+class LibriSpeechDouble(SpecAugmentPolicy):
+    """
+    LibriSpeech Double (LD) SpecAugment policy
+    """
+
+    F: int = 27
+    m_F: int = 2
+    T: int = 100
+    m_T: int = 2
+
+
+@dataclass
+class SwitchboardMild(SpecAugmentPolicy):
+    """
+    Switchboard Mild (SM) SpecAugment policy
+    """
+
+    F: int = 15
+    m_F: int = 2
+    T: int = 70
+    m_T: int = 2
+
+
+@dataclass
+class SwitchboardStrong(SpecAugmentPolicy):
+    """
+    Switchboard Strong (SD) SpecAugment policy
+    """
+
+    F: int = 27
+    m_F: int = 2
+    T: int = 70
+    m_T: int = 2
+
+
+class TimeFrequencyMasking(SceneAugmentation):
+    """
+    Applies time-frequency masking to multi-channel Scene audio using SpecAugment.
+
+    Note that only time and frequency masking are implemented; time-warping is NOT used, as is the case in [1].
+    Policy should be an instance of `SpecAugmentPolicy`: see [2] for a full description.
+
+    When processing the input audio, it is first converted to a mel spectrogram with the given arguments, then masking
+    is applied to the spectrogram, and finally it is inverted back to audio using the Griffin-Lim algorithm. If
+    `return_spectrogram` is True, the output spectrogram will be returned after masking: note that this will probably
+    break downstream applications in e.g. `audiblelight.core.Scene`, which expect audio to be returned from
+    augmentations.
+
+    Arguments:
+        sample_rate (types.Numeric): the sample rate for the effect to use.
+        mel_kwargs (dict): dictionary of kwargs to pass to `librosa.feature.melspectrogram`.
+        return_spectrogram (bool): if True, the augmentation will return a mel spectrogram, not a waveform
+        policy: an instance of `SpecAugmentPolicy` or dict, or a list of `SpecAugmentPolicy`/dicts
+
+    References:
+        [1] Q. Wang, J. Du, H.-X. Wu, J. Pan, F. Ma, and C.-H. Lee, “A Four-Stage Data Augmentation Approach to
+        ResNet-Conformer Based Acoustic Modeling for Sound Event Localization and Detection,” IEEE/ACM Trans. Audio
+        Speech Lang. Process., vol. 31, pp. 1251–1264, 2023, doi: 10.1109/TASLP.2023.3256088.
+        [2] D. S. Park et al., “SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition,” in
+        Interspeech 2019, Sept. 2019, pp. 2613–2617. doi: 10.21437/Interspeech.2019-2680.
+
+    """
+
+    DEFAULT_POLICIES = [
+        LibriSpeechBasic,
+        LibriSpeechDouble,
+        SwitchboardMild,
+        SwitchboardStrong,
+    ]
+
+    def __init__(
+        self,
+        sample_rate: Optional[types.Numeric] = config.SAMPLE_RATE,
+        mel_kwargs: dict = None,
+        return_spectrogram: Optional[bool] = False,
+        policy: Optional[
+            Union[
+                Type["SpecAugmentPolicy"],
+                list[Type["SpecAugmentPolicy"]],
+                dict,
+                list[dict],
+            ]
+        ] = None,
+    ):
+        super().__init__(sample_rate)
+        self.return_spectrogram = return_spectrogram
+
+        # Validate arguments for melspectrogram
+        mel_kwargs["sr"] = self.sample_rate
+        utils.validate_kwargs(librosa.feature.melspectrogram, **mel_kwargs)
+        self.mel_kwargs = mel_kwargs
+
+        # Create a list of all possible policies, then sample one
+        policy_list = self.get_policy(policy)
+        self.policy = np.random.choice(policy_list, 1)
+
+    def get_policy(self, policy: Any) -> list[Type["SpecAugmentPolicy"]]:
+        """
+        Given a potential override, return a list of 'SpecAugmentPolicy' instances to sample from
+        """
+        if policy is None:
+            return self.DEFAULT_POLICIES
+
+        # The policy that we'll use to compute specaugment
+        validate_policies = []
+        if not isinstance(policy, list):
+            policy = [policy]
+        for p in policy:
+            if isinstance(p, dict):
+                p = SpecAugmentPolicy(**p)
+            if not issubclass(type(p), SpecAugmentPolicy):
+                raise TypeError(
+                    f"Expected a subclass of `SpecAugmentPolicy`, but got {type(p)}"
+                )
+            validate_policies.append(p)
+        if len(validate_policies) == 0:
+            raise ValueError("No valid policies found!")
+        return validate_policies
+
+    def _apply_fx(self, input_array: np.ndarray, *_, **__) -> np.ndarray:
+        # Compute the mel spectrogram with required kwargs
+        mel = librosa.feature.melspectrogram(y=input_array, **self.mel_kwargs)
+        # Apply frequency and time masking
+        freq_masked = self.freq_mask(mel)
+        out = self.time_mask(freq_masked)
+        # Convert back to waveform (default setting)
+        if not self.return_spectrogram:
+            out = librosa.feature.inverse.mel_to_audio(mel, **self.mel_kwargs)
+        return out
+
+    def freq_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
+        """
+        Applies frequency masking to the input spectrogram
+        """
+        out = mel_spectrogram.copy()
+        v = out.shape[1]  # no. of mel bins
+        # apply m_F frequency masks to the mel spectrogram
+        for i in range(self.policy.m_F):
+            f = int(np.random.uniform(0, self.policy.F))  # [0, F)
+            f0 = np.random.randint(0, v - f)  # [0, v - f)
+            out[:, f0 : f0 + f, :, :] = 0
+        return out
+
+    def time_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
+        """
+        Applies time masking to the input mel spectrogram
+        """
+        out = mel_spectrogram.copy()
+        tau = out.shape[2]  # time frames
+        # apply m_T time masks to the mel spectrogram
+        for i in range(self.policy.m_T):
+            t = int(np.random.uniform(0, self.policy.T))  # [0, T)
+            t0 = np.random.randint(0, tau - t)  # [0, tau - t)
+            out[:, :, t0 : t0 + t, :] = 0
+        return out
