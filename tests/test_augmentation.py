@@ -23,12 +23,15 @@ from audiblelight.augmentation import (
     Gain,
     GSMFullRateCompressor,
     HighpassFilter,
+    LibriSpeechBasic,
     Limiter,
     LowpassFilter,
     MP3Compressor,
     MultibandEqualizer,
     Phaser,
+    SpecAugmentPolicy,
     SpeedUp,
+    TimeFrequencyMasking,
     TimeWarp,
     TimeWarpDuplicate,
     TimeWarpRemove,
@@ -502,3 +505,80 @@ def test_validate_event_augmentation():
     temp.AUGMENTATION_TYPE = "bad"
     with pytest.raises(ValueError, match="Augmentation type must be 'event'"):
         validate_event_augmentation(temp)
+
+
+@pytest.mark.parametrize("policy", ["LB", "LD", "SM", "SS"])
+def test_time_frequency_masking(policy):
+    masker = TimeFrequencyMasking(policy=policy, sample_rate=22050)
+
+    # Generate some dummy audio: function should natively handle mono audio
+    input_audio = np.random.rand(44100)
+
+    # Process with the policy: this returns a WAVEFORM
+    outp = masker(input_audio)
+
+    # Check output: should have same dims to input, must be finite, but shouldn't be the same audio!
+    assert isinstance(outp, np.ndarray)
+    assert outp.shape == input_audio.shape
+    assert np.isfinite(outp).all()
+    assert not np.array_equal(outp, input_audio)
+
+    # Check to_dict functionality
+    as_dict = masker.to_dict()
+    assert Augmentation.from_dict(as_dict) == masker
+
+
+@pytest.mark.parametrize("policy", ["LB", "LD", "SM", "SS"])
+@pytest.mark.flaky(reruns=5)
+def test_time_frequency_masking_spectrogram(policy):
+    masker = TimeFrequencyMasking(
+        policy=policy,
+        sample_rate=22050,
+        return_spectrogram=True,
+        replace_with_zero=True,
+        mel_kwargs=dict(hop_length=64, win_length=128),
+    )
+
+    # Generate some dummy audio
+    input_audio = np.random.rand(4, 220500)
+
+    # Process with the policy: this returns a SPECTROGRAM
+    outp = masker(input_audio)
+
+    for channel in outp:
+        # Iterate over all the "columns": at least one should be all zeroes (because of the time masking)
+        assert np.any(np.all(channel == 0, axis=0))
+        # Do the same for rows (frequency masking)
+        assert np.any(np.all(channel == 0, axis=1))
+
+
+@pytest.mark.parametrize(
+    "policy,raises",
+    [
+        ("LB", False),
+        (["LB", "LD"], False),
+        (["LB", LibriSpeechBasic()], False),
+        (LibriSpeechBasic, False),
+        ({"F": 1, "m_F": 3, "T": 100, "m_T": 100}, False),
+        (
+            [
+                {"F": 1, "m_F": 3, "T": 100, "m_T": 100},
+                "LB",
+                LibriSpeechBasic,
+                LibriSpeechBasic(),
+            ],
+            False,
+        ),
+        (None, False),
+        ("ASDASD", KeyError),
+        (123, TypeError),
+        ([], ValueError),
+    ],
+)
+def test_time_frequency_masking_policy(policy, raises):
+    if not raises:
+        masker = TimeFrequencyMasking(policy=policy, sample_rate=22050)
+        assert issubclass(type(masker.policy), SpecAugmentPolicy)
+    else:
+        with pytest.raises(raises):
+            _ = TimeFrequencyMasking(policy=policy, sample_rate=22050)
