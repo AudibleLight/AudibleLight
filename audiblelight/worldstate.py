@@ -21,6 +21,11 @@ from audiblelight import config, types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
+MATERIALS_JSON = str(
+    utils.sanitise_filepath(
+        utils.get_project_root() / "resources/mp3d_material_config.json"
+    )
+)
 
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
@@ -516,7 +521,8 @@ class WorldState:
         # Add the mesh into the context
         self.ctx.add_object()
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
-        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
+        self.ctx.set_material_database_json(MATERIALS_JSON)
+        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "Default")
         self.ctx.finalize_object_mesh(0)
         # Need to monkey-patch get_audio for Context obj as it won't work with multiple channel layout types
         self.ctx.get_audio = MethodType(get_audio, self.ctx)
