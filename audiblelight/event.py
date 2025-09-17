@@ -220,6 +220,12 @@ class Event:
         #  This can be useful in cases where we need the duration of an event before creating emitters
         #  such as when defining the trajectory of a moving event
 
+    def register_augmentation(self, augmentation: Type[EventAugmentation]):
+        """
+        Alias for `Event.register_augmentations([augmentation])`.
+        """
+        self.register_augmentations([augmentation])
+
     def register_augmentations(
         self,
         augmentations: Union[
