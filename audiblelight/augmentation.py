@@ -28,6 +28,7 @@ import librosa.feature
 import numpy as np
 from deepdiff import DeepDiff
 from pedalboard import time_stretch
+from rlr_audio_propagation import ChannelLayout, ChannelLayoutType
 from scipy import stats
 
 from audiblelight import config, custom_types, utils
@@ -1818,7 +1819,192 @@ def validate_event_augmentation(augmentation_obj: Any) -> None:
 
 
 class AudioChannelSwapping(SceneAugmentation):
-    pass
+    """
+    Performs audio (and label) channel swapping, according to [1].
+
+    Arguments:
+        sample_rate (types.Numeric): not used, but necessary for compatibility within overall API
+        input_format (str, ChannelLayout): channel layout used for the swapping, either "mic" or "foa"
+
+    References:
+        [1] Q. Wang, J. Du, H.-X. Wu, J. Pan, F. Ma, and C.-H. Lee, “A Four-Stage Data Augmentation Approach to
+        ResNet-Conformer Based Acoustic Modeling for Sound Event Localization and Detection,” IEEE/ACM Trans. Audio
+        Speech Lang. Process., vol. 31, pp. 1251–1264, 2023, doi: 10.1109/TASLP.2023.3256088.
+    """
+
+    ACCEPT_INPUTS = ["mic", "foa"]
+
+    def __init__(
+        self,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        input_format: Optional[Union[str, ChannelLayoutType, ChannelLayout]] = "mic",
+    ):
+        super().__init__(sample_rate)
+        self.input_format = self.parse_input_format(input_format)
+
+        self.fx = self.swap_mic if self.input_format == "mic" else self.swap_foa
+        self.params = dict(input_format=self.input_format)
+
+    def parse_input_format(self, input_format: Any) -> str:
+        """
+        Parse the input format to a string type
+        """
+        # Handle non-string, non-rlr inputs
+        if not isinstance(input_format, (str, ChannelLayoutType, ChannelLayout)):
+            raise TypeError(
+                f"Expected `input_fmt` to be a `str`, `ChannelLayoutType`, or `ChannelLayout`, "
+                f"but got {type(input_format)}"
+            )
+
+        # Handle ChannelLayout types by extracting ChannelLayoutType object
+        if isinstance(input_format, ChannelLayout):
+            input_format = input_format.type
+
+        # Handle ChannelLayoutType by coercing to string
+        if isinstance(input_format, ChannelLayoutType):
+            if input_format == ChannelLayoutType.Mono:
+                input_format = "mic"
+            elif input_format == ChannelLayoutType.Ambisonics:
+                input_format = "foa"
+            else:
+                raise ValueError(
+                    f"Expected `input_fmt` to be either Mono or Ambisonics, but got {input_format}"
+                )
+
+        # Handle invalid string inputs
+        input_format = input_format.lower()
+        if input_format not in self.ACCEPT_INPUTS:
+            raise ValueError(
+                f"Expected `input_fmt` to be one of {', '.join(self.ACCEPT_INPUTS)} but got {input_format}"
+            )
+
+        return input_format
+
+    @staticmethod
+    def sanitise_input(input_array: np.ndarray) -> tuple:
+        """
+        Sanitises input and returns a tuple of all channels
+        """
+        # Effect only valid for quadraphonic input
+        n_channels, n_samples = input_array.shape
+        if n_channels != 4:
+            raise ValueError(
+                f"Channel swapping only compatible with quadraphonic audio, but got {n_channels} channels"
+            )
+
+        # Separate out channels
+        return (
+            input_array[0, :],
+            input_array[1, :],
+            input_array[2, :],
+            input_array[3, :],
+        )
+
+    def swap_foa(self, input_array: np.ndarray) -> np.ndarray:
+        """
+        Applies channel swapping to a FOA input, following right column of Table 1 in [1]
+
+        Arguments:
+            input_array (np.ndarray): audio with shape (4, n_samples)
+
+        Returns:
+            np.ndarray: the swapped output, with shape (8, 4, n_samples)
+        """
+        # Separate channels and sanitise
+        chan_1, chan_2, chan_3, chan_4 = self.sanitise_input(input_array)
+
+        # Swapping columns
+        return np.array(
+            [
+                np.vstack((chan_1, -chan_4, -chan_3, chan_2)),
+                np.vstack((chan_1, -chan_4, chan_3, -chan_2)),
+                np.vstack((chan_1, chan_2, chan_3, chan_4)),
+                np.vstack((chan_1, -chan_2, -chan_3, chan_4)),
+                np.vstack((chan_1, chan_4, -chan_3, -chan_2)),
+                np.vstack((chan_1, chan_4, chan_3, chan_2)),
+                np.vstack((chan_1, -chan_2, chan_3, -chan_4)),
+                np.vstack((chan_1, chan_2, -chan_3, -chan_4)),
+            ]
+        )
+
+    def process(self, input_array: np.ndarray) -> np.ndarray:
+        """
+        Need to override parent method as we'll return different shape
+        """
+        return self.fx(input_array)
+
+    def swap_mic(self, input_array: np.ndarray) -> np.ndarray:
+        """
+        Applies channel swapping to a MIC input, following middle column of Table 1 in [1]
+
+        Arguments:
+            input_array (np.ndarray): audio with shape (4, n_samples)
+
+        Returns:
+            np.ndarray: the swapped output, with shape (8, 4, n_samples)
+        """
+        # Separate channels and sanitise
+        chan_1, chan_2, chan_3, chan_4 = self.sanitise_input(input_array)
+
+        # Swapping columns
+        return np.array(
+            [
+                np.vstack((chan_2, chan_4, chan_1, chan_3)),
+                np.vstack((chan_4, chan_2, chan_3, chan_1)),
+                np.vstack((chan_1, chan_2, chan_3, chan_4)),
+                np.vstack((chan_2, chan_1, chan_4, chan_3)),
+                np.vstack((chan_3, chan_1, chan_4, chan_2)),
+                np.vstack((chan_1, chan_3, chan_2, chan_4)),
+                np.vstack((chan_4, chan_3, chan_2, chan_1)),
+                np.vstack((chan_3, chan_4, chan_1, chan_2)),
+            ]
+        )
+
+    @staticmethod
+    def swap_labels(labels: np.ndarray) -> np.ndarray:
+        """
+        Swaps labels corresponding to audio channels, after a call to AudioChannelSwapping.process
+
+        Labels must be in DCASE format, i.e. from a call to `audiblelight.synthesize.generate_dcase2024_metadata`.
+        Transformation is performed according to the left column of Table 1 in [1].
+        Azimuth is presumed to be in degrees, increasing counter-clockwise within the range [-180, 180].
+        Elevation is presumed to be in degrees within range [-90, 90] (θ=0∘ at the front, θ=-90∘ straight down).
+
+        Arguments:
+            labels: original label, with shape (frames, columns)
+
+        Returns:
+            np.ndarray: labels after channel swapping, with shape (n_outputs, frames, columns)
+        """
+        # Parse out everything from the input
+        frame = labels[:, 0]
+        id_ = labels[:, 1]
+        source = labels[:, 2]
+        azimuth = labels[:, 3]
+        elevation = labels[:, 4]
+
+        # Some DCASE metadata may not contain distance (pre-2024, I think?)
+        if labels.shape[1] > 5:
+            distance = labels[:, 5]
+        else:
+            distance = np.full(labels.shape[0], np.nan)
+
+        # Transform azimuth and elevation: this gives us (8, n_cols, n_rows)
+        transformed = np.array(
+            [
+                [frame, id_, source, azimuth - 90, -elevation, distance],
+                [frame, id_, source, -azimuth - 90, elevation, distance],
+                [frame, id_, source, azimuth, elevation, distance],
+                [frame, id_, source, -azimuth, -elevation, distance],
+                [frame, id_, source, azimuth + 90, -elevation, distance],
+                [frame, id_, source, -azimuth + 90, elevation, distance],
+                [frame, id_, source, azimuth + 180, elevation, distance],
+                [frame, id_, source, -azimuth + 180, -elevation, distance],
+            ]
+        )
+
+        # Maintain input shape, i.e. (8, n_rows, n_cols)
+        return transformed.transpose(0, 2, 1)
 
 
 @dataclass

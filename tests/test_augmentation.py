@@ -11,6 +11,7 @@ from scipy import stats
 from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import (
     ALL_EVENT_AUGMENTATIONS,
+    AudioChannelSwapping,
     Augmentation,
     Chorus,
     Clipping,
@@ -592,3 +593,73 @@ def test_time_frequency_masking_policy(policy, raises):
     else:
         with pytest.raises(raises):
             _ = TimeFrequencyMasking(policy=policy, sample_rate=22050)
+
+
+@pytest.mark.parametrize(
+    "input_fmt",
+    ["foa", "mic"],
+)
+def test_audio_channel_swapping(input_fmt):
+    # Generate random audio
+    input_audio = np.random.rand(4, 220500)
+
+    # Create FX class
+    swapper = AudioChannelSwapping(sample_rate=22050, input_format=input_fmt)
+
+    out = swapper(input_audio)
+
+    # Number of channels and samples should be the same as original
+    n_batch, n_channels, n_samples = out.shape
+    assert n_channels == input_audio.shape[0]
+    assert n_samples == input_audio.shape[1]
+
+    # Number of channels should be as desired
+    assert n_batch == 8
+
+    # Sanity check swapping
+    #  If input format is FOA
+    #  We should expect every output to maintain amplitude channel 1 position
+    if input_fmt == "foa":
+        for out_channel in out:
+            assert np.array_equal(out_channel[0, :], input_audio[0, :])
+
+    # Consider Table 1 in reference, row 3 shows that input audio == output audio here
+    assert np.array_equal(out[2, :, :], input_audio)
+
+    # Check function compatibility with magic methods
+    assert Augmentation.from_dict(swapper.to_dict()) == swapper
+
+
+@pytest.mark.parametrize(
+    "input_labels",
+    [
+        # Sample input: two sound events with class 5, overlapping on frame 2
+        np.array(
+            [
+                [0, 5, 0, 45, 0, 100],
+                [1, 5, 0, 45, 0, 100],
+                [2, 5, 0, 45, 0, 100],
+                [2, 5, 1, -45, -45, 100],
+            ]
+        )
+    ],
+)
+@pytest.mark.parametrize(
+    "input_fmt",
+    ["foa", "mic"],
+)
+def test_label_channel_swapping(input_labels, input_fmt):
+    # Create FX class
+    swapper = AudioChannelSwapping(sample_rate=22050, input_format=input_fmt)
+
+    # Swap labels
+    out_labels = swapper.swap_labels(input_labels)
+
+    # Dimensionality should be the same
+    n_batch, n_rows, n_cols = out_labels.shape
+    assert n_rows == input_labels.shape[0]
+    assert n_cols == input_labels.shape[1]
+    assert n_batch == 8
+
+    # Consider Table 1 in reference, row 3 shows that input == output here
+    assert np.array_equal(out_labels[2, :, :], input_labels)
