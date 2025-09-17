@@ -528,23 +528,33 @@ def test_time_frequency_masking(policy):
     assert Augmentation.from_dict(as_dict) == masker
 
 
-@pytest.mark.parametrize("policy", ["LB", "LD", "SM", "SS"])
-@pytest.mark.flaky(reruns=5)
-def test_time_frequency_masking_spectrogram(policy):
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
+def test_time_frequency_masking_spectrogram(audio_fpath: str):
+    # Load up the audio file in librosa
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=22050, duration=10)
+
+    # Tile the audio to four channel
+    input_audio = np.array([loaded, loaded, loaded, loaded])
+
+    # Use an aggressive policy with lots of bands
     masker = TimeFrequencyMasking(
-        policy=policy,
+        policy={
+            "F": 27,
+            "m_F": 100,
+            "T": 70,
+            "m_T": 100,
+        },
         sample_rate=22050,
         return_spectrogram=True,
         replace_with_zero=True,
         mel_kwargs=dict(hop_length=64, win_length=128),
     )
 
-    # Generate some dummy audio
-    input_audio = np.random.rand(4, 220500)
-
     # Process with the policy: this returns a SPECTROGRAM
     outp = masker(input_audio)
+    assert outp.shape[0] == 4  # expect four channels
 
+    # Iterate over the four channel audio
     for channel in outp:
         # Iterate over all the "columns": at least one should be all zeroes (because of the time masking)
         assert np.any(np.all(channel == 0, axis=0))
