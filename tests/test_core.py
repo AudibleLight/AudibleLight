@@ -11,7 +11,12 @@ import pytest
 
 from audiblelight import custom_types, utils
 from audiblelight.ambience import Ambience
-from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
+from audiblelight.augmentation import (
+    LowpassFilter,
+    Phaser,
+    SpeedUp,
+    TimeFrequencyMasking,
+)
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
@@ -619,6 +624,16 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "noise_kwargs": {},
                 }
             },
+            "scene_augmentations": [
+                {
+                    "name": "TimeFrequencyMasking",
+                    "sample_rate": 44100.0,
+                    "mel_kwargs": {},
+                    "return_spectrogram": False,
+                    "replace_with_zero": False,
+                    "policy": {"F": 27, "m_F": 1, "T": 100, "m_T": 1},
+                }
+            ],
             "events": {
                 "test_event": {
                     "alias": "test_event",
@@ -747,6 +762,7 @@ def test_scene_from_dict(input_dict: dict):
         == ev.state.ctx.get_source_count()
     )
     assert len(ev.ambience.keys()) == len(input_dict["ambience"])
+    assert len(ev.scene_augmentations) == len(input_dict["scene_augmentations"])
 
 
 @pytest.mark.parametrize(
@@ -1020,3 +1036,81 @@ def test_get_random_audio_dupes(allow_dupes):
         assert chosen_audio in randoms
     else:
         assert chosen_audio not in randoms
+
+
+@pytest.mark.parametrize(
+    "augmentation",
+    [
+        TimeFrequencyMasking(
+            sample_rate=22050,
+            mel_kwargs={},
+            return_spectrogram=False,
+            replace_with_zero=True,
+            policy={"F": 27, "m_F": 1, "T": 100, "m_T": 1},
+        ),
+        {
+            "name": "TimeFrequencyMasking",
+            "sample_rate": 22050,
+            "mel_kwargs": {},
+            "return_spectrogram": False,
+            "replace_with_zero": True,
+            "policy": {"F": 27, "m_F": 1, "T": 100, "m_T": 1},
+        },
+    ],
+)
+def test_scene_augmentations(
+    augmentation,
+):
+    # Create scene with short duration, add microphone
+    oyens_scene_no_overlap = Scene(
+        duration=10,
+        mesh_path=utils_tests.OYENS_PATH,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        max_overlap=1,  # no overlapping sound events allowed
+        state_kwargs=dict(rlr_kwargs=dict(sample_rate=22050)),
+    )
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr")
+
+    # Clear any augmentations
+    oyens_scene_no_overlap.clear_augmentations()
+    assert len(oyens_scene_no_overlap.get_augmentations()) == 0
+
+    # Add events and ambience
+    oyens_scene_no_overlap.add_event(event_type="static")
+    oyens_scene_no_overlap.add_ambience(noise="white")
+
+    # Render the audio but don't save anything to disk
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_dcase=False
+    )
+
+    # Copy the audio to act as a reference
+    assert isinstance(oyens_scene_no_overlap.audio, np.ndarray)
+    audio_no_aug = oyens_scene_no_overlap.audio.copy()
+
+    # Add the augmentation
+    oyens_scene_no_overlap.register_augmentation(augmentation)
+
+    # Should clear out the audio
+    assert oyens_scene_no_overlap.audio is None
+
+    # Sanity check augmentation
+    assert len(oyens_scene_no_overlap.get_augmentations()) > 0
+    assert issubclass(
+        type(oyens_scene_no_overlap.get_augmentation(0)), TimeFrequencyMasking
+    )
+
+    # Render the audio again
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_dcase=False
+    )
+
+    # Should clear out the audio
+    assert isinstance(oyens_scene_no_overlap.audio, np.ndarray)
+    audio_aug = oyens_scene_no_overlap.audio.copy()
+
+    # Augmented audio should be different
+    assert not np.array_equal(audio_no_aug, audio_aug)
+    # But dims should be identical
+    assert audio_no_aug.shape == audio_aug.shape
