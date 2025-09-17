@@ -110,7 +110,12 @@ class Event:
         alias: str,
         emitters: Optional[Union[list[Emitter], Emitter, list[dict]]] = None,
         augmentations: Optional[
-            Union[Iterable[Type[EventAugmentation]], Type[EventAugmentation]]
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Type[EventAugmentation],
+                dict,
+                Iterable[dict],
+            ]
         ] = None,
         scene_start: Optional[float] = None,
         event_start: Optional[float] = None,
@@ -220,7 +225,7 @@ class Event:
         #  This can be useful in cases where we need the duration of an event before creating emitters
         #  such as when defining the trajectory of a moving event
 
-    def register_augmentation(self, augmentation: Type[EventAugmentation]):
+    def register_augmentation(self, augmentation: Union[Type[EventAugmentation], dict]):
         """
         Alias for `Event.register_augmentations([augmentation])`.
         """
@@ -229,7 +234,10 @@ class Event:
     def register_augmentations(
         self,
         augmentations: Union[
-            Iterable[Type[EventAugmentation]], Type[EventAugmentation]
+            Iterable[Type[EventAugmentation]],
+            Type[EventAugmentation],
+            dict,
+            Iterable[dict],
         ],
     ) -> None:
         """
@@ -254,6 +262,10 @@ class Event:
                     aug = aug(sample_rate=self.sample_rate)
                 except Exception as e:
                     raise e
+
+            # Instantiate dictionaries to EventAugmentation classes
+            if isinstance(aug, dict):
+                aug = EventAugmentation.from_dict(aug)
 
             # Check that the sample rate is valid
             if aug.sample_rate != self.sample_rate:
