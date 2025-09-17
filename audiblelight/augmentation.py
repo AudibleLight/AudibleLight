@@ -1743,81 +1743,6 @@ class TimeWarpReverse(TimeWarp):
         return combframes
 
 
-# Holds all augmentations that can be applied to Event objects
-ALL_EVENT_AUGMENTATIONS = [
-    LowpassFilter,
-    HighpassFilter,
-    MultibandEqualizer,
-    Compressor,
-    Chorus,
-    Delay,
-    Distortion,
-    Phaser,
-    Gain,
-    GSMFullRateCompressor,
-    MP3Compressor,
-    PitchShift,
-    SpeedUp,
-    TimeWarpRemove,
-    TimeWarpSilence,
-    TimeWarpDuplicate,
-    TimeWarpReverse,
-    Preemphasis,
-    Deemphasis,
-    Fade,
-    Clipping,
-    Bitcrush,
-    Limiter,
-    HighShelfFilter,
-    LowShelfFilter,
-]
-
-
-# noinspection PyUnreachableCode
-def validate_event_augmentation(augmentation_obj: Any) -> None:
-    """
-    Validates an augmentation class for the Event.
-
-    In order to be valid, an augmentation must:
-        - be callable;
-        - be an instance of an augmentation class, not the class itself
-        - inherit from the `audiblelight.augmentation.EventAugmentation` class;
-        - define the `AUGMENTATION_TYPE` and `fx` properties;
-        - have an `AUGMENTATION_TYPE` of "event" (not "scene", which applies to `audiblelight.core.Scene` objects).
-
-    Arguments:
-        augmentation_obj (Any): the augmentation object to validate
-
-    Returns:
-        None
-
-    Raises:
-        ValueError: if the augmentation object is invalid.
-        AttributeError: if the augmentation object does not have a required property or attribute.
-    """
-
-    if not callable(augmentation_obj):
-        raise ValueError("Augmentation object must be callable")
-
-    if isinstance(augmentation_obj, type):
-        raise ValueError(
-            "Augmentation object must be an instance of a class, not the class itself"
-        )
-
-    if not issubclass(type(augmentation_obj), EventAugmentation):
-        raise ValueError(
-            "Augmentation object must be a subclass of `audiblelight.augmentation.EventAugmentation`"
-        )
-
-    for attr in ["fx", "AUGMENTATION_TYPE", "params"]:
-        if not hasattr(augmentation_obj, attr):
-            raise AttributeError(f"Augmentation object must have '{attr}' attribute")
-
-    aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
-    if aug_type != "event":
-        raise ValueError(f"Augmentation type must be 'event', but got '{aug_type}'")
-
-
 class AudioChannelSwapping(SceneAugmentation):
     """
     Performs audio (and label) channel swapping, according to [1].
@@ -2298,3 +2223,85 @@ class TimeFrequencyMasking(SceneAugmentation):
                     channel[:, t0:mask_end] = channel.mean()
 
         return out
+
+
+# noinspection PyUnreachableCode
+def validate_augmentation(
+    augmentation_obj: Any, augmentation_cls: Type = EventAugmentation
+) -> None:
+    """
+    Validates an augmentation class.
+
+    In order to be valid, an augmentation must:
+        - be callable;
+        - be an instance of an augmentation class, not the class itself
+        - inherit from the `augmentation_cls` class;
+        - define the `AUGMENTATION_TYPE` and `fx` properties;
+        - have an `AUGMENTATION_TYPE` equivalent to `augmentation_cls.AUGMENTATION_TYPE`
+
+    Arguments:
+        augmentation_obj (Any): the augmentation object to validate
+        augmentation_cls (Type): the parent class to validate against
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: if the augmentation object is invalid.
+        AttributeError: if the augmentation object does not have a required property or attribute.
+    """
+
+    if not callable(augmentation_obj):
+        raise ValueError("Augmentation object must be callable")
+
+    if isinstance(augmentation_obj, type):
+        raise ValueError(
+            "Augmentation object must be an instance of a class, not the class itself"
+        )
+
+    if not issubclass(type(augmentation_obj), augmentation_cls):
+        raise ValueError(
+            f"Augmentation object must be a subclass of `{augmentation_cls.__name__}`"
+        )
+
+    for attr in ["fx", "AUGMENTATION_TYPE", "params"]:
+        if not hasattr(augmentation_obj, attr):
+            raise AttributeError(f"Augmentation object must have '{attr}' attribute")
+
+    aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
+    if aug_type != "event":
+        raise ValueError(
+            f"Augmentation type must be '{augmentation_cls.AUGMENTATION_TYPE}', but got '{aug_type}'"
+        )
+
+
+# Holds all augmentations that can be applied to Event objects
+ALL_EVENT_AUGMENTATIONS = [
+    LowpassFilter,
+    HighpassFilter,
+    MultibandEqualizer,
+    Compressor,
+    Chorus,
+    Delay,
+    Distortion,
+    Phaser,
+    Gain,
+    GSMFullRateCompressor,
+    MP3Compressor,
+    PitchShift,
+    SpeedUp,
+    TimeWarpRemove,
+    TimeWarpSilence,
+    TimeWarpDuplicate,
+    TimeWarpReverse,
+    Preemphasis,
+    Deemphasis,
+    Fade,
+    Clipping,
+    Bitcrush,
+    Limiter,
+    HighShelfFilter,
+    LowShelfFilter,
+]
+# Holds all augmentations that can be applied to Scene objects
+ALL_SCENE_AUGMENTATIONS = [TimeFrequencyMasking, AudioChannelSwapping]

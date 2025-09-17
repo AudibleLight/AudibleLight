@@ -13,7 +13,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 
 from audiblelight import config, custom_types, utils
-from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
+from audiblelight.augmentation import EventAugmentation, validate_augmentation
 from audiblelight.worldstate import Emitter
 
 # Mapping from sound events to labels used in DCASE challenge
@@ -257,7 +257,7 @@ class Event:
                 )
 
             # Validate the augmentation and add it in if it's OK
-            validate_event_augmentation(aug)
+            validate_augmentation(aug, augmentation_cls=EventAugmentation)
             self.augmentations.append(aug)
 
         # Whenever we register augmentations, we should also invalidate any cached audio

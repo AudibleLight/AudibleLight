@@ -38,7 +38,7 @@ from audiblelight.augmentation import (
     TimeWarpRemove,
     TimeWarpReverse,
     TimeWarpSilence,
-    validate_event_augmentation,
+    validate_augmentation,
 )
 from audiblelight.event import Event
 from tests import utils_tests
@@ -481,17 +481,17 @@ def test_sample_value(override, raises):
 def test_validate_event_augmentation():
     # Not callable
     with pytest.raises(ValueError, match="Augmentation object must be callable"):
-        validate_event_augmentation(123)
+        validate_augmentation(123)
 
     # A type, not an instance
     with pytest.raises(
         ValueError, match="Augmentation object must be an instance of a class"
     ):
-        validate_event_augmentation(Distortion)
+        validate_augmentation(Distortion)
 
     # Not a subclass of EventAugmentation
     with pytest.raises(ValueError, match="Augmentation object must be a subclass"):
-        validate_event_augmentation(Augmentation())
+        validate_augmentation(Augmentation())
 
     # Does not have attributes
     temp = Distortion()
@@ -499,13 +499,13 @@ def test_validate_event_augmentation():
     with pytest.raises(
         AttributeError, match="Augmentation object must have 'fx' attribute"
     ):
-        validate_event_augmentation(temp)
+        validate_augmentation(temp)
 
     # Different augmentation type
     temp.fx = lambda x: x
     temp.AUGMENTATION_TYPE = "bad"
     with pytest.raises(ValueError, match="Augmentation type must be 'event'"):
-        validate_event_augmentation(temp)
+        validate_augmentation(temp, augmentation_cls=EventAugmentation)
 
 
 @pytest.mark.parametrize("policy", ["LB", "LD", "SM", "SS"])
