@@ -19,6 +19,7 @@ some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for Audible
 """
 
 import math
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from random import random
 from typing import Any, Callable, Iterator, Optional, Type, Union
@@ -198,11 +199,13 @@ class Augmentation:
             raise KeyError(f"Augmentation class {augment_name} not found")
 
         # Check that the remaining kwargs are valid for this class
-        input_dict.pop("name")
-        utils.validate_kwargs(augment_cls.__init__, **input_dict)
+        #  Need to make a copy so as not to destroy the underlying dict
+        copied = deepcopy(input_dict)
+        copied.pop("name")
+        utils.validate_kwargs(augment_cls.__init__, **copied)
 
         # Initialise the class with the arguments
-        return augment_cls(**input_dict)
+        return augment_cls(**copied)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -2227,7 +2230,7 @@ class TimeFrequencyMasking(SceneAugmentation):
 
 # noinspection PyUnreachableCode
 def validate_augmentation(
-    augmentation_obj: Any, augmentation_cls: Type = EventAugmentation
+    augmentation_obj: Any, augmentation_cls: Any = EventAugmentation
 ) -> None:
     """
     Validates an augmentation class.
@@ -2269,7 +2272,7 @@ def validate_augmentation(
             raise AttributeError(f"Augmentation object must have '{attr}' attribute")
 
     aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
-    if aug_type != "event":
+    if aug_type != augmentation_cls.AUGMENTATION_TYPE:
         raise ValueError(
             f"Augmentation type must be '{augmentation_cls.AUGMENTATION_TYPE}', but got '{aug_type}'"
         )
