@@ -10,6 +10,7 @@ from typing import Any, Type
 import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
+from rlr_audio_propagation import ChannelLayout, ChannelLayoutType
 
 from audiblelight import utils
 
@@ -21,6 +22,7 @@ __all__ = [
     "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST",
+    "FOAListener",
 ]
 
 
@@ -32,6 +34,8 @@ class MicArray:
     Attributes:
         name (str): the name of the array.
         is_spherical (bool): whether the array is spherical. If False, positions_spherical will be None.
+        channel_layout_type (str): the expected channel layout for each capsule. If "mono" (default), one channel will
+            be created for every capsule. If "foa", four channels will be created per capsule.
 
     Properties:
         coordinates_polar (np.array): the positions of the capsules on the array, given as azimuth, elevation, radius.
@@ -46,14 +50,51 @@ class MicArray:
         capsule_names (list[str]): the names of the microphone capsules
     """
 
-    # TODO: note that we assume that colatitude is measured from 0 -> 180. In reality, users may want/expect to use
-    #  elevation, where 0 == straight ahead, 90 == straight up, -90 straight down. We should add support for this.
-
     name: str = ""
     is_spherical: bool = False
+    channel_layout_type: str = "mono"
+
     irs: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_absolute: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_center: np.ndarray = field(default=None, init=False, repr=False)
+
+    @property
+    def channel_layout(self) -> ChannelLayout:
+        """
+        Returns the ray-tracing engine ChannelLayout object for this MicArray
+        """
+        if self.channel_layout_type == "mono":
+            layout_type = ChannelLayoutType.Mono
+        elif self.channel_layout_type == "foa":
+            layout_type = ChannelLayoutType.Ambisonics
+        elif self.channel_layout_type == "binaural":
+            layout_type = ChannelLayoutType.Binaural
+        else:
+            raise ValueError(
+                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"but got '{self.channel_layout_type}'"
+            )
+        return ChannelLayout(layout_type, self.n_capsules)
+
+    @property
+    def n_listeners(self) -> int:
+        """
+        Returns the number of listeners this `MicArray` should be associated with in the engine.
+
+        If channel_layout == foa, we will only have 1 listener, but 4 "capsules" and IRs.
+        Otherwise, if channel_layout == mono, we will have as many listeners as capsules.
+        """
+        if self.channel_layout_type == "mono":
+            return self.n_capsules
+        elif self.channel_layout_type == "foa":
+            return 1
+        elif self.channel_layout_type == "binaural":
+            return 1
+        else:
+            raise ValueError(
+                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"but got '{self.channel_layout_type}'"
+            )
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -178,6 +219,7 @@ class MicArray:
             name=self.name,
             micarray_type=self.__class__.__name__,
             is_spherical=self.is_spherical,
+            channel_layout_type=self.channel_layout_type,
             n_capsules=self.n_capsules,
             capsule_names=self.capsule_names,
             **coord_dict,
@@ -285,6 +327,7 @@ class MonoCapsule(MicArray):
 
     name: str = "monocapsule"
     is_spherical: bool = False
+    channel_layout_type: str = "mono"
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
@@ -293,6 +336,33 @@ class MonoCapsule(MicArray):
     @property
     def capsule_names(self) -> list[str]:
         return ["mono"]
+
+
+@dataclass(repr=False, eq=False)
+class FOAListener(MicArray):
+    """
+    First Order Ambisonics (FOA) microphone "capsule"
+
+    This implementation uses a single listener with 4 ambisonics channels (W, X, Y, Z)
+    following the AmbiX convention. Unlike `AmbeoVR` which places 4 separate mono capsules,
+    this represents a single point in space with 4-channel ambisonics encoding.
+    """
+
+    name: str = "foalistener"
+    is_spherical: bool = False
+    channel_layout_type: str = "foa"
+
+    @property
+    def coordinates_cartesian(self) -> np.ndarray:
+        # Note that this just means there is a single capsule placed at the same position as the
+        #  "origin" of the microphone. Normally, this array would return the cartesian coords
+        #  of the capsules WRT the origin. However, as there is only one """capsule""" here,
+        #  the array just contains zeroes.
+        return np.array([[0.0, 0.0, 0.0]])
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return ["w", "x", "y", "z"]
 
 
 @dataclass(repr=False, eq=False)
@@ -305,6 +375,7 @@ class AmbeoVR(MicArray):
 
     name: str = "ambeovr"
     is_spherical: bool = True
+    channel_layout_type: str = "mono"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -332,6 +403,7 @@ class Eigenmike32(MicArray):
 
     name: str = "eigenmike32"
     is_spherical: bool = True
+    channel_layout_type: str = "mono"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -393,6 +465,7 @@ class Eigenmike64(MicArray):
 
     name: str = "eigenmike64"
     is_spherical: bool = True
+    channel_layout_type: str = "mono"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -479,7 +552,7 @@ class Eigenmike64(MicArray):
 
 
 # A list of all mic array objects
-MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule]
+MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, FOAListener]
 MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 
@@ -507,6 +580,11 @@ def sanitize_microphone_input(microphone_type: Any) -> Type["MicArray"]:
     # If a class contained inside MICARRAY_LIST
     elif microphone_type in MICARRAY_LIST:
         sanitized_microphone = microphone_type
+
+    # If an instance of a class contained inside MICARRAY_LIST
+    elif type(microphone_type) in MICARRAY_LIST:
+        sanitized_microphone = type(microphone_type)
+
     # Otherwise, we don't know what the microphone is
     else:
         raise TypeError(f"Could not parse microphone type {type(microphone_type)}")
@@ -522,7 +600,7 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
     acceptable_values = [ma().name for ma in MICARRAY_LIST]
     if micarray_name not in acceptable_values:
         raise ValueError(
-            f"Cannot find array {micarray_name}: expected one of {','.join(acceptable_values)}"
+            f"Cannot find array {micarray_name}: expected one of {', '.join(acceptable_values)}"
         )
     else:
         # Using `next` avoids having to build the whole list

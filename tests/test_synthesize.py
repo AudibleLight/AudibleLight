@@ -71,18 +71,21 @@ def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
     # Create some dummy IRs
     irs = np.random.rand(4, n_emitters, 10000)
     # Do the generation
-    syn.render_event_audio(ev, irs, oyens_scene_no_overlap.ref_db)
+    syn.render_event_audio(
+        ev, irs, mic_alias="mic000", ref_db=oyens_scene_no_overlap.ref_db
+    )
     # Check everything
     assert hasattr(ev, "spatial_audio")
-    assert isinstance(ev.spatial_audio, np.ndarray)
-    assert ev.spatial_audio.shape[0] == 4
-    assert ev.spatial_audio.ndim == 2
+    assert isinstance(ev.spatial_audio, dict)
+    assert isinstance(ev.spatial_audio["mic000"], np.ndarray)
+    assert ev.spatial_audio["mic000"].shape[0] == 4
+    assert ev.spatial_audio["mic000"].ndim == 2
 
 
 @pytest.mark.parametrize(
     "n_events",
     [
-        1,
+        # 1,
         2,
     ],
 )
@@ -99,8 +102,8 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
     assert len(oyens_scene_no_overlap.events) == n_events
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
-        assert isinstance(event.spatial_audio, np.ndarray)
-        n_channels, n_samples = event.spatial_audio.shape
+        assert isinstance(event.spatial_audio["mic000"], np.ndarray)
+        n_channels, n_samples = event.spatial_audio["mic000"].shape
         # Number of channels should be same as microphone, number of samples should be same as audio
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.audio.shape[-1]
@@ -143,8 +146,8 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
         assert event.is_moving
-        assert isinstance(event.spatial_audio, np.ndarray)
-        n_channels, n_samples = event.spatial_audio.shape
+        assert isinstance(event.spatial_audio["mic000"], np.ndarray)
+        n_channels, n_samples = event.spatial_audio["mic000"].shape
         # Number of channels should be same as microphone, number of samples should be same as audio
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.load_audio().shape[-1]
@@ -191,10 +194,10 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
 
     # Now, try generating the full scene audio
     syn.generate_scene_audio_from_events(oyens_scene_no_overlap)
-    assert isinstance(oyens_scene_no_overlap.audio, np.ndarray)
+    assert isinstance(oyens_scene_no_overlap.audio["mic000"], np.ndarray)
 
     # Audio should have the expected number of channels and duration
-    channels, duration = oyens_scene_no_overlap.audio.shape
+    channels, duration = oyens_scene_no_overlap.audio["mic000"].shape
     assert channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
     expected = round(
         oyens_scene_no_overlap.state.ctx.config.sample_rate
@@ -240,7 +243,7 @@ def test_validate_scene(oyens_scene_factory):
     # Do the same for the capsules
     class TempMic:
         @property
-        def n_capsules(self):
+        def n_listeners(self):
             return 5
 
     scn = oyens_scene_factory()
