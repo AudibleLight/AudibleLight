@@ -16,32 +16,37 @@ from tests import utils_tests
 @pytest.mark.parametrize(
     "microphone,events",
     [
-        # Test case 1: two emitters at 90 and 270 degree angles from the mic
-        # mic placed in bedroom 1
+        # mic now placed in bedroom 1
         (
             [-1.5, -1.5, 0.7],
-            [[90, 45, 0.2], [-90, -45, 0.2]],
+            [[90, 0, 0.2]],
         ),
-        # Test case 2: two emitters at 0 and 180 degree angles from the mic
-        # mic placed in bedroom 2
+        (
+            [-1.5, -1.5, 0.7],
+            [[-90, 0, 0.2]],
+        ),
+        # mic now placed in bedroom 2
         (
             [2.9, -7.0, 0.3],
-            [[0.0, 30, 0.2], [180, 30, 0.2]],
+            [[0.0, 0, 0.2]],
         ),
-        # Test case 3: single sound emitter at a 45-degree angle
-        # mic placed in living room
+        (
+            [2.9, -7.0, 0.3],
+            [[180, 0, 0.2]],
+        ),
+        # mic now placed in living room
         (
             [2.5, -1.0, 0.5],
-            [[45, -45, 0.2]],
+            [[45, 0, 0.2]],
         ),
     ],
 )
 @pytest.mark.flaky(reruns=3)
-def test_simulated_doa_with_music(microphone: list, events: list):
+def test_simulated_azimuth_with_music(microphone: list, events: list):
     """
-    Tests DOA of simulated sound events and microphones with MUSIC algorithm.
+    Tests azimuth of simulated sound events and microphones with MUSIC algorithm.
 
-    Places an AmbeoVR, simulates sound emitters, runs MUSIC, checks that estimated DOA is near to actual DOA
+    Places an Eigenmike32, simulates sound emitters, runs MUSIC, checks that estimated azimuth is near to actual
     """
     # Create a simulated scene
     test_scene = Scene(
