@@ -7,6 +7,7 @@ import os
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
+from types import MethodType
 from typing import Any, Optional, Type, Union
 
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ import numpy as np
 import trimesh
 from deepdiff import DeepDiff
 from loguru import logger
-from rlr_audio_propagation import ChannelLayout, ChannelLayoutType, Config, Context
+from rlr_audio_propagation import Config, Context
 
 from audiblelight import config, custom_types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
@@ -382,16 +383,19 @@ class WorldState:
 
         # Update the ray-tracing listeners
         if len(self.microphones) > 0:
-            all_caps = np.vstack(
-                [m.coordinates_absolute for m in self.microphones.values()]
-            )
-            for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
-                # Add a single listener for each individual capsule
-                self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
-                self.ctx.set_listener_position(
-                    caps_idx,
-                    caps_pos.tolist() if isinstance(caps_pos, np.ndarray) else caps_pos,
-                )
+            counter = 0
+            # Iterate through all the microphones we've added
+            for mic in self.microphones.values():
+                # Iterate through all capsules of this micarray class
+                for caps in mic.coordinates_absolute:
+                    # Add the listener in with the correct layout for the current mic
+                    self.ctx.add_listener(mic.channel_layout)
+                    # Set the position of the listener and update the counter
+                    self.ctx.set_listener_position(
+                        counter,
+                        caps.tolist() if isinstance(caps, np.ndarray) else caps,
+                    )
+                    counter += 1
 
         # Update the ray-tracing sources
         if self.num_emitters > 0:
@@ -429,7 +433,7 @@ class WorldState:
         return cfg
 
     @property
-    def irs(self) -> dict[str, np.ndarray]:
+    def irs(self) -> OrderedDict[str, np.ndarray]:
         """
         Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         """
@@ -501,10 +505,18 @@ class WorldState:
         """
         Initializes the audio context and configures the mesh for the context.
         """
+
+        def get_audio(_) -> None:
+            raise NotImplementedError(
+                "Do not call `WorldState.ctx.get_audio` directly: instead, use `WorldState.get_irs`."
+            )
+
         self.ctx.add_object()
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
         self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
         self.ctx.finalize_object_mesh(0)
+        # Need to monkey-patch get_audio for Context obj as it won't work with multiple channel layout types
+        self.ctx.get_audio = MethodType(get_audio, self.ctx)
 
     def _try_add_microphone(
         self, mic_cls, position: Optional[Union[list, np.ndarray]], alias: str
@@ -1612,7 +1624,7 @@ class WorldState:
             sum(len(em) for em in self.emitters.values()) == self.ctx.get_source_count()
         )
         assert (
-            sum(m.n_capsules for m in self.microphones.values())
+            sum(m.n_listeners for m in self.microphones.values())
             == self.ctx.get_listener_count()
         )
 
@@ -1644,33 +1656,57 @@ class WorldState:
                 f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
                 f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh."
             )
-        # Compute the IRs: this gives us shape (N_capsules, N_emitters, N_channels == 1, N_samples)
-        irs = self.ctx.get_audio()
         # Format irs into a dictionary of {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         #  with one key-value pair per microphone. We have to do this because we cannot have ragged arrays
         #  The individual arrays can then be accessed by calling `self.irs.values()`
-        self._irs = self._format_irs(irs)
+        self._irs = self.get_irs()
 
-    def _format_irs(self, irs: np.ndarray) -> dict:
+    def get_irs(self) -> OrderedDict[str, np.ndarray]:
         """
-        Formats IRs from the ray tracing engine into a dictionary of {mic1: (N_capsules, N_emitters, N_samples), ...}
+        Get the IRs from the ray-tracing context
+
+        By default, `Context.get_audio` expects all listeners to have the same channel layout type. If, however, e.g.
+        some listeners have Mono and others have Ambisonics, `Context.get_audio` will fail due to `numpy` expecting all
+        arrays to have equal dims.
+
+        Instead, we need to return a dictionary of numpy arrays.
+        The output will have shape: {mic1: (N_capsules, N_emitters, N_samples), ...}
         """
-        # Define a counter that we can use to access the flat array of (capsules, emitters, samples)
-        counter = 0
-        all_irs = OrderedDict()
-        for mic_alias, mic in self.microphones.items():
-            mic_ir = []
-            # Iterate over the capsules associated with this microphone
-            for n_capsule in range(counter, mic.n_capsules + counter):
-                counter += 1
-                # This just gets the mono audio for each capsule
-                capsule_ir = irs[n_capsule, :, 0, :]
-                mic_ir.append(capsule_ir)
-            # Stack to a shape of (N_capsules, N_emitters, N_samples)
-            mic.irs = np.stack(mic_ir)
-            # Get the name of the mic and create a new key-value pair
-            all_irs[mic_alias] = mic.irs
-        return all_irs
+        listener_counter = 0
+        maxlen_samples = 0
+
+        # Do a first pass to get the maximum length of a single IR
+        for mic in self.microphones.values():
+            for i in range(listener_counter, listener_counter + mic.n_listeners):
+                for j in range(self.ctx.get_source_count()):
+                    for k in range(self.ctx.get_ir_channel_count(i, j)):
+                        ir_ijk = self.ctx.get_listener_source_channel_audio(i, j, k)
+                        maxlen_samples = max(maxlen_samples, len(ir_ijk))
+            listener_counter += mic.n_listeners
+
+        # Now that we know the maximum length of an IR, we can do another pass with padding
+        listener_counter = 0
+        for mic in self.microphones.values():
+            # By initialising an empty array, we prevent the need to explicitly call `np.pad`
+            zero_arr = np.zeros(
+                (mic.n_capsules, self.ctx.get_source_count(), maxlen_samples)
+            )
+            # We need to track both the cumulative capsule number and the capsule number WRT just this mic
+            for i_ctx, i_mic in zip(
+                range(listener_counter, listener_counter + mic.n_capsules),
+                range(mic.n_capsules),
+            ):
+                if i_ctx >= self.ctx.get_listener_count():
+                    break
+                for j in range(self.ctx.get_source_count()):
+                    for k in range(self.ctx.get_ir_channel_count(i_ctx, j)):
+                        ir_ijk = self.ctx.get_listener_source_channel_audio(i_ctx, j, k)
+                        zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
+            mic.irs = zero_arr
+            listener_counter += mic.n_listeners
+
+        # Returns a dictionary with shape {mic1: (N_capsules, N_emitters, N_samples), ...}
+        return OrderedDict({m_alias: m.irs for m_alias, m in self.microphones.items()})
 
     def create_scene(
         self,
