@@ -45,12 +45,12 @@ def test_create_static_event(audio_fpath: str, oyens_space):
     "audio_fpath,duration,start_time",
     [
         # These are all music audio files, which we use as they're long
-        (utils_tests.TEST_AUDIOS[6], 0.5, 0.5),
-        (utils_tests.TEST_AUDIOS[7], 1.0, 1.0),
-        (utils_tests.TEST_AUDIOS[8], None, 1.0),
-        (utils_tests.TEST_AUDIOS[6], 0.5, None),
-        (utils_tests.TEST_AUDIOS[7], None, None),
-        (utils_tests.TEST_AUDIOS[8], 2.0, 5.0),
+        (utils_tests.TEST_MUSICS[0], 0.5, 0.5),
+        (utils_tests.TEST_MUSICS[1], 1.0, 1.0),
+        (utils_tests.TEST_MUSICS[2], None, 1.0),
+        (utils_tests.TEST_MUSICS[0], 0.5, None),
+        (utils_tests.TEST_MUSICS[1], None, None),
+        (utils_tests.TEST_MUSICS[2], 2.0, 5.0),
     ],
 )
 def test_load_audio(

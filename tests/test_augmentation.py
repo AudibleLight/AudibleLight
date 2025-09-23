@@ -229,7 +229,7 @@ def test_equalizer(params):
 
 
 @pytest.mark.parametrize("fx_class", ALL_EVENT_AUGMENTATIONS)
-@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_MUSICS[:5])
 @pytest.mark.flaky(reruns=10)
 def test_process_audio(fx_class, audio_fpath):
     # Load up the audio file in librosa
