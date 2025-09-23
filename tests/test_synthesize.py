@@ -327,14 +327,120 @@ def test_generate_dcase_2024_metadata(duration: int):
         _ = syn.generate_dcase2024_metadata(scene)
 
 
-def test_generate_dcase_2024_metadata_vs_example():
+@pytest.mark.parametrize(
+    "events,expected",
+    [
+        # From https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation
+        (
+            [
+                dict(
+                    position=[-50, 30, 1.81],
+                    scene_start=1.0,
+                    duration=0.1,
+                    filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+                    alias="speech1",
+                ),
+                dict(
+                    position=[10, -20, 2.43],
+                    scene_start=1.1,
+                    duration=0.2,
+                    filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93856.wav",
+                    alias="speech2",
+                ),
+                dict(
+                    position=[-40, 0, 0.80],
+                    scene_start=1.3,
+                    duration=0.04,
+                    filepath=utils_tests.TEST_MUSICS[0],
+                    alias="music1",
+                ),
+            ],
+            np.array(
+                [
+                    [10, 1, 0, -50, 30, 181],
+                    [11, 1, 0, -50, 30, 181],
+                    [11, 1, 1, 10, -20, 243],
+                    [12, 1, 1, 10, -20, 243],
+                    [13, 1, 1, 10, -20, 243],
+                    [13, 8, 0, -40, 0, 80],
+                ]
+            ),
+        ),
+        # From dev-train-dcase/fold1_room1_mix001
+        # Note that distance values/source IDs have been invented
+        # Distance values are not provided in this dataset
+        # Source IDs are formatted differently in AudibleLight (but they don't matter anyway)
+        (
+            [
+                dict(
+                    position=[95.0, 5.0, 1.0],
+                    scene_start=10.0,
+                    duration=0.5,
+                    filepath=utils_tests.SOUNDEVENT_DIR / "musicInstrument/3471.wav",
+                ),
+                dict(
+                    position=[129, -18, 0.5],
+                    scene_start=10.2,
+                    duration=0.3,
+                    filepath=utils_tests.SOUNDEVENT_DIR / "laughter/9547.wav",
+                ),
+            ],
+            np.array(
+                [
+                    [100, 9, 0, 95, 5, 100],
+                    [101, 9, 0, 95, 5, 100],
+                    [102, 9, 0, 95, 5, 100],
+                    [102, 4, 0, 129, -18, 50],
+                    [103, 9, 0, 95, 5, 100],
+                    [103, 4, 0, 129, -18, 50],
+                    [104, 9, 0, 95, 5, 100],
+                    [104, 4, 0, 129, -18, 50],
+                    [105, 9, 0, 95, 5, 100],
+                    [105, 4, 0, 129, -18, 50],
+                ]
+            ),
+        ),
+        # From dev-train-tau/fold3_room4_mix001
+        (
+            [
+                dict(
+                    position=[-55.0, 9.0, 2.64],
+                    scene_start=25.5,
+                    duration=0.4,
+                    filepath=utils_tests.SOUNDEVENT_DIR / "doorCupboard/35632.wav",
+                ),
+                dict(
+                    position=[-61.0, -6.0, 2.18],
+                    scene_start=27.5,
+                    duration=0.5,
+                    filepath=utils_tests.SOUNDEVENT_DIR / "waterTap/95709.wav",
+                ),
+            ],
+            np.array(
+                [
+                    [255, 7, 0, -55, 9, 264],
+                    [256, 7, 0, -55, 9, 264],
+                    [257, 7, 0, -55, 9, 264],
+                    [258, 7, 0, -55, 9, 264],
+                    [259, 7, 0, -55, 9, 264],
+                    [275, 10, 0, -61, -6, 218],
+                    [276, 10, 0, -61, -6, 218],
+                    [277, 10, 0, -61, -6, 218],
+                    [278, 10, 0, -61, -6, 218],
+                    [279, 10, 0, -61, -6, 218],
+                    [280, 10, 0, -61, -6, 218],
+                ]
+            ),
+        ),
+    ],
+)
+def test_generate_dcase_2024_metadata_vs_example(events, expected):
     """
-    Test DCASE metadata format versus a known example, taken from
-    https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation
+    Test DCASE metadata format versus a known example
     """
     # Create a Scene: can be any mesh here, we don't care
     example_scene = Scene(
-        duration=3,
+        duration=30,
         mesh_path=utils_tests.OYENS_PATH,
         state_kwargs=dict(
             empty_space_around_surface=0.0,
@@ -346,71 +452,20 @@ def test_generate_dcase_2024_metadata_vs_example():
         microphone_type="ambeovr", position=[2.0, -2.5, 1.2], alias="poltest"
     )
 
-    # Add events: two maleSpeech, one music
-    example_scene.add_event(
-        event_type="static",
-        mic="poltest",
-        polar=True,
-        position=[-50, 30, 1.81],
-        scene_start=1.0,
-        duration=0.1,
-        filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
-        alias="speech1",
-    )
-    example_scene.add_event(
-        event_type="static",
-        mic="poltest",
-        polar=True,
-        position=[10, -20, 2.43],
-        scene_start=1.1,
-        duration=0.2,
-        filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93856.wav",
-        alias="speech2",
-    )
-    example_scene.add_event(
-        event_type="static",
-        mic="poltest",
-        polar=True,
-        position=[-40, 0, 0.80],
-        scene_start=1.3,
-        duration=0.04,
-        filepath=utils_tests.TEST_MUSICS[0],
-        alias="music1",
-    )
-
-    # Check our metadata format has parsed polar positions correctly
-    emi1 = (
-        example_scene.get_event("speech1")
-        .get_emitter(0)
-        .coordinates_relative_polar["poltest"][0]
-    )
-    assert np.allclose(emi1, [-50, 30, 1.81])
-    emi2 = (
-        example_scene.get_event("speech2")
-        .get_emitter(0)
-        .coordinates_relative_polar["poltest"][0]
-    )
-    assert np.allclose(emi2, [10, -20, 2.43])
-    emi3 = (
-        example_scene.get_event("music1")
-        .get_emitter(0)
-        .coordinates_relative_polar["poltest"][0]
-    )
-    assert np.allclose(emi3, [-40, 0, 0.8])
+    # Iterate through all the events and add
+    for ev in events:
+        created = example_scene.add_event(
+            event_type="static", mic="poltest", polar=True, **ev
+        )
+        # Check our metadata format has parsed polar positions correctly
+        created_position = created.get_emitter(0).coordinates_relative_polar["poltest"][
+            0
+        ]
+        assert np.allclose(created_position, ev["position"])
 
     # Generate the metadata
     dcase_out = syn.generate_dcase2024_metadata(example_scene)
     actual_out = dcase_out["poltest"].reset_index(drop=False).to_numpy()
 
     # Compare against the expected format
-    expected_out = np.array(
-        [
-            [10, 1, 0, -50, 30, 181],
-            [11, 1, 0, -50, 30, 181],
-            [11, 1, 1, 10, -20, 243],
-            [12, 1, 1, 10, -20, 243],
-            [13, 1, 1, 10, -20, 243],
-            [13, 8, 0, -40, 0, 80],
-        ]
-    )
-    assert np.allclose(actual_out, expected_out)
+    assert np.allclose(actual_out, expected)
