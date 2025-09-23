@@ -322,3 +322,92 @@ def test_generate_dcase_2024_metadata(duration: int):
     scene.events["event000"].class_id = "asdf"
     with pytest.raises(ValueError):
         _ = syn.generate_dcase2024_metadata(scene)
+
+
+def test_generate_dcase_2024_metadata_vs_example():
+    """
+    Test DCASE metadata format versus a known example, taken from
+    https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation
+    """
+    # Create a Scene: can be any mesh here, we don't care
+    example_scene = Scene(
+        duration=3,
+        mesh_path=utils_tests.OYENS_PATH,
+        state_kwargs=dict(
+            empty_space_around_surface=0.0,
+        ),
+    )
+
+    # Add in a microphone at a specific, open position
+    example_scene.add_microphone(
+        microphone_type="ambeovr", position=[2.0, -2.5, 1.2], alias="poltest"
+    )
+
+    # Add events: two maleSpeech, one music
+    example_scene.add_event(
+        event_type="static",
+        mic="poltest",
+        polar=True,
+        position=[-50, 30, 1.81],
+        scene_start=1.0,
+        duration=0.1,
+        filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+        alias="speech1",
+    )
+    example_scene.add_event(
+        event_type="static",
+        mic="poltest",
+        polar=True,
+        position=[10, -20, 2.43],
+        scene_start=1.1,
+        duration=0.2,
+        filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93856.wav",
+        alias="speech2",
+    )
+    example_scene.add_event(
+        event_type="static",
+        mic="poltest",
+        polar=True,
+        position=[-40, 0, 0.80],
+        scene_start=1.3,
+        duration=0.04,
+        filepath=utils_tests.TEST_MUSICS[0],
+        alias="music1",
+    )
+
+    # Check our metadata format has parsed polar positions correctly
+    emi1 = (
+        example_scene.get_event("speech1")
+        .get_emitter(0)
+        .coordinates_relative_polar["poltest"][0]
+    )
+    assert np.allclose(emi1, [-50, 30, 1.81])
+    emi2 = (
+        example_scene.get_event("speech2")
+        .get_emitter(0)
+        .coordinates_relative_polar["poltest"][0]
+    )
+    assert np.allclose(emi2, [10, -20, 2.43])
+    emi3 = (
+        example_scene.get_event("music1")
+        .get_emitter(0)
+        .coordinates_relative_polar["poltest"][0]
+    )
+    assert np.allclose(emi3, [-40, 0, 0.8])
+
+    # Generate the metadata
+    dcase_out = syn.generate_dcase2024_metadata(example_scene)
+    actual_out = dcase_out["poltest"].reset_index(drop=False).to_numpy()
+
+    # Compare against the expected format
+    expected_out = np.array(
+        [
+            [10, 1, 0, -50, 30, 181],
+            [11, 1, 0, -50, 30, 181],
+            [11, 1, 1, 10, -20, 243],
+            [12, 1, 1, 10, -20, 243],
+            [13, 1, 1, 10, -20, 243],
+            [13, 8, 0, -40, 0, 80],
+        ]
+    )
+    assert np.allclose(actual_out, expected_out)
