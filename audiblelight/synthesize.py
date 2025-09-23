@@ -626,6 +626,7 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
             0
         ]
 
+        # This is the frame indices where the frame lasts
         event_range = np.arange(start_idx, end_idx + 1)
 
         # Raise an error if the event has no DCASE class idx or this is somehow invalid otherwise
@@ -638,61 +639,62 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
         source_idx = unique_ids.get(event.class_id, 0)
         unique_ids[event.class_id] = source_idx + 1
 
-        # Start iterating over all emitters within this event
-        for emitter in event.emitters:
-            positions = emitter.coordinates_relative_polar
-            # Iterate over all microphones
-            for mic in microphones:
-                # Static events: we just want the first emitter positions
-                if not event.is_moving:
-                    az, elv, dist = positions[mic][0]
-                    # DCASE expects azimuth = [-180, 180], with 0 == front, increasing counter-clockwise
-                    #  Currently, we are using [0, 360], with 0 == front, increasing counter-clockwise
-                    #  So, we need to convert it here.
+        # Iterate over every microphone for each event
+        for mic in microphones:
+            # Processing static events
+            if not event.is_moving:
+                # Static events just have one emitter, so grab the relative position to the mic directly
+                az, elv, dist = event.emitters[0].coordinates_relative_polar[mic][0]
+                # Need to round values and convert metres -> centimetres
+                az, elv, dist = round(az), round(elv), round(dist * 100)
+                # We want a new row for every frame
+                frame_data = [
+                    [int(idx), event.class_id, source_idx, az, elv, dist]
+                    for idx in event_range
+                ]
+                res[mic].extend(frame_data)
+
+            # Processing moving events
+            else:
+                # Get the relative positions of all emitters for this event vs the current mic
+                coords = np.vstack(
+                    [e.coordinates_relative_polar[mic] for e in event.emitters]
+                )
+                # Get the times we'll interpolate using
+                interp_times = frames[event_range]
+                # Get the approximate times for every coordinate
+                coord_times = np.linspace(
+                    min(interp_times), max(interp_times), num=len(coords)
+                )
+                # Interpolate between the coordinates and timepoints
+                interpolated = np.stack(
+                    [
+                        np.interp(interp_times, coord_times, coords[:, dim])
+                        for dim in range(coords.shape[1])
+                    ],
+                    axis=1,
+                )
+                # Create a separate row for each frame
+                for idx, (az, elv, dist) in zip(event_range, interpolated):
+                    # Need to round values and convert metres -> centimetres
                     az, elv, dist = round(az), round(elv), round(dist * 100)
-                    # We want a new row for every frame
                     frame_data = [
-                        [int(idx), event.class_id, source_idx, az, elv, dist]
-                        for idx in event_range
+                        int(idx),
+                        event.class_id,
+                        source_idx,
+                        az,
+                        elv,
+                        dist,
                     ]
-                    res[mic].extend(frame_data)
-
-                # Moving events: we need to consider all emitter positions
-                else:
-                    # Interpolate between the positions of all emitters for all frames
-                    timepoints = frames[event_range]
-                    coord_times = np.linspace(
-                        timepoints[0], timepoints[-1], num=len(positions)
-                    )
-                    coords = np.array(positions[mic])
-                    interpolated = np.stack(
-                        [
-                            np.interp(timepoints, coord_times, coords[:, dim])
-                            for dim in range(coords.shape[1])
-                        ],
-                        axis=1,
-                    )
-
-                    # Create a separate row for each frame
-                    for idx, (az, elv, dist) in zip(event_range, interpolated):
-                        az, elv, dist = round(az), round(elv), round(dist * 100)
-                        frame_data = [
-                            int(idx),
-                            event.class_id,
-                            source_idx,
-                            az,
-                            elv,
-                            dist,
-                        ]
-                        res[mic].append(frame_data)
+                    res[mic].append(frame_data)
 
     # Output dataframes
     res_df = {mic: None for mic in microphones}
     for mic, data in res.items():
         res_df[mic] = (
             pd.DataFrame(data, columns=DCASE_2024_COLUMNS)
+            .sort_values(["frame_number", "active_class_index", "source_number_index"])
             .set_index("frame_number")
-            .sort_index()
         )
 
     return res_df

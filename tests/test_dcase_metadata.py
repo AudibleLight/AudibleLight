@@ -36,6 +36,9 @@ def test_generate_dcase_2024_metadata_overlap(duration):
     dcase = generate_dcase2024_metadata(scene)["mic000"]
     dcase = dcase.reset_index(drop=False).to_numpy()
 
+    # Frame index should ascend
+    assert np.array_equal(dcase[:, 0], np.sort(dcase[:, 0]))
+
     # Should have some duplicates in the frame counter
     assert len(dcase[:, 0]) > len(np.unique(dcase[:, 0]))
 
@@ -67,6 +70,9 @@ def test_generate_dcase_metadata_static(duration: int):
     # Generate the dcase metadata
     dcase = generate_dcase2024_metadata(scene)["mic000"]
     dcase = dcase.reset_index(drop=False).to_numpy()
+
+    # Frame index should ascend
+    assert np.array_equal(dcase[:, 0], np.sort(dcase[:, 0]))
 
     # No overlapping events, should not have duplicates
     assert len(np.unique(dcase[:, 0])) == len(dcase[:, 0])
@@ -105,6 +111,9 @@ def test_generate_dcase_metadata_moving(duration: int):
     # Generate the dcase metadata
     dcase = generate_dcase2024_metadata(scene)["mic000"]
     dcase = dcase.reset_index(drop=False).to_numpy()
+
+    # Frame index should ascend
+    assert np.array_equal(dcase[:, 0], np.sort(dcase[:, 0]))
 
     # Event starts 5 seconds in, finishes 10 seconds in
     assert dcase[0, 0] == 50
@@ -153,6 +162,9 @@ def test_generate_dcase_2024_metadata_static_and_moving(duration: int):
     # Scene only has one listener, so we should only have one dataframe
     assert len(dcase_out) == 1
     dcase = dcase_out["mic000"]
+
+    # Frame index should ascend
+    assert np.array_equal(dcase.index, np.sort(dcase.index))
 
     # No overlapping events, so frame index should be unique
     assert len(dcase.index.unique()) == len(dcase.index)
