@@ -962,7 +962,7 @@ def test_get_valid_position_with_max_distance(ref, r, n, raises, oyens_space):
 def test_add_foa_capsule(oyens_space):
     # Add many different types of microphone in
     oyens_space.add_microphone(
-        microphone_type="foacapsule",
+        microphone_type="foalistener",
         position=[-0.5, -0.5, 0.5],
         keep_existing=False,
         alias="foa_tester",

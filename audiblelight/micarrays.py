@@ -22,7 +22,7 @@ __all__ = [
     "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST",
-    "FOACapsule",
+    "FOAListener",
 ]
 
 
@@ -339,7 +339,7 @@ class MonoCapsule(MicArray):
 
 
 @dataclass(repr=False, eq=False)
-class FOACapsule(MicArray):
+class FOAListener(MicArray):
     """
     First Order Ambisonics (FOA) microphone "capsule"
 
@@ -348,12 +348,16 @@ class FOACapsule(MicArray):
     this represents a single point in space with 4-channel ambisonics encoding.
     """
 
-    name: str = "foacapsule"
+    name: str = "foalistener"
     is_spherical: bool = False
     channel_layout_type: str = "foa"
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
+        # Note that this just means there is a single capsule placed at the same position as the
+        #  "origin" of the microphone. Normally, this array would return the cartesian coords
+        #  of the capsules WRT the origin. However, as there is only one """capsule""" here,
+        #  the array just contains zeroes.
         return np.array([[0.0, 0.0, 0.0]])
 
     @property
@@ -548,7 +552,7 @@ class Eigenmike64(MicArray):
 
 
 # A list of all mic array objects
-MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, FOACapsule]
+MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, FOAListener]
 MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 

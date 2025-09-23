@@ -1090,7 +1090,7 @@ def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
 
     # Add FOA capsule microphone + events then do generation
     oyens_scene_no_overlap.add_microphone(
-        microphone_type="foacapsule", alias="foa_test", keep_existing=False
+        microphone_type="foalistener", alias="foa_test", keep_existing=False
     )
     for n in range(n_events):
         oyens_scene_no_overlap.add_event(event_type="static", duration=1)
