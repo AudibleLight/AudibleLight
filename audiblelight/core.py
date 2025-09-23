@@ -909,6 +909,9 @@ class Scene:
         # Convert polar positions to cartesian here
         if polar:
             position = self._coerce_polar_position(position, mic)
+            # Set mic to None so we don't add the offset again inside WorldState
+            # TODO: this is hacky, could be better
+            mic = None
 
         # Sample N random augmentations from our list, if required
         if isinstance(augmentations, custom_types.Numeric):
