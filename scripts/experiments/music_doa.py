@@ -24,15 +24,15 @@ MESHES = list(MESH_DIR.rglob("*.glb"))
 
 # Types of noise we'll add
 NOISE_TYPES = ["pink", "brown", "red", "blue", "white", "violet"]
-
 MIC_TYPE = "eigenmike32"
+DURATION = 10
 
 
 def create_scene(mesh_path: Path) -> Scene:
     return Scene(
-        duration=config.SCENE_DURATION,
+        duration=DURATION,
         mesh_path=Path(mesh_path),
-        scene_start_dist=stats.uniform(0.0, config.SCENE_DURATION - 1),
+        scene_start_dist=stats.uniform(0.0, DURATION - 1),
         event_start_dist=None,
         event_duration_dist=stats.uniform(
             config.MIN_EVENT_DURATION,
@@ -86,6 +86,36 @@ def apply_music(scene: Scene) -> MUSIC:
     return music
 
 
+def angular_error(
+    pred_el: float, pred_az: float, true_el: float, true_az: float
+) -> float:
+    """
+    Given predicted/ground-truth elevation + azimuth in radians, compute angular error in degrees
+    """
+    # Convert to unit vectors
+    pred_vec = np.array(
+        [
+            np.cos(pred_el) * np.cos(pred_az),
+            np.cos(pred_el) * np.sin(pred_az),
+            np.sin(pred_el),
+        ]
+    )
+    true_vec = np.array(
+        [
+            np.cos(true_el) * np.cos(true_az),
+            np.cos(true_el) * np.sin(true_az),
+            np.sin(true_el),
+        ]
+    )
+
+    # Compute angular error: dot product of unit vectors, clipped to [-1, 1]
+    dot_product = np.clip(np.dot(pred_vec, true_vec), -1.0, 1.0)
+    angle_rad = np.arccos(dot_product)
+    angle_deg = np.rad2deg(angle_rad)
+
+    return angle_deg
+
+
 def main(n_scenes: int, microphone_type: str):
     angular_errors = []
 
@@ -100,7 +130,7 @@ def main(n_scenes: int, microphone_type: str):
         # Add a single static event + background noise
         #  Event SNR will be sampled randomly from distribution
         scene.add_event(event_type="static")
-        scene.add_ambience(noise=random.choice(NOISE_TYPES))
+        # scene.add_ambience(noise=random.choice(NOISE_TYPES))
 
         # Run the simulation
         scene.generate(audio=False, metadata_json=False, metadata_dcase=False)
@@ -112,19 +142,21 @@ def main(n_scenes: int, microphone_type: str):
         if music.azimuth_recon is None or music.colatitude_recon is None:
             angular_errors.append(np.nan)
 
-        # Compute estimated/actual azimuth/colatitude
-        est_az = np.rad2deg(music.azimuth_recon)
-        # est_col = np.rad2deg(music.colatitude_recon)
+        # Compute actual azimuth/colatitude in radians
         act_az, act_col, _ = (
             scene.get_event(0).emitters[0].coordinates_relative_polar["mic000"][0]
         )
+        act_az, act_col = np.deg2rad(act_az), np.deg2rad(act_col)
 
-        angular_errors.append(abs(est_az - act_az))
+        # Compute angular error, in degrees
+        error = angular_error(
+            music.colatitude_recon[0], music.azimuth_recon[0], act_col, act_az
+        )
+        angular_errors.append(error)
 
     # Compute mean/SD angular error and log
     mean_angular_error = np.nanmean(angular_errors)
     std_angular_error = np.nanstd(angular_errors)
-
     logger.info(f"Mean angular error: {mean_angular_error:.3f}")
     logger.info(f"SD angular error: {std_angular_error:.3f}")
 
@@ -135,7 +167,7 @@ if __name__ == "__main__":
         "--n_scenes",
         type=int,
         help=f"Number of scenes to create, defaults to {config.N_SCENES}",
-        default=1,
+        default=config.N_SCENES,
     )
     parser.add_argument(
         "--microphone_type",
