@@ -13,7 +13,7 @@ import pandas as pd
 from loguru import logger
 from scipy import fft, signal
 
-from audiblelight import config, types, utils
+from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.core import Scene
 from audiblelight.event import Event
@@ -29,7 +29,7 @@ DCASE_2024_COLUMNS = [
 ]
 
 
-def apply_snr(x: np.ndarray, snr: types.Numeric) -> np.ndarray:
+def apply_snr(x: np.ndarray, snr: custom_types.Numeric) -> np.ndarray:
     """
     Scale an audio signal to a given maximum SNR.
 
@@ -41,7 +41,7 @@ def apply_snr(x: np.ndarray, snr: types.Numeric) -> np.ndarray:
     return x * snr / np.abs(x).max(initial=1e-15)
 
 
-def db_to_multiplier(db: types.Numeric, x: types.Numeric) -> float:
+def db_to_multiplier(db: custom_types.Numeric, x: custom_types.Numeric) -> float:
     """
     Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
     reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
@@ -100,9 +100,9 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
 
 def stft(
     y: np.ndarray,
-    fft_size: Optional[types.Numeric] = config.FFT_SIZE,
-    win_size: Optional[types.Numeric] = config.WIN_SIZE,
-    hop_size: Optional[types.Numeric] = config.HOP_SIZE,
+    fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
     stft_dims_first: Optional[bool] = True,
 ) -> np.ndarray:
     """
@@ -139,9 +139,9 @@ def stft(
 
 def generate_interpolation_matrix(
     ir_times: np.ndarray,
-    sr: types.Numeric = config.SAMPLE_RATE,
-    hop_size: types.Numeric = config.HOP_SIZE,
-    n_frames: Optional[types.Numeric] = None,
+    sr: custom_types.Numeric = config.SAMPLE_RATE,
+    hop_size: custom_types.Numeric = config.HOP_SIZE,
+    n_frames: Optional[custom_types.Numeric] = None,
 ) -> np.ndarray:
     """
     Generate impulse response interpolation weights that determines how the source moves through space.
@@ -177,8 +177,8 @@ def perform_time_variant_convolution(
     s_audio: np.ndarray,
     s_ir: np.ndarray,
     w_ir: np.ndarray,
-    ir_slice_min: types.Numeric = 0,
-    ir_relevant_ratio_max: types.Numeric = 0.5,
+    ir_slice_min: custom_types.Numeric = 0,
+    ir_relevant_ratio_max: custom_types.Numeric = 0.5,
 ) -> np.ndarray:
     """
     Convolve a bank of time-varying impulse responses with an audio spectrogram.
@@ -246,9 +246,9 @@ def perform_time_variant_convolution(
 
 def istft_overlap_synthesis(
     spatial_stft: np.ndarray,
-    fft_size: types.Numeric = config.FFT_SIZE,
-    win_size: types.Numeric = config.WIN_SIZE,
-    hop_size: types.Numeric = config.HOP_SIZE,
+    fft_size: custom_types.Numeric = config.FFT_SIZE,
+    win_size: custom_types.Numeric = config.WIN_SIZE,
+    hop_size: custom_types.Numeric = config.HOP_SIZE,
 ) -> np.ndarray:
     """
     Given a stft, recompose it into audio samples using overlap-add synthesis.
@@ -269,9 +269,9 @@ def istft_overlap_synthesis(
 def time_variant_convolution(
     irs: np.ndarray,
     event: Event,
-    fft_size: Optional[types.Numeric] = config.FFT_SIZE,
-    win_size: Optional[types.Numeric] = config.WIN_SIZE,
-    hop_size: Optional[types.Numeric] = config.HOP_SIZE,
+    fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
 ) -> np.ndarray:
     """
     Performs time-variant convolution for given IRs and Event object
@@ -379,11 +379,11 @@ def render_event_audio(
     event: Event,
     irs: np.ndarray,
     mic_alias: str,
-    ref_db: types.Numeric = config.REF_DB,
+    ref_db: custom_types.Numeric = config.REF_DB,
     ignore_cache: Optional[bool] = True,
-    fft_size: Optional[types.Numeric] = config.FFT_SIZE,
-    win_size: Optional[types.Numeric] = config.WIN_SIZE,
-    hop_size: Optional[types.Numeric] = config.HOP_SIZE,
+    fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
 ) -> None:
     """
     Renders audio for a given `Event` object.
@@ -399,11 +399,11 @@ def render_event_audio(
         event (Event): the Event object to render audio for
         irs (np.ndarray): the IR audio array for the given event, taken from the WorldState and this event's Emitters
         mic_alias: the microphone alias associated with the IRs used here
-        ref_db (types.Numeric): the noise floor for the Scene
+        ref_db (custom_types.Numeric): the noise floor for the Scene
         ignore_cache (bool): if True, any cached spatial audio from a previous call to this function will be discarded
-        fft_size (types.Numeric): size of the FFT, defaults to 512 samples
+        fft_size (custom_types.Numeric): size of the FFT, defaults to 512 samples
         win_size (int): the window size of the FFT, defaults to 256 samples
-        hop_size (types.Numeric): the size of the hop between FFTs, defaults to 128 samples
+        hop_size (custom_types.Numeric): the size of the hop between FFTs, defaults to 128 samples
 
     Returns:
         None

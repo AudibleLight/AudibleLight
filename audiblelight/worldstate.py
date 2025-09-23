@@ -17,7 +17,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 from rlr_audio_propagation import Config, Context
 
-from audiblelight import config, types, utils
+from audiblelight import config, custom_types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
@@ -76,7 +76,7 @@ def add_sphere(
     scene: trimesh.Scene,
     pos: np.ndarray,
     color: Optional[list[int]] = None,
-    r: Optional[types.Numeric] = 0.2,
+    r: Optional[custom_types.Numeric] = 0.2,
 ) -> None:
     """
     Adds a sphere object to a scene with given position, color, and radius
@@ -277,22 +277,24 @@ class WorldState:
     def __init__(
         self,
         mesh: Union[str, Path],
-        empty_space_around_mic: Optional[types.Numeric] = config.EMPTY_SPACE_AROUND_MIC,
+        empty_space_around_mic: Optional[
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_MIC,
         empty_space_around_emitter: Optional[
-            types.Numeric
+            custom_types.Numeric
         ] = config.EMPTY_SPACE_AROUND_EMITTER,
         empty_space_around_surface: Optional[
-            types.Numeric
+            custom_types.Numeric
         ] = config.EMPTY_SPACE_AROUND_SURFACE,
         empty_space_around_capsule: Optional[
-            types.Numeric
+            custom_types.Numeric
         ] = config.EMPTY_SPACE_AROUND_CAPSULE,
         add_to_context: Optional[bool] = True,
         ensure_minimum_weighted_average_ray_length: Optional[bool] = False,
         minimum_weighted_average_ray_length: Optional[
-            types.Numeric
+            custom_types.Numeric
         ] = config.MIN_AVG_RAY_LENGTH,
-        repair_threshold: Optional[types.Numeric] = None,
+        repair_threshold: Optional[custom_types.Numeric] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
         """
@@ -443,8 +445,10 @@ class WorldState:
             return self._irs
 
     def calculate_weighted_average_ray_length(
-        self, point: np.ndarray, num_rays: Optional[types.Numeric] = config.NUM_RAYS
-    ) -> types.Numeric:
+        self,
+        point: np.ndarray,
+        num_rays: Optional[custom_types.Numeric] = config.NUM_RAYS,
+    ) -> custom_types.Numeric:
         """
         Estimate how spatially "open" a point is by computing the weighted average length of rays cast from that point.
 
@@ -892,7 +896,7 @@ class WorldState:
         return mic_pos
 
     def get_random_point_inside_mesh(
-        self, batch_size: Optional[types.Numeric] = config.POINT_BATCH_SIZE
+        self, batch_size: Optional[custom_types.Numeric] = config.POINT_BATCH_SIZE
     ) -> np.ndarray:
         """
         Generates a random valid point inside the mesh.
@@ -1318,16 +1322,16 @@ class WorldState:
     def get_valid_position_with_max_distance(
         self,
         ref: np.ndarray,
-        r: types.Numeric,
-        n: Optional[types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        r: custom_types.Numeric,
+        n: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> np.ndarray:
         """
         Generate a sphere with origin `ref` and radius `r` and sample a valid position from within its volume.
 
         Arguments:
             ref (np.ndarray): the reference point, treated as the origin of the sphere
-            r (types.Numeric): the maximum distance for the sampled point from `ref`
-            n (types.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
+            r (custom_types.Numeric): the maximum distance for the sampled point from `ref`
+            n (custom_types.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
 
         Raises:
             ValueError: if a valid point from within `n` samples cannot be found
@@ -1368,8 +1372,8 @@ class WorldState:
     def _validate_trajectory(
         self,
         trajectory: np.ndarray,
-        max_distance: types.Numeric,
-        step_distance: types.Numeric,
+        max_distance: custom_types.Numeric,
+        step_distance: custom_types.Numeric,
         requires_direct_line: bool,
     ) -> bool:
         """
@@ -1378,8 +1382,8 @@ class WorldState:
         Arguments:
             trajectory (np.ndarray): the trajectory to be validated
             requires_direct_line (bool): whether a direct line must exist between the starting and ending position
-            max_distance (types.Numeric): the maximum distance traversed in the trajectory, from start to end
-            step_distance (types.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            max_distance (custom_types.Numeric): the maximum distance traversed in the trajectory, from start to end
+            step_distance (custom_types.Numeric): the maximum distance traversed from one step to the next in the trajectory
 
         Returns:
             bool: whether the trajectory is valid
@@ -1421,12 +1425,12 @@ class WorldState:
     # @utils.timer("define trajectory")
     def define_trajectory(
         self,
-        duration: types.Numeric,
+        duration: custom_types.Numeric,
         starting_position: Optional[Union[np.ndarray, list]] = None,
-        velocity: Optional[types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
-        resolution: Optional[types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        velocity: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
+        resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
         shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
-        max_place_attempts: Optional[types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ):
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
@@ -1706,8 +1710,8 @@ class WorldState:
 
     def create_scene(
         self,
-        mic_radius: Optional[types.Numeric] = 0.2,
-        emitter_radius: Optional[types.Numeric] = 0.1,
+        mic_radius: Optional[custom_types.Numeric] = 0.2,
+        emitter_radius: Optional[custom_types.Numeric] = 0.1,
     ) -> trimesh.Scene:
         """
         Creates a trimesh.Scene with the Space's mesh, microphone position, and emitters all added

@@ -18,7 +18,7 @@ import torch
 from loguru import logger
 
 from audiblelight.config import SAMPLE_RATE
-from audiblelight.types import (
+from audiblelight.custom_types import (
     NUMERIC_DTYPES,
     DistributionLike,
     DistributionWrapper,

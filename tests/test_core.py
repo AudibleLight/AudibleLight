@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from audiblelight import types, utils
+from audiblelight import custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
 from audiblelight.core import Scene
@@ -967,7 +967,7 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
         for k, v in expected_aug_kwargs.items():
 
             # Explicitly provided a value, should be used
-            if isinstance(v, types.Numeric):
+            if isinstance(v, custom_types.Numeric):
                 assert getattr(actual_aug, k) == v
 
             # Provided a function to sample the value, should be within range
@@ -1017,7 +1017,7 @@ def test_parse_audio_paths(fg_path, bg_path):
             out = sc._get_random_audio(audios)
             assert isinstance(out, Path)
             assert out.is_file()
-            assert out.suffix.replace(".", "") in types.AUDIO_EXTS
+            assert out.suffix.replace(".", "") in custom_types.AUDIO_EXTS
         else:
             assert len(audios) == 0
             with pytest.raises(FileNotFoundError):
