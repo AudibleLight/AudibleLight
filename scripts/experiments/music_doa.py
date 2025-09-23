@@ -150,7 +150,10 @@ def main(n_scenes: int, microphone_type: str):
 
         # Compute angular error, in degrees
         error = angular_error(
-            music.colatitude_recon[0], music.azimuth_recon[0], act_col, act_az
+            (np.pi / 2) - music.colatitude_recon[0],
+            music.azimuth_recon[0],
+            act_col,
+            act_az,
         )
         angular_errors.append(error)
 
