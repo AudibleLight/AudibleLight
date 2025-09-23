@@ -134,7 +134,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "num_emitters": 1,
             "emitters": [[1.8156068957785347, -1.863507837016133, 1.8473540916136413]],
             "emitters_relative": {
-                "mic000": [[203.9109387558252, -5.976352087676762, 3.3744825372046803]]
+                "mic000": [[-156.0890612441748, -5.976352087676762, 3.3744825372046803]]
             },
             "augmentations": [],
         },

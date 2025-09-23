@@ -59,6 +59,14 @@ from tests import utils_tests
             scene_start=45,
             duration=4.99,
         ),
+        # Test 7: polar position, azimuth exceeds 180 so "wraps around"
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+            polar=True,
+            # -90 azimuth == straight right
+            position=[-90, 0.0, 0.5],
+            scene_start=0.0,
+        ),
     ],
 )
 def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
@@ -159,13 +167,25 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             spatial_velocity=1,
             spatial_resolution=2,
         ),
-        # Test with a polar starting position
+        # Test with polar starting positions
         dict(
             filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
             polar=True,
             position=[0.0, 90.0, 1.0],
             shape="linear",
             scene_start=5.0,  # start five seconds in
+            spatial_resolution=1.5,
+            spatial_velocity=1.0,
+            duration=2,
+            augmentations=[Phaser, LowpassFilter],
+        ),
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            polar=True,
+            mic="mic000",
+            position=[-90.0, 0.0, 1.0],
+            shape="linear",
+            scene_start=5.0,
             spatial_resolution=1.5,
             spatial_velocity=1.0,
             duration=2,
@@ -642,7 +662,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     ],
                     "emitters_relative": {
                         "mic000": [
-                            [203.9109387558252, -5.976352087676762, 3.3744825372046803]
+                            [-156.0890612441748, -5.976352087676762, 3.3744825372046803]
                         ]
                     },
                     "augmentations": [

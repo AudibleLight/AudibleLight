@@ -634,8 +634,6 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
                     # DCASE expects azimuth = [-180, 180], with 0 == front, increasing counter-clockwise
                     #  Currently, we are using [0, 360], with 0 == front, increasing counter-clockwise
                     #  So, we need to convert it here.
-                    if az % 360 > 180:
-                        az = (az % 360) - 180
                     az, elv, dist = round(az), round(elv), round(dist * 100)
                     # We want a new row for every frame
                     frame_data = [
@@ -662,8 +660,6 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
 
                     # Create a separate row for each frame
                     for idx, (az, elv, dist) in zip(event_range, interpolated):
-                        if az % 360 > 180:
-                            az = (az % 360) - 180
                         az, elv, dist = round(az), round(elv), round(dist * 100)
                         frame_data = [
                             int(idx),

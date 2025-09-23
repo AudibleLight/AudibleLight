@@ -47,6 +47,8 @@ def test_polar_coordinates(micarray):
             == (micarray().n_capsules, 3)
             == (len(micarray()), 3)
         )
+        # All azimuth values must be in range [-180, 180]
+        assert all(-180 <= p <= 180 for p in polar[:, 0])
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
