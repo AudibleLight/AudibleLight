@@ -21,6 +21,11 @@ from audiblelight import config, custom_types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
+MATERIALS_JSON = str(
+    utils.sanitise_filepath(
+        utils.get_project_root() / "resources/mp3d_material_config.json"
+    )
+)
 
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
@@ -361,24 +366,19 @@ class WorldState:
             if len(broken_faces) / self.mesh.faces.shape[0] < repair_threshold:
                 repair_mesh(self.mesh)
 
-        # Setting up audio context
+        # Setting up audio configuration
         self.cfg = self._parse_rlr_config(rlr_kwargs)
-        self.ctx = Context(self.cfg)
-        self._setup_audio_context()
+        self.ctx = None
+        # If required, create the audio context now
+        if self.add_to_state:
+            self._setup_audio_context()
 
     # noinspection PyUnreachableCode
     def _update(self) -> None:
         """
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
         """
-        # Destroy the old context
-        self.ctx.reset(self.cfg)
-        if self.ctx.get_listener_count() > 0:
-            self.ctx.clear_listeners()
-        if self.ctx.get_source_count() > 0:
-            self.ctx.clear_sources()
-
-        # Remake the context
+        # (re)make the audio context
         self._setup_audio_context()
 
         # Update the ray-tracing listeners
@@ -511,9 +511,22 @@ class WorldState:
                 "Do not call `WorldState.ctx.get_audio` directly: instead, use `WorldState.get_irs`."
             )
 
+        # If the context doesn't exist, make it
+        if self.ctx is None:
+            self.ctx = Context(self.cfg)
+        # If the context does exist, reset it
+        else:
+            self.ctx.reset(self.cfg)
+            if self.ctx.get_listener_count() > 0:
+                self.ctx.clear_listeners()
+            if self.ctx.get_source_count() > 0:
+                self.ctx.clear_sources()
+
+        # Add the mesh into the context
         self.ctx.add_object()
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
-        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
+        self.ctx.set_material_database_json(MATERIALS_JSON)
+        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "Default")
         self.ctx.finalize_object_mesh(0)
         # Need to monkey-patch get_audio for Context obj as it won't work with multiple channel layout types
         self.ctx.get_audio = MethodType(get_audio, self.ctx)
