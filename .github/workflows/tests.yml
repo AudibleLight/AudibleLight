@@ -58,15 +58,8 @@ jobs:
         shell: bash -l {0}
         run: poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      # This should hopefully help until we can fix https://github.com/AudibleLight/AudibleLight/issues/28
       - name: Run tests with retrying
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 200
-          max_attempts: 5
-          command: poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
-          retry_wait_seconds: 30
-          continue_on_error: false
+        run: poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
 
       - name: Upload coverage to Codecov
         if: success() && matrix.python-version == '3.12'

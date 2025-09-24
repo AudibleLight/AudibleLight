@@ -21,6 +21,7 @@ import random
 from pathlib import Path
 from time import time
 
+import pandas as pd
 from loguru import logger
 from scipy import stats
 from tqdm import tqdm
@@ -118,9 +119,20 @@ def generate(
         audio_fname=audio_path,
         metadata_fname=metadata_path,
         audio=True,
-        metadata_json=False,
+        metadata_json=True,
         metadata_dcase=True,
     )
+
+
+def dump_room_csv(outdir: Path) -> None:
+    """
+    Dumps a CSV file with the paths + splits of the rooms used
+    """
+    # List comprehensions -> list of dicts -> dataframe -> CSV
+    room_paths = [{"split": "train", "mesh": str(p.resolve())} for p in TRAIN_ROOMS]
+    room_paths.extend([{"split": "test", "mesh": str(p.resolve())} for p in TEST_ROOMS])
+    room_df = pd.DataFrame(room_paths)
+    room_df.to_csv(outdir / "rooms.csv", index=True)
 
 
 def main(outdir: str):
@@ -134,6 +146,9 @@ def main(outdir: str):
     ]:
         if not fp.exists():
             os.makedirs(fp)
+
+    # Dump a CSV file containing the rooms + splits
+    dump_room_csv(outdir)
 
     # Start iterating to create the required number of training scenes
     logger.info("Generating training scenes...")

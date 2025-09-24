@@ -661,6 +661,7 @@ def test_to_dict(oyens_space: WorldState):
     [
         # Test with Polar and Cartesian coordinate systems
         (np.array([0.0, 90.0, 0.2]), True, True, True),
+        (np.array([-90.0, 0.0, 0.2]), True, True, True),
         (np.array([0.5, 0.5, -0.5]), False, True, True),
         (np.array([1000, 1000, 1000]), False, False, False),
     ],
