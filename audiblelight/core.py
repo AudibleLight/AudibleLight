@@ -68,9 +68,9 @@ class Scene:
             bg_path: a directory (or list of directories pointing to background audio. Note that directories will be
                 introspected recursively, such that audio files within any subdirectories will be detected also.
             allow_duplicate_audios: if True (default), the same audio file can appear multiple times in the Scene.
-            ref_db: reference decibel level for scene noise floor, defaults to -50 dB
+            ref_db: reference decibel level for scene noise floor, defaults to -65 dB
             scene_start_dist: distribution-like object or callable used to sample starting times for any Event objects
-                applied to the scene. If not provided, will be a uniform distribution between 0 and `Scene.duration`
+                applied to the scene. If not provided, will be a uniform distribution between 0 and `duration`
             event_start_dist: distribution-like object used to sample starting (offset) times for Event audio files.
                 If not provided, Event audio files will always start at 0 seconds. Note that this can be overridden
                 by passing a value into `Scene.add_event(event_start=...)`
@@ -78,12 +78,12 @@ class Scene:
                 Event audio files will always use their full duration. Note that this can be overridden by passing a
                 value into `Scene.add_event(duration=...)`
             event_velocity_dist: distribution-like object used to sample Event spatial velocities. If not provided, a
-                uniform distribution between 0.25 and 2.0 metres-per-second will be used.
+                uniform distribution between 0.5 and 2.0 metres-per-second will be used.
             event_resolution_dist: distribution-like object used to sample Event spatial resolutions. If not provided,
                 a uniform distribution between 1.0 and 4.0 Hz (i.e., IRs-per-second) will be used.
             snr_dist: distribution-like object used to sample Event signal-to-noise ratios. If not provided, a uniform
-                distribution between 2 and 8 will be used.
-            max_overlap: the maximum number of overlapping audio Events allowed in the Scene, defaults to 3.
+                distribution between 5 and 30 will be used.
+            max_overlap: the maximum number of overlapping audio Events allowed in the Scene, defaults to 2.
             event_augmentations: an iterable of `audiblelight.EventAugmentation` objects that can be applied to Event
                 objects. The number of augmentations sampled from this list can be controlled by setting the value of
                 `augmentations` when calling `Scene.add_event`, i.e. `Scene.add_event(augmentations=3)` will sample
@@ -121,19 +121,16 @@ class Scene:
         #  Events can start any time within the duration of the scene, minus some padding
         if scene_start_dist is None:
             scene_start_dist = stats.uniform(0.0, self.duration - 1)
-        #  Events move between 0.25 and 2.0 metres per second
         if event_velocity_dist is None:
             event_velocity_dist = stats.uniform(
                 config.MIN_EVENT_VELOCITY,
                 config.MAX_EVENT_VELOCITY - config.MIN_EVENT_VELOCITY,
             )
-        #  Events have a resolution of between 1-4 Hz (i.e., number of IRs per second)
         if event_resolution_dist is None:
             event_resolution_dist = stats.uniform(
                 config.MIN_EVENT_RESOLUTION,
                 config.MAX_EVENT_RESOLUTION - config.MIN_EVENT_RESOLUTION,
             )
-        #  Events have an SNR between 2 and 8
         if snr_dist is None:
             snr_dist = stats.uniform(
                 config.MIN_EVENT_SNR, config.MAX_EVENT_SNR - config.MIN_EVENT_SNR
@@ -700,19 +697,19 @@ class Scene:
         scene_start: Optional[custom_types.Numeric] = None,
         event_start: Optional[custom_types.Numeric] = None,
         duration: Optional[custom_types.Numeric] = None,
-        snr: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_SNR,
+        snr: Optional[custom_types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
-        spatial_resolution: Optional[
-            custom_types.Numeric
-        ] = config.DEFAULT_EVENT_RESOLUTION,
-        spatial_velocity: Optional[
-            custom_types.Numeric
-        ] = config.DEFAULT_EVENT_VELOCITY,
+        shape: Optional[str] = None,
+        spatial_resolution: Optional[custom_types.Numeric] = None,
+        spatial_velocity: Optional[custom_types.Numeric] = None,
     ) -> Event:
         """
-        Add an event to the foreground, either "static" or "moving"
+        Add an event to the foreground, either "static" or "moving".
+
+        Note that the arguments "scene_start", "event_start", "duration", "snr", "spatial_velocity", &
+        "spatial_resolution" will (by default) sample from their respective distributions, provided in `Scene.__init__`.
+        If a numeric value is provided, this will be treated as an override and used instead of random sampling.
 
         Arguments:
             event_type (str): the type of event to add, must be either "static" or "moving"
@@ -737,16 +734,13 @@ class Scene:
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
-                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
-                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
             duration: Time the Event audio lasts in seconds. Must be a positive number.
-                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
             snr: Signal to noise ratio for the audio file with respect to the noise floor
             class_label: Optional label to use for sound event class.
-                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+                If not provided, will attempt to infer label from filepath using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
-                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+                If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
@@ -755,6 +749,16 @@ class Scene:
             the Event object added to the Scene
 
         Examples:
+            Creating an event with random sampling of parameters.
+            Here, note that "scene_start", "event_start", "duration", "snr" will be sampled at random
+            from the distributions defined when initialising the `Scene`.
+
+            >>> scene = Scene(...)
+            >>> scene.add_event(
+            >>>     event_type="static",
+            >>>     filepath="some/path.wav"
+            >>> )
+
             Creating an event with a predefined position:
 
             >>> scene = Scene(...)
@@ -844,12 +848,16 @@ class Scene:
         scene_start: Optional[custom_types.Numeric] = None,
         event_start: Optional[custom_types.Numeric] = None,
         duration: Optional[custom_types.Numeric] = None,
-        snr: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_SNR,
+        snr: Optional[custom_types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
     ) -> Event:
         """
         Add a static event to the foreground with optional overrides.
+
+        Note that the arguments "scene_start", "event_start", "duration", & "snr" will (by default) sample from their
+        respective distributions, provided in `Scene.__init__`. If a numeric value is provided, this will be treated as
+        an override and used instead of random sampling.
 
         Arguments:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
@@ -860,10 +868,7 @@ class Scene:
                 If a number, this many augmentations will be sampled from either `Scene.event_augmentations`, or a master
                 list of valid augmentations (defined inside `audiblelight.augmentations`)
                 If not provided, EventAugmentations can be registered later by calling `register_augmentations` on the Event.
-            position: Location to add the event.
-                When `event_type=="static"`, this will be the position of the Event.
-                When `event_type=="moving"`, this will be the starting position of the Event.
-                When not provided, a random point inside the mesh will be chosen.
+            position: Location to add the event. When not provided, a random point inside the mesh will be chosen.
             mic: String reference to a microphone inside `self.state.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
             polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
@@ -873,16 +878,13 @@ class Scene:
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
-                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
-                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
             duration: Time the Event audio lasts in seconds. Must be a positive number.
-                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
             snr: Signal to noise ratio for the audio file with respect to the noise floor
             class_label: Optional label to use for sound event class.
-                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+                If not provided, will attempt to infer label from filepath using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
-                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+                If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
 
         Returns:
             the Event object added to the Scene
@@ -990,22 +992,22 @@ class Scene:
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
-        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        shape: Optional[str] = None,
         scene_start: Optional[custom_types.Numeric] = None,
         event_start: Optional[custom_types.Numeric] = None,
         duration: Optional[custom_types.Numeric] = None,
-        snr: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_SNR,
+        snr: Optional[custom_types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        spatial_resolution: Optional[
-            custom_types.Numeric
-        ] = config.DEFAULT_EVENT_RESOLUTION,
-        spatial_velocity: Optional[
-            custom_types.Numeric
-        ] = config.DEFAULT_EVENT_VELOCITY,
+        spatial_resolution: Optional[custom_types.Numeric] = None,
+        spatial_velocity: Optional[custom_types.Numeric] = None,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
+
+        Note that the arguments "scene_start", "event_start", "duration", "snr", "spatial_velocity", &
+        "spatial_resolution" will (by default) sample from their respective distributions, provided in `Scene.__init__`.
+        If a numeric value is provided, this will be treated as an override and used instead of random sampling.
 
         Arguments:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
@@ -1016,25 +1018,19 @@ class Scene:
                 If a number, this many augmentations will be sampled from either `Scene.event_augmentations`, or a master
                 list of valid augmentations (defined inside `audiblelight.augmentations`)
                 If not provided, EventAugmentations can be registered later by calling `register_augmentations` on the Event.
-            position: Location to add the event.
-                When `event_type=="static"`, this will be the position of the Event.
-                When `event_type=="moving"`, this will be the starting position of the Event.
-                When not provided, a random point inside the mesh will be chosen.
+            position: Starting point for the event. When not provided, a random point inside the mesh will be chosen.
             mic: String reference to a microphone inside `self.state.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
             polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
                 units are [x, y, z] in absolute, cartesian terms.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
-                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
-                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
             duration: Time the Event audio lasts in seconds. Must be a positive number.
-                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
             snr: Signal to noise ratio for the audio file with respect to the noise floor
             class_label: Optional label to use for sound event class.
-                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+                If not provided, will attempt to infer label from filepath using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
-                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+                If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
@@ -1074,7 +1070,12 @@ class Scene:
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
         emitter_kwargs = dict(
             starting_position=position,
-            shape=shape,
+            # Sample a random shape if not provided
+            shape=(
+                shape
+                if shape is not None
+                else random.choice(["linear", "circular", "random"])
+            ),
         )
         event_kwargs = dict(
             filepath=filepath,
