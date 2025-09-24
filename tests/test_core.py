@@ -64,6 +64,14 @@ from tests import utils_tests
             scene_start=45,
             duration=4.99,
         ),
+        # Test 7: polar position, azimuth exceeds 180 so "wraps around"
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+            polar=True,
+            # -90 azimuth == straight right
+            position=[-90, 0.0, 0.5],
+            scene_start=0.0,
+        ),
     ],
 )
 def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
@@ -164,13 +172,25 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             spatial_velocity=1,
             spatial_resolution=2,
         ),
-        # Test with a polar starting position
+        # Test with polar starting positions
         dict(
             filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
             polar=True,
             position=[0.0, 90.0, 1.0],
             shape="linear",
             scene_start=5.0,  # start five seconds in
+            spatial_resolution=1.5,
+            spatial_velocity=1.0,
+            duration=2,
+            augmentations=[Phaser, LowpassFilter],
+        ),
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            polar=True,
+            mic="mic000",
+            position=[-90.0, 0.0, 1.0],
+            shape="linear",
+            scene_start=5.0,
             spatial_resolution=1.5,
             spatial_velocity=1.0,
             duration=2,
@@ -446,7 +466,7 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
         3,
     ],
 )
-def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
+def test_generate_single_mic(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):
         # Use a short duration here so we don't run into issues with placing events
@@ -455,7 +475,63 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
     # Suffixes will be stripped out
     oyens_scene_no_overlap.generate(audio_fname="tmp.wav", metadata_fname="tmp.json")
 
-    for fout in ["tmp.wav", "tmp.json", "tmp_mic000.csv"]:
+    for fout in ["tmp_mic000.wav", "tmp.json", "tmp_mic000.csv"]:
+        assert os.path.isfile(fout)
+        os.remove(fout)
+
+
+@pytest.mark.parametrize(
+    "mic1_type,mic2_type",
+    [("monocapsule", "ambeovr"), ("eigenmike32", "ambeovr"), ("ambeovr", "ambeovr")],
+)
+def test_generate_multiple_mics(
+    mic1_type: str, mic2_type, oyens_scene_no_overlap: Scene
+):
+    # Add multiple mics in
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphone(
+        alias="mic1", microphone_type=mic1_type, keep_existing=True
+    )
+    oyens_scene_no_overlap.add_microphone(
+        alias="mic2", microphone_type=mic2_type, keep_existing=True
+    )
+
+    # Add events in
+    oyens_scene_no_overlap.clear_events()
+    for n_event in range(2):
+        # Use a short duration here so we don't run into issues with placing events
+        oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+
+    # Do the generation
+    oyens_scene_no_overlap.generate(
+        audio_fname="tmp.wav", metadata_fname="tmp.json", metadata_json=False
+    )
+
+    # Check all events
+    for event in oyens_scene_no_overlap.get_events():
+        # Should have created required attributes for all events
+        assert "mic1" in event.spatial_audio.keys()
+        assert "mic2" in event.spatial_audio.keys()
+
+        # Audios should be different but have equivalent dims
+        mic1_ev = event.spatial_audio["mic1"]
+        mic2_ev = event.spatial_audio["mic2"]
+        assert mic1_ev.shape[1] == mic2_ev.shape[1]
+        assert not np.array_equal(mic1_ev, mic2_ev)
+
+    # Check the scene
+    # Should have created required audios in the scene
+    assert "mic1" in oyens_scene_no_overlap.audio.keys()
+    assert "mic2" in oyens_scene_no_overlap.audio.keys()
+
+    # Audios should be different but have equivalent dims
+    mic1 = oyens_scene_no_overlap.audio["mic1"]
+    mic2 = oyens_scene_no_overlap.audio["mic2"]
+    assert not np.array_equal(mic1, mic2)
+    assert mic1.shape[1] == mic2.shape[1]
+
+    # Should have required filepaths
+    for fout in ["tmp_mic1.wav", "tmp_mic1.csv", "tmp_mic2.wav", "tmp_mic2.csv"]:
         assert os.path.isfile(fout)
         os.remove(fout)
 
@@ -518,15 +594,19 @@ def test_generate_parse_filepaths(dirpath, raises, oyens_scene_no_overlap):
 
     if not raises:
         oyens_scene_no_overlap.generate(output_dir=dirpath)
-        assert oyens_scene_no_overlap.audio is not None
+        assert len(oyens_scene_no_overlap.audio) > 0
         # Cleanup
-        for fout in ["audio_out.wav", "metadata_out.json", "metadata_out_mic000.csv"]:
+        for fout in [
+            "audio_out_mic000.wav",
+            "metadata_out.json",
+            "metadata_out_mic000.csv",
+        ]:
             assert os.path.isfile(fout)
             os.remove(fout)
     else:
         with pytest.raises(raises):
             oyens_scene_no_overlap.generate(output_dir=dirpath)
-        assert oyens_scene_no_overlap.audio is None
+        assert len(oyens_scene_no_overlap.audio) == 0
 
 
 @pytest.mark.parametrize(
@@ -657,7 +737,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     ],
                     "emitters_relative": {
                         "mic000": [
-                            [203.9109387558252, -5.976352087676762, 3.3744825372046803]
+                            [-156.0890612441748, -5.976352087676762, 3.3744825372046803]
                         ]
                     },
                     "augmentations": [
@@ -684,6 +764,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                         "name": "ambeovr",
                         "micarray_type": "AmbeoVR",
                         "is_spherical": True,
+                        "channel_layout_type": "mono",
                         "n_capsules": 4,
                         "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                         "coordinates_absolute": [
@@ -1036,6 +1117,29 @@ def test_get_random_audio_dupes(allow_dupes):
         assert chosen_audio in randoms
     else:
         assert chosen_audio not in randoms
+
+
+@pytest.mark.parametrize("n_events", [1, 2, 3])
+def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.clear_microphones()
+
+    # Add FOA capsule microphone + events then do generation
+    oyens_scene_no_overlap.add_microphone(
+        microphone_type="foalistener", alias="foa_test", keep_existing=False
+    )
+    for n in range(n_events):
+        oyens_scene_no_overlap.add_event(event_type="static", duration=1)
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_dcase=False
+    )
+
+    # Shape of the audio should be 4 channel
+    assert oyens_scene_no_overlap.audio["foa_test"].shape[0] == 4
+    for ev in oyens_scene_no_overlap.events.values():
+        assert ev.spatial_audio["foa_test"].shape[0] == 4
+        assert ev.spatial_audio["foa_test"].shape[1] > 0
+        assert not np.all(ev.spatial_audio["foa_test"] == 0)
 
 
 @pytest.mark.parametrize(

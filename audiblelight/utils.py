@@ -145,7 +145,7 @@ def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
     Converts an array of spherical coordinates (azimuth°, polar°, radius) to Cartesian coordinates (XYZ).
 
     Assumptions:
-        Azimuth: [0, 360), counter-clockwise from front.
+        Azimuth: [-180, 180), increasing counter-clockwise from front (i.e, azimuth=90 == left)
         Elevation: [-90, 90], 0 = horizontal, 90 = up, -90 = down.
         Radius: unbounded, in metres.
     """
@@ -172,7 +172,7 @@ def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
     Converts an array of Cartesian coordinates (XYZ) to spherical coordinates (azimuth°, polar°, radius).
 
     Assumptions:
-        Azimuth: [0, 360), counter-clockwise from front.
+        Azimuth: [-180, 180), increasing counter-clockwise from front (i.e, azimuth=90 == left)
         Elevation: [-90, 90], 0 = horizontal, 90 = up, -90 = down.
         Radius: unbounded, in metres.
     """
@@ -190,9 +190,6 @@ def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
     # Get azimuth and polar in radians first, then convert to degrees
     azimuth = np.rad2deg(np.arctan2(y, x))  # φ, angle in x-y plane from x-axis
     elevation = np.rad2deg(np.arcsin(z / r))  # θ, angle from z-axis in [-90, 90]
-
-    # Ensure azimuth is in [0, 360)
-    azimuth = np.mod(azimuth, 360)
 
     # Stack everything back into a 2D array of shape (n_capsules, 3)
     return np.column_stack((azimuth, elevation, r))

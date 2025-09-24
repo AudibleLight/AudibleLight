@@ -30,6 +30,8 @@ from tests import utils_tests
         (np.array([[180, 0, 1]]), np.array([[-1, 0, 0]])),
         # azimuth=0°, elevation=-90°, r=1 -> (0, 0, -1) → -Z
         (np.array([[0, -90, 1]]), np.array([[0, 0, -1]])),
+        # azimuth=-90, elevation=0, r=1 -> (0, -1, 0)
+        (np.array([-90, 0, 1]), np.array([[0, -1, 0]])),
         # Multiple points
         (
             np.array(
@@ -70,6 +72,7 @@ def test_polar_to_cartesian(polar, expected):
         (np.array([[0, 1, 0]]), np.array([[90, 0, 1]])),  # +Y
         (np.array([[-1, 0, 0]]), np.array([[180, 0, 1]])),  # -X
         (np.array([[0, 0, -1]]), np.array([[0, -90, 1]])),  # -Z
+        (np.array([[0, -1, 0]]), np.array([[-90, 0, 1]])),
         # Multiple points
         (
             np.array(
@@ -117,6 +120,8 @@ def test_cartesian_to_polar(cartesian, expected):
             np.array([[0, 0, 0]]),
             np.array([[0, 0, -1]]),
         ),  # straight down
+        # Straight right
+        (np.array([[-90, 0, 1]]), np.array([[0, 0, 0]]), np.array([[0, -1, 0]])),
     ],
 )
 def test_polar_relative_to(polar, reference, expected):

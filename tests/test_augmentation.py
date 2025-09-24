@@ -233,7 +233,8 @@ def test_equalizer(params):
 
 
 @pytest.mark.parametrize("fx_class", ALL_EVENT_AUGMENTATIONS)
-@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_MUSICS[:5])
+@pytest.mark.flaky(reruns=10)
 def test_process_audio(fx_class, audio_fpath):
     # Load up the audio file in librosa
     loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
@@ -253,8 +254,8 @@ def test_process_audio(fx_class, audio_fpath):
     assert len(fx_init.params) > 0
 
     # Should be a numpy array with different values to initial
-    #  Don't test when we have flaky FX,
-    #  e.g. pitchshift can have a randomly sampled value of 0 semitones
+    #  This can occasionally error out e.g. with PitchShift randomly sampling 0 semitones
+    #  Hence, we add `pytest.mark.flaky` to the test to automate rerunning
     assert isinstance(out, np.ndarray)
     assert not np.array_equal(out, loaded)
 

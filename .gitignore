@@ -38,6 +38,7 @@ coverage.xml
 *.json
 *.csv
 
+!/resources/mp3d_material_config.json
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
 

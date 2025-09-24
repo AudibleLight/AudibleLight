@@ -661,6 +661,7 @@ def test_to_dict(oyens_space: WorldState):
     [
         # Test with Polar and Cartesian coordinate systems
         (np.array([0.0, 90.0, 0.2]), True, True, True),
+        (np.array([-90.0, 0.0, 0.2]), True, True, True),
         (np.array([0.5, 0.5, -0.5]), False, True, True),
         (np.array([1000, 1000, 1000]), False, False, False),
     ],
@@ -753,6 +754,7 @@ def test_emitter_from_dict(input_dict):
                     "micarray_type": "AmbeoVR",
                     "is_spherical": True,
                     "n_capsules": 4,
+                    "channel_layout_type": "mono",
                     "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                     "coordinates_absolute": [
                         [-0.38804551239949914, -8.630788873071257, 1.4665762923251686],
@@ -956,3 +958,39 @@ def test_get_valid_position_with_max_distance(ref, r, n, raises, oyens_space):
     else:
         with pytest.raises(ValueError):
             _ = oyens_space.get_valid_position_with_max_distance(ref, r, n)
+
+
+def test_add_foa_capsule(oyens_space):
+    # Add many different types of microphone in
+    oyens_space.add_microphone(
+        microphone_type="foalistener",
+        position=[-0.5, -0.5, 0.5],
+        keep_existing=False,
+        alias="foa_tester",
+    )
+    oyens_space.add_microphone(
+        microphone_type="monocapsule", keep_existing=True, alias="mono_tester"
+    )
+    oyens_space.add_microphone(
+        microphone_type="ambeovr", keep_existing=True, alias="ambeo_tester"
+    )
+
+    # Add two emitters in
+    oyens_space.add_emitter(alias="tester")
+    oyens_space.add_emitter(keep_existing=True, alias="tester2")
+
+    # Simulate the IR
+    oyens_space.simulate()
+
+    # Grab FOA microphone
+    mic = oyens_space.get_microphone("foa_tester")
+    assert mic.channel_layout_type == "foa"
+
+    # Test all microphones IRs as expected
+    for mic in oyens_space.microphones.values():
+        n_caps, n_emits, n_samps = mic.irs.shape
+        assert n_caps == mic.n_capsules
+        assert n_emits == 2
+        assert n_samps >= 1
+        # Should not be just zeroes
+        assert not np.all(mic.irs == 0)

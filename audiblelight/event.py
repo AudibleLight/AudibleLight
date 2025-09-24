@@ -165,7 +165,9 @@ class Event:
             self.register_augmentations(augmentations)
 
         # Spatial audio attributes, set in the synthesizer
-        self.spatial_audio = None
+        #  This is a dictionary where every key is the alias of a microphone
+        #  and the value is the spatialised audio FOR that microphone
+        self.spatial_audio = OrderedDict()
 
         # Spatial attributes
         self.spatial_resolution = spatial_resolution
@@ -282,7 +284,7 @@ class Event:
         #  This will force us to reload the audio and apply the augmentations again
         #  when we call `self.load_audio`.
         self.audio = None
-        self.spatial_audio = None
+        self.spatial_audio = OrderedDict()
 
     def register_emitters(
         self,
@@ -697,7 +699,7 @@ class Event:
         else:
             # Invalidate any cached audio
             self.audio = None
-            self.spatial_audio = None
+            self.spatial_audio = OrderedDict()
 
     def clear_augmentations(self) -> None:
         """
@@ -707,4 +709,4 @@ class Event:
             self.augmentations = []
             # Invalidate any cached audio
             self.audio = None
-            self.spatial_audio = None
+            self.spatial_audio = OrderedDict()

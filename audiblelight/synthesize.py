@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import fft, signal
-from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
@@ -313,63 +312,73 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
     Returns:
         None
     """
-    # Create empty array with shape (n_channels, n_samples)
-    channels = max([ev.spatial_audio.shape[0] for ev in scene.events.values()])
-    duration = round(scene.duration * scene.sample_rate)
-    scene_audio = np.zeros((channels, duration), dtype=np.float32)
+    # We'll create audio separately for every microphone added to the state
+    for mic_alias in scene.state.microphones.keys():
 
-    # If we have ambient noise for the scene, and it is valid, add it in now
-    if len(scene.ambience) > 0:
-        for ambience in scene.ambience.values():
-            if not isinstance(ambience, Ambience):
-                raise TypeError(
-                    f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
+        # Create empty array with shape (n_channels, n_samples)
+        channels = max(
+            [ev.spatial_audio[mic_alias].shape[0] for ev in scene.events.values()]
+        )
+        duration = round(scene.duration * scene.sample_rate)
+        scene_audio = np.zeros((channels, duration), dtype=np.float32)
+
+        # If we have ambient noise for the scene, and it is valid, add it in now
+        if len(scene.ambience) > 0:
+            for ambience in scene.ambience.values():
+                if not isinstance(ambience, Ambience):
+                    raise TypeError(
+                        f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
+                    )
+
+                ambient_noise = ambience.load_ambience()
+                if ambient_noise.shape != scene_audio.shape:
+                    raise ValueError(
+                        f"Scene ambient noise does not match expected shape. "
+                        f"Expected {scene_audio.shape}, but got {ambient_noise.shape}."
+                    )
+
+                # Now we scale to match the desired noise floor (taken from SpatialScaper)
+                scaled = db_to_multiplier(
+                    ambience.ref_db, np.mean(np.abs(ambient_noise))
                 )
+                amb = scaled * ambient_noise
 
-            ambient_noise = ambience.load_ambience()
-            if ambient_noise.shape != scene_audio.shape:
-                raise ValueError(
-                    f"Scene ambient noise does not match expected shape. "
-                    f"Expected {scene_audio.shape}, but got {ambient_noise.shape}."
+                # TODO: ideally, we can also support adding noise with a given offset and duration
+                scene_audio += amb
+
+        # Iterate over all the events
+        for event in scene.events.values():
+            # Compute scene time in samples
+            scene_start = max(0, round(event.scene_start * scene.sample_rate))
+            scene_end = min(round(event.scene_end * scene.sample_rate), duration)
+
+            # Ensure valid slice
+            if scene_end <= scene_start:
+                logger.warning(
+                    f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}"
                 )
+                continue
 
-            # Now we scale to match the desired noise floor (taken from SpatialScaper)
-            scaled = db_to_multiplier(ambience.ref_db, np.mean(np.abs(ambient_noise)))
-            amb = scaled * ambient_noise
-
-            # TODO: ideally, we can also support adding noise with a given offset and duration
-            scene_audio += amb
-
-    # Iterate over all the events
-    for event in scene.events.values():
-        # Compute scene time in samples
-        scene_start = max(0, round(event.scene_start * scene.sample_rate))
-        scene_end = min(round(event.scene_end * scene.sample_rate), duration)
-
-        # Ensure valid slice
-        if scene_end <= scene_start:
-            logger.warning(
-                f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}"
+            # Truncate or pad spatial_audio to fit the scene slice length
+            num_samples = scene_end - scene_start
+            spatial_audio = utils.pad_or_truncate_audio(
+                event.spatial_audio[mic_alias], num_samples
             )
-            continue
 
-        # Truncate or pad spatial_audio to fit the scene slice length
-        num_samples = scene_end - scene_start
-        spatial_audio = utils.pad_or_truncate_audio(event.spatial_audio, num_samples)
+            # Additive synthesis
+            scene_audio[:, scene_start:scene_end] += spatial_audio
 
-        # Additive synthesis
-        scene_audio[:, scene_start:scene_end] += spatial_audio
+        # Sanity check everything
+        librosa.util.valid_audio(scene_audio)
+        utils.validate_shape(scene_audio.shape, (channels, duration))
 
-    # Sanity check everything
-    librosa.util.valid_audio(scene_audio)
-    utils.validate_shape(scene_audio.shape, (channels, duration))
-
-    scene.audio = scene_audio
+        scene.audio[mic_alias] = scene_audio
 
 
 def render_event_audio(
     event: Event,
     irs: np.ndarray,
+    mic_alias: str,
     ref_db: custom_types.Numeric = config.REF_DB,
     ignore_cache: Optional[bool] = True,
     fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
@@ -389,6 +398,7 @@ def render_event_audio(
     Arguments:
         event (Event): the Event object to render audio for
         irs (np.ndarray): the IR audio array for the given event, taken from the WorldState and this event's Emitters
+        mic_alias: the microphone alias associated with the IRs used here
         ref_db (custom_types.Numeric): the noise floor for the Scene
         ignore_cache (bool): if True, any cached spatial audio from a previous call to this function will be discarded
         fft_size (custom_types.Numeric): size of the FFT, defaults to 512 samples
@@ -399,7 +409,7 @@ def render_event_audio(
         None
     """
     # In cases where we've already cached the spatial audio, and we want to use it, skip over
-    if event.spatial_audio is not None and not ignore_cache:
+    if mic_alias in event.spatial_audio.keys() and not ignore_cache:
         return
 
     # Grab the IRs for the current event's emitters
@@ -407,10 +417,9 @@ def render_event_audio(
     n_ch, n_emitters, n_ir_samples = irs.shape
 
     # Grab the audio for the event as well and validate
+    #  This also applies any augmentations, etc. associated with the Event
     audio = event.load_audio(ignore_cache=ignore_cache)
     librosa.util.valid_audio(audio)
-
-    # TODO: this is when we'd also apply any data augmentation, etc.
     n_audio_samples = audio.shape[0]
 
     # Only a single emitter (IR): we can convolve easily with scipy
@@ -419,7 +428,6 @@ def render_event_audio(
             raise ValueError(
                 "Moving Event has only one emitter!"
             )  # something has gone very wrong to hit this
-        # TODO: if any emitters are not mono, this will break silently
         spatial = time_invariant_convolution(audio, irs[:, 0].T)
 
     # No emitters: means that audio is not spatialized
@@ -453,7 +461,7 @@ def render_event_audio(
     librosa.util.valid_audio(spatial)
 
     # Cast the audio as an attribute of the event, function has no direct return
-    event.spatial_audio = spatial
+    event.spatial_audio[mic_alias] = spatial
 
 
 def render_audio_for_all_scene_events(
@@ -488,34 +496,39 @@ def render_audio_for_all_scene_events(
     #     except AttributeError:
     #         scene.state.simulate()
 
-    # Grab the IRs from the entire WorldState
-    #  The expected IR shape is (N_capsules, N_emitters, N_channels (== 1), N_samples)
-    # TODO: this is fixed in the other branch
-    scene.state.simulate()
-    irs = scene.state.ctx.get_audio()
-    # TODO: probably won't work with more than one microphone!
-    emitter_counter = 0
+    # Validate the scene
+    validate_scene(scene)
+    # Grab the IRs from the WorldState
+    #  This is a dictionary with format {mic000: [N_channels, N_emitters, N_samples], ...}
+    irs = scene.state.get_irs()
 
-    # Iterate over each one of our Events
+    # Iterate over all microphones
     start = time()
-    for event_alias, event in tqdm(
-        scene.events.items(), desc="Rendering event audio..."
-    ):
+    for mic_alias, mic_ir in irs.items():
+        # We need a separate counter for each microphone
+        emitter_counter = 0
 
-        # Grab the IRs for the current event's emitters
-        #  This gets us (N_capsules, N_emitters, N_samples)
-        event_irs = irs[:, emitter_counter : len(event) + emitter_counter, 0, :]
+        # Iterate over all events
+        for event_alias, event in scene.events.items():
 
-        # Render the audio for the event
-        #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
-        render_event_audio(
-            event, event_irs, ref_db=scene.ref_db, ignore_cache=ignore_cache
-        )
+            # Grab the IRs for the current event's emitters
+            #  This gets us (N_capsules, N_emitters, N_samples)
+            event_irs = mic_ir[:, emitter_counter : len(event) + emitter_counter, :]
 
-        # Update the counter
-        emitter_counter += len(event)
+            # Render the audio for the event at this microphone
+            #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
+            render_event_audio(
+                event,
+                event_irs,
+                mic_alias=mic_alias,
+                ref_db=scene.ref_db,
+                ignore_cache=ignore_cache,
+            )
 
-    logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds.!")
+            # Update the counter
+            emitter_counter += len(event)
+
+    logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds!")
 
 
 # noinspection PyProtectedMember
@@ -557,7 +570,7 @@ def validate_scene(scene: Scene) -> None:
             f"{scene.state.ctx.get_source_count()} sources."
         )
 
-    capsules = sum(m.n_capsules for m in scene.state.microphones.values())
+    capsules = sum(m.n_listeners for m in scene.state.microphones.values())
     if capsules != scene.state.ctx.get_listener_count():
         raise ValueError(
             f"Mismatching number of microphones and listeners! "
@@ -613,6 +626,7 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
             0
         ]
 
+        # This is the frame indices where the frame lasts
         event_range = np.arange(start_idx, end_idx + 1)
 
         # Raise an error if the event has no DCASE class idx or this is somehow invalid otherwise
@@ -625,65 +639,62 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
         source_idx = unique_ids.get(event.class_id, 0)
         unique_ids[event.class_id] = source_idx + 1
 
-        # Start iterating over all emitters within this event
-        for emitter in event.emitters:
-            positions = emitter.coordinates_relative_polar
-            # Iterate over all microphones
-            for mic in microphones:
-                # Static events: we just want the first emitter positions
-                if not event.is_moving:
-                    az, elv, dist = positions[mic][0]
-                    # DCASE expects azimuth = [-180, 180], with 0 == front, increasing counter-clockwise
-                    #  Currently, we are using [0, 360], with 0 == front, increasing counter-clockwise
-                    #  So, we need to convert it here.
-                    if az % 360 > 180:
-                        az = (az % 360) - 180
+        # Iterate over every microphone for each event
+        for mic in microphones:
+            # Processing static events
+            if not event.is_moving:
+                # Static events just have one emitter, so grab the relative position to the mic directly
+                az, elv, dist = event.emitters[0].coordinates_relative_polar[mic][0]
+                # Need to round values and convert metres -> centimetres
+                az, elv, dist = round(az), round(elv), round(dist * 100)
+                # We want a new row for every frame
+                frame_data = [
+                    [int(idx), event.class_id, source_idx, az, elv, dist]
+                    for idx in event_range
+                ]
+                res[mic].extend(frame_data)
+
+            # Processing moving events
+            else:
+                # Get the relative positions of all emitters for this event vs the current mic
+                coords = np.vstack(
+                    [e.coordinates_relative_polar[mic] for e in event.emitters]
+                )
+                # Get the times we'll interpolate using
+                interp_times = frames[event_range]
+                # Get the approximate times for every coordinate
+                coord_times = np.linspace(
+                    min(interp_times), max(interp_times), num=len(coords)
+                )
+                # Interpolate between the coordinates and timepoints
+                interpolated = np.stack(
+                    [
+                        np.interp(interp_times, coord_times, coords[:, dim])
+                        for dim in range(coords.shape[1])
+                    ],
+                    axis=1,
+                )
+                # Create a separate row for each frame
+                for idx, (az, elv, dist) in zip(event_range, interpolated):
+                    # Need to round values and convert metres -> centimetres
                     az, elv, dist = round(az), round(elv), round(dist * 100)
-                    # We want a new row for every frame
                     frame_data = [
-                        [int(idx), event.class_id, source_idx, az, elv, dist]
-                        for idx in event_range
+                        int(idx),
+                        event.class_id,
+                        source_idx,
+                        az,
+                        elv,
+                        dist,
                     ]
-                    res[mic].extend(frame_data)
-
-                # Moving events: we need to consider all emitter positions
-                else:
-                    # Interpolate between the positions of all emitters for all frames
-                    timepoints = frames[event_range]
-                    coord_times = np.linspace(
-                        timepoints[0], timepoints[-1], num=len(positions)
-                    )
-                    coords = np.array(positions[mic])
-                    interpolated = np.stack(
-                        [
-                            np.interp(timepoints, coord_times, coords[:, dim])
-                            for dim in range(coords.shape[1])
-                        ],
-                        axis=1,
-                    )
-
-                    # Create a separate row for each frame
-                    for idx, (az, elv, dist) in zip(event_range, interpolated):
-                        if az % 360 > 180:
-                            az = (az % 360) - 180
-                        az, elv, dist = round(az), round(elv), round(dist * 100)
-                        frame_data = [
-                            int(idx),
-                            event.class_id,
-                            source_idx,
-                            az,
-                            elv,
-                            dist,
-                        ]
-                        res[mic].append(frame_data)
+                    res[mic].append(frame_data)
 
     # Output dataframes
     res_df = {mic: None for mic in microphones}
     for mic, data in res.items():
         res_df[mic] = (
             pd.DataFrame(data, columns=DCASE_2024_COLUMNS)
+            .sort_values(["frame_number", "active_class_index", "source_number_index"])
             .set_index("frame_number")
-            .sort_index()
         )
 
     return res_df

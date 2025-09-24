@@ -121,7 +121,7 @@ class Scene:
         utils.validate_kwargs(WorldState.__init__, **state_kwargs)
         self.state = WorldState(mesh_path, **state_kwargs)
 
-        self.sample_rate = self.state.ctx.config.sample_rate
+        self.sample_rate = self.state.cfg.sample_rate
 
         # Grab some attributes from the WorldState to make them easier to access
         self.mesh = self.state.mesh
@@ -191,7 +191,9 @@ class Scene:
         #  if not None (i.e., with a call to `add_ambience`), will be added to audio when synthesising
         self.ambience = OrderedDict()
 
-        self.audio = None
+        # Spatialized audio
+        #  Note that this is a dictionary to support multiple microphones
+        self.audio = OrderedDict()
 
         # Scene augmentations
         self.scene_augmentations = []
@@ -995,6 +997,9 @@ class Scene:
         # Convert polar positions to cartesian here
         if polar:
             position = self._coerce_polar_position(position, mic)
+            # Set mic to None so we don't add the offset again inside WorldState
+            # TODO: this is hacky, could be better
+            mic = None
 
         # Sample N random augmentations from our list, if required
         if isinstance(augmentations, custom_types.Numeric):
@@ -1258,7 +1263,6 @@ class Scene:
             generate_dcase2024_metadata,
             generate_scene_audio_from_events,
             render_audio_for_all_scene_events,
-            validate_scene,
         )
 
         # Sanitise output directory
@@ -1278,19 +1282,22 @@ class Scene:
         #  This renders the IRs inside the worldstate
         #  It then populates the `.spatial_audio` attribute inside each Event
         #  And populates the `audio` attribute inside this instance
-        self.state._update()
-        validate_scene(self)
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
 
         # Apply any augmentations as required
         self._apply_augmentations()
 
-        # Write the audio output
+        # Write the audio output to a separate .wav, one per mic
         if audio:
-            sf.write(
-                audio_path.with_suffix(".wav"), self.audio.T, int(self.sample_rate)
-            )
+            for mic_alias, mic_audio in self.audio.items():
+                sf.write(
+                    audio_path.with_suffix(".wav").with_stem(
+                        f"{audio_path.name}_{mic_alias}"
+                    ),
+                    mic_audio.T,
+                    int(self.sample_rate),
+                )
 
         # Get the metadata and add the spatial audio format in
         if metadata_json or metadata_dcase:

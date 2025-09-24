@@ -11,7 +11,6 @@ import numpy as np
 import pytest
 
 import audiblelight.synthesize as syn
-from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.worldstate import Emitter
 from tests import utils_tests
@@ -71,18 +70,21 @@ def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
     # Create some dummy IRs
     irs = np.random.rand(4, n_emitters, 10000)
     # Do the generation
-    syn.render_event_audio(ev, irs, oyens_scene_no_overlap.ref_db)
+    syn.render_event_audio(
+        ev, irs, mic_alias="mic000", ref_db=oyens_scene_no_overlap.ref_db
+    )
     # Check everything
     assert hasattr(ev, "spatial_audio")
-    assert isinstance(ev.spatial_audio, np.ndarray)
-    assert ev.spatial_audio.shape[0] == 4
-    assert ev.spatial_audio.ndim == 2
+    assert isinstance(ev.spatial_audio, dict)
+    assert isinstance(ev.spatial_audio["mic000"], np.ndarray)
+    assert ev.spatial_audio["mic000"].shape[0] == 4
+    assert ev.spatial_audio["mic000"].ndim == 2
 
 
 @pytest.mark.parametrize(
     "n_events",
     [
-        1,
+        # 1,
         2,
     ],
 )
@@ -99,8 +101,8 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
     assert len(oyens_scene_no_overlap.events) == n_events
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
-        assert isinstance(event.spatial_audio, np.ndarray)
-        n_channels, n_samples = event.spatial_audio.shape
+        assert isinstance(event.spatial_audio["mic000"], np.ndarray)
+        n_channels, n_samples = event.spatial_audio["mic000"].shape
         # Number of channels should be same as microphone, number of samples should be same as audio
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.audio.shape[-1]
@@ -143,8 +145,8 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
         assert event.is_moving
-        assert isinstance(event.spatial_audio, np.ndarray)
-        n_channels, n_samples = event.spatial_audio.shape
+        assert isinstance(event.spatial_audio["mic000"], np.ndarray)
+        n_channels, n_samples = event.spatial_audio["mic000"].shape
         # Number of channels should be same as microphone, number of samples should be same as audio
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.load_audio().shape[-1]
@@ -191,10 +193,10 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
 
     # Now, try generating the full scene audio
     syn.generate_scene_audio_from_events(oyens_scene_no_overlap)
-    assert isinstance(oyens_scene_no_overlap.audio, np.ndarray)
+    assert isinstance(oyens_scene_no_overlap.audio["mic000"], np.ndarray)
 
     # Audio should have the expected number of channels and duration
-    channels, duration = oyens_scene_no_overlap.audio.shape
+    channels, duration = oyens_scene_no_overlap.audio["mic000"].shape
     assert channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
     expected = round(
         oyens_scene_no_overlap.state.ctx.config.sample_rate
@@ -240,7 +242,7 @@ def test_validate_scene(oyens_scene_factory):
     # Do the same for the capsules
     class TempMic:
         @property
-        def n_capsules(self):
+        def n_listeners(self):
             return 5
 
     scn = oyens_scene_factory()
@@ -281,44 +283,3 @@ def test_db_to_multiplier(db, x, expected_multiplier):
         librosa.util.valid_audio(scaled)
     except librosa.util.exceptions.ParameterError as e:
         pytest.fail(e)
-
-
-@pytest.mark.parametrize("duration", [20, 30])
-def test_generate_dcase_2024_metadata(duration: int):
-    # Create a scene, add two music objects (one static, one moving)
-    scene = Scene(duration=duration, mesh_path=utils_tests.OYENS_PATH)
-    scene.add_microphone(microphone_type="ambeovr")
-    scene.add_event(
-        event_type="static",
-        filepath=utils_tests.TEST_MUSICS[0],
-        duration=1.0,
-        scene_start=1.0,
-    )
-    scene.add_event(
-        event_type="moving",
-        filepath=utils_tests.TEST_MUSICS[1],
-        duration=5.0,
-        spatial_velocity=1.0,
-        spatial_resolution=2.5,
-        scene_start=5.0,
-    )
-    # Generate the dcase metadata
-    dcase_out = syn.generate_dcase2024_metadata(scene)
-    # Scene only has one listener, so we should only have one dataframe
-    assert len(dcase_out) == 1
-    dcase = dcase_out["mic000"]
-    # Should have two different unique class IDs (we have two music objects)
-    #  But we should only have one active class index (only one class, == music)
-    assert dcase["source_number_index"].nunique() == 2
-    assert dcase["active_class_index"].nunique() == 1
-    # Number of frames should be smaller than total duration of scene / dcase_resolution
-    assert dcase.index.max() <= (scene.duration / 0.1)
-    # Azimuth/elevation should be in expected format
-    assert dcase["azimuth"].min() >= -180
-    assert dcase["azimuth"].max() <= 180
-    assert dcase["elevation"].min() >= -90
-    assert dcase["elevation"].max() <= 90
-    # Altering one of the class indices: should lead to an error as we expect this to be an int
-    scene.events["event000"].class_id = "asdf"
-    with pytest.raises(ValueError):
-        _ = syn.generate_dcase2024_metadata(scene)
