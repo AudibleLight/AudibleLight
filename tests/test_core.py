@@ -1124,3 +1124,53 @@ def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
         assert ev.spatial_audio["foa_test"].shape[0] == 4
         assert ev.spatial_audio["foa_test"].shape[1] > 0
         assert not np.all(ev.spatial_audio["foa_test"] == 0)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        dict(
+            event_type="static",
+            scene_start=10,
+            duration=5,
+            event_start=1,
+        ),
+        dict(event_type="static", snr=5),
+        dict(
+            event_type="moving",
+            scene_start=10,
+            duration=5,
+            event_start=1,
+            spatial_resolution=2,
+            spatial_velocity=2,
+        ),
+    ],
+)
+def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
+    # Use a music file as this should be nice and long
+    oyens_scene_no_overlap.clear_events()
+    created = oyens_scene_no_overlap.add_event(
+        filepath=utils_tests.TEST_MUSICS[0], **overrides
+    )
+
+    # Define the kwargs we'll use for all event types
+    all_kwargs = ["scene_start", "event_start", "duration", "snr"]
+    if created.is_moving:
+        all_kwargs.extend(["spatial_resolution", "spatial_velocity"])
+
+    # Iterate over all expected kwargs
+    for kw in all_kwargs:
+
+        # Event must have the kwarg
+        assert hasattr(created, kw)
+
+        # If set as an override, should be used directly
+        if kw in overrides:
+            assert getattr(created, kw) == overrides[kw]
+
+        # Otherwise, sample N values from the Scene distribution: should be in range
+        else:
+            dist = getattr(oyens_scene_no_overlap, kw + "_dist", None)
+            if dist is not None:
+                sampled = [dist.rvs() for _ in range(1000)]
+                assert min(sampled) <= getattr(created, kw) <= max(sampled)
