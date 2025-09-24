@@ -528,7 +528,7 @@ def render_audio_for_all_scene_events(
             # Update the counter
             emitter_counter += len(event)
 
-    logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds.!")
+    logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds!")
 
 
 # noinspection PyProtectedMember
