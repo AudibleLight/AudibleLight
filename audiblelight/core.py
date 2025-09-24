@@ -6,12 +6,14 @@
 import json
 import random
 from collections import OrderedDict
+from copy import deepcopy
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional, Type, Union
 
 import numpy as np
+import pandas as pd
 import soundfile as sf
 from deepdiff import DeepDiff
 from loguru import logger
@@ -197,6 +199,8 @@ class Scene:
 
         # Scene augmentations
         self.scene_augmentations = []
+        # Need a flag to note whether channel swapping is ued
+        self.uses_channel_swapping = False
         if scene_augmentations is not None:
             self.register_augmentations(scene_augmentations)
 
@@ -269,20 +273,31 @@ class Scene:
             validate_augmentation(aug, augmentation_cls=SceneAugmentation)
             self.scene_augmentations.append(aug)
 
+            # If the augment is channel swapping, set a convenience flag
+            if aug.name == "AudioChannelSwapping":
+                self.uses_channel_swapping = True
+
         # Whenever we register augmentations, we should also invalidate any cached audio
-        self.audio = None
+        self.audio = OrderedDict()
 
     def clear_augmentation(self, idx: int) -> None:
         """
         Clears an augmentation at a given index from the Scene
         """
         try:
-            del self.scene_augmentations[idx]
+            retrieved_aug = self.scene_augmentations[idx]
         except IndexError:
             raise IndexError("No augmentation found at index {idx}".format(idx=idx))
         else:
+            # Delete the augmentation
+            del self.scene_augmentations[idx]
+
+            # Remove the flag if required
+            if retrieved_aug.name == "AudioChannelSwapping":
+                self.uses_channel_swapping = False
+
             # Invalidate any cached audio
-            self.audio = None
+            self.audio = OrderedDict()
 
     def clear_augmentations(self) -> None:
         """
@@ -291,7 +306,9 @@ class Scene:
         if len(self.scene_augmentations) > 0:
             self.scene_augmentations = []
             # Invalidate any cached audio
-            self.audio = None
+            self.audio = OrderedDict()
+            # Always remove the flag
+            self.uses_channel_swapping = False
 
     def _parse_event_augmentations(
         self,
@@ -1260,7 +1277,6 @@ class Scene:
             None
         """
         from audiblelight.synthesize import (
-            generate_dcase2024_metadata,
             generate_scene_audio_from_events,
             render_audio_for_all_scene_events,
         )
@@ -1290,14 +1306,7 @@ class Scene:
 
         # Write the audio output to a separate .wav, one per mic
         if audio:
-            for mic_alias, mic_audio in self.audio.items():
-                sf.write(
-                    audio_path.with_suffix(".wav").with_stem(
-                        f"{audio_path.name}_{mic_alias}"
-                    ),
-                    mic_audio.T,
-                    int(self.sample_rate),
-                )
+            self._render_audio(audio_path)
 
         # Get the metadata and add the spatial audio format in
         if metadata_json or metadata_dcase:
@@ -1310,28 +1319,125 @@ class Scene:
 
         # Generate DCASE-2024 style metadata
         if metadata_dcase:
-            dcase_meta = generate_dcase2024_metadata(self)
-            # TODO: if using channel swapping, need to generate multiple metadatas here for each swapped channel
+            self._render_dcase_metadata(metadata_path)
 
-            # Save a single CSV file for every microphone we have
+    def _render_dcase_metadata(self, metadata_path: Path) -> None:
+        """
+        Renders DCASE metadata to `metadata_path`
+        """
+        from audiblelight.synthesize import generate_dcase2024_metadata
+
+        # Generate the metadata
+        dcase_meta = generate_dcase2024_metadata(self)
+
+        # If channel swapping, we have multiple DFs per mic
+        if self.uses_channel_swapping:
+
+            # Already checking earlier that we only have one AudioChannelSwapping aug
+            cswap = [
+                i for i in self.scene_augmentations if i.name == "AudioChannelSwapping"
+            ][0]
+
+            # Iterate over all mics
+            for alias, meta in dcase_meta.items():
+
+                # Dataframe to Numpy
+                meta_numpy = meta.reset_index(drop=False).to_numpy()
+                # Output is (8, n_rows, n_cols)
+                meta_swapped_all = cswap.swap_labels(meta_numpy)
+
+                # Iterate over all swapped channels for this mic
+                for cs_num, meta_swapped in enumerate(meta_swapped_all):
+                    # Construct filename
+                    cs_num = str(cs_num).zfill(3)
+                    outp = metadata_path.with_suffix(".csv").with_stem(
+                        f"{metadata_path.name}_{alias}_cs{cs_num}"
+                    )
+
+                    # Reconstruct the dataframe
+                    meta_swapped_df = pd.DataFrame(
+                        meta_swapped[:, 1:],
+                        index=meta_swapped[:, 0],
+                        columns=meta.columns,
+                    )
+                    meta_swapped_df.index.name = meta.index.name
+
+                    # Dump the metadata
+                    meta_swapped_df.to_csv(outp, sep=",", encoding="utf-8", header=None)
+
+        # If not channel swapping, only one DF per mic
+        else:
             for mic, df in dcase_meta.items():
                 outp = metadata_path.with_suffix(".csv").with_stem(
                     f"{metadata_path.name}_{mic}"
                 )
                 df.to_csv(outp, sep=",", encoding="utf-8", header=None)
 
+    def _render_audio(self, audio_path: Path) -> None:
+        """
+        Renders generated spatial audio to `audio_path`
+        """
+
+        def out(stem: str, audio: np.ndarray) -> None:
+            sf.write(
+                audio_path.with_suffix(".wav").with_stem(stem),
+                audio.T,
+                int(self.sample_rate),
+            )
+
+        for mic_alias, mic_audio in self.audio.items():
+            # mic_audio can be a single audio file, or an array of audio files if channel swapping used
+            # single audio file case
+            if mic_audio.ndim == 2:
+                out(f"{audio_path.name}_{mic_alias}", mic_audio)
+
+            # multi audio file case
+            elif mic_audio.ndim == 3:
+                # this should never be hit, in practice
+                if not self.uses_channel_swapping:
+                    raise ValueError(
+                        "Audio is 3-dimensional, but no channel swapping augmentation used!"
+                    )
+
+                for audio_num, mic_audio_inner in enumerate(mic_audio):
+                    audio_num = str(audio_num).zfill(3)
+                    out(f"{audio_path.name}_{mic_alias}_cs{audio_num}", mic_audio_inner)
+
+            # unknown output format
+            else:
+                raise ValueError(
+                    f"Expected audio to have either 2 or 3 dimensions, but got {mic_audio.ndim}"
+                )
+
     def _apply_augmentations(self) -> None:
         """
         Apply registered Scene augmentations to `Scene.audio`
         """
-        # Apply all augmentations to the audio
-        audio_out = self.audio.copy()
-        for aug in self.scene_augmentations:
-            # Channel swapping needs to go last in the chain as it returns multiple audio files
-            if aug.__class__.name != "AudioChannelSwapping":
-                audio_out = aug(audio_out)
+        # Make a copy of all underlying audio files
+        audio_out = OrderedDict({k: v.copy() for k, v in self.audio.items()})
 
-        # TODO: add channel swapping here if required
+        # Make a copy of all augmentations
+        ordered_augs = deepcopy(self.scene_augmentations)
+
+        # Channel swapping augmentation needs to go at the end of the list
+        #  because it returns multiple audio files per mic
+        if self.uses_channel_swapping:
+            aug_idx = [
+                i
+                for i, a in enumerate(self.scene_augmentations)
+                if a.name == "AudioChannelSwapping"
+            ]
+            if len(aug_idx) > 1:
+                raise ValueError(
+                    "Only one AudioChannelSwapping augmentation should be added to a Scene!"
+                )
+            ordered_augs.append(ordered_augs.pop(aug_idx[0]))
+
+        # Apply all augmentations to the audio
+        for audio_alias, audio in self.audio.items():
+            for aug in ordered_augs:
+                audio_out[audio_alias] = aug(audio)
+
         self.audio = audio_out
 
     def to_dict(self) -> dict:
