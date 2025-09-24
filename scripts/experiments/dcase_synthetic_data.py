@@ -81,19 +81,24 @@ def generate(
         duration=DURATION,
         mesh_path=Path(mesh_path),
         scene_start_dist=stats.uniform(0.0, DURATION - 1),
+        # Audio files will always start from 0 seconds in
         event_start_dist=None,
+        # Events capped to 10 seconds
         event_duration_dist=stats.uniform(
             config.MIN_EVENT_DURATION,
             config.MAX_EVENT_DURATION - config.MIN_EVENT_DURATION,
         ),
+        # Events have speed between 0.5 and 2.0 metres-per-second
         event_velocity_dist=stats.uniform(
             config.MIN_EVENT_VELOCITY,
             config.MAX_EVENT_VELOCITY - config.MIN_EVENT_VELOCITY,
         ),
+        # Events have resolution between 1.0 and 4.0 Hz
         event_resolution_dist=stats.uniform(
             config.MIN_EVENT_RESOLUTION,
             config.MAX_EVENT_RESOLUTION - config.MIN_EVENT_RESOLUTION,
         ),
+        # Events have SNR between 5 and 30 dB
         snr_dist=stats.uniform(
             config.MIN_EVENT_SNR, config.MAX_EVENT_SNR - config.MIN_EVENT_SNR
         ),
