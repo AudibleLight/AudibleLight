@@ -13,7 +13,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 
 from audiblelight import config, custom_types, utils
-from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
+from audiblelight.augmentation import EventAugmentation, validate_augmentation
 from audiblelight.worldstate import Emitter
 
 # Mapping from sound events to labels used in DCASE challenge
@@ -110,7 +110,12 @@ class Event:
         alias: str,
         emitters: Optional[Union[list[Emitter], Emitter, list[dict]]] = None,
         augmentations: Optional[
-            Union[Iterable[Type[EventAugmentation]], Type[EventAugmentation]]
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Type[EventAugmentation],
+                dict,
+                Iterable[dict],
+            ]
         ] = None,
         scene_start: Optional[float] = None,
         event_start: Optional[float] = None,
@@ -222,10 +227,19 @@ class Event:
         #  This can be useful in cases where we need the duration of an event before creating emitters
         #  such as when defining the trajectory of a moving event
 
+    def register_augmentation(self, augmentation: Union[Type[EventAugmentation], dict]):
+        """
+        Alias for `Event.register_augmentations([augmentation])`.
+        """
+        self.register_augmentations([augmentation])
+
     def register_augmentations(
         self,
         augmentations: Union[
-            Iterable[Type[EventAugmentation]], Type[EventAugmentation]
+            Iterable[Type[EventAugmentation]],
+            Type[EventAugmentation],
+            dict,
+            Iterable[dict],
         ],
     ) -> None:
         """
@@ -251,6 +265,10 @@ class Event:
                 except Exception as e:
                     raise e
 
+            # Instantiate dictionaries to EventAugmentation classes
+            if isinstance(aug, dict):
+                aug = EventAugmentation.from_dict(aug)
+
             # Check that the sample rate is valid
             if aug.sample_rate != self.sample_rate:
                 raise ValueError(
@@ -259,7 +277,7 @@ class Event:
                 )
 
             # Validate the augmentation and add it in if it's OK
-            validate_event_augmentation(aug)
+            validate_augmentation(aug, augmentation_cls=EventAugmentation)
             self.augmentations.append(aug)
 
         # Whenever we register augmentations, we should also invalidate any cached audio

@@ -11,7 +11,13 @@ import pytest
 
 from audiblelight import custom_types, utils
 from audiblelight.ambience import Ambience
-from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
+from audiblelight.augmentation import (
+    AudioChannelSwapping,
+    LowpassFilter,
+    Phaser,
+    SpeedUp,
+    TimeFrequencyMasking,
+)
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
@@ -699,6 +705,16 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "noise_kwargs": {},
                 }
             },
+            "scene_augmentations": [
+                {
+                    "name": "TimeFrequencyMasking",
+                    "sample_rate": 44100.0,
+                    "mel_kwargs": {},
+                    "return_spectrogram": False,
+                    "replace_with_zero": False,
+                    "policy": {"F": 27, "m_F": 1, "T": 100, "m_T": 1},
+                }
+            ],
             "events": {
                 "test_event": {
                     "alias": "test_event",
@@ -828,6 +844,7 @@ def test_scene_from_dict(input_dict: dict):
         == ev.state.ctx.get_source_count()
     )
     assert len(ev.ambience.keys()) == len(input_dict["ambience"])
+    assert len(ev.scene_augmentations) == len(input_dict["scene_augmentations"])
 
 
 @pytest.mark.parametrize(
@@ -1174,3 +1191,149 @@ def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
             if dist is not None:
                 sampled = [dist.rvs() for _ in range(1000)]
                 assert min(sampled) <= getattr(created, kw) <= max(sampled)
+
+
+@pytest.mark.parametrize(
+    "augmentation",
+    [
+        TimeFrequencyMasking(
+            sample_rate=22050,
+            mel_kwargs={},
+            return_spectrogram=False,
+            replace_with_zero=True,
+            policy={"F": 27, "m_F": 1, "T": 100, "m_T": 1},
+        ),
+        {
+            "name": "TimeFrequencyMasking",
+            "sample_rate": 22050,
+            "mel_kwargs": {},
+            "return_spectrogram": False,
+            "replace_with_zero": True,
+            "policy": {"F": 27, "m_F": 1, "T": 100, "m_T": 1},
+        },
+    ],
+)
+def test_scene_time_frequency_masking(
+    augmentation,
+):
+    # Create scene with short duration, add microphone
+    oyens_scene_no_overlap = Scene(
+        duration=10,
+        mesh_path=utils_tests.OYENS_PATH,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        max_overlap=1,  # no overlapping sound events allowed
+        state_kwargs=dict(rlr_kwargs=dict(sample_rate=22050)),
+    )
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr")
+
+    # Clear any augmentations
+    oyens_scene_no_overlap.clear_augmentations()
+    assert len(oyens_scene_no_overlap.get_augmentations()) == 0
+
+    # Add events and ambience
+    #  Event needs fixed duration so as not to exceed scene
+    oyens_scene_no_overlap.add_event(event_type="static", duration=2, event_start=0)
+    oyens_scene_no_overlap.add_ambience(noise="white")
+
+    # Render the audio but don't save anything to disk
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_dcase=False
+    )
+
+    # Copy the audio to act as a reference
+    assert len(oyens_scene_no_overlap.audio) > 0
+    assert isinstance(oyens_scene_no_overlap.audio["mic000"], np.ndarray)
+    audio_no_aug = oyens_scene_no_overlap.audio["mic000"].copy()
+
+    # Add the augmentation
+    oyens_scene_no_overlap.register_augmentation(augmentation)
+
+    # Should clear out the audio
+    assert len(oyens_scene_no_overlap.audio) == 0
+
+    # Sanity check augmentation
+    assert len(oyens_scene_no_overlap.get_augmentations()) > 0
+    assert issubclass(
+        type(oyens_scene_no_overlap.get_augmentation(0)), TimeFrequencyMasking
+    )
+
+    # Render the audio again
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_dcase=False
+    )
+
+    # Should clear out the audio
+    assert isinstance(oyens_scene_no_overlap.audio["mic000"], np.ndarray)
+    audio_aug = oyens_scene_no_overlap.audio["mic000"].copy()
+
+    # Augmented audio should be different
+    assert not np.array_equal(audio_no_aug, audio_aug)
+    # But dims should be identical
+    assert audio_no_aug.shape == audio_aug.shape
+
+
+@pytest.mark.parametrize(
+    "mic_alias",
+    ["mic000", "iamamic"],
+)
+@pytest.mark.parametrize("audio_fname", ["audio_out", "iamaudio"])
+def test_scene_audio_channel_swapping(mic_alias, audio_fname):
+    # Create scene with short duration, add microphone
+    oyens_scene_no_overlap = Scene(
+        duration=10,
+        mesh_path=utils_tests.OYENS_PATH,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        max_overlap=1,  # no overlapping sound events allowed
+        state_kwargs=dict(rlr_kwargs=dict(sample_rate=22050)),
+    )
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr", alias=mic_alias)
+
+    # Add augmentations
+    oyens_scene_no_overlap.register_augmentation(
+        AudioChannelSwapping(sample_rate=22050, input_format="mic")
+    )
+    oyens_scene_no_overlap.register_augmentation(TimeFrequencyMasking)
+    assert len(oyens_scene_no_overlap.get_augmentations()) == 2
+    assert oyens_scene_no_overlap.uses_channel_swapping
+
+    # Add events and ambience
+    #  Event needs fixed duration so as not to exceed scene
+    oyens_scene_no_overlap.add_event(event_type="static", duration=2, event_start=0)
+    oyens_scene_no_overlap.add_ambience(noise="white")
+
+    # Render the audio and save wavs + metadatas to disk
+    oyens_scene_no_overlap.generate(
+        audio=True,
+        metadata_json=False,
+        metadata_dcase=True,
+        output_dir=os.getcwd(),
+        audio_fname=audio_fname,
+    )
+
+    # Check shape of swapped channels
+    n_channel_swap, n_channels, n_samples = oyens_scene_no_overlap.audio[
+        mic_alias
+    ].shape
+    assert n_channel_swap == 8
+    assert n_channels == 4
+    assert n_samples == int(
+        oyens_scene_no_overlap.sample_rate * oyens_scene_no_overlap.duration
+    )
+
+    # Should have multiple audio + metadata files
+    for cs_num in range(8):
+        # Parse filepaths correctly
+        audio_path = Path(os.getcwd()) / f"{audio_fname}_{mic_alias}_cs00{cs_num}.wav"
+        metadata_path = Path(os.getcwd()) / f"metadata_out_{mic_alias}_cs00{cs_num}.csv"
+        assert os.path.isfile(audio_path)
+        assert os.path.isfile(metadata_path)
+        # Do cleanup
+        os.remove(audio_path)
+        os.remove(metadata_path)
+
+    # Remove channel swapping augment, should update flag and remove cached audio
+    oyens_scene_no_overlap.clear_augmentation(0)
+    assert not oyens_scene_no_overlap.uses_channel_swapping
+    assert len(oyens_scene_no_overlap.audio.keys()) == 0
