@@ -68,8 +68,7 @@ def apply_music(scene: Scene) -> MUSIC:
         L=l_,
         fs=fs,
         nfft=config.FFT_SIZE,
-        # TODO: needs to be [-180, 180] once PR is merged
-        azimuth=np.deg2rad(np.arange(360)),
+        azimuth=np.deg2rad(np.arange(-180, 180)),
         colatitude=np.deg2rad(np.arange(-90, 90)),
         num_sources=num_sources,
         dim=3,
@@ -127,10 +126,9 @@ def main(n_scenes: int, microphone_type: str):
         # Add microphone type to the scene
         scene.add_microphone(microphone_type=microphone_type)
 
-        # Add a single static event + background noise
+        # Add a single static event
         #  Event SNR will be sampled randomly from distribution
         scene.add_event(event_type="static")
-        # scene.add_ambience(noise=random.choice(NOISE_TYPES))
 
         # Run the simulation
         scene.generate(audio=False, metadata_json=False, metadata_dcase=False)
