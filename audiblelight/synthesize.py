@@ -487,14 +487,14 @@ def render_audio_for_all_scene_events(
     """
 
     # If we're invalidating the cache, always re-simulate the IRs whenever calling this function
-    # if ignore_cache:
-    #     scene.state.simulate()
+    if ignore_cache:
+        scene.state.simulate()
     # Otherwise, only run the synthesis if this hasn't already been done
-    # else:
-    #     try:
-    #         _ = scene.state.irs
-    #     except AttributeError:
-    #         scene.state.simulate()
+    else:
+        try:
+            _ = scene.state.irs
+        except AttributeError:
+            scene.state.simulate()
 
     # Validate the scene
     validate_scene(scene)
