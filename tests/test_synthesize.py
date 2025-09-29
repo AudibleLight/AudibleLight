@@ -283,3 +283,44 @@ def test_db_to_multiplier(db, x, expected_multiplier):
         librosa.util.valid_audio(scaled)
     except librosa.util.exceptions.ParameterError as e:
         pytest.fail(e)
+
+
+@pytest.mark.parametrize("n_moving, n_static", [(1, 3), (2, 2)])
+def test_normalize_irs(n_moving, n_static, oyens_scene_no_overlap):
+    # Add some moving and static events
+    for i in range(n_static):
+        oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+    for i in range(n_moving):
+        oyens_scene_no_overlap.add_event(
+            event_type="moving", duration=5.0, spatial_resolution=1.0
+        )
+
+    # Simulate, get IRs for the microphone
+    oyens_scene_no_overlap.state.simulate()
+    irs = oyens_scene_no_overlap.state.get_irs()
+    mic_ir = irs["mic000"]
+
+    # We need a separate counter for each microphone
+    emitter_counter = 0
+
+    # Iterate over all events
+    for event_alias, event in oyens_scene_no_overlap.events.items():
+
+        # Grab the IRs for the current event's emitters and check (not normalized)
+        event_irs = mic_ir[:, emitter_counter : len(event) + emitter_counter, :]
+        energies = np.mean(np.sqrt(np.sum(np.power(np.abs(event_irs), 2), axis=-1)))
+        assert not pytest.approx(energies) == 1.0
+
+        # Normalize the IRs and check
+        event_irs_norm = syn.normalize_irs(event_irs)
+        energies = np.mean(
+            np.sqrt(np.sum(np.power(np.abs(event_irs_norm), 2), axis=-1))
+        )
+        assert pytest.approx(energies) == 1.0
+
+        # Shapes should be the same, but audio should not be
+        assert np.array_equal(event_irs.shape, event_irs_norm.shape)
+        assert not np.array_equal(event_irs, event_irs_norm)
+
+        # Update the counter
+        emitter_counter += len(event)
