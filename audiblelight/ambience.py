@@ -139,7 +139,9 @@ class Ambience:
         """
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
-    def load_ambience(self, ignore_cache: Optional[bool] = False) -> np.ndarray:
+    def load_ambience(
+        self, ignore_cache: Optional[bool] = False, normalize: Optional[bool] = True
+    ) -> np.ndarray:
         """
         Load the background ambience as an array with shape (channels, samples).
         """
@@ -152,9 +154,19 @@ class Ambience:
         # We want to use a "colored" form of noise
         if self.beta is not None:
             # This gives a matrix of shape (N_channels, N_samples)
-            #  It is normalized to approximately unit variance and zero mean
             shape = (self.channels, total_samples)
-            out = powerlaw_psd_gaussian(self.beta, shape, **self.noise_kwargs)
+
+            # Gaussian noise is a special case
+            if self.beta == "gaussian":
+                out = np.random.normal(
+                    0,
+                    1,
+                    shape,
+                )
+
+            else:
+                # It is normalized to approximately unit variance and zero mean
+                out = powerlaw_psd_gaussian(self.beta, shape, **self.noise_kwargs)
 
         # Or, we want to use a noise file from disk
         else:
@@ -194,6 +206,10 @@ class Ambience:
             out = np.tile(utils.coerce2d(ambient), (tile_channels, repeats))[
                 :, :total_samples
             ]
+
+        # Normalise noise to have max(abs(noise)) == 1 per channel
+        if normalize:
+            out = out / np.max(np.abs(out), axis=1, keepdims=True)
 
         self.audio = out
         return self.audio
@@ -357,7 +373,7 @@ def powerlaw_psd_gaussian(
     return y
 
 
-def _parse_beta(noise: Any) -> float:
+def _parse_beta(noise: Any) -> Union[float, str]:
     """
     Parses the noise exponential term from either a string representation of a color (white) or a number.
     """
@@ -365,6 +381,8 @@ def _parse_beta(noise: Any) -> float:
     if isinstance(noise, str):
         if noise in NOISE_MAPPING.keys():
             return NOISE_MAPPING[noise]
+        elif noise.lower() == "gaussian":
+            return "gaussian"
         else:
             keys = ", ".join(k for k in NOISE_MAPPING.keys())
             raise KeyError(f"Expected a string in {keys} but got {noise}.")
