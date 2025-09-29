@@ -53,10 +53,12 @@ def test_create_static_event(audio_fpath: str, oyens_space):
         (utils_tests.TEST_MUSICS[2], 2.0, 5.0),
     ],
 )
+@pytest.mark.parametrize("normalize", [True, False])
 def test_load_audio(
     audio_fpath: str,
     duration: Optional[float],
     start_time: Optional[float],
+    normalize: bool,
     oyens_space,
 ):
     # Create a dummy event
@@ -71,16 +73,23 @@ def test_load_audio(
         event_start=start_time,
         sample_rate=config.SAMPLE_RATE,
     )
+
     # Try and load the audio
-    audio = ev.load_audio(ignore_cache=True)
+    audio = ev.load_audio(ignore_cache=True, normalize=normalize)
     assert isinstance(audio, np.ndarray)
     assert audio.ndim == 1  # should be mono
     assert ev.is_audio_loaded
-    # Audio should be normalized, peak at +/- 1
-    assert pytest.approx(np.max(np.abs(audio))) == 1
+
+    # Audio should be normalized if required, with peak at +/- 1
+    if normalize:
+        assert pytest.approx(np.max(np.abs(audio))) == 1
+    else:
+        assert not pytest.approx(np.max(np.abs(audio))) == 1
+
     # Try and load the audio again, should be cached
     audio2 = ev.load_audio(ignore_cache=False)
     assert np.array_equal(audio, audio2)
+
     # If we've passed in a custom duration, this should be respected
     if duration is not None:
         assert len(audio) / config.SAMPLE_RATE == duration
