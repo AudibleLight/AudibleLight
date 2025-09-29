@@ -193,6 +193,7 @@ class Scene:
         # Spatialized audio
         #  Note that this is a dictionary to support multiple microphones
         self.audio = OrderedDict()
+        self.metadata_dcase = OrderedDict()
 
         # Scene augmentations
         self.scene_augmentations = []
@@ -1329,7 +1330,7 @@ class Scene:
         from audiblelight.synthesize import generate_dcase2024_metadata
 
         # Generate the metadata
-        dcase_meta = generate_dcase2024_metadata(self)
+        self.metadata_dcase = generate_dcase2024_metadata(self)
 
         # If channel swapping, we have multiple DFs per mic
         if self.uses_channel_swapping:
@@ -1340,7 +1341,7 @@ class Scene:
             ][0]
 
             # Iterate over all mics
-            for alias, meta in dcase_meta.items():
+            for alias, meta in self.metadata_dcase.items():
 
                 # Dataframe to Numpy
                 meta_numpy = meta.reset_index(drop=False).to_numpy()
@@ -1368,7 +1369,7 @@ class Scene:
 
         # If not channel swapping, only one DF per mic
         else:
-            for mic, df in dcase_meta.items():
+            for mic, df in self.metadata_dcase.items():
                 outp = metadata_path.with_suffix(".csv").with_stem(
                     f"{metadata_path.name}_{mic}"
                 )
