@@ -1717,7 +1717,6 @@ class WorldState:
                     for k in range(self.ctx.get_ir_channel_count(i_ctx, j)):
                         ir_ijk = self.ctx.get_listener_source_channel_audio(i_ctx, j, k)
                         zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
-
             mic.irs = zero_arr
             listener_counter += mic.n_listeners
 
