@@ -1644,6 +1644,8 @@ class WorldState:
     def simulate(self) -> None:
         """
         Simulates audio propagation in the state with the current listener and sound emitter positions.
+
+        Note that returned IRs are NOT NORMALIZED: this occurs inside `synthesize.render_event_audio`.
         """
         # Update the ray-tracing engine with our current emitters, microphones, etc.
         self._update()

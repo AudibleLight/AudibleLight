@@ -33,7 +33,7 @@ def apply_snr(x: np.ndarray, snr: custom_types.Numeric) -> np.ndarray:
     """
     Scale an audio signal to a given maximum SNR.
 
-    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/spatialize.py#L147)
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/spatialize.py#L147)
 
     Return:
         np.ndarray: the scaled audio signal
@@ -46,7 +46,7 @@ def db_to_multiplier(db: custom_types.Numeric, x: custom_types.Numeric) -> float
     Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
     reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
 
-    Adapted from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/utils.py#L287)
+    Adapted from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/utils.py#L287)
 
     Arguments:
         db (float): The target decibel change to be applied.
@@ -375,6 +375,31 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
         scene.audio[mic_alias] = scene_audio
 
 
+def normalize_irs(irs: np.ndarray) -> np.ndarray:
+    """
+    Normalizes impulse responses based on their energy.
+
+    This function calculates the energy of each impulse response as the square root of the sum of its squared values.
+    It then normalizes each impulse response by the mean energy across all responses.
+
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/spatialize.py#L193)
+
+    Parameters:
+        irs (numpy.array): A 2D or 3D array of impulse responses, where each row (in the 2D case) or matrix
+            (in the 3D case) represents an individual impulse response.
+
+    Returns:
+        numpy.array: The normalized impulse responses, having the same shape as the input `IRs`.
+
+    Example:
+        # Example of normalizing a set of impulse responses
+        impulse_responses = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        normalized_IRs = IR_normalizer(impulse_responses)
+    """
+    e = np.sqrt(np.sum(np.power(np.abs(irs), 2), axis=-1, keepdims=True))
+    return irs / np.mean(e, axis=-2, keepdims=True)
+
+
 def render_event_audio(
     event: Event,
     irs: np.ndarray,
@@ -412,23 +437,32 @@ def render_event_audio(
     if mic_alias in event.spatial_audio.keys() and not ignore_cache:
         return
 
-    # Grab the IRs for the current event's emitters
+    # Grab the IRs for the current event's emitters (make a copy first)
     #  This gets us (N_capsules, N_emitters, N_samples)
-    n_ch, n_emitters, n_ir_samples = irs.shape
+    irs_copy = irs.copy()
+    n_ch, n_emitters, n_ir_samples = irs_copy.shape
 
     # Grab the audio for the event as well and validate
-    #  This also applies any augmentations, etc. associated with the Event
-    audio = event.load_audio(ignore_cache=ignore_cache)
+    #  This also applies any augmentations, etc. associated with the Event and normalizes the audio
+    audio = event.load_audio(ignore_cache=ignore_cache, normalize=True)
     librosa.util.valid_audio(audio)
     n_audio_samples = audio.shape[0]
 
+    # Normalize IRs for this event
+    #  This goes (n_caps, n_source, n_samp) -> (n_source, n_caps, n_samp)
+    #  Then normalization is applied to each (n_caps, n_samp)
+    #  Stacked back to (n_source, n_caps, n_samp)
+    #  Then transposed back to (n_caps, n_source, n_samp)
+    irs_copy = normalize_irs(irs_copy.transpose(1, 0, 2)).transpose(1, 0, 2)
+
+    # THIS IS NOW EQUIVALENT TO spatialscaper.spatialize FUNC
     # Only a single emitter (IR): we can convolve easily with scipy
     if n_emitters == 1:
         if event.is_moving:
             raise ValueError(
                 "Moving Event has only one emitter!"
             )  # something has gone very wrong to hit this
-        spatial = time_invariant_convolution(audio, irs[:, 0].T)
+        spatial = time_invariant_convolution(audio, irs_copy[:, 0].T)
 
     # No emitters: means that audio is not spatialized
     elif n_emitters == 0:
@@ -444,7 +478,9 @@ def render_event_audio(
             raise ValueError(
                 "Expected a moving event!"
             )  # something has gone very wrong to hit this
-        spatial = time_variant_convolution(irs, event, fft_size, win_size, hop_size)
+        spatial = time_variant_convolution(
+            irs_copy, event, fft_size, win_size, hop_size
+        )
 
     # Pad or truncate the audio to match the desired number of samples
     spatial = utils.pad_or_truncate_audio(spatial, n_audio_samples)
@@ -452,6 +488,8 @@ def render_event_audio(
     # Deal with amplitude: this logic is taken from SpatialScaper
     #  This scales the audio simply to the maximum SNR
     spatial = apply_snr(spatial, event.snr)
+    # SPATIAL IS NOW EQUIVALENT TO OUTPUT OF SPATIALSCAPER FUNC
+
     #  This scales to match the Scene's noise floor + the SNR for the Event
     event_scale = db_to_multiplier(ref_db + event.snr, np.mean(np.abs(spatial)))
     spatial = event_scale * spatial
