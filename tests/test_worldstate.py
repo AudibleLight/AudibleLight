@@ -994,3 +994,28 @@ def test_add_foa_capsule(oyens_space):
         assert n_samps >= 1
         # Should not be just zeroes
         assert not np.all(mic.irs == 0)
+
+
+@pytest.mark.parametrize("n_emitters", range(2, 4))
+@pytest.mark.parametrize("normalize", [True, False])
+def test_ir_normalization(n_emitters, normalize, oyens_space):
+    # Add microphone and emitters
+    oyens_space.add_microphone(
+        microphone_type="ambeovr", keep_existing=True, alias="ambeo_tester"
+    )
+    for _ in range(n_emitters):
+        oyens_space.add_emitter(keep_existing=True)
+
+    # Simulate and grab IRs
+    oyens_space.simulate(normalize=normalize)
+    ir_out = oyens_space.irs["ambeo_tester"]
+
+    # Relative energies of all IRs should be centered around 1 if normalizing
+    #  Transposing just means that we get the IRs for each event individually
+    for event_irs in ir_out.transpose(1, 0, 2):
+        energies = np.sqrt(np.sum(np.power(np.abs(event_irs), 2), axis=-1))
+        mean_energy = np.mean(energies)
+        if normalize:
+            assert pytest.approx(mean_energy) == 1.0
+        else:
+            assert not pytest.approx(mean_energy) == 1

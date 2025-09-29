@@ -1641,9 +1641,11 @@ class WorldState:
             == self.ctx.get_listener_count()
         )
 
-    def simulate(self) -> None:
+    def simulate(self, normalize: Optional[bool] = True) -> None:
         """
         Simulates audio propagation in the state with the current listener and sound emitter positions.
+
+        If `normalize`, IRs will be normalized such that the mean energy of the IRs for one emitter and mic combo == 1
         """
         # Update the ray-tracing engine with our current emitters, microphones, etc.
         self._update()
@@ -1672,9 +1674,32 @@ class WorldState:
         # Format irs into a dictionary of {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         #  with one key-value pair per microphone. We have to do this because we cannot have ragged arrays
         #  The individual arrays can then be accessed by calling `self.irs.values()`
-        self._irs = self.get_irs()
+        self._irs = self.get_irs(normalize)
 
-    def get_irs(self) -> OrderedDict[str, np.ndarray]:
+    @staticmethod
+    def normalize_irs(irs: np.ndarray) -> np.ndarray:
+        """
+        Normalizes impulse responses based on their energy.
+
+        This function calculates the energy of each impulse response as the square root of the sum of its squared values.
+        It then normalizes each impulse response by the mean energy across all responses.
+
+        Parameters:
+            irs (numpy.array): A 2D or 3D array of impulse responses, where each row (in the 2D case) or matrix
+                (in the 3D case) represents an individual impulse response.
+
+        Returns:
+            numpy.array: The normalized impulse responses, having the same shape as the input `IRs`.
+
+        Example:
+            # Example of normalizing a set of impulse responses
+            impulse_responses = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+            normalized_IRs = IR_normalizer(impulse_responses)
+        """
+        e = np.sqrt(np.sum(np.power(np.abs(irs), 2), axis=-1, keepdims=True))
+        return irs / np.mean(e, axis=-2, keepdims=True)
+
+    def get_irs(self, normalize: Optional[bool] = True) -> OrderedDict[str, np.ndarray]:
         """
         Get the IRs from the ray-tracing context
 
@@ -1715,6 +1740,16 @@ class WorldState:
                     for k in range(self.ctx.get_ir_channel_count(i_ctx, j)):
                         ir_ijk = self.ctx.get_listener_source_channel_audio(i_ctx, j, k)
                         zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
+
+            # Normalize IRs separately for each event
+            #  This goes (n_caps, n_source, n_samp) -> (n_source, n_caps, n_samp)
+            #  Then normalization is applied to each (n_caps, n_samp)
+            #  Stacked back to (n_source, n_caps, n_samp)
+            #  Then transposed back to (n_caps, n_source, n_samp)
+            if normalize:
+                zero_arr = self.normalize_irs(zero_arr.transpose(1, 0, 2)).transpose(
+                    1, 0, 2
+                )
             mic.irs = zero_arr
             listener_counter += mic.n_listeners
 
