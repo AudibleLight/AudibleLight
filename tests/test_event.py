@@ -76,6 +76,8 @@ def test_load_audio(
     assert isinstance(audio, np.ndarray)
     assert audio.ndim == 1  # should be mono
     assert ev.is_audio_loaded
+    # Audio should be normalized, peak at +/- 1
+    assert pytest.approx(np.max(np.abs(audio))) == 1
     # Try and load the audio again, should be cached
     audio2 = ev.load_audio(ignore_cache=False)
     assert np.array_equal(audio, audio2)
@@ -282,6 +284,8 @@ def test_add_augmentations(audio_fpath, augmentations):
     )
     # Load up the pre-augmented audio
     init_audio = ev.load_audio(ignore_cache=True)
+    # Audio should be normalized, peak at +/- 1
+    assert pytest.approx(np.max(np.abs(init_audio))) == 1
 
     # Add in the augmentations
     ev.register_augmentations(augmentations)
@@ -293,6 +297,8 @@ def test_add_augmentations(audio_fpath, augmentations):
     aug_audio = ev.load_audio()
     assert not np.array_equal(init_audio, aug_audio)
     assert ev.audio is not None
+    # Audio should be normalized, peak at +/- 1
+    assert pytest.approx(np.max(np.abs(aug_audio))) == 1
 
     # However, audio should have the same shape after augmentation
     try:

@@ -417,7 +417,7 @@ def render_event_audio(
     n_ch, n_emitters, n_ir_samples = irs.shape
 
     # Grab the audio for the event as well and validate
-    #  This also applies any augmentations, etc. associated with the Event
+    #  This also applies any augmentations, etc. associated with the Event and normalizes the audio
     audio = event.load_audio(ignore_cache=ignore_cache)
     librosa.util.valid_audio(audio)
     n_audio_samples = audio.shape[0]
