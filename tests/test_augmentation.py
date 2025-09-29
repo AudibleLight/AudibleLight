@@ -642,7 +642,16 @@ def test_audio_channel_swapping(input_fmt):
                 [2, 5, 0, 45, 0, 100],
                 [2, 5, 1, -45, -45, 100],
             ]
-        )
+        ),
+        # Aazimuth angles near the threshold for wrapping
+        np.array(
+            [
+                [0, 3, 0, 179, 10, 100],
+                [1, 3, 0, -179, -10, 100],
+                [2, 3, 1, 89, 0, 100],
+                [3, 3, 1, -89, 0, 100],
+            ]
+        ),
     ],
 )
 @pytest.mark.parametrize(
@@ -662,5 +671,83 @@ def test_label_channel_swapping(input_labels, input_fmt):
     assert n_cols == input_labels.shape[1]
     assert n_batch == 8
 
+    # All azimuth values should be in the range [-180, 180]
+    azimuths = out_labels[:, :, 3].flatten()
+    assert all((abs(a) <= 180 for a in azimuths))
+
     # Consider Table 1 in reference, row 3 shows that input == output here
     assert np.array_equal(out_labels[2, :, :], input_labels)
+
+
+@pytest.mark.parametrize(
+    "input_labels,expected_labels",
+    [
+        (
+            np.array(
+                [
+                    [0, 5, 0, 45, 0, 100],
+                ]
+            ),
+            np.array(
+                [
+                    [0, 5, 0, -45, 0, 100],
+                    [0, 5, 0, -135, 0, 100],
+                    [0, 5, 0, 45, 0, 100],
+                    [0, 5, 0, -45, 0, 100],
+                    [0, 5, 0, 135, 0, 100],
+                    [0, 5, 0, 45, 0, 100],
+                    [0, 5, 0, -135, 0, 100],
+                    [0, 5, 0, 135, 0, 100],
+                ]
+            ),
+        ),
+        (
+            np.array(
+                [
+                    [0, 5, 0, 60, 30, 100],
+                ]
+            ),
+            np.array(
+                [
+                    [0, 5, 0, -30, -30, 100],
+                    [0, 5, 0, -150, 30, 100],
+                    [0, 5, 0, 60, 30, 100],
+                    [0, 5, 0, -60, -30, 100],
+                    [0, 5, 0, 150, -30, 100],
+                    [0, 5, 0, 30, 30, 100],
+                    [0, 5, 0, -120, 30, 100],
+                    [0, 5, 0, 120, -30, 100],
+                ]
+            ),
+        ),
+        (
+            np.array(
+                [
+                    [0, 5, 0, -20, -10, 100],
+                ]
+            ),
+            np.array(
+                [
+                    [0, 5, 0, -110, 10, 100],
+                    [0, 5, 0, -70, -10, 100],
+                    [0, 5, 0, -20, -10, 100],
+                    [0, 5, 0, 20, 10, 100],
+                    [0, 5, 0, 70, 10, 100],
+                    [0, 5, 0, 110, -10, 100],
+                    [0, 5, 0, 160, -10, 100],
+                    [0, 5, 0, -160, 10, 100],
+                ]
+            ),
+        ),
+    ],
+)
+def test_label_channel_swapping_expected_output(input_labels, expected_labels):
+    # Create FX class
+    swapper = AudioChannelSwapping(sample_rate=22050, input_format="mic")
+
+    # Swap labels
+    out_labels = swapper.swap_labels(input_labels)
+
+    # Test versus expected values
+    for ol, el in zip(out_labels, expected_labels):
+        assert np.array_equal(ol[0], el)

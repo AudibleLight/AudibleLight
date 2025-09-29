@@ -1813,8 +1813,10 @@ class AudioChannelSwapping(SceneAugmentation):
         """
         Sanitises input and returns a tuple of all channels
         """
+        input_array_copy = input_array.copy()
+
         # Effect only valid for quadraphonic input
-        n_channels, n_samples = input_array.shape
+        n_channels, n_samples = input_array_copy.shape
         if n_channels != 4:
             raise ValueError(
                 f"Channel swapping only compatible with quadraphonic audio, but got {n_channels} channels"
@@ -1822,10 +1824,10 @@ class AudioChannelSwapping(SceneAugmentation):
 
         # Separate out channels
         return (
-            input_array[0, :],
-            input_array[1, :],
-            input_array[2, :],
-            input_array[3, :],
+            input_array_copy[0, :],
+            input_array_copy[1, :],
+            input_array_copy[2, :],
+            input_array_copy[3, :],
         )
 
     def swap_foa(self, input_array: np.ndarray) -> np.ndarray:
@@ -1917,17 +1919,28 @@ class AudioChannelSwapping(SceneAugmentation):
         else:
             distance = np.full(labels.shape[0], np.nan)
 
+        # Need to wrap azimuth to the range [-180, 180]
+        def wrap_azimuth(az):
+            return ((az + 180) % 360) - 180
+
         # Transform azimuth and elevation: this gives us (8, n_cols, n_rows)
         transformed = np.array(
             [
-                [frame, id_, source, azimuth - 90, -elevation, distance],
-                [frame, id_, source, -azimuth - 90, elevation, distance],
-                [frame, id_, source, azimuth, elevation, distance],
-                [frame, id_, source, -azimuth, -elevation, distance],
-                [frame, id_, source, azimuth + 90, -elevation, distance],
-                [frame, id_, source, -azimuth + 90, elevation, distance],
-                [frame, id_, source, azimuth + 180, elevation, distance],
-                [frame, id_, source, -azimuth + 180, -elevation, distance],
+                [frame, id_, source, wrap_azimuth(azimuth - 90), -elevation, distance],
+                [frame, id_, source, wrap_azimuth(-azimuth - 90), elevation, distance],
+                [frame, id_, source, wrap_azimuth(azimuth), elevation, distance],
+                [frame, id_, source, wrap_azimuth(-azimuth), -elevation, distance],
+                [frame, id_, source, wrap_azimuth(azimuth + 90), -elevation, distance],
+                [frame, id_, source, wrap_azimuth(-azimuth + 90), elevation, distance],
+                [frame, id_, source, wrap_azimuth(azimuth + 180), elevation, distance],
+                [
+                    frame,
+                    id_,
+                    source,
+                    wrap_azimuth(-azimuth + 180),
+                    -elevation,
+                    distance,
+                ],
             ]
         )
 
