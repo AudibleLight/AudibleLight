@@ -347,6 +347,12 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
                 scaled = db_to_multiplier(ambience.ref_db, np.mean(np.abs(audio_0db)))
                 amb = scaled * audio_0db
 
+                # Raise a warning if clipping occurs
+                if np.any(np.abs(amb) >= 1.0):
+                    logger.warning(
+                        f"Audio for ambience {ambience.alias} is clipping with ref_db {ambience.ref_db}!"
+                    )
+
                 # Add ambience to the scene and set as a parameter
                 scene_audio += amb
                 ambience.spatial_audio[mic_alias] = amb
@@ -498,6 +504,12 @@ def render_event_audio(
     #  This is equivalent to doing audio * scale(target_db, mean_amplitude)
     event_scale = db_to_multiplier(ref_db + event.snr, np.mean(np.abs(spatial)))
     spatial = event_scale * spatial
+
+    # Raise a warning if clipping occurs
+    if np.any(np.abs(spatial) >= 1.0):
+        logger.warning(
+            f"Audio for event {event.alias} is clipping with SNR {event.snr}, ref_db {ref_db}!"
+        )
 
     # Validate that the spatial audio has the expected shape and it is valid audio
     utils.validate_shape(spatial.shape, (n_ch, n_audio_samples))
