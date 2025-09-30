@@ -657,7 +657,14 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
     # This mapping will be used to count the number of times that each class IDX appears
     unique_ids = Counter()
 
-    for event in scene.get_events():
+    # Need to sort events by starting time in the scene
+    events = scene.get_events()
+    sorted_events = sorted(events, key=lambda e: e.scene_start)
+
+    # Keep track of the files we've already seen and their IDs
+    seen_filepaths = {}
+
+    for event in sorted_events:
         # Determine frame indices for event start and end
         start_idx = np.where(frames == round(max(event.scene_start, 0.0), 1))[0][0]
         end_idx = np.where(frames == round(min(event.scene_end, scene.duration), 1))[0][
@@ -673,9 +680,16 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
                 "Can't convert Event to DCASE format without valid DCASE class indices"
             )
 
-        # Get the unique index for every class
-        source_idx = unique_ids.get(event.class_id, 0)
-        unique_ids[event.class_id] = source_idx + 1
+        # If we haven't already seen this file before, grab the ID
+        if event.filename not in seen_filepaths:
+            source_idx = unique_ids.get(event.class_id, 0)
+            seen_filepaths[event.filename] = source_idx
+            # Increment the counter by one for the next occurrence of this class
+            unique_ids[event.class_id] += 1
+
+        # If we have seen this file before, use the same source ID as before
+        else:
+            source_idx = seen_filepaths[event.filename]
 
         # Iterate over every microphone for each event
         for mic in microphones:
