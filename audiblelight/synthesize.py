@@ -29,18 +29,6 @@ DCASE_2024_COLUMNS = [
 ]
 
 
-def apply_snr(x: np.ndarray, snr: custom_types.Numeric) -> np.ndarray:
-    """
-    Scale an audio signal to a given maximum SNR.
-
-    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/spatialize.py#L147)
-
-    Return:
-        np.ndarray: the scaled audio signal
-    """
-    return x * snr / np.abs(x).max(initial=1e-15)
-
-
 def db_to_multiplier(db: custom_types.Numeric, x: custom_types.Numeric) -> float:
     """
     Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
@@ -58,6 +46,22 @@ def db_to_multiplier(db: custom_types.Numeric, x: custom_types.Numeric) -> float
     # Need to add a small value here to prevent divide by zero errors
     #  These can cause the audio buffer to become filled with NaNs, which leads to errors later on
     return 10 ** (db / 20) / (x + utils.tiny(x))
+
+
+def rms_normalization(
+    audio: np.ndarray, target_db: custom_types.Numeric = 0.0
+) -> np.ndarray:
+    """
+    Normalizes an audio signal to a given RMS (in dB), defaults to 0.0 dB (== 1.0, linear scale)
+    """
+    # Calculate target RMS, in linear scale
+    target_rms = 10 ** (target_db / 20.0)
+    # Calculate actual audio RMS
+    audio_rms = np.sqrt(np.mean(np.square(audio)))
+    # Add a small value to prevent /0 error
+    audio_rms += utils.tiny(audio_rms)
+    # Scale factor and audio
+    return audio * (target_rms / audio_rms)
 
 
 def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
@@ -269,6 +273,7 @@ def istft_overlap_synthesis(
 def time_variant_convolution(
     irs: np.ndarray,
     event: Event,
+    audio: np.ndarray,
     fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
     win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
     hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
@@ -276,9 +281,6 @@ def time_variant_convolution(
     """
     Performs time-variant convolution for given IRs and Event object
     """
-
-    # Grab the event audio (this should already be loaded)
-    audio = event.load_audio()
 
     # Get parameters and shapes
     win_size = utils.sanitise_positive_number(win_size, cast_to=int)
@@ -330,21 +332,24 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
                         f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
                     )
 
-                ambient_noise = ambience.load_ambience(normalize=True)
+                # Load ambience audio: no peak normalization applied here
+                ambient_noise = ambience.load_ambience(normalize=False)
                 if ambient_noise.shape != scene_audio.shape:
                     raise ValueError(
                         f"Scene ambient noise does not match expected shape. "
                         f"Expected {scene_audio.shape}, but got {ambient_noise.shape}."
                     )
 
-                # Now we scale to match the desired noise floor (taken from SpatialScaper)
-                scaled = db_to_multiplier(
-                    ambience.ref_db, np.mean(np.abs(ambient_noise))
-                )
-                amb = scaled * ambient_noise
+                # Normalize the audio to an RMS of 0.0 dB (1.0 linear scale)
+                audio_0db = rms_normalization(ambient_noise, 0.0)
 
-                # TODO: ideally, we can also support adding noise with a given offset and duration
+                # Now we scale to match the desired noise floor (taken from SpatialScaper)
+                scaled = db_to_multiplier(ambience.ref_db, np.mean(np.abs(audio_0db)))
+                amb = scaled * audio_0db
+
+                # Add ambience to the scene and set as a parameter
                 scene_audio += amb
+                ambience.spatial_audio[mic_alias] = amb
 
         # Iterate over all the events
         for event in scene.events.values():
@@ -443,10 +448,14 @@ def render_event_audio(
     n_ch, n_emitters, n_ir_samples = irs_copy.shape
 
     # Grab the audio for the event as well and validate
-    #  This also applies any augmentations, etc. associated with the Event and normalizes the audio
-    audio = event.load_audio(ignore_cache=ignore_cache, normalize=True)
+    #  This also applies any augmentations, etc. associated with the Event
+    #  We don't apply peak normalization to the audio here
+    audio = event.load_audio(ignore_cache=ignore_cache, normalize=False)
     librosa.util.valid_audio(audio)
     n_audio_samples = audio.shape[0]
+
+    # Normalize the audio to an RMS of 0.0 dB (1.0 linear scale)
+    audio_0db = rms_normalization(audio, 0.0)
 
     # Normalize IRs for this event
     #  This goes (n_caps, n_source, n_samp) -> (n_source, n_caps, n_samp)
@@ -462,7 +471,7 @@ def render_event_audio(
             raise ValueError(
                 "Moving Event has only one emitter!"
             )  # something has gone very wrong to hit this
-        spatial = time_invariant_convolution(audio, irs_copy[:, 0].T)
+        spatial = time_invariant_convolution(audio_0db, irs_copy[:, 0].T)
 
     # No emitters: means that audio is not spatialized
     elif n_emitters == 0:
@@ -470,7 +479,7 @@ def render_event_audio(
             f"No IRs were found for Event with alias {event.alias}. Audio is being tiled along the "
             f"channel dimension to match the expected shape {n_ch, n_audio_samples}."
         )
-        spatial = np.repeat(audio[:, None], n_ch, 1).T
+        spatial = np.repeat(audio_0db[:, None], n_ch, 1).T
 
     # Moving sound sources: need to do time-variant convolution
     else:
@@ -479,18 +488,14 @@ def render_event_audio(
                 "Expected a moving event!"
             )  # something has gone very wrong to hit this
         spatial = time_variant_convolution(
-            irs_copy, event, fft_size, win_size, hop_size
+            irs_copy, event, audio_0db, fft_size, win_size, hop_size
         )
 
     # Pad or truncate the audio to match the desired number of samples
     spatial = utils.pad_or_truncate_audio(spatial, n_audio_samples)
 
-    # Deal with amplitude: this logic is taken from SpatialScaper
-    #  This scales the audio simply to the maximum SNR
-    spatial = apply_snr(spatial, event.snr)
-    # SPATIAL IS NOW EQUIVALENT TO OUTPUT OF SPATIALSCAPER FUNC
-
-    #  This scales to match the Scene's noise floor + the SNR for the Event
+    # Deal with amplitude: scale mean(abs(audio)) to match the Scene's noise floor + the SNR for the Event
+    #  This is equivalent to doing audio * scale(target_db, mean_amplitude)
     event_scale = db_to_multiplier(ref_db + event.snr, np.mean(np.abs(spatial)))
     spatial = event_scale * spatial
 

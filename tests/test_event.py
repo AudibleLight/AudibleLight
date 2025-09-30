@@ -292,7 +292,7 @@ def test_add_augmentations(audio_fpath, augmentations):
         "test_event",
     )
     # Load up the pre-augmented audio
-    init_audio = ev.load_audio(ignore_cache=True)
+    init_audio = ev.load_audio(ignore_cache=True, normalize=True)
     # Audio should be normalized, peak at +/- 1
     assert pytest.approx(np.max(np.abs(init_audio))) == 1
 
@@ -303,7 +303,7 @@ def test_add_augmentations(audio_fpath, augmentations):
     assert len(ev.augmentations) > 0
 
     # Audio should be different to the initial form after augmentation
-    aug_audio = ev.load_audio()
+    aug_audio = ev.load_audio(normalize=True)
     assert not np.array_equal(init_audio, aug_audio)
     assert ev.audio is not None
     # Audio should be normalized, peak at +/- 1

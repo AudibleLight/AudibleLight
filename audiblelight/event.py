@@ -480,17 +480,21 @@ class Event:
 
     # noinspection PyTypeChecker
     def load_audio(
-        self, ignore_cache: Optional[bool] = False, normalize: Optional[bool] = True
+        self, ignore_cache: Optional[bool] = False, normalize: Optional[bool] = False
     ) -> np.ndarray:
         """
         Returns the audio array of the Event.
 
         The audio will be loaded, resampled to the desired sample rate, converted to mono, and then truncated to match
-        the event start time and duration. If `normalize` (defaults to True), audio will also be normalized to have a
+        the event start time and duration. If `normalize` (defaults to False), audio will also be normalized to have a
         maximum absolute peak of 1.
 
         After calling this function once, `audio` is cached as an attribute of this Event instance, and this
         attribute will be returned on successive calls unless `ignore_cache` is True.
+
+        Arguments:
+            ignore_cache (bool): if True, bypass cache and load audio from disk. Defaults to True.
+            normalize (bool): if True, peak normalize audio to 1.0. Defaults to False.
 
         Returns:
             np.ndarray: the audio array.
