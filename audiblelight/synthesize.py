@@ -640,9 +640,10 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
     position of each IR is linearly interpolated throughout the duration of the audio file in order to obtain a value
     for azimuth, elevation, and distance estimated at every frame.
 
-    Note that the `source number index` value is assigned independently for each class: thus, with two `telephone`
-    classes and one `femaleSpeech`, we would expect to see values of 0 and 1 for the two `telephone` instances and
-    only `0` for the `femaleSpeech` instance.
+    Note that, `source number index` value is assigned **separately** for each class (in the STARSS format):
+    thus, with two `telephone` classes and one `femaleSpeech`, we would expect to see values of 0 and 1 for the two
+    `telephone` instances and only `0` for the `femaleSpeech` instance. Events that share the same audio file are
+    always assigned the same source ID every time they occur.
 
     Finally, note that frames without sound events are omitted from the output.
     """
