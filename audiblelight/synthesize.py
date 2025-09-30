@@ -735,4 +735,6 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
             .set_index("frame_number")
         )
 
+    # Update the attribute and return
+    scene.metadata_dcase = res_df
     return res_df

@@ -1279,6 +1279,7 @@ class Scene:
             None
         """
         from audiblelight.synthesize import (
+            generate_dcase2024_metadata,
             generate_scene_audio_from_events,
             render_audio_for_all_scene_events,
         )
@@ -1302,6 +1303,9 @@ class Scene:
         #  And populates the `audio` attribute inside this instance
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
+
+        # This populates the `metadata_dcase` attribute inside this instance
+        generate_dcase2024_metadata(self)
 
         # Apply any augmentations as required
         self._apply_augmentations()
@@ -1327,11 +1331,6 @@ class Scene:
         """
         Renders DCASE metadata to `metadata_path`
         """
-        from audiblelight.synthesize import generate_dcase2024_metadata
-
-        # Generate the metadata
-        self.metadata_dcase = generate_dcase2024_metadata(self)
-
         # If channel swapping, we have multiple DFs per mic
         if self.uses_channel_swapping:
 
@@ -1621,6 +1620,12 @@ class Scene:
         Alias for `WorldState.get_microphone`
         """
         return self.state.get_microphone(alias)
+
+    def get_microphones(self) -> list[Type["MicArray"]]:
+        """
+        Get all microphone objects, as in `self.state.microphones.values`
+        """
+        return list(self.state.microphones.values())
 
     def get_ambience(self, alias) -> Ambience:
         """
