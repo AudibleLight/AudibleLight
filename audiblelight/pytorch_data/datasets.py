@@ -343,19 +343,14 @@ class DatasetCached:
             *self.load_scenes(audio_files, metadata_files)
         )
 
-    def spectrogram(self, audio_input: np.ndarray, n_frames: int) -> np.ndarray:
-        n_ch = audio_input.shape[1]
-        spectra = []
-        for ch_cnt in range(n_ch):
-            stft_ch = librosa.core.stft(
-                np.asfortranarray(audio_input[:, ch_cnt]),
-                n_fft=self.n_fft,
-                hop_length=self.hop_size,
-                win_length=self.window_size,
-                window="hann",
-            )
-            spectra.append(stft_ch[:, :n_frames])
-        return np.array(spectra).T
+    def spectrogram(self, audio_input: np.ndarray) -> np.ndarray:
+        return librosa.core.stft(
+            audio_input,
+            n_fft=self.n_fft,
+            hop_length=self.hop_size,
+            win_length=self.window_size,
+            window="hann",
+        ).T
 
     def mel_spectrogram(self, linear_spectra: np.ndarray) -> np.ndarray:
         mel_feat = np.zeros(
@@ -455,33 +450,33 @@ class DatasetCached:
             y, _ = librosa.load(
                 audio, sr=self.sample_rate, mono=False, dtype=np.float32
             )
-            scene.audio[scene.state.microphones.keys()[0]] = y
+            scene.audio[list(scene.state.microphones.keys())[0]] = y
 
             # Generate DCASE metadata for the scene and register it
             scene.metadata_dcase = generate_dcase2024_metadata(scene)
 
             # TODO: if using channel swapping, we need to return 8 values here (one for each channel IDX)
             # Compute the number of frames we should expect to receive from this scene
-            for frame_idx in self.compute_frame_count(audio):
+            for frame_idx in range(self.compute_frame_count(y)):
                 rendered_scenes.append((scene, frame_idx))
 
         return rendered_scenes
 
-    def generate_feature(self, scene: Scene) -> np.ndarray:
+    def generate_feature(self, audio: np.ndarray) -> np.ndarray:
         """
         Generates features from a Scene. By default, this function returns a mel spectrogram + GCC features.
 
         Arguments:
-            scene (Scene): a Scene to generate features from
+            audio (np.ndarray): rendered spatial audio from a scene
 
         Returns:
             np.ndarray
         """
-        mic = scene.state.microphones.keys()
-        audio = scene.audio[mic]
-        n_feat_frames = int(len(audio.shape[1]) / self.hop_size)
+        # n_feat_frames = int(audio.shape[1] / self.hop_size)
 
-        audio_spec = self.spectrogram(audio, n_feat_frames)
+        audio_spec = self.spectrogram(
+            audio,
+        )
         mel_spect = self.mel_spectrogram(audio_spec)
         gcc = self.gcc(audio_spec)
 
@@ -514,10 +509,10 @@ class DatasetCached:
         start_sample, end_sample, start_ms, end_ms = self.compute_frame_info(frame_num)
 
         # Only considering a single mic for now
-        mic = scene.state.microphones.keys()[0]
+        mic = list(scene.state.microphones.keys())[0]
 
         # Grab the audio and truncate to the current frame, then generate the feature
-        audio = scene.audio[mic][start_sample:end_sample]
+        audio = scene.audio[mic]
         feature = self.generate_feature(audio)
 
         # Grab the metadata and truncate to the current frame, then generate the labels
