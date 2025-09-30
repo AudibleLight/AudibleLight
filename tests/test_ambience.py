@@ -107,6 +107,7 @@ def test_parse_beta(color, expected):
 @pytest.mark.parametrize(
     "channels, duration, noise, filepath",
     [
+        (4, 2, "gaussian", None),
         (4, 2, "white", None),
         (4, 2, 2.0, None),
         (
@@ -123,10 +124,18 @@ def test_parse_beta(color, expected):
         ),
     ],
 )
-def test_ambience_cls(channels, duration, noise, filepath):
+@pytest.mark.parametrize("normalize", [True, False])
+def test_ambience_cls(channels, duration, noise, filepath, normalize):
     cls = Ambience(channels, duration, noise=noise, filepath=filepath, alias="tester")
     assert isinstance(cls.to_dict(), dict)
-    assert cls.load_ambience().shape == (channels, round(duration * cls.sample_rate))
+    loaded = cls.load_ambience(normalize=normalize)
+    assert loaded.shape == (channels, round(duration * cls.sample_rate))
+    # Every channel should be normalized
+    for channel in loaded:
+        if normalize:
+            assert pytest.approx(np.max(np.abs(channel))) == 1.0
+        else:
+            assert not pytest.approx(np.max(np.abs(channel))) == 1.0
 
 
 @pytest.mark.parametrize("noise", ["pink", "brown", 2, 0])

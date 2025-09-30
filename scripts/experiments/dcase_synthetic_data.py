@@ -57,9 +57,6 @@ MOVING_EVENTS = utils.sanitise_distribution(
     lambda: random.choice(range(config.MIN_MOVING_EVENTS, config.MAX_MOVING_EVENTS))
 )
 
-# Types of noise we'll add
-NOISE_TYPES = ["pink", "brown", "red", "blue", "white", "violet"]
-
 
 def generate(
     mesh_path: str, split: str, scene_num: int, scape_num: int, output_dir: Path
@@ -117,7 +114,7 @@ def generate(
         scene.add_event(event_type="static")
     for _ in range(MOVING_EVENTS.rvs()):
         scene.add_event(event_type="moving")
-    scene.add_ambience(noise=random.choice(NOISE_TYPES))
+    scene.add_ambience(noise="gaussian")
 
     # Do the generation: create audio and DCASE metadata
     scene.generate(

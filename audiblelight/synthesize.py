@@ -330,7 +330,7 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
                         f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
                     )
 
-                ambient_noise = ambience.load_ambience()
+                ambient_noise = ambience.load_ambience(normalize=True)
                 if ambient_noise.shape != scene_audio.shape:
                     raise ValueError(
                         f"Scene ambient noise does not match expected shape. "
