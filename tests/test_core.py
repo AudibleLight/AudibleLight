@@ -749,7 +749,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                         "name": "ambeovr",
                         "micarray_type": "AmbeoVR",
                         "is_spherical": True,
-                        "channel_layout_type": "mono",
+                        "channel_layout_type": "mic",
                         "n_capsules": 4,
                         "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                         "coordinates_absolute": [

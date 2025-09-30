@@ -34,7 +34,7 @@ class MicArray:
     Attributes:
         name (str): the name of the array.
         is_spherical (bool): whether the array is spherical. If False, positions_spherical will be None.
-        channel_layout_type (str): the expected channel layout for each capsule. If "mono" (default), one channel will
+        channel_layout_type (str): the expected channel layout for each capsule. If "mic" (default), one channel will
             be created for every capsule. If "foa", four channels will be created per capsule.
 
     Properties:
@@ -52,7 +52,7 @@ class MicArray:
 
     name: str = ""
     is_spherical: bool = False
-    channel_layout_type: str = "mono"
+    channel_layout_type: str = "mic"
 
     irs: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_absolute: np.ndarray = field(default=None, init=False, repr=False)
@@ -63,7 +63,7 @@ class MicArray:
         """
         Returns the ray-tracing engine ChannelLayout object for this MicArray
         """
-        if self.channel_layout_type == "mono":
+        if self.channel_layout_type == "mic":
             layout_type = ChannelLayoutType.Mono
         elif self.channel_layout_type == "foa":
             layout_type = ChannelLayoutType.Ambisonics
@@ -84,7 +84,7 @@ class MicArray:
         If channel_layout == foa, we will only have 1 listener, but 4 "capsules" and IRs.
         Otherwise, if channel_layout == mono, we will have as many listeners as capsules.
         """
-        if self.channel_layout_type == "mono":
+        if self.channel_layout_type == "mic":
             return self.n_capsules
         elif self.channel_layout_type == "foa":
             return 1
@@ -327,7 +327,7 @@ class MonoCapsule(MicArray):
 
     name: str = "monocapsule"
     is_spherical: bool = False
-    channel_layout_type: str = "mono"
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
@@ -375,7 +375,7 @@ class AmbeoVR(MicArray):
 
     name: str = "ambeovr"
     is_spherical: bool = True
-    channel_layout_type: str = "mono"
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -403,7 +403,7 @@ class Eigenmike32(MicArray):
 
     name: str = "eigenmike32"
     is_spherical: bool = True
-    channel_layout_type: str = "mono"
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -465,7 +465,7 @@ class Eigenmike64(MicArray):
 
     name: str = "eigenmike64"
     is_spherical: bool = True
-    channel_layout_type: str = "mono"
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_polar(self) -> np.ndarray:

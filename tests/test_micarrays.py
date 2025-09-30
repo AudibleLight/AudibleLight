@@ -60,7 +60,7 @@ def test_cartesian_coordinates(micarray):
     cartesian: np.ndarray = getattr(micarray(), "coordinates_cartesian")
     assert isinstance(cartesian, np.ndarray)
     # Everything should have the same shape
-    if micarray.channel_layout_type == "mono":
+    if micarray.channel_layout_type == "mic":
         assert cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
 
 
@@ -120,7 +120,7 @@ def test_sanitize_microphone_input(array_name: str, expected: object):
             "name": "ambeovr",
             "micarray_type": "AmbeoVR",
             "is_spherical": True,
-            "channel_layout_type": "mono",
+            "channel_layout_type": "mic",
             "n_capsules": 4,
             "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
             "coordinates_absolute": [
