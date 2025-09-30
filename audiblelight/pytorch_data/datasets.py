@@ -3,6 +3,7 @@
 
 """Dataset and Dataloader classes, designed to be used directly with pytorch"""
 
+from math import factorial
 from pathlib import Path
 from typing import Any, Optional, Type, Union
 
@@ -258,60 +259,6 @@ class DatasetALight(Dataset):
             lab=torch.tensor(lab),
         )
 
-    @classmethod
-    def from_precached(
-        cls, audio_files: list[Path], json_files: list[Path]
-    ) -> Type["DatasetALight"]:
-        """
-        Create a dataset from existing .WAV and .JSON files
-        """
-
-        # Must have equal number of audio and metadata files
-        if len(audio_files) != len(json_files):
-            raise ValueError(
-                f"Number of audio and metadata files does not match: "
-                f"got {len(audio_files)} audio files and"
-                f" {len(json_files)} metadata files!"
-            )
-
-        # Sanitise audio and metadata files
-        audio_files = utils.sanitise_filepaths(audio_files)
-        metadata_files = utils.sanitise_filepaths(json_files)
-
-        rendered_scenes = []
-        all_sample_rate = None
-
-        for audio, metadata in zip(audio_files, metadata_files):
-            scene = Scene.from_json(metadata)
-
-            # Raise an error if scene has more than one microphone
-            if len(scene.state.microphones) > 1:
-                raise NotImplementedError(
-                    "Dataset currently only supports Scene objects with a single microphone"
-                )
-
-            # Parse sample rate from reconstructed scene and keep track
-            sample_rate = int(scene.sample_rate)
-            if all_sample_rate is None:
-                all_sample_rate = sample_rate
-            else:
-                if all_sample_rate != sample_rate:
-                    raise ValueError(
-                        "All Scenes must have the same sample rate "
-                        f"(expected {all_sample_rate}, got {sample_rate})"
-                    )
-
-            # Load up the audio with the given sample rate of scene and register to scene
-            # TODO: allow using only `json` paths and then generate audio inside `__getitem__`
-            y, _ = librosa.load(audio, sr=sample_rate, mono=False, dtype=np.float32)
-            scene.audio[scene.state.microphones.keys()[0]] = y
-
-            # Generate DCASE metadata for the scene and register it
-            scene.metadata_dcase = generate_dcase2024_metadata(scene)
-            rendered_scenes.append(scene)
-
-        return cls(scenes=rendered_scenes)
-
     def generate_feature(self, scene: Scene) -> np.ndarray:
         """
         Generates features from a Scene.
@@ -350,3 +297,258 @@ class DatasetALight(Dataset):
         _ = self.label_kwargs
         mic = scene.state.microphones.keys()
         return scene.audio[mic]
+
+
+class DatasetCached:
+    """
+    A `Dataset` for loading precomputed `Scene` objects during training.
+
+    Every `Scene` object should be defined by:
+        1) a `wav` file on the disk, pointing to the audio output of `Scene.generate`
+        2) a `JSON` file on the disk, pointing to the output of `Scene.to_json`
+
+    `SceneAugmentation` objects can also be passed in order to apply augmentations to the output.
+
+    **Important note**: the `generate_feature/label` methods can (and should) be overwritten in order to return
+    custom features and labels for every audio frame. By default, these functions simply return mel spectrograms and
+    the class IDs and DOA vectors for each sound event active in a frame.
+    """
+
+    def __init__(
+        self,
+        audio_files: list[Union[Path]],
+        metadata_files: list[Union[Path]],
+        sample_rate: int = config.SAMPLE_RATE,
+        window_size: Optional[int] = config.WIN_SIZE,
+        hop_size: Optional[int] = config.HOP_SIZE,
+        n_fft: Optional[int] = 2048,
+        n_mel_bins: Optional[int] = 64,
+    ):
+        # Parse window, hop size as seconds
+        self.sample_rate = sample_rate
+        self.window_size = window_size
+        self.hop_size = hop_size
+
+        self.window_size_s = window_size * sample_rate
+        self.hop_size_s = hop_size * sample_rate
+        self.n_fft = n_fft
+
+        self.n_mel_bins = n_mel_bins
+        self.mel_wts = librosa.filters.mel(
+            sr=self.sample_rate, n_fft=self.n_fft, n_mels=self.n_mel_bins
+        ).T
+
+        # Load in all scenes
+        self.scenes, self.frame_indices = zip(
+            *self.load_scenes(audio_files, metadata_files)
+        )
+
+    def spectrogram(self, audio_input: np.ndarray, n_frames: int) -> np.ndarray:
+        n_ch = audio_input.shape[1]
+        spectra = []
+        for ch_cnt in range(n_ch):
+            stft_ch = librosa.core.stft(
+                np.asfortranarray(audio_input[:, ch_cnt]),
+                n_fft=self.n_fft,
+                hop_length=self.hop_size,
+                win_length=self.window_size,
+                window="hann",
+            )
+            spectra.append(stft_ch[:, :n_frames])
+        return np.array(spectra).T
+
+    def mel_spectrogram(self, linear_spectra: np.ndarray) -> np.ndarray:
+        mel_feat = np.zeros(
+            (linear_spectra.shape[0], self.n_mel_bins, linear_spectra.shape[-1])
+        )
+        for ch_cnt in range(linear_spectra.shape[-1]):
+            mag_spectra = np.abs(linear_spectra[:, :, ch_cnt]) ** 2
+            mel_spectra = np.dot(mag_spectra, self.mel_wts)
+            log_mel_spectra = librosa.power_to_db(mel_spectra)
+            mel_feat[:, :, ch_cnt] = log_mel_spectra
+        mel_feat = mel_feat.transpose((0, 2, 1)).reshape((linear_spectra.shape[0], -1))
+        return mel_feat
+
+    def gcc(self, linear_spectra: np.ndarray) -> np.ndarray:
+        def ncr(n_, r_):
+            return factorial(n_) // factorial(r_) // factorial(n_ - r_)
+
+        gcc_channels = ncr(linear_spectra.shape[-1], 2)
+        gcc_feat = np.zeros((linear_spectra.shape[0], self.n_mel_bins, gcc_channels))
+        cnt = 0
+        for m in range(linear_spectra.shape[-1]):
+            for n in range(m + 1, linear_spectra.shape[-1]):
+                R = np.conj(linear_spectra[:, :, m]) * linear_spectra[:, :, n]
+                cc = np.fft.irfft(np.exp(1.0j * np.angle(R)))
+                cc = np.concatenate(
+                    (cc[:, -self.n_mel_bins // 2 :], cc[:, : self.n_mel_bins // 2]),
+                    axis=-1,
+                )
+                gcc_feat[:, :, cnt] = cc
+                cnt += 1
+        return gcc_feat.transpose((0, 2, 1)).reshape((linear_spectra.shape[0], -1))
+
+    def compute_frame_count(self, audio: np.ndarray) -> int:
+        """
+        Compute number of frames for an audio input
+
+        Parameters:
+            audio (np.ndarray): audio input
+
+        Returns:
+            int: number of frames in the input, given window and hop size
+        """
+        # Compute number of valid frames
+        return (audio.shape[1] - self.window_size) // self.hop_size + 1
+
+    def compute_frame_info(self, frame_num: int) -> tuple[int, int, int, int]:
+        """
+        Given the number of a frame (e.g., 1, 3, 5), compute start + end time of the frame in samples + ms
+        """
+        # Compute start and end in samples
+        start_sample = round(frame_num * self.hop_size)
+        end_sample = start_sample + self.window_size
+
+        # Compute start and end in milliseconds, rounded to nearest integer value
+        start_ms = round((start_sample / self.sample_rate) * 1000)
+        end_ms = round((end_sample / self.sample_rate) * 1000)
+
+        return start_sample, end_sample, start_ms, end_ms
+
+    def load_scenes(
+        self,
+        audio_files: list[Union[Path]],
+        metadata_files: list[Union[Path]],
+    ) -> list[Scene]:
+        """
+        Load up all pre-cached scenes from audio and metadata files
+        """
+        # Must have equal number of audio and metadata files
+        if len(audio_files) != len(metadata_files):
+            raise ValueError(
+                f"Number of audio and metadata files does not match: "
+                f"got {len(audio_files)} audio files and"
+                f" {len(metadata_files)} metadata files!"
+            )
+
+        # Sanitise audio and metadata files
+        audio_files = utils.sanitise_filepaths(audio_files)
+        metadata_files = utils.sanitise_filepaths(metadata_files)
+
+        # Create Scene objects from metadata + audio files
+        rendered_scenes = []
+        for audio, metadata in zip(audio_files, metadata_files):
+            scene = Scene.from_json(metadata)
+
+            # Raise an error if scene has more than one microphone
+            if len(scene.state.microphones) > 1:
+                raise NotImplementedError(
+                    "Dataset currently only supports Scene objects with a single microphone"
+                )
+
+            if int(scene.sample_rate) != self.sample_rate:
+                raise ValueError(
+                    f"Expected a Scene sample rate of {self.sample_rate}, but got {int(scene.sample_rate)}!"
+                )
+
+            # Load up the audio with the given sample rate of scene and register to scene
+            y, _ = librosa.load(
+                audio, sr=self.sample_rate, mono=False, dtype=np.float32
+            )
+            scene.audio[scene.state.microphones.keys()[0]] = y
+
+            # Generate DCASE metadata for the scene and register it
+            scene.metadata_dcase = generate_dcase2024_metadata(scene)
+
+            # TODO: if using channel swapping, we need to return 8 values here (one for each channel IDX)
+            # Compute the number of frames we should expect to receive from this scene
+            for frame_idx in self.compute_frame_count(audio):
+                rendered_scenes.append((scene, frame_idx))
+
+        return rendered_scenes
+
+    def generate_feature(self, scene: Scene) -> np.ndarray:
+        """
+        Generates features from a Scene. By default, this function returns a mel spectrogram + GCC features.
+
+        Arguments:
+            scene (Scene): a Scene to generate features from
+
+        Returns:
+            np.ndarray
+        """
+        mic = scene.state.microphones.keys()
+        audio = scene.audio[mic]
+        n_feat_frames = int(len(audio.shape[1]) / self.hop_size)
+
+        audio_spec = self.spectrogram(audio, n_feat_frames)
+        mel_spect = self.mel_spectrogram(audio_spec)
+        gcc = self.gcc(audio_spec)
+
+        return np.concatenate((mel_spect, gcc), axis=-1)
+
+    def generate_labels(self, scene: Scene) -> np.ndarray:
+        """
+        Generates labels for a Scene
+        This function should also make use of any kwargs passed in to `DatasetALight.__init__(label_kwargs=...)`
+
+        Arguments:
+            scene (Scene): a Scene to generate features from
+
+        Returns:
+            np.ndarray
+        """
+        _ = self.label_kwargs
+        mic = scene.state.microphones.keys()
+        return scene.audio[mic]
+
+    def __len__(self) -> int:
+        return len(self.scenes)
+
+    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+        # Unpack the current scene and frame
+        scene = self.scenes[index]
+        frame_num = self.frame_indices[index]
+
+        # Convert frame number to start/end samples/ms
+        start_sample, end_sample, start_ms, end_ms = self.compute_frame_info(frame_num)
+
+        # Only considering a single mic for now
+        mic = scene.state.microphones.keys()[0]
+
+        # Grab the audio and truncate to the current frame, then generate the feature
+        audio = scene.audio[mic][start_sample:end_sample]
+        feature = self.generate_feature(audio)
+
+        # Grab the metadata and truncate to the current frame, then generate the labels
+        meta = scene.metadata_dcase[mic].reset_index(drop=False).to_numpy()
+        frame_idxs = meta[:, 0]
+        start_idx = np.argmin(frame_idxs == start_ms)
+        end_idx = np.argmax(frame_idxs == end_ms)
+        labels = self.generate_labels(meta[start_idx:end_idx, :])
+
+        return {
+            "features": torch.tensor(feature),
+            "labels": torch.tensor(labels),
+        }
+
+
+if __name__ == "__main__":
+    audio_files = list(
+        (
+            utils.get_project_root()
+            / "spatial_scenes_dcase_synthetic/mic_dev/dev-train-alight"
+        ).glob("*.wav")
+    )
+    meta_files = list(
+        (
+            utils.get_project_root()
+            / "spatial_scenes_dcase_synthetic/metadata_dev/dev-train-alight"
+        ).glob("*.json")
+    )
+
+    ds = DatasetCached(
+        audio_files,
+        meta_files,
+    )
+    out = ds[0]
