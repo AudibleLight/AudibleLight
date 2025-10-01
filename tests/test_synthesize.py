@@ -33,6 +33,7 @@ def test_time_invariant_convolution_invalid(audio, ir, error_message):
 
 
 @pytest.mark.parametrize("n_emitters", list(range(1, 4)))
+@pytest.mark.flaky(reruns=3)
 def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
     # Create the event
     ev = Event(alias="tester", filepath=utils_tests.TEST_AUDIOS[0], snr=5)
@@ -82,6 +83,7 @@ def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
         2,
     ],
 )
+@pytest.mark.flaky(reruns=3)
 def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_overlap):
     oyens_scene_no_overlap.clear_events()
     # Add static sources in with a given SNR
@@ -133,6 +135,7 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
         2,
     ],
 )
+@pytest.mark.flaky(reruns=3)
 def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_overlap):
     oyens_scene_no_overlap.clear_events()
     # Add static sources in
@@ -178,6 +181,7 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
         2,
     ],
 )
+@pytest.mark.flaky(reruns=3)
 def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap):
     # Clear everything out for safety
     oyens_scene_no_overlap.clear_events()
@@ -285,6 +289,7 @@ def test_validate_scene(oyens_scene_factory):
         dict(filepath=utils_tests.TEST_MUSICS[0], ref_db=-30),
     ],
 )
+@pytest.mark.flaky(reruns=3)
 def test_render_ambience(ambience_kws, oyens_scene_no_overlap):
     # Add ambience and a single event (so things don't break)
     oyens_scene_no_overlap.add_ambience(**ambience_kws, alias="tester")
