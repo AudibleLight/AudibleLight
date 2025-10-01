@@ -609,7 +609,7 @@ def render_event_audio(
         r_ir,
         n_ir_samples=n_ir_samples,
         target_db=target_db,
-        scale_twice=True,
+        scale_twice=event.is_moving,
     )
 
     # Raise a warning if clipping occurs
