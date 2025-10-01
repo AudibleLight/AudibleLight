@@ -13,6 +13,7 @@ import pandas as pd
 from loguru import logger
 from scipy import fft, signal
 from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import StandardScaler
 
 from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
@@ -84,10 +85,13 @@ def fit_gmm_to_powers(powers: np.ndarray) -> np.ndarray:
     # Fit GMM
     gmm = GaussianMixture(
         n_components=2,
+        covariance_type="tied",
+        n_init=10,
         random_state=utils.SEED,
         max_iter=config.MAX_PLACE_ATTEMPTS,
     )
     x = log_powers_db.reshape(-1, 1)
+    x = StandardScaler().fit_transform(x)
     gmm.fit(x)
 
     # Predict labels
