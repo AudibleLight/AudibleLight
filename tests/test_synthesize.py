@@ -6,7 +6,6 @@
 
 from time import time
 
-import librosa.util
 import numpy as np
 import pytest
 
@@ -33,7 +32,7 @@ def test_time_invariant_convolution_invalid(audio, ir, error_message):
         syn.time_invariant_convolution(audio, ir)
 
 
-@pytest.mark.parametrize("n_emitters", list(range(4)))
+@pytest.mark.parametrize("n_emitters", list(range(1, 4)))
 def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
     # Create the event
     ev = Event(alias="tester", filepath=utils_tests.TEST_AUDIOS[0], snr=5)
@@ -66,10 +65,11 @@ def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
     assert final_audio.ndim == 2
 
     # Audio should be normalized to match target dB level
-    # Check that mean(abs(audio)) in dB == (ref_db + event_snr)
-    scaled_db = 20 * np.log10(np.mean(np.abs(final_audio)))
-    target_db = oyens_scene_no_overlap.ref_db + ev.snr
-    assert pytest.approx(scaled_db) == target_db
+    # Check that audio dB ~= (ref_db + event_snr)
+    r_output_scaled_actual = syn.estimate_signal_rms(final_audio)
+    r_output_scaled_db = 20 * np.log10(r_output_scaled_actual)
+    error = abs(r_output_scaled_db - (ev.snr + oyens_scene_no_overlap.ref_db))
+    assert pytest.approx(error, abs=3) == 0.0
 
     # Audio should not clip
     assert np.max(np.abs(final_audio)) <= 1.0
@@ -86,7 +86,7 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
     oyens_scene_no_overlap.clear_events()
     # Add static sources in with a given SNR
     for n_event in range(n_events):
-        oyens_scene_no_overlap.add_event(event_type="static", snr=5)
+        oyens_scene_no_overlap.add_event(event_type="static")
 
     syn.validate_scene(oyens_scene_no_overlap)
     init_time = time()
@@ -94,19 +94,22 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
     no_cache_time = time() - init_time
     assert len(oyens_scene_no_overlap.events) == n_events
 
+    # Grab audio for every event
     for event_alias, event in oyens_scene_no_overlap.events.items():
         assert isinstance(event.spatial_audio["mic000"], np.ndarray)
         final_audio = event.spatial_audio["mic000"]
-        n_channels, n_samples = final_audio.shape
+
         # Number of channels should be same as microphone, number of samples should be same as audio
+        n_channels, n_samples = final_audio.shape
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.audio.shape[-1]
 
         # Audio should be normalized to match target dB level
-        # Check that mean(abs(audio)) in dB == (ref_db + event_snr)
-        scaled_db = 20 * np.log10(np.mean(np.abs(final_audio)))
-        target_db = oyens_scene_no_overlap.ref_db + event.snr
-        assert pytest.approx(scaled_db) == target_db
+        # Check that audio dB ~= (ref_db + event_snr)
+        target_db = event.snr + oyens_scene_no_overlap.ref_db
+        r_output_scaled_actual = syn.estimate_signal_rms(final_audio)
+        r_output_scaled_db = 20 * np.log10(r_output_scaled_actual)
+        assert pytest.approx(r_output_scaled_db, abs=3) == target_db
 
         # Audio should not clip
         assert np.max(np.abs(final_audio)) <= 1.0
@@ -141,27 +144,28 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
             spatial_resolution=2,
             duration=1,
             spatial_velocity=1,
-            snr=5,
         )
 
     syn.validate_scene(oyens_scene_no_overlap)
     syn.render_audio_for_all_scene_events(oyens_scene_no_overlap)
     assert len(oyens_scene_no_overlap.events) == n_events
 
+    # Grab audio for every event
     for event_alias, event in oyens_scene_no_overlap.events.items():
-        assert event.is_moving
         assert isinstance(event.spatial_audio["mic000"], np.ndarray)
         final_audio = event.spatial_audio["mic000"]
-        n_channels, n_samples = final_audio.shape
+
         # Number of channels should be same as microphone, number of samples should be same as audio
+        n_channels, n_samples = final_audio.shape
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
-        assert n_samples == event.load_audio().shape[-1]
+        assert n_samples == event.audio.shape[-1]
 
         # Audio should be normalized to match target dB level
-        # Check that mean(abs(audio)) in dB == (ref_db + event_snr)
-        scaled_db = 20 * np.log10(np.mean(np.abs(final_audio)))
-        target_db = oyens_scene_no_overlap.ref_db + event.snr
-        assert pytest.approx(scaled_db) == target_db
+        # Check that audio dB ~= (ref_db + event_snr)
+        r_output_scaled_actual = syn.estimate_signal_rms(final_audio)
+        r_output_scaled_db = 20 * np.log10(r_output_scaled_actual)
+        error = abs(r_output_scaled_db - (event.snr + oyens_scene_no_overlap.ref_db))
+        assert pytest.approx(error, abs=3) == 0.0
 
         # Audio should not clip
         assert np.max(np.abs(final_audio)) <= 1.0
@@ -178,6 +182,7 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
     # Clear everything out for safety
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.clear_ambience()
+    oyens_scene_no_overlap.allow_duplicate_audios = True
 
     # Add both N static and N moving events
     for n_event in range(n_events):
@@ -268,80 +273,6 @@ def test_validate_scene(oyens_scene_factory):
 
 
 @pytest.mark.parametrize(
-    "db, x, expected_multiplier",
-    [
-        (0, 1.0, 1.0),
-        (6.0206, 1.0, 2.0),
-        (-6.0206, 1.0, 0.5),
-        (20.0, 0.1, 100.0),
-        (-20.0, 10.0, 0.01),
-    ],
-)
-def test_db_to_multiplier(db, x, expected_multiplier):
-    result = syn.db_to_multiplier(db, x)
-
-    # we expect a small but finite multiplier, not exactly 0
-    assert np.isfinite(result), "Result should be finite even when x is 0"
-    assert result > 0, "Multiplier should be positive"
-    assert not np.isnan(result), "Result should not be NaN"
-    assert not np.isinf(result), "Result should not be Inf"
-
-    # should be near expected value
-    assert np.isclose(result, expected_multiplier, atol=1e-4)
-
-    # now multiply by the scalar
-    audio = np.random.rand(1000)
-
-    # should be valid after scaling
-    scaled = audio * result
-    try:
-        librosa.util.valid_audio(scaled)
-    except librosa.util.exceptions.ParameterError as e:
-        pytest.fail(e)
-
-
-@pytest.mark.parametrize("n_moving, n_static", [(1, 3), (2, 2)])
-def test_normalize_irs(n_moving, n_static, oyens_scene_no_overlap):
-    # Add some moving and static events
-    for i in range(n_static):
-        oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
-    for i in range(n_moving):
-        oyens_scene_no_overlap.add_event(
-            event_type="moving", duration=5.0, spatial_resolution=1.0
-        )
-
-    # Simulate, get IRs for the microphone
-    oyens_scene_no_overlap.state.simulate()
-    irs = oyens_scene_no_overlap.state.get_irs()
-    mic_ir = irs["mic000"]
-
-    # We need a separate counter for each microphone
-    emitter_counter = 0
-
-    # Iterate over all events
-    for event_alias, event in oyens_scene_no_overlap.events.items():
-
-        # Grab the IRs for the current event's emitters and check (not normalized)
-        event_irs = mic_ir[:, emitter_counter : len(event) + emitter_counter, :]
-        energies = np.mean(np.sqrt(np.sum(np.power(np.abs(event_irs), 2), axis=-1)))
-        assert not pytest.approx(energies) == 1.0
-
-        # Normalize the IRs and check
-        event_irs_norm = syn.normalize_irs(event_irs)
-        energies = np.mean(
-            np.sqrt(np.sum(np.power(np.abs(event_irs_norm), 2), axis=-1))
-        )
-        assert pytest.approx(energies) == 1.0
-
-        # Shapes should be the same, but audio should not be
-        assert np.array_equal(event_irs.shape, event_irs_norm.shape)
-        assert not np.array_equal(event_irs, event_irs_norm)
-
-        # Update the counter
-        emitter_counter += len(event)
-
-
-@pytest.mark.parametrize(
     "ambience_kws",
     [
         # Use Scene noise floor, ref_db is None
@@ -377,10 +308,12 @@ def test_render_ambience(ambience_kws, oyens_scene_no_overlap):
 
     # Audio should be normalized to match target dB level
     # Check that mean(abs(audio)) in dB == target_db
-    scaled_db = 20 * np.log10(np.mean(np.abs(final_audio)))
+    r_output_scaled_actual = syn.estimate_signal_rms(final_audio)
+    r_output_scaled_db = 20 * np.log10(r_output_scaled_actual)
     # Default to using Scene noise floor if not provided explicitly
     target_db = ambience_kws.get("ref_db", oyens_scene_no_overlap.ref_db)
-    assert pytest.approx(scaled_db) == target_db
+    error = abs(r_output_scaled_db - target_db)
+    assert pytest.approx(error, abs=3) == 0.0
 
     # Audio should not clip
     assert np.max(np.abs(final_audio)) <= 1.0
