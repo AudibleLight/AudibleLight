@@ -426,7 +426,7 @@ class Scene:
                 sample a random audio file from `Scene.bg_audios`.
             noise (str): either the type of noise to generate, e.g. "white", "red", or an arbitrary numeric exponent to
                 use when generating noise with `powerlaw_psd_gaussian`.
-            ref_db (Numeric): the noise floor, in decibels
+            ref_db (Numeric): the noise floor, in decibels. Defaults to `Scene.ref_db` if not provided.
             alias (str): string reference to refer to this `Ambience` object inside `Scene.ambience`
             kwargs: additional keyword arguments passed to `audiblelight.ambience.powerlaw_psd_gaussian`
         """

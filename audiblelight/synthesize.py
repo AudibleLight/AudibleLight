@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import fft, signal
+from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import StandardScaler
 
 from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
@@ -29,35 +31,172 @@ DCASE_2024_COLUMNS = [
 ]
 
 
-def apply_snr(x: np.ndarray, snr: custom_types.Numeric) -> np.ndarray:
+def compute_frame_powers(
+    audio: np.ndarray,
+    win_size: custom_types.Numeric = config.WIN_SIZE,
+    hop_size: custom_types.Numeric = config.HOP_SIZE,
+) -> np.ndarray:
     """
-    Scale an audio signal to a given maximum SNR.
-
-    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/spatialize.py#L147)
-
-    Return:
-        np.ndarray: the scaled audio signal
-    """
-    return x * snr / np.abs(x).max(initial=1e-15)
-
-
-def db_to_multiplier(db: custom_types.Numeric, x: custom_types.Numeric) -> float:
-    """
-    Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
-    reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
-
-    Adapted from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/utils.py#L287)
+    Vectorized computation of frame powers for each channel and mean across channels.
 
     Arguments:
-        db (float): The target decibel change to be applied.
-        x  (float): The original amplitude of x
+        audio (np.ndarray): The audio signal, shape (C, N_h), where C is channels, each with N_h samples
+        win_size (int, optional): The window length in samples. Defaults to 256.
+        hop_size (int, optional): The hop length in samples. Defaults to 128.
 
     Returns:
-        float: The multiplier factor.
+        np.ndarray: the frame powers, with shape (n_frames,)
     """
-    # Need to add a small value here to prevent divide by zero errors
-    #  These can cause the audio buffer to become filled with NaNs, which leads to errors later on
-    return 10 ** (db / 20) / (x + utils.tiny(x))
+    C, N_h = audio.shape
+    n_frames = 1 + (N_h - win_size) // hop_size
+
+    # Step 1: Get sliding windows of size `frame_length` (shape: C x (N_h - frame_length + 1) x frame_length)
+    windows = np.lib.stride_tricks.sliding_window_view(
+        audio, window_shape=win_size, axis=1
+    )
+
+    # Step 2: Select only the first `n_frames` frames spaced by `hop_size`
+    frames = windows[:, ::hop_size, :][
+        :, :n_frames, :
+    ]  # shape: (C, n_frames, frame_length)
+
+    # Step 3: Compute power (mean squared) over each frame
+    powers_per_channel = np.mean(frames**2, axis=2)  # shape: (C, n_frames)
+
+    # Step 4: Mean across channels
+    mean_powers = np.mean(powers_per_channel, axis=0)  # shape: (n_frames,)
+
+    return mean_powers
+
+
+def fit_gmm_to_powers(powers: np.ndarray) -> np.ndarray:
+    """
+    Fit a 2-component GMM to log-domain powers and return a mask to extract signal component only
+
+    Arguments:
+        powers (np.ndarray): the frame powers, with shape (n_frames,)
+
+    Returns:
+        np.ndarray, shape (n_frames,) with binary values (1 == signal, 0 == silence)
+    """
+    # Convert to log domain (dB)
+    log_powers_db = 10 * np.log10(np.maximum(powers, 1e-12))
+
+    # Fit GMM
+    gmm = GaussianMixture(
+        n_components=2,
+        covariance_type="tied",
+        n_init=10,
+        random_state=utils.SEED,
+        max_iter=config.MAX_PLACE_ATTEMPTS,
+    )
+    x = log_powers_db.reshape(-1, 1)
+    x = StandardScaler().fit_transform(x)
+    gmm.fit(x)
+
+    # Predict labels
+    labels = gmm.predict(x)
+
+    # Identify signal component (the one with higher mean)
+    means = gmm.means_.flatten()
+    signal_component = np.argmax(means)
+
+    # Return a mask: 1 == signal, 0 == silence
+    return labels == signal_component
+
+
+def estimate_signal_rms(
+    audio: np.ndarray,
+    win_size: custom_types.Numeric = config.WIN_SIZE,
+    hop_size: custom_types.Numeric = config.HOP_SIZE,
+) -> float:
+    """
+    Complete pipeline to estimate non-silence RMS amplitude of a signal.
+
+    Arguments:
+        audio (np.ndarray): The audio signal, shape (C, N_h), where C is channels, each with N_h samples
+        win_size (int, optional): The frame length in samples. Defaults to 256.
+        hop_size (int, optional): The hop length in samples. Defaults to 128.
+
+    Returns:
+        float: estimated RMS amplitude
+    """
+    # Handle non-2D shapes
+    #  This means we can use `compute_frame_powers`
+    #  with any shaped input
+
+    # For mono signals, expand to 2D
+    if audio.ndim == 1:
+        audio = np.expand_dims(audio, axis=0)
+
+    # For 3D signals (multiple IRs over time, moving events)
+    #  flatten down to 2D by multiplying IRs * channels
+    #  So, (4, 5, ...) becomes (20, ...)
+    elif audio.ndim == 3:
+        n_channels, n_irs, n_samples = audio.shape
+        audio = audio.reshape(n_irs * n_channels, n_samples)
+
+    # Compute frame powers, averaged across channels
+    powers = compute_frame_powers(audio, win_size, hop_size)
+
+    # Convert to log domain and fit GMM
+    signal_mask = fit_gmm_to_powers(powers)
+
+    # Compute non-silence RMS amplitude
+    if np.sum(signal_mask) == 0:
+        # Something has gone very wrong: all frames are silent
+        logger.error(
+            "All log-power frames are silent, so treating the whole audio file as signal"
+        )
+        signal_mask = np.ones_like(signal_mask)
+
+    # Extract non-silent powers, compute RM
+    return float(np.sqrt(np.mean(powers[signal_mask])))
+
+
+def normalize_convolution(
+    convolved_audio: np.ndarray,
+    r_signal: custom_types.Numeric,
+    r_ir: custom_types.Numeric,
+    n_ir_samples: custom_types.Numeric,
+    target_db: custom_types.Numeric,
+    scale_twice: bool = False,
+):
+    """
+    Scale convolved audio to match target dB using GMM-based estimates.
+
+    Arguments:
+        convolved_audio (np.ndarray): the convolved audio, shape (C, N_h), where C is channels, each with N_h samples
+        r_signal (Numeric): the estimated RMS of the signal portions of the audio
+        r_ir: (Numeric): the estimated RMS of the signal portions of the IR
+        n_ir_samples (Numeric): the number of samples in the IRs
+        target_db (Numeric): the target dB of the signal
+        scale_twice (bool): whether to scale the signal twice
+
+    Returns:
+        np.ndarray: the scaled, convolved audio, shape (C, N_h), where C is channels, each with N_h samples
+    """
+    # Use GMM-based estimate
+    r_output_estimated = r_signal * r_ir * np.sqrt(n_ir_samples)
+
+    # Convert target dB to linear scale
+    r_target = 10 ** (target_db / 20)
+
+    # Compute scaling factor
+    alpha = r_target / (r_output_estimated + utils.tiny(r_output_estimated))
+
+    # Scale output
+    scaled = convolved_audio * alpha
+
+    # If scaling twice, do the same thing again, but compute RMS based on the previous output
+    if scale_twice:
+        r_output_scaled_actual = estimate_signal_rms(scaled)
+        alpha2 = r_target / (
+            r_output_scaled_actual + utils.tiny(r_output_scaled_actual)
+        )
+        scaled *= alpha2
+
+    return scaled
 
 
 def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
@@ -269,6 +408,7 @@ def istft_overlap_synthesis(
 def time_variant_convolution(
     irs: np.ndarray,
     event: Event,
+    audio: np.ndarray,
     fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
     win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
     hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
@@ -276,9 +416,6 @@ def time_variant_convolution(
     """
     Performs time-variant convolution for given IRs and Event object
     """
-
-    # Grab the event audio (this should already be loaded)
-    audio = event.load_audio()
 
     # Get parameters and shapes
     win_size = utils.sanitise_positive_number(win_size, cast_to=int)
@@ -330,7 +467,8 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
                         f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
                     )
 
-                ambient_noise = ambience.load_ambience(normalize=True)
+                # Load ambience audio: no peak normalization applied here
+                ambient_noise = ambience.load_ambience(normalize=False)
                 if ambient_noise.shape != scene_audio.shape:
                     raise ValueError(
                         f"Scene ambient noise does not match expected shape. "
@@ -338,13 +476,22 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
                     )
 
                 # Now we scale to match the desired noise floor (taken from SpatialScaper)
-                scaled = db_to_multiplier(
-                    ambience.ref_db, np.mean(np.abs(ambient_noise))
+                r_signal = estimate_signal_rms(
+                    ambient_noise,
                 )
-                amb = scaled * ambient_noise
+                r_target = 10 ** (ambience.ref_db / 20)
+                alpha = r_target / (r_signal + utils.tiny(r_signal))
+                amb = ambient_noise * alpha
 
-                # TODO: ideally, we can also support adding noise with a given offset and duration
+                # Raise a warning if clipping occurs
+                if np.any(np.abs(amb) >= 1.0):
+                    logger.warning(
+                        f"Audio for ambience {ambience.alias} is clipping with ref_db {ambience.ref_db}!"
+                    )
+
+                # Add ambience to the scene and set as a parameter
                 scene_audio += amb
+                ambience.spatial_audio[mic_alias] = amb
 
         # Iterate over all the events
         for event in scene.events.values():
@@ -373,31 +520,6 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
         utils.validate_shape(scene_audio.shape, (channels, duration))
 
         scene.audio[mic_alias] = scene_audio
-
-
-def normalize_irs(irs: np.ndarray) -> np.ndarray:
-    """
-    Normalizes impulse responses based on their energy.
-
-    This function calculates the energy of each impulse response as the square root of the sum of its squared values.
-    It then normalizes each impulse response by the mean energy across all responses.
-
-    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/spatialize.py#L193)
-
-    Parameters:
-        irs (numpy.array): A 2D or 3D array of impulse responses, where each row (in the 2D case) or matrix
-            (in the 3D case) represents an individual impulse response.
-
-    Returns:
-        numpy.array: The normalized impulse responses, having the same shape as the input `IRs`.
-
-    Example:
-        # Example of normalizing a set of impulse responses
-        impulse_responses = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
-        normalized_IRs = IR_normalizer(impulse_responses)
-    """
-    e = np.sqrt(np.sum(np.power(np.abs(irs), 2), axis=-1, keepdims=True))
-    return irs / np.mean(e, axis=-2, keepdims=True)
 
 
 def render_event_audio(
@@ -443,17 +565,11 @@ def render_event_audio(
     n_ch, n_emitters, n_ir_samples = irs_copy.shape
 
     # Grab the audio for the event as well and validate
-    #  This also applies any augmentations, etc. associated with the Event and normalizes the audio
-    audio = event.load_audio(ignore_cache=ignore_cache, normalize=True)
+    #  This also applies any augmentations, etc. associated with the Event
+    #  We don't apply peak normalization to the audio here
+    audio = event.load_audio(ignore_cache=ignore_cache, normalize=False)
     librosa.util.valid_audio(audio)
     n_audio_samples = audio.shape[0]
-
-    # Normalize IRs for this event
-    #  This goes (n_caps, n_source, n_samp) -> (n_source, n_caps, n_samp)
-    #  Then normalization is applied to each (n_caps, n_samp)
-    #  Stacked back to (n_source, n_caps, n_samp)
-    #  Then transposed back to (n_caps, n_source, n_samp)
-    irs_copy = normalize_irs(irs_copy.transpose(1, 0, 2)).transpose(1, 0, 2)
 
     # THIS IS NOW EQUIVALENT TO spatialscaper.spatialize FUNC
     # Only a single emitter (IR): we can convolve easily with scipy
@@ -479,27 +595,39 @@ def render_event_audio(
                 "Expected a moving event!"
             )  # something has gone very wrong to hit this
         spatial = time_variant_convolution(
-            irs_copy, event, fft_size, win_size, hop_size
+            irs_copy, event, audio, fft_size, win_size, hop_size
         )
 
     # Pad or truncate the audio to match the desired number of samples
     spatial = utils.pad_or_truncate_audio(spatial, n_audio_samples)
 
-    # Deal with amplitude: this logic is taken from SpatialScaper
-    #  This scales the audio simply to the maximum SNR
-    spatial = apply_snr(spatial, event.snr)
-    # SPATIAL IS NOW EQUIVALENT TO OUTPUT OF SPATIALSCAPER FUNC
+    # Deal with amplitude
+    #  1. Estimate the RMS of the signal portions of the audio + IR
+    r_signal = estimate_signal_rms(audio, win_size, hop_size)
+    r_ir = estimate_signal_rms(irs_copy, win_size, hop_size)
+    #  2. Scale audio such that the dB == target
+    target_db = ref_db + event.snr  # noise floor + event volume
+    spatial_scaled = normalize_convolution(
+        spatial,
+        r_signal,
+        r_ir,
+        n_ir_samples=n_ir_samples,
+        target_db=target_db,
+        scale_twice=event.is_moving,
+    )
 
-    #  This scales to match the Scene's noise floor + the SNR for the Event
-    event_scale = db_to_multiplier(ref_db + event.snr, np.mean(np.abs(spatial)))
-    spatial = event_scale * spatial
+    # Raise a warning if clipping occurs
+    if np.any(np.abs(spatial_scaled) >= 1.0):
+        logger.warning(
+            f"Audio for event {event.alias} is clipping with SNR {event.snr}, ref_db {ref_db}!"
+        )
 
     # Validate that the spatial audio has the expected shape and it is valid audio
-    utils.validate_shape(spatial.shape, (n_ch, n_audio_samples))
-    librosa.util.valid_audio(spatial)
+    utils.validate_shape(spatial_scaled.shape, (n_ch, n_audio_samples))
+    librosa.util.valid_audio(spatial_scaled)
 
     # Cast the audio as an attribute of the event, function has no direct return
-    event.spatial_audio[mic_alias] = spatial
+    event.spatial_audio[mic_alias] = spatial_scaled
 
 
 def render_audio_for_all_scene_events(

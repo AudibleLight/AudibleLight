@@ -8,6 +8,7 @@ which is released under a permissive MIT license.
 """
 
 import random
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Iterable, Optional, Union
 
@@ -90,6 +91,7 @@ class Ambience:
 
         # Will be used to hold pre-rendered ambience
         self.audio = None
+        self.spatial_audio = OrderedDict()
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -140,10 +142,17 @@ class Ambience:
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
     def load_ambience(
-        self, ignore_cache: Optional[bool] = False, normalize: Optional[bool] = True
+        self, ignore_cache: Optional[bool] = False, normalize: Optional[bool] = False
     ) -> np.ndarray:
         """
         Load the background ambience as an array with shape (channels, samples).
+
+        After calling this function once, `audio` is cached as an attribute of this Event instance, and this
+        attribute will be returned on successive calls unless `ignore_cache` is True.
+
+        Arguments:
+            ignore_cache (bool): if True, bypass cache and load audio from disk. Defaults to True.
+            normalize (bool): if True, peak normalize audio to 1.0. Defaults to False.
         """
         # If we've already loaded the audio, and it is still valid, we can return it straight away
         if self.is_audio_loaded and not ignore_cache:
