@@ -65,7 +65,7 @@ BACKGROUND_TYPES = ["gaussian", None]
 # Valid materials for the ray-tracing engine
 with open(MATERIALS_JSON, "r") as js_in:
     js_out = json.load(js_in)
-VALID_MATERIALS = {mat["name"] for mat in js_out["materials"]}
+VALID_MATERIALS = list({mat["name"] for mat in js_out["materials"]})
 
 
 def generate(
