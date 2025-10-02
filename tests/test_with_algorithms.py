@@ -3,14 +3,50 @@
 
 """Define test cases that use algorithms (e.g., MUSIC) and basic acoustic principles to test AudibleLight outputs"""
 
+import os
+
 import numpy as np
 import pytest
+import soundfile as sf
 from pyroomacoustics.doa.music import MUSIC
 from scipy.signal import stft
 
 from audiblelight import config
+from audiblelight.augmentation import AudioChannelSwapping
 from audiblelight.core import Scene
+from audiblelight.synthesize import generate_dcase2024_metadata
 from tests import utils_tests
+
+
+def _apply_music(test_scene: Scene, **kwargs) -> MUSIC:
+    # Coordinates of our capsules for the eigenmike
+    l_: np.ndarray = test_scene.get_microphone("tester").coordinates_absolute
+    l_ = l_.T
+
+    # Get the parameters
+    fs = int(test_scene.sample_rate)
+    nfft = config.FFT_SIZE
+    num_sources = len(test_scene.get_events())
+    freq_range = [300, 3500]
+    assert num_sources == len(test_scene.get_events())
+
+    # Create the MUSIC object
+    #  Ensure azimuth is in range [-180, 180], increasing counter-clockwise
+    #  Ensure colatitude is in range [-90, 90], where 0 == straight ahead
+    music = MUSIC(L=l_, fs=fs, nfft=nfft, num_sources=num_sources, **kwargs)
+
+    # Compute the STFT
+    stft_signals = stft(
+        test_scene.audio["tester"], fs=fs, nperseg=nfft, noverlap=0, boundary=None
+    )[2]
+    x, y, _ = stft_signals.shape
+    assert x == test_scene.get_microphone("tester").n_capsules
+    assert y == (nfft / 2) + 1
+
+    # Locate the sources
+    music.locate_sources(stft_signals, num_src=num_sources, freq_range=freq_range)
+
+    return music
 
 
 @pytest.mark.parametrize(
@@ -72,45 +108,19 @@ def test_simulated_azimuth_with_music(microphone: list, events: list):
 
     # Generate the audio and grab
     test_scene.generate(metadata_json=False, metadata_dcase=False, audio=False)
-    output = test_scene.audio["tester"]
 
-    # Coordinates of our capsules for the eigenmike
-    l_: np.ndarray = test_scene.get_microphone("tester").coordinates_absolute
-    l_ = l_.T
-
-    # Get the parameters
-    fs = int(test_scene.sample_rate)
-    nfft = config.FFT_SIZE
-    num_sources = len(test_scene.get_events())
-    freq_range = [300, 3500]
-    assert num_sources == len(events)
-
-    # Create the MUSIC object
-    #  Ensure azimuth is in range [-180, 180], increasing counter-clockwise
-    #  Ensure colatitude is in range [-90, 90], where 0 == straight ahead
-    music = MUSIC(
-        L=l_,
-        fs=fs,
-        nfft=nfft,
+    # Create the MUSIC object, azimuth only for now
+    music = _apply_music(
+        test_scene,
         azimuth=np.deg2rad(np.arange(-180, 180)),
         colatitude=np.deg2rad(np.arange(-90, 90)),
-        num_sources=num_sources,
         dim=2,
     )
-
-    # Compute the STFT
-    stft_signals = stft(output, fs=fs, nperseg=nfft, noverlap=0, boundary=None)[2]
-    x, y, _ = stft_signals.shape
-    assert x == test_scene.get_microphone("tester").n_capsules
-    assert y == (nfft / 2) + 1
-
-    # Locate the sources
-    music.locate_sources(stft_signals, num_src=num_sources, freq_range=freq_range)
 
     # Check the azimuth vs actual values
     located_azimuth = np.sort(np.rad2deg(music.azimuth_recon))
     actual_azimuth = np.sort(np.array(events)[:, 0])
-    assert len(located_azimuth) == num_sources
+    assert len(located_azimuth) == len(test_scene.get_events())
     assert np.allclose(located_azimuth, actual_azimuth, atol=30)
 
 
@@ -245,3 +255,116 @@ def test_simulated_sound_distance_vs_two_events(
 
     # Closer event should hit before further event
     assert arrival_close < arrival_far
+
+
+@pytest.mark.parametrize(
+    "microphone,event",
+    [
+        # mic now placed in bedroom 1
+        (
+            [-1.5, -1.5, 0.7],
+            [90, 0, 0.2],
+        ),
+        # mic now placed in bedroom 2
+        (
+            [2.9, -7.0, 0.3],
+            [180, 0, 0.2],
+        ),
+        # mic now placed in living room
+        (
+            [2.5, -1.0, 0.5],
+            [90, 0, 0.2],
+        ),
+    ],
+)
+def test_channel_swapping_with_music(
+    microphone: list, event: list, oyens_scene_no_overlap: Scene
+):
+    """
+    Test augmentation.AudioChannelSwapping with MUSIC (synthesising some basic white noise)
+    """
+    # Create a simulated scene
+    test_scene = Scene(
+        duration=1.1,
+        mesh_path=utils_tests.OYENS_PATH,
+        fg_path=utils_tests.SOUNDEVENT_DIR / "music",
+        allow_duplicate_audios=False,
+        max_overlap=2,
+        state_kwargs=dict(rlr_kwargs=dict(sample_rate=16000)),
+    )
+
+    # Add the microphone
+    test_scene.add_microphone(
+        microphone_type="ambeovr",
+        position=microphone,
+        keep_existing=False,
+        alias="tester",
+    )
+
+    # Create 5 seconds of random noise, save to temp file, add as event
+    white_noise = np.random.uniform(-1, 1, int(test_scene.sample_rate * 1))
+    sf.write("tmp.wav", white_noise, int(test_scene.sample_rate))
+    test_scene.add_event(
+        event_type="static",
+        filepath=utils_tests.TEST_MUSICS[0],
+        position=event,
+        duration=1.0,
+        polar=True,
+        event_start=0.0,
+        class_id=0,
+        class_label="tmp",
+    )
+
+    # Generate the audio and grab: shape (8, 4, samples)
+    test_scene.generate(metadata_json=False, metadata_dcase=False, audio=False)
+    aout = test_scene.audio["tester"]
+    mout = generate_dcase2024_metadata(test_scene)
+
+    # Swap the labels and audio
+    swapper = AudioChannelSwapping(
+        test_scene.sample_rate,
+        input_format=test_scene.get_microphone("tester").channel_layout,
+    )
+    swapped_audio = swapper(aout)
+    swapped_labels = swapper.swap_labels(
+        mout["tester"].reset_index(drop=False).to_numpy()
+    )
+
+    for swapped_a, swapped_l in zip(swapped_audio, swapped_labels):
+        # Coordinates of our capsules
+        l_: np.ndarray = test_scene.get_microphone("tester").coordinates_absolute
+        l_ = l_.T
+
+        # Get the parameters
+        fs = int(test_scene.sample_rate)
+        nfft = 2048
+        num_sources = len(test_scene.get_events())
+
+        # Create the MUSIC object
+        #  Ensure azimuth is in range [-180, 180], increasing counter-clockwise
+        #  Ensure colatitude is in range [-90, 90], where 0 == straight ahead
+        music = MUSIC(
+            L=l_,
+            fs=fs,
+            azimuth=np.deg2rad(np.arange(-180, 181)),
+            colatitude=np.deg2rad(np.arange(-90, 91)),
+            nfft=nfft,
+            num_sources=num_sources,
+            dim=2,
+        )
+
+        # Compute the STFT
+        stft_signals = stft(swapped_a, fs=fs, nperseg=nfft, noverlap=0, boundary=None)[
+            2
+        ]
+        x, y, _ = stft_signals.shape
+        assert x == test_scene.get_microphone("tester").n_capsules
+        assert y == (nfft / 2) + 1
+
+        # Locate the sources
+        music.locate_sources(stft_signals, num_src=num_sources)
+        srce = np.rad2deg(music.azimuth_recon)[0]
+        fmt = ((srce + 180) % 360) - 180
+        print(fmt, swapped_l[0, 3])
+
+    os.remove("tmp.wav")

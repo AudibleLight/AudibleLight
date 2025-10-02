@@ -19,13 +19,17 @@ some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for Audible
 """
 
 import math
+from copy import deepcopy
+from dataclasses import asdict, dataclass
 from random import random
 from typing import Any, Callable, Iterator, Optional, Type, Union
 
 import librosa
+import librosa.feature
 import numpy as np
 from deepdiff import DeepDiff
 from pedalboard import time_stretch
+from rlr_audio_propagation import ChannelLayout, ChannelLayoutType
 from scipy import stats
 
 from audiblelight import config, custom_types, utils
@@ -195,11 +199,13 @@ class Augmentation:
             raise KeyError(f"Augmentation class {augment_name} not found")
 
         # Check that the remaining kwargs are valid for this class
-        input_dict.pop("name")
-        utils.validate_kwargs(augment_cls.__init__, **input_dict)
+        #  Need to make a copy so as not to destroy the underlying dict
+        copied = deepcopy(input_dict)
+        copied.pop("name")
+        utils.validate_kwargs(augment_cls.__init__, **copied)
 
         # Initialise the class with the arguments
-        return augment_cls(**input_dict)
+        return augment_cls(**copied)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -1740,6 +1746,551 @@ class TimeWarpReverse(TimeWarp):
         return combframes
 
 
+class AudioChannelSwapping(SceneAugmentation):
+    """
+    Performs audio (and label) channel swapping, according to [1].
+
+    Arguments:
+        sample_rate (types.Numeric): not used, but necessary for compatibility within overall API
+        input_format (str, ChannelLayout): channel layout used for the swapping, either "mic" or "foa"
+
+    References:
+        [1] Q. Wang, J. Du, H.-X. Wu, J. Pan, F. Ma, and C.-H. Lee, “A Four-Stage Data Augmentation Approach to
+        ResNet-Conformer Based Acoustic Modeling for Sound Event Localization and Detection,” IEEE/ACM Trans. Audio
+        Speech Lang. Process., vol. 31, pp. 1251–1264, 2023, doi: 10.1109/TASLP.2023.3256088.
+    """
+
+    ACCEPT_INPUTS = ["mic", "foa"]
+
+    def __init__(
+        self,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        input_format: Optional[Union[str, ChannelLayoutType, ChannelLayout]] = "mic",
+    ):
+        super().__init__(sample_rate)
+        self.input_format = self.parse_input_format(input_format)
+
+        self.fx = self.swap_mic if self.input_format == "mic" else self.swap_foa
+        self.params = dict(input_format=self.input_format)
+
+    def parse_input_format(self, input_format: Any) -> str:
+        """
+        Parse the input format to a string type
+        """
+        # Handle non-string, non-rlr inputs
+        if not isinstance(input_format, (str, ChannelLayoutType, ChannelLayout)):
+            raise TypeError(
+                f"Expected `input_fmt` to be a `str`, `ChannelLayoutType`, or `ChannelLayout`, "
+                f"but got {type(input_format)}"
+            )
+
+        # Handle ChannelLayout types by extracting ChannelLayoutType object
+        if isinstance(input_format, ChannelLayout):
+            input_format = input_format.type
+
+        # Handle ChannelLayoutType by coercing to string
+        if isinstance(input_format, ChannelLayoutType):
+            if input_format == ChannelLayoutType.Mono:
+                input_format = "mic"
+            elif input_format == ChannelLayoutType.Ambisonics:
+                input_format = "foa"
+            else:
+                raise ValueError(
+                    f"Expected `input_fmt` to be either Mono or Ambisonics, but got {input_format}"
+                )
+
+        # Handle invalid string inputs
+        input_format = input_format.lower()
+        if input_format not in self.ACCEPT_INPUTS:
+            raise ValueError(
+                f"Expected `input_fmt` to be one of {', '.join(self.ACCEPT_INPUTS)} but got {input_format}"
+            )
+
+        return input_format
+
+    @staticmethod
+    def sanitise_input(input_array: np.ndarray) -> tuple:
+        """
+        Sanitises input and returns a tuple of all channels
+        """
+        input_array_copy = input_array.copy()
+
+        # Effect only valid for quadraphonic input
+        n_channels, n_samples = input_array_copy.shape
+        if n_channels != 4:
+            raise ValueError(
+                f"Channel swapping only compatible with quadraphonic audio, but got {n_channels} channels"
+            )
+
+        # Separate out channels
+        return (
+            input_array_copy[0, :],
+            input_array_copy[1, :],
+            input_array_copy[2, :],
+            input_array_copy[3, :],
+        )
+
+    def swap_foa(self, input_array: np.ndarray) -> np.ndarray:
+        """
+        Applies channel swapping to a FOA input, following right column of Table 1 in [1]
+
+        Arguments:
+            input_array (np.ndarray): audio with shape (4, n_samples)
+
+        Returns:
+            np.ndarray: the swapped output, with shape (8, 4, n_samples)
+        """
+        # Separate channels and sanitise
+        chan_1, chan_2, chan_3, chan_4 = self.sanitise_input(input_array)
+
+        # Swapping columns
+        return np.array(
+            [
+                np.vstack((chan_1, -chan_4, -chan_3, chan_2)),
+                np.vstack((chan_1, -chan_4, chan_3, -chan_2)),
+                np.vstack((chan_1, chan_2, chan_3, chan_4)),
+                np.vstack((chan_1, -chan_2, -chan_3, chan_4)),
+                np.vstack((chan_1, chan_4, -chan_3, -chan_2)),
+                np.vstack((chan_1, chan_4, chan_3, chan_2)),
+                np.vstack((chan_1, -chan_2, chan_3, -chan_4)),
+                np.vstack((chan_1, chan_2, -chan_3, -chan_4)),
+            ]
+        )
+
+    def process(self, input_array: np.ndarray) -> np.ndarray:
+        """
+        Need to override parent method as we'll return different shape
+        """
+        return self.fx(input_array)
+
+    def swap_mic(self, input_array: np.ndarray) -> np.ndarray:
+        """
+        Applies channel swapping to a MIC input, following middle column of Table 1 in [1]
+
+        Arguments:
+            input_array (np.ndarray): audio with shape (4, n_samples)
+
+        Returns:
+            np.ndarray: the swapped output, with shape (8, 4, n_samples)
+        """
+        # Separate channels and sanitise
+        chan_1, chan_2, chan_3, chan_4 = self.sanitise_input(input_array)
+
+        # Swapping columns
+        return np.array(
+            [
+                np.vstack((chan_2, chan_4, chan_1, chan_3)),
+                np.vstack((chan_4, chan_2, chan_3, chan_1)),
+                np.vstack((chan_1, chan_2, chan_3, chan_4)),
+                np.vstack((chan_2, chan_1, chan_4, chan_3)),
+                np.vstack((chan_3, chan_1, chan_4, chan_2)),
+                np.vstack((chan_1, chan_3, chan_2, chan_4)),
+                np.vstack((chan_4, chan_3, chan_2, chan_1)),
+                np.vstack((chan_3, chan_4, chan_1, chan_2)),
+            ]
+        )
+
+    @staticmethod
+    def swap_labels(labels: np.ndarray) -> np.ndarray:
+        """
+        Swaps labels corresponding to audio channels, after a call to AudioChannelSwapping.process
+
+        Labels must be in DCASE format, i.e. from a call to `audiblelight.synthesize.generate_dcase2024_metadata`.
+        Transformation is performed according to the left column of Table 1 in [1].
+        Azimuth is presumed to be in degrees, increasing counter-clockwise within the range [-180, 180].
+        Elevation is presumed to be in degrees within range [-90, 90] (θ=0∘ at the front, θ=-90∘ straight down).
+
+        Arguments:
+            labels: original label, with shape (frames, columns)
+
+        Returns:
+            np.ndarray: labels after channel swapping, with shape (n_outputs, frames, columns)
+        """
+        # Parse out everything from the input
+        frame = labels[:, 0]
+        id_ = labels[:, 1]
+        source = labels[:, 2]
+        azimuth = labels[:, 3]
+        elevation = labels[:, 4]
+
+        # Some DCASE metadata may not contain distance (pre-2024, I think?)
+        if labels.shape[1] > 5:
+            distance = labels[:, 5]
+        else:
+            distance = np.full(labels.shape[0], np.nan)
+
+        # Need to wrap azimuth to the range [-180, 180]
+        def wrap_azimuth(az):
+            return ((az + 180) % 360) - 180
+
+        # Transform azimuth and elevation: this gives us (8, n_cols, n_rows)
+        transformed = np.array(
+            [
+                [frame, id_, source, wrap_azimuth(azimuth - 90), -elevation, distance],
+                [frame, id_, source, wrap_azimuth(-azimuth - 90), elevation, distance],
+                [frame, id_, source, wrap_azimuth(azimuth), elevation, distance],
+                [frame, id_, source, wrap_azimuth(-azimuth), -elevation, distance],
+                [frame, id_, source, wrap_azimuth(azimuth + 90), -elevation, distance],
+                [frame, id_, source, wrap_azimuth(-azimuth + 90), elevation, distance],
+                [frame, id_, source, wrap_azimuth(azimuth + 180), elevation, distance],
+                [
+                    frame,
+                    id_,
+                    source,
+                    wrap_azimuth(-azimuth + 180),
+                    -elevation,
+                    distance,
+                ],
+            ]
+        )
+
+        # Maintain input shape, i.e. (8, n_rows, n_cols)
+        return transformed.transpose(0, 2, 1)
+
+
+@dataclass
+class SpecAugmentPolicy:
+    """
+    A basic policy for SpecAugment. See [1] for a full description of arguments.
+
+    This class can be inherited from to define custom policies.
+
+    References:
+        [1] D. S. Park et al., “SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition,” in
+        Interspeech 2019, Sept. 2019, pp. 2613–2617. doi: 10.21437/Interspeech.2019-2680.
+    """
+
+    F: int = 0
+    m_F: int = 0
+    T: int = 0
+    m_T: int = 0
+
+
+@dataclass
+class LibriSpeechBasic(SpecAugmentPolicy):
+    """
+    LibriSpeech Basic (LB) SpecAugment policy
+    """
+
+    F: int = 27
+    m_F: int = 1
+    T: int = 100
+    m_T: int = 1
+
+
+@dataclass
+class LibriSpeechDouble(SpecAugmentPolicy):
+    """
+    LibriSpeech Double (LD) SpecAugment policy
+    """
+
+    F: int = 27
+    m_F: int = 2
+    T: int = 100
+    m_T: int = 2
+
+
+@dataclass
+class SwitchboardMild(SpecAugmentPolicy):
+    """
+    Switchboard Mild (SM) SpecAugment policy
+    """
+
+    F: int = 15
+    m_F: int = 2
+    T: int = 70
+    m_T: int = 2
+
+
+@dataclass
+class SwitchboardStrong(SpecAugmentPolicy):
+    """
+    Switchboard Strong (SD) SpecAugment policy
+    """
+
+    F: int = 27
+    m_F: int = 2
+    T: int = 70
+    m_T: int = 2
+
+
+class TimeFrequencyMasking(SceneAugmentation):
+    """
+    Applies time-frequency masking to multichannel Scene audio.
+
+    Note that only time and frequency masking are implemented; time-warping is NOT used, as is the case in [1].
+    Policy should be an instance of `SpecAugmentPolicy`: see [2] for a full description of the parameters here.
+    Also note that channels are masked separately, i.e. the frequency bands masked in one channel are not the same as
+    those masked in another channel.
+
+    When processing the input audio, it is first converted to a mel spectrogram with the given arguments, then masking
+    is applied to the spectrogram, and finally it is inverted back to audio using the Griffin-Lim algorithm. If
+    `return_spectrogram` is True, the output spectrogram will be returned after masking: note that this will probably
+    break downstream applications in e.g. `audiblelight.core.Scene`, which expect audio to be returned from
+    augmentations.
+
+    Arguments:
+        sample_rate (types.Numeric): the sample rate for the effect to use.
+        mel_kwargs (dict): dictionary of kwargs to pass to `librosa.feature.melspectrogram`.
+        return_spectrogram (bool): if True, the augmentation will return a mel spectrogram, not a waveform
+        replace_with_zero (bool): if True, masked values are filled with zeroes; otherwise, the channel mean is used.
+        policy: an instance of `SpecAugmentPolicy` or dict, or a list of `SpecAugmentPolicy`/dicts
+
+    References:
+        [1] Q. Wang, J. Du, H.-X. Wu, J. Pan, F. Ma, and C.-H. Lee, “A Four-Stage Data Augmentation Approach to
+        ResNet-Conformer Based Acoustic Modeling for Sound Event Localization and Detection,” IEEE/ACM Trans. Audio
+        Speech Lang. Process., vol. 31, pp. 1251–1264, 2023, doi: 10.1109/TASLP.2023.3256088.
+        [2] D. S. Park et al., “SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition,” in
+        Interspeech 2019, Sept. 2019, pp. 2613–2617. doi: 10.21437/Interspeech.2019-2680.
+
+    """
+
+    DEFAULT_POLICIES = [
+        LibriSpeechBasic(),
+        LibriSpeechDouble(),
+        SwitchboardMild(),
+        SwitchboardStrong(),
+    ]
+    POLICY_MAPPING = {
+        "LB": LibriSpeechBasic,
+        "LD": LibriSpeechDouble,
+        "SM": SwitchboardMild,
+        "SS": SwitchboardStrong,
+    }
+
+    # noinspection PyDataclass
+    def __init__(
+        self,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        mel_kwargs: dict = None,
+        return_spectrogram: Optional[bool] = False,
+        replace_with_zero: Optional[bool] = False,
+        policy: Optional[
+            Union[
+                Type["SpecAugmentPolicy"],
+                list[Type["SpecAugmentPolicy"]],
+                dict,
+                list[dict],
+                str,
+                list[str],
+            ]
+        ] = None,
+    ):
+        super().__init__(sample_rate)
+        self.return_spectrogram = return_spectrogram
+        self.replace_with_zero = replace_with_zero
+
+        # Validate arguments for melspectrogram
+        if mel_kwargs is None:
+            mel_kwargs = dict()
+        mel_kwargs["sr"] = self.sample_rate
+        utils.validate_kwargs(librosa.feature.melspectrogram, **mel_kwargs)
+        self.mel_kwargs = mel_kwargs
+
+        # Create a list of all possible policies, then sample one to use here
+        policy_list = self.get_policy(policy)
+        self.policy: SpecAugmentPolicy = np.random.choice(policy_list, 1)[0]
+
+        self.fx = self._apply_fx
+        self.params = dict(
+            return_spectrogram=self.return_spectrogram,
+            replace_with_zero=self.replace_with_zero,
+            mel_kwargs=self.mel_kwargs,
+            policy=asdict(self.policy),
+        )
+
+    # noinspection PyCallingNonCallable
+    def get_policy(self, policy: Any) -> list[Type["SpecAugmentPolicy"]]:
+        """
+        Given a potential override, return a list of 'SpecAugmentPolicy' instances to sample from
+        """
+        # If no policy provided, return default list
+        if policy is None:
+            return self.DEFAULT_POLICIES
+
+        # Make policy iterable
+        elif not isinstance(policy, list):
+            policy = [policy]
+
+        # The policy that we'll use to compute specaugment
+        validate_policies = []
+        for p in policy:
+
+            # Handle dictionary inputs: try and coerce to a new policy
+            if isinstance(p, dict):
+                p = SpecAugmentPolicy(**p)
+
+            # Handle string inputs: try and grab the correct policy from the dictionary
+            elif isinstance(p, str):
+                p = p.upper()
+                if p in self.POLICY_MAPPING.keys():
+                    p = self.POLICY_MAPPING[p]()
+                else:
+                    raise KeyError(
+                        f"Expected policy to be one of {', '.join(self.POLICY_MAPPING.keys())} but got {p}"
+                    )
+
+            # Whatever the input type, should be a subclass of SpecAugmentPolicy
+            if not issubclass(
+                type(p) if not isinstance(p, type) else p, SpecAugmentPolicy
+            ):
+                raise TypeError(
+                    f"Expected a subclass of `SpecAugmentPolicy`, but got {type(p)}"
+                )
+
+            validate_policies.append(p if not isinstance(p, type) else p())
+
+        # Must have at least one policy to sample from
+        if len(validate_policies) == 0:
+            raise ValueError("No valid policies found!")
+
+        return validate_policies
+
+    def process(self, input_array: np.ndarray) -> np.ndarray:
+        """
+        Need to override parent method as we might not always return audio
+        """
+        if self.return_spectrogram:
+            return self.fx(input_array)
+        else:
+            return super().process(input_array)
+
+    def _apply_fx(self, input_array: np.ndarray, *_, **__) -> np.ndarray:
+        """
+        Apply the augmentation: frequency and time masking
+        """
+        # Compute the mel spectrogram with required kwargs
+        mel = librosa.feature.melspectrogram(y=input_array, **self.mel_kwargs)
+
+        # Handle mono audio
+        if mel.ndim == 2:
+            mel = np.expand_dims(mel, axis=0)
+
+        # Apply frequency and time masking
+        freq_masked = self.freq_mask(mel)
+        out = self.time_mask(freq_masked)
+
+        # Convert back to waveform (default setting)
+        if not self.return_spectrogram:
+            out = librosa.feature.inverse.mel_to_audio(mel, **self.mel_kwargs)
+
+        return out
+
+    def freq_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
+        """
+        Applies frequency masking to the input (multi-channel) mel spectrogram
+        """
+        out = mel_spectrogram.copy()
+        num_mel_channels = out.shape[1]
+
+        # Iterate through the channels in the spectrogram
+        for channel in out:
+            # Iterate through the number of frequency bands to mask
+            for i in range(0, self.policy.m_F):
+                f = np.random.randint(0, self.policy.F)  # [0, F)
+                # Avoids error where we try and sample from outside the range of the spectrogram
+                if num_mel_channels - f < 0:
+                    continue
+                f0 = np.random.randint(0, num_mel_channels - f)  # [0, v - f)
+
+                # Avoids error if values are equal and range is empty
+                if f0 == f0 + f:
+                    continue
+
+                # Ending point for the mask
+                mask_end = np.random.randint(f0, f0 + f)
+
+                # Do the frequency masking: either with zeroes or mean from that channel
+                if self.replace_with_zero:
+                    channel[f0:mask_end] = 0.0
+                else:
+                    channel[f0:mask_end] = channel.mean()
+
+        return out
+
+    def time_mask(self, mel_spectrogram: np.ndarray) -> np.ndarray:
+        """
+        Applies time masking to the input (multi-channel) mel spectrogram
+        """
+        out = mel_spectrogram.copy()
+        tau = out.shape[2]  # time frames
+
+        # Iterate through the channels in the spectrogram
+        for channel in out:
+            # Apply m_T time masks to the channel
+            for i in range(0, self.policy.m_T):
+                t = np.random.randint(0, self.policy.T)  # [0, T)
+                # Avoids error where we try and sample from outside the range of the spectrogram
+                if tau - t < 0:
+                    continue
+                t0 = np.random.randint(0, tau - t)  # [0, tau - t)
+
+                # Avoids error if values are equal and range is empty
+                if t0 == t0 + t:
+                    continue
+
+                # Ending point for the mask
+                mask_end = np.random.randint(t0, t0 + t)
+
+                # Do the time masking: either with zeroes or mean from that channel
+                if self.replace_with_zero:
+                    channel[:, t0:mask_end] = 0.0
+                else:
+                    channel[:, t0:mask_end] = channel.mean()
+
+        return out
+
+
+# noinspection PyUnreachableCode
+def validate_augmentation(
+    augmentation_obj: Any, augmentation_cls: Any = EventAugmentation
+) -> None:
+    """
+    Validates an augmentation class.
+
+    In order to be valid, an augmentation must:
+        - be callable;
+        - be an instance of an augmentation class, not the class itself
+        - inherit from the `augmentation_cls` class;
+        - define the `AUGMENTATION_TYPE` and `fx` properties;
+        - have an `AUGMENTATION_TYPE` equivalent to `augmentation_cls.AUGMENTATION_TYPE`
+
+    Arguments:
+        augmentation_obj (Any): the augmentation object to validate
+        augmentation_cls (Type): the parent class to validate against
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: if the augmentation object is invalid.
+        AttributeError: if the augmentation object does not have a required property or attribute.
+    """
+
+    if not callable(augmentation_obj):
+        raise ValueError("Augmentation object must be callable")
+
+    if isinstance(augmentation_obj, type):
+        raise ValueError(
+            "Augmentation object must be an instance of a class, not the class itself"
+        )
+
+    if not issubclass(type(augmentation_obj), augmentation_cls):
+        raise ValueError(
+            f"Augmentation object must be a subclass of `{augmentation_cls.__name__}`"
+        )
+
+    for attr in ["fx", "AUGMENTATION_TYPE", "params"]:
+        if not hasattr(augmentation_obj, attr):
+            raise AttributeError(f"Augmentation object must have '{attr}' attribute")
+
+    aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
+    if aug_type != augmentation_cls.AUGMENTATION_TYPE:
+        raise ValueError(
+            f"Augmentation type must be '{augmentation_cls.AUGMENTATION_TYPE}', but got '{aug_type}'"
+        )
+
+
 # Holds all augmentations that can be applied to Event objects
 ALL_EVENT_AUGMENTATIONS = [
     LowpassFilter,
@@ -1768,48 +2319,5 @@ ALL_EVENT_AUGMENTATIONS = [
     HighShelfFilter,
     LowShelfFilter,
 ]
-
-
-# noinspection PyUnreachableCode
-def validate_event_augmentation(augmentation_obj: Any) -> None:
-    """
-    Validates an augmentation class for the Event.
-
-    In order to be valid, an augmentation must:
-        - be callable;
-        - be an instance of an augmentation class, not the class itself
-        - inherit from the `audiblelight.augmentation.EventAugmentation` class;
-        - define the `AUGMENTATION_TYPE` and `fx` properties;
-        - have an `AUGMENTATION_TYPE` of "event" (not "scene", which applies to `audiblelight.core.Scene` objects).
-
-    Arguments:
-        augmentation_obj (Any): the augmentation object to validate
-
-    Returns:
-        None
-
-    Raises:
-        ValueError: if the augmentation object is invalid.
-        AttributeError: if the augmentation object does not have a required property or attribute.
-    """
-
-    if not callable(augmentation_obj):
-        raise ValueError("Augmentation object must be callable")
-
-    if isinstance(augmentation_obj, type):
-        raise ValueError(
-            "Augmentation object must be an instance of a class, not the class itself"
-        )
-
-    if not issubclass(type(augmentation_obj), EventAugmentation):
-        raise ValueError(
-            "Augmentation object must be a subclass of `audiblelight.augmentation.EventAugmentation`"
-        )
-
-    for attr in ["fx", "AUGMENTATION_TYPE", "params"]:
-        if not hasattr(augmentation_obj, attr):
-            raise AttributeError(f"Augmentation object must have '{attr}' attribute")
-
-    aug_type = getattr(augmentation_obj, "AUGMENTATION_TYPE", "")
-    if aug_type != "event":
-        raise ValueError(f"Augmentation type must be 'event', but got '{aug_type}'")
+# Holds all augmentations that can be applied to Scene objects
+ALL_SCENE_AUGMENTATIONS = [TimeFrequencyMasking, AudioChannelSwapping]
