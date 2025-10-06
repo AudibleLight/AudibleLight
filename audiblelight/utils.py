@@ -616,14 +616,21 @@ def generate_random_trajectory(
     return np.vstack([xyz_start, trajectory])
 
 
-def pad_or_truncate_audio(audio: np.ndarray, desired_samples: Numeric) -> np.ndarray:
+def pad_or_truncate_audio(
+    audio: np.ndarray, desired_samples: Numeric, pad_mode: str = "constant"
+) -> np.ndarray:
     """
     Pads or truncates audio with desired number of samples.
+
+    Arguments:
+        audio (np.ndarray): array to pad or truncate
+        desired_samples (Numeric): desired number of samples for the target audio
+        pad_mode (str): mode to use with `np.pad`, defaults to constant
     """
     # Audio is too short, needs padding
     if audio.shape[1] < desired_samples:
         return np.pad(
-            audio, ((0, 0), (0, desired_samples - audio.shape[1])), mode="constant"
+            audio, ((0, 0), (0, desired_samples - audio.shape[1])), mode=pad_mode
         )
     # Audio is too long, needs truncating
     elif audio.shape[1] > desired_samples:

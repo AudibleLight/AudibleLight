@@ -15,7 +15,6 @@ The purpose of wrapping these augmentations, rather than using them directly, is
 every augmentation class, parameters can either be sampled randomly from acceptable default distributions, or provided
 by the user. The exact parameters of the FX can then be reconstructed later from the `params` dictionary. Additionally,
 some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for AudibleLight.
-
 """
 
 import math
@@ -117,7 +116,11 @@ class Augmentation:
             out = np.expand_dims(out, 0)
 
         # Pad or truncate the audio to keep the same dims
-        trunc = utils.pad_or_truncate_audio(out, max(input_array.shape))
+        #  When padding, use wrap to take samples from the start and put them at the end
+        #  E.g., if speeding up audio, wrap the start of the audio back around to the end
+        trunc = utils.pad_or_truncate_audio(
+            out, max(input_array.shape), pad_mode="wrap"
+        )
 
         # Stereo input, stereo output
         if input_array.ndim == 2:
@@ -1551,6 +1554,53 @@ class Fade(EventAugmentation):
         return input_audio * fade
 
 
+class Invert(EventAugmentation):
+    r"""
+    Inverts the phase of an input audio array (i.e., flips it "vertically")
+
+    Applies phase inversion, such that the output audio is equivalent to
+
+    ..math::
+        y[n] = -y[n]
+
+    Arguments:
+        sample_rate (custom_types.Numeric): not used by this augmentation, but required for compatibility with parent
+    """
+
+    def __init__(
+        self,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+    ):
+        super().__init__(sample_rate)
+        self.fx = self._apply_fx
+        self.params = dict()
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        # Equivalent to doing `-array` as a callable
+        return np.negative(input_audio)
+
+
+class Reverse(EventAugmentation):
+    """
+    Reverses an input audio array (i.e., flips it "horizontally").
+
+    Arguments:
+        sample_rate (custom_types.Numeric): not used by this augmentation, but required for compatibility with parent
+    """
+
+    def __init__(
+        self,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+    ):
+        super().__init__(sample_rate)
+        self.fx = self._apply_fx
+        self.params = dict()
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        # Flip along the last axis (should be equivalent to samples)
+        return np.flip(input_audio, axis=-1)
+
+
 class TimeWarp(EventAugmentation):
     """
     Parent class for all time-warping augmentations.
@@ -1767,6 +1817,8 @@ ALL_EVENT_AUGMENTATIONS = [
     Limiter,
     HighShelfFilter,
     LowShelfFilter,
+    Invert,
+    Reverse,
 ]
 
 
