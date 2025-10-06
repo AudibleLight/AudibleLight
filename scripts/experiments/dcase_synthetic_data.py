@@ -14,7 +14,6 @@ Generates similar training data to that contained in [this repo](https://zenodo.
 - Maximum polyphony of 2 (with possible same-class events overlapping)
 """
 
-
 import argparse
 import json
 import os
@@ -60,7 +59,6 @@ STATIC_EVENTS = utils.sanitise_distribution(
 MOVING_EVENTS = utils.sanitise_distribution(
     lambda: random.choice(range(config.MIN_MOVING_EVENTS, config.MAX_MOVING_EVENTS))
 )
-BACKGROUND_TYPES = ["gaussian", None]
 
 # Valid materials for the ray-tracing engine
 with open(MATERIALS_JSON, "r") as js_in:
@@ -81,7 +79,8 @@ def generate(
     metadata_path = output_dir / f"metadata_dev/{common}.csv"
 
     # Skip over this generation if files already exist
-    if audio_path.exists() and metadata_path.exists():
+    if (audio_path.with_name(audio_path.stem + "_mic.wav").exists() and
+            metadata_path.with_name(metadata_path.stem + "_mic.csv").exists()):
         return
 
     # Choose a material to use
@@ -139,10 +138,8 @@ def generate(
     for _ in range(MOVING_EVENTS.rvs()):
         scene.add_event(event_type="moving", augmentations=1)
 
-    # Choose ambience type: can be none, so guard against this
-    ambience_type = random.choice(BACKGROUND_TYPES)
-    if ambience_type:
-        scene.add_ambience(noise=ambience_type)
+    # Always add gaussian noise
+    scene.add_ambience(noise="gaussian")
 
     # Do the generation: create audio and DCASE metadata
     scene.generate(
@@ -165,6 +162,19 @@ def dump_room_csv(outdir: Path) -> None:
     room_df.to_csv(outdir / "rooms.csv", index=True)
 
 
+def read_room_csv(outdir: Path) -> None:
+    """
+    Load existing rooms from a disk
+    """
+    global TRAIN_ROOMS, TEST_ROOMS
+
+    print(f"Before loading: train rooms {TRAIN_ROOMS}, test rooms {TEST_ROOMS}")
+    room_df = pd.read_csv(outdir / "rooms.csv")
+    TRAIN_ROOMS = [Path(p) for p in room_df[room_df["split"] == "train"]["mesh"].tolist()]
+    TEST_ROOMS = [Path(p) for p in room_df[room_df["split"] == "test"]["mesh"].tolist()]
+    print(f"After loading: train rooms {TRAIN_ROOMS}, test rooms {TEST_ROOMS}")
+
+
 def main(outdir: str):
     # Create the output folders if they don't currently exist
     outdir = Path(outdir)
@@ -178,7 +188,10 @@ def main(outdir: str):
             os.makedirs(fp)
 
     # Dump a CSV file containing the rooms + splits
-    dump_room_csv(outdir)
+    if os.path.isfile(outdir / "rooms.csv"):
+        read_room_csv(outdir)
+    else:
+        dump_room_csv(outdir)
 
     # Start iterating to create the required number of training scenes
     logger.info("Generating training scenes...")
