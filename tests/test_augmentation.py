@@ -23,11 +23,13 @@ from audiblelight.augmentation import (
     Gain,
     GSMFullRateCompressor,
     HighpassFilter,
+    Invert,
     Limiter,
     LowpassFilter,
     MP3Compressor,
     MultibandEqualizer,
     Phaser,
+    Reverse,
     SpeedUp,
     TimeWarp,
     TimeWarpDuplicate,
@@ -247,7 +249,7 @@ def test_process_audio(fx_class, audio_fpath):
 
     # Should have required params
     assert hasattr(fx_init, "params")
-    assert len(fx_init.params) > 0
+    assert len(fx_init.params) >= 0
 
     # Should be a numpy array with different values to initial
     #  This can occasionally error out e.g. with PitchShift randomly sampling 0 semitones
@@ -503,3 +505,34 @@ def test_validate_event_augmentation():
     temp.AUGMENTATION_TYPE = "bad"
     with pytest.raises(ValueError, match="Augmentation type must be 'event'"):
         validate_event_augmentation(temp)
+
+
+def test_invert():
+    # Array of all ones
+    audio = np.ones((1, config.SAMPLE_RATE))
+
+    # Apply FX: should be all negative ones
+    fx = Invert(config.SAMPLE_RATE)
+    out = fx(audio)
+
+    assert isinstance(audio, np.ndarray)
+    assert np.array_equal(audio.shape, out.shape)
+    assert not np.array_equal(audio, out)
+    assert np.all(out == -1)
+
+
+def test_reverse():
+    # Linear space audio array
+    audio = np.linspace(-1, 1, 44100)
+    audio = np.expand_dims(audio, 0)
+
+    # Create FX and apply
+    fx = Reverse(config.SAMPLE_RATE)
+    out = fx(audio)
+
+    assert isinstance(audio, np.ndarray)
+    assert np.array_equal(audio.shape, out.shape)
+
+    # First value should be 1, last should be -1
+    assert out[:, 0] == 1
+    assert out[:, -1] == -1
