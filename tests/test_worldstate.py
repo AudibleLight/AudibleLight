@@ -994,3 +994,17 @@ def test_add_foa_capsule(oyens_space):
         assert n_samps >= 1
         # Should not be just zeroes
         assert not np.all(mic.irs == 0)
+
+
+@pytest.mark.parametrize(
+    "material,expected",
+    [(None, "Default"), ("willbreak", ValueError), ("Carpet, Heavy", "Carpet, Heavy")],
+)
+def test_validate_material(material, expected, oyens_space):
+    if isinstance(expected, str):
+        out = oyens_space._validate_material(material)
+        assert out == expected
+
+    else:
+        with pytest.raises(expected):
+            oyens_space._validate_material(material)
