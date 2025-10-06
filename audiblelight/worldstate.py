@@ -508,7 +508,14 @@ class WorldState:
     @staticmethod
     def _validate_material(material: Optional[str] = None) -> str:
         """
-        Validates that an input material is acceptable for the ray-tracing engine
+        Validates that an input material is acceptable for the ray-tracing engine.
+
+        Arguments:
+            material (str): name of the material to use. Must be a key inside `../references/mp3d_material_config.json`.
+                Defaults to "Default" material if not provided.
+
+        Returns:
+            str: name of the material to use in the ray-tracing engine.
         """
         with open(MATERIALS_JSON, "r") as js_in:
             js_out = json.load(js_in)
