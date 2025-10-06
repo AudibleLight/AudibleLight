@@ -640,6 +640,8 @@ def test_config_parse(cfg, expected):
 
 
 def test_to_dict(oyens_space: WorldState):
+    # Should still work
+    oyens_space.ctx = None
     oyens_space.add_microphone(
         microphone_type="ambeovr", alias="tester_mic", keep_existing=False
     )

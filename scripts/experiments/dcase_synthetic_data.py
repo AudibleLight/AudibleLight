@@ -12,6 +12,13 @@ Generates similar training data to that contained in [this repo](https://zenodo.
     - 6 rooms designated as "training": 150 soundscapes created for each
     - 3 rooms designated as "testing": 100 soundscapes created for each
 - Maximum polyphony of 2 (with possible same-class events overlapping)
+
+One augmentation added to every audio file, sampled from:
+- Pitch shifting (+/- up to half an octave)
+- Time stretching (between 0.9 and 1.1x)
+- Distortion (up to +10 dB gain)
+- Reverse
+- Phase inversion
 """
 
 import argparse
@@ -22,13 +29,12 @@ from pathlib import Path
 from time import time
 
 import numpy as np
-import pandas as pd
 from loguru import logger
 from scipy import stats
 from tqdm import tqdm
 
 from audiblelight import config, utils
-from audiblelight.augmentation import PitchShift, MultibandEqualizer, Compressor
+from audiblelight.augmentation import Distortion, Invert, PitchShift, Reverse, SpeedUp
 from audiblelight.core import Scene
 from audiblelight.worldstate import MATERIALS_JSON
 
@@ -37,15 +43,22 @@ utils.seed_everything(utils.SEED)
 
 # Filepaths, directories, etc.
 FG_DIR = utils.get_project_root() / "resources/soundevents"
-MESH_DIR = utils.get_project_root() / "resources/meshes"
-MESHES = list(MESH_DIR.rglob("*.glb"))
+MESH_DIR = utils.get_project_root() / "resources/meshes/gibson"
 OUTPUT_DIR = utils.get_project_root() / "spatial_scenes_dcase_synthetic"
 
 # Data splits
-TRAIN_N_ROOMS, TEST_N_ROOMS = 6, 3
 TRAIN_RECORDINGS_PER_ROOM, TEST_RECORDINGS_PER_ROOM = 150, 100
-TRAIN_ROOMS = random.sample(MESHES, TRAIN_N_ROOMS)
-TEST_ROOMS = random.sample([i for i in MESHES if i not in TRAIN_ROOMS], TEST_N_ROOMS)
+# Randomly sampled, but hardcoded so they are the same across runs
+TRAIN_ROOMS = [
+    "Haymarket.glb",
+    "Swisshome.glb",
+    "Siren.glb",
+    "Traver.glb",
+    "Hercules.glb",
+    "Halfway.glb",
+]
+TEST_ROOMS = ["Helix.glb", "Peacock.glb", "Vails.glb"]
+
 
 # Parameters taken from DCASE data
 DURATION = 60
@@ -67,11 +80,14 @@ VALID_MATERIALS = list({mat["name"] for mat in js_out["materials"]})
 
 
 def generate(
-    mesh_path: str, split: str, scene_num: int, scape_num: int, output_dir: Path
+    mesh_name: str, split: str, scene_num: int, scape_num: int, output_dir: Path
 ) -> None:
     """
     Make a single generation with required arguments
     """
+    # Resolve full mesh_path
+    mesh_path = MESH_DIR / mesh_name
+
     # Output filepaths
     fold = 1 if split == "train" else 2
     common = f"dev-{split}-alight/fold{fold}_scene{scene_num}_{str(scape_num).zfill(3)}"
@@ -79,8 +95,10 @@ def generate(
     metadata_path = output_dir / f"metadata_dev/{common}.csv"
 
     # Skip over this generation if files already exist
-    if (audio_path.with_name(audio_path.stem + "_mic.wav").exists() and
-            metadata_path.with_name(metadata_path.stem + "_mic.csv").exists()):
+    if (
+        audio_path.with_name(audio_path.stem + "_mic.wav").exists()
+        and metadata_path.with_name(metadata_path.stem + "_mic.csv").exists()
+    ):
         return
 
     # Choose a material to use
@@ -116,9 +134,17 @@ def generate(
         ),
         # Event augmentations will sample from this list
         event_augmentations=[
-            PitchShift,
-            Compressor,
-            MultibandEqualizer
+            Reverse,
+            Invert,
+            (PitchShift, dict(sample_rate=SAMPLE_RATE, semitones=stats.uniform(-7, 0))),
+            (
+                SpeedUp,
+                dict(sample_rate=SAMPLE_RATE, stretch_factor=stats.uniform(0.9, 0.2)),
+            ),
+            (
+                Distortion,
+                dict(sample_rate=SAMPLE_RATE, drive_db=stats.uniform(0.0, 10.0)),
+            ),
         ],
         fg_path=Path(FG_DIR),
         max_overlap=MAX_OVERLAP,
@@ -126,7 +152,7 @@ def generate(
         state_kwargs=dict(
             add_to_context=False,
             material=scene_material,
-            rlr_kwargs=dict(sample_rate=SAMPLE_RATE)
+            rlr_kwargs=dict(sample_rate=SAMPLE_RATE),
         ),
         allow_duplicate_audios=False,
     )
@@ -151,30 +177,6 @@ def generate(
     )
 
 
-def dump_room_csv(outdir: Path) -> None:
-    """
-    Dumps a CSV file with the paths + splits of the rooms used
-    """
-    # List comprehensions -> list of dicts -> dataframe -> CSV
-    room_paths = [{"split": "train", "mesh": str(p.resolve())} for p in TRAIN_ROOMS]
-    room_paths.extend([{"split": "test", "mesh": str(p.resolve())} for p in TEST_ROOMS])
-    room_df = pd.DataFrame(room_paths)
-    room_df.to_csv(outdir / "rooms.csv", index=True)
-
-
-def read_room_csv(outdir: Path) -> None:
-    """
-    Load existing rooms from a disk
-    """
-    global TRAIN_ROOMS, TEST_ROOMS
-
-    print(f"Before loading: train rooms {TRAIN_ROOMS}, test rooms {TEST_ROOMS}")
-    room_df = pd.read_csv(outdir / "rooms.csv")
-    TRAIN_ROOMS = [Path(p) for p in room_df[room_df["split"] == "train"]["mesh"].tolist()]
-    TEST_ROOMS = [Path(p) for p in room_df[room_df["split"] == "test"]["mesh"].tolist()]
-    print(f"After loading: train rooms {TRAIN_ROOMS}, test rooms {TEST_ROOMS}")
-
-
 def main(outdir: str):
     # Create the output folders if they don't currently exist
     outdir = Path(outdir)
@@ -186,12 +188,6 @@ def main(outdir: str):
     ]:
         if not fp.exists():
             os.makedirs(fp)
-
-    # Dump a CSV file containing the rooms + splits
-    if os.path.isfile(outdir / "rooms.csv"):
-        read_room_csv(outdir)
-    else:
-        dump_room_csv(outdir)
 
     # Start iterating to create the required number of training scenes
     logger.info("Generating training scenes...")

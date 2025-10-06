@@ -1863,6 +1863,11 @@ class WorldState:
             else:
                 return inp
 
+        # Fix bug where we haven't created the context yet
+        if self.ctx is None:
+            self._setup_audio_context()
+            self._update()
+
         return dict(
             emitters={
                 s_alias: [coerce(s_.coordinates_absolute) for s_ in s]
@@ -1888,7 +1893,7 @@ class WorldState:
             empty_space_around_surface=self.empty_space_around_surface,
             empty_space_around_capsule=self.empty_space_around_capsule,
             repair_threshold=self.repair_threshold,
-            material=self.material
+            material=self.material,
         )
 
     @classmethod
@@ -1917,7 +1922,7 @@ class WorldState:
             empty_space_around_capsule=input_dict["empty_space_around_capsule"],
             repair_threshold=input_dict["repair_threshold"],
             rlr_kwargs=input_dict["rlr_config"],
-            material=input_dict.get("material", None)
+            material=input_dict.get("material", None),
         )
 
         # Instantiate the microphones and emitters from their dictionaries
