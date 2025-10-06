@@ -351,3 +351,87 @@ def test_generate_dcase_2024_metadata_vs_example(events, expected):
 
     # Compare against the expected format
     assert np.allclose(actual_out, expected)
+
+
+@pytest.mark.parametrize("start_times", [[10, 5, 0], [0, 5, 10], [5, 0, 10]])
+def test_source_ids(start_times):
+    oyens_scene = Scene(
+        duration=60,
+        mesh_path=utils_tests.OYENS_PATH,
+        allow_duplicate_audios=False,
+        max_overlap=4,
+    )
+    oyens_scene.add_microphone(microphone_type="ambeovr")
+
+    # Add events in with given start times, but all using the same class ID
+    for st, fp in zip(
+        start_times, (utils_tests.SOUNDEVENT_DIR / "doorCupboard").glob("*.wav")
+    ):
+        oyens_scene.add_event(
+            event_type="static", scene_start=st, filepath=fp, duration=1.0
+        )
+
+    # Just for fun, add another event type in
+    oyens_scene.add_event(event_type="static", filepath=utils_tests.TEST_MUSICS[0])
+
+    # Create the metadata
+    dcase_out = generate_dcase2024_metadata(oyens_scene)
+    ar = dcase_out["mic000"].reset_index(drop=False).to_numpy()
+
+    # We should always expect the source ID column to ascend for each class
+    #  Regardless of which order the events were added in
+    #  Door cupboard is ID == 7
+    cupboard_only = np.where(ar[:, 1] == 7)
+
+    # Check that source IDs are sorted and linearly increase
+    #  regardless of what order events were added in initially
+    #  i.e., if we added the cupboard at 10 seconds first
+    #  and the cupboard at 5 seconds second
+    #  the cupboard at 5 seconds should have ID == 0
+    #  and the cupboard at 10 seconds should have ID == 1
+    assert np.array_equal(ar[cupboard_only, 2], np.sort(ar[cupboard_only, 2]))
+
+    # We've added three unique cupboards and one unique music
+    assert len(np.unique(ar[cupboard_only, 2])) == 3
+
+
+@pytest.mark.parametrize("start_times", [[10, 5, 0], [0, 5, 10], [5, 0, 10]])
+def test_source_ids_same_source(start_times):
+    """
+    If the same source appears multiple times in a scene, the source ID column should be the same each time
+    """
+    oyens_scene = Scene(
+        duration=60,
+        mesh_path=utils_tests.OYENS_PATH,
+        allow_duplicate_audios=True,
+        max_overlap=4,
+    )
+    oyens_scene.add_microphone(microphone_type="ambeovr")
+
+    # Add in the same audio files multiple times
+    for st in start_times:
+        oyens_scene.add_event(
+            event_type="static",
+            scene_start=st,
+            filepath=utils_tests.SOUNDEVENT_DIR / "doorCupboard/35632.wav",
+            duration=1.0,
+        )
+
+    # Add another instance of the same class and another of a different class
+    oyens_scene.add_event(
+        event_type="static",
+        filepath=utils_tests.SOUNDEVENT_DIR / "doorCupboard/70345.wav",
+        duration=1.0,
+    )
+    oyens_scene.add_event(
+        event_type="static", filepath=utils_tests.TEST_MUSICS[0], duration=1.0
+    )
+
+    # Create the metadata
+    dcase_out = generate_dcase2024_metadata(oyens_scene)
+    ar = dcase_out["mic000"].reset_index(drop=False).to_numpy()
+
+    # Source IDs should always be the same for the same filename
+    #  We've added one cupboard three times, another cupboard once, and a music once
+    #  So we should expect 2 unique IDs
+    assert len(np.unique(ar[:, 2])) == 2

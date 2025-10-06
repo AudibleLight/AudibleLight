@@ -640,6 +640,8 @@ def test_config_parse(cfg, expected):
 
 
 def test_to_dict(oyens_space: WorldState):
+    # Should still work
+    oyens_space.ctx = None
     oyens_space.add_microphone(
         microphone_type="ambeovr", alias="tester_mic", keep_existing=False
     )
@@ -754,7 +756,7 @@ def test_emitter_from_dict(input_dict):
                     "micarray_type": "AmbeoVR",
                     "is_spherical": True,
                     "n_capsules": 4,
-                    "channel_layout_type": "mono",
+                    "channel_layout_type": "mic",
                     "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                     "coordinates_absolute": [
                         [-0.38804551239949914, -8.630788873071257, 1.4665762923251686],
@@ -994,3 +996,17 @@ def test_add_foa_capsule(oyens_space):
         assert n_samps >= 1
         # Should not be just zeroes
         assert not np.all(mic.irs == 0)
+
+
+@pytest.mark.parametrize(
+    "material,expected",
+    [(None, "Default"), ("willbreak", ValueError), ("Carpet, Heavy", "Carpet, Heavy")],
+)
+def test_validate_material(material, expected, oyens_space):
+    if isinstance(expected, str):
+        out = oyens_space._validate_material(material)
+        assert out == expected
+
+    else:
+        with pytest.raises(expected):
+            oyens_space._validate_material(material)

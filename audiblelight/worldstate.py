@@ -3,6 +3,7 @@
 
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
+import json
 import os
 from collections import OrderedDict
 from copy import deepcopy
@@ -300,6 +301,7 @@ class WorldState:
             custom_types.Numeric
         ] = config.MIN_AVG_RAY_LENGTH,
         repair_threshold: Optional[custom_types.Numeric] = None,
+        material: Optional[str] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
         """
@@ -320,6 +322,7 @@ class WorldState:
                 evaluated when `ensure_minimum_weighted_average_ray_length` is True
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
+            material (str): the name of a material to use, defaults to None (i.e., Default material)
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
                 For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
         """
@@ -367,6 +370,7 @@ class WorldState:
                 repair_mesh(self.mesh)
 
         # Setting up audio configuration
+        self.material = self._validate_material(material)
         self.cfg = self._parse_rlr_config(rlr_kwargs)
         self.ctx = None
         # If required, create the audio context now
@@ -501,6 +505,30 @@ class WorldState:
         # Calculate weighted average of the distances using the computed weights and return
         return np.sum(distances * weights) / np.sum(weights)
 
+    @staticmethod
+    def _validate_material(material: Optional[str] = None) -> str:
+        """
+        Validates that an input material is acceptable for the ray-tracing engine.
+
+        Arguments:
+            material (str): name of the material to use. Must be a key inside `../references/mp3d_material_config.json`.
+                Defaults to "Default" material if not provided.
+
+        Returns:
+            str: name of the material to use in the ray-tracing engine.
+        """
+        with open(MATERIALS_JSON, "r") as js_in:
+            js_out = json.load(js_in)
+        valid_materials = {mat["name"] for mat in js_out["materials"]}
+
+        if not material:
+            material = "Default"
+
+        if material not in valid_materials:
+            raise ValueError(f"Material {material} is not a valid material.")
+
+        return material
+
     def _setup_audio_context(self) -> None:
         """
         Initializes the audio context and configures the mesh for the context.
@@ -526,7 +554,7 @@ class WorldState:
         self.ctx.add_object()
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
         self.ctx.set_material_database_json(MATERIALS_JSON)
-        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "Default")
+        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, self.material)
         self.ctx.finalize_object_mesh(0)
         # Need to monkey-patch get_audio for Context obj as it won't work with multiple channel layout types
         self.ctx.get_audio = MethodType(get_audio, self.ctx)
@@ -1835,6 +1863,11 @@ class WorldState:
             else:
                 return inp
 
+        # Fix bug where we haven't created the context yet
+        if self.ctx is None:
+            self._setup_audio_context()
+            self._update()
+
         return dict(
             emitters={
                 s_alias: [coerce(s_.coordinates_absolute) for s_ in s]
@@ -1860,6 +1893,7 @@ class WorldState:
             empty_space_around_surface=self.empty_space_around_surface,
             empty_space_around_capsule=self.empty_space_around_capsule,
             repair_threshold=self.repair_threshold,
+            material=self.material,
         )
 
     @classmethod
@@ -1888,6 +1922,7 @@ class WorldState:
             empty_space_around_capsule=input_dict["empty_space_around_capsule"],
             repair_threshold=input_dict["repair_threshold"],
             rlr_kwargs=input_dict["rlr_config"],
+            material=input_dict.get("material", None),
         )
 
         # Instantiate the microphones and emitters from their dictionaries

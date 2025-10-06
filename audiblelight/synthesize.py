@@ -397,6 +397,8 @@ def normalize_irs(irs: np.ndarray) -> np.ndarray:
         normalized_IRs = IR_normalizer(impulse_responses)
     """
     e = np.sqrt(np.sum(np.power(np.abs(irs), 2), axis=-1, keepdims=True))
+    # Prevents divide by zero
+    e += utils.tiny(e)
     return irs / np.mean(e, axis=-2, keepdims=True)
 
 
@@ -404,7 +406,7 @@ def render_event_audio(
     event: Event,
     irs: np.ndarray,
     mic_alias: str,
-    ref_db: custom_types.Numeric = config.REF_DB,
+    ref_db: custom_types.Numeric = config.DEFAULT_REF_DB,
     ignore_cache: Optional[bool] = True,
     fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
     win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
@@ -640,9 +642,10 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
     position of each IR is linearly interpolated throughout the duration of the audio file in order to obtain a value
     for azimuth, elevation, and distance estimated at every frame.
 
-    Note that the `source number index` value is assigned independently for each class: thus, with two `telephone`
-    classes and one `femaleSpeech`, we would expect to see values of 0 and 1 for the two `telephone` instances and
-    only `0` for the `femaleSpeech` instance.
+    Note that, `source number index` value is assigned **separately** for each class (in the STARSS format):
+    thus, with two `telephone` classes and one `femaleSpeech`, we would expect to see values of 0 and 1 for the two
+    `telephone` instances and only `0` for the `femaleSpeech` instance. Events that share the same audio file are
+    always assigned the same source ID every time they occur.
 
     Finally, note that frames without sound events are omitted from the output.
     """
@@ -657,7 +660,14 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
     # This mapping will be used to count the number of times that each class IDX appears
     unique_ids = Counter()
 
-    for event in scene.get_events():
+    # Need to sort events by starting time in the scene
+    events = scene.get_events()
+    sorted_events = sorted(events, key=lambda e: e.scene_start)
+
+    # Keep track of the files we've already seen and their IDs
+    seen_filepaths = {}
+
+    for event in sorted_events:
         # Determine frame indices for event start and end
         start_idx = np.where(frames == round(max(event.scene_start, 0.0), 1))[0][0]
         end_idx = np.where(frames == round(min(event.scene_end, scene.duration), 1))[0][
@@ -673,9 +683,16 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
                 "Can't convert Event to DCASE format without valid DCASE class indices"
             )
 
-        # Get the unique index for every class
-        source_idx = unique_ids.get(event.class_id, 0)
-        unique_ids[event.class_id] = source_idx + 1
+        # If we haven't already seen this file before, grab the ID
+        if event.filename not in seen_filepaths:
+            source_idx = unique_ids.get(event.class_id, 0)
+            seen_filepaths[event.filename] = source_idx
+            # Increment the counter by one for the next occurrence of this class
+            unique_ids[event.class_id] += 1
+
+        # If we have seen this file before, use the same source ID as before
+        else:
+            source_idx = seen_filepaths[event.filename]
 
         # Iterate over every microphone for each event
         for mic in microphones:

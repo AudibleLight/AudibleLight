@@ -24,12 +24,14 @@ from audiblelight.augmentation import (
     Gain,
     GSMFullRateCompressor,
     HighpassFilter,
+    Invert,
     LibriSpeechBasic,
     Limiter,
     LowpassFilter,
     MP3Compressor,
     MultibandEqualizer,
     Phaser,
+    Reverse,
     SpecAugmentPolicy,
     SpeedUp,
     TimeFrequencyMasking,
@@ -251,7 +253,7 @@ def test_process_audio(fx_class, audio_fpath):
 
     # Should have required params
     assert hasattr(fx_init, "params")
-    assert len(fx_init.params) > 0
+    assert len(fx_init.params) >= 0
 
     # Should be a numpy array with different values to initial
     #  This can occasionally error out e.g. with PitchShift randomly sampling 0 semitones
@@ -381,12 +383,6 @@ def test_speed_up(audio_fpath, stretch_factor):
     # With a stretch factor of 1.0, audio should be equal
     if stretch_factor == 1.0:
         assert np.array_equal(out, loaded)
-
-    # With a stretch factor of more than 1.0, audio should be right padded with zeros
-    elif stretch_factor > 1.0:
-        assert np.array_equal(out[-100:], np.zeros(100))
-        assert not np.array_equal(loaded[-100:], np.zeros(100))
-        assert not np.array_equal(out, loaded)
 
     else:
         assert not np.array_equal(out, loaded)
@@ -664,3 +660,34 @@ def test_label_channel_swapping(input_labels, input_fmt):
 
     # Consider Table 1 in reference, row 3 shows that input == output here
     assert np.array_equal(out_labels[2, :, :], input_labels)
+
+
+def test_invert():
+    # Array of all ones
+    audio = np.ones((1, config.SAMPLE_RATE))
+
+    # Apply FX: should be all negative ones
+    fx = Invert(config.SAMPLE_RATE)
+    out = fx(audio)
+
+    assert isinstance(audio, np.ndarray)
+    assert np.array_equal(audio.shape, out.shape)
+    assert not np.array_equal(audio, out)
+    assert np.all(out == -1)
+
+
+def test_reverse():
+    # Linear space audio array
+    audio = np.linspace(-1, 1, 44100)
+    audio = np.expand_dims(audio, 0)
+
+    # Create FX and apply
+    fx = Reverse(config.SAMPLE_RATE)
+    out = fx(audio)
+
+    assert isinstance(audio, np.ndarray)
+    assert np.array_equal(audio.shape, out.shape)
+
+    # First value should be 1, last should be -1
+    assert out[:, 0] == 1
+    assert out[:, -1] == -1

@@ -12,37 +12,53 @@ Generates similar training data to that contained in [this repo](https://zenodo.
     - 6 rooms designated as "training": 150 soundscapes created for each
     - 3 rooms designated as "testing": 100 soundscapes created for each
 - Maximum polyphony of 2 (with possible same-class events overlapping)
+
+One augmentation added to every audio file, sampled from:
+- Pitch shifting (+/- up to half an octave)
+- Time stretching (between 0.9 and 1.1x)
+- Distortion (up to +10 dB gain)
+- Reverse
+- Phase inversion
 """
 
-
 import argparse
+import json
 import os
 import random
 from pathlib import Path
 from time import time
 
-import pandas as pd
+import numpy as np
 from loguru import logger
 from scipy import stats
 from tqdm import tqdm
 
 from audiblelight import config, utils
+from audiblelight.augmentation import Distortion, Invert, PitchShift, Reverse, SpeedUp
 from audiblelight.core import Scene
+from audiblelight.worldstate import MATERIALS_JSON
 
 # For reproducible randomisation
 utils.seed_everything(utils.SEED)
 
 # Filepaths, directories, etc.
 FG_DIR = utils.get_project_root() / "resources/soundevents"
-MESH_DIR = utils.get_project_root() / "resources/meshes"
-MESHES = list(MESH_DIR.rglob("*.glb"))
+MESH_DIR = utils.get_project_root() / "resources/meshes/gibson"
 OUTPUT_DIR = utils.get_project_root() / "spatial_scenes_dcase_synthetic"
 
 # Data splits
-TRAIN_N_ROOMS, TEST_N_ROOMS = 6, 3
 TRAIN_RECORDINGS_PER_ROOM, TEST_RECORDINGS_PER_ROOM = 150, 100
-TRAIN_ROOMS = random.sample(MESHES, TRAIN_N_ROOMS)
-TEST_ROOMS = random.sample([i for i in MESHES if i not in TRAIN_ROOMS], TEST_N_ROOMS)
+# Randomly sampled, but hardcoded so they are the same across runs
+TRAIN_ROOMS = [
+    "Haymarket.glb",
+    "Swisshome.glb",
+    "Siren.glb",
+    "Traver.glb",
+    "Hercules.glb",
+    "Halfway.glb",
+]
+TEST_ROOMS = ["Helix.glb", "Peacock.glb", "Vails.glb"]
+
 
 # Parameters taken from DCASE data
 DURATION = 60
@@ -57,13 +73,21 @@ MOVING_EVENTS = utils.sanitise_distribution(
     lambda: random.choice(range(config.MIN_MOVING_EVENTS, config.MAX_MOVING_EVENTS))
 )
 
+# Valid materials for the ray-tracing engine
+with open(MATERIALS_JSON, "r") as js_in:
+    js_out = json.load(js_in)
+VALID_MATERIALS = list({mat["name"] for mat in js_out["materials"]})
+
 
 def generate(
-    mesh_path: str, split: str, scene_num: int, scape_num: int, output_dir: Path
+    mesh_name: str, split: str, scene_num: int, scape_num: int, output_dir: Path
 ) -> None:
     """
     Make a single generation with required arguments
     """
+    # Resolve full mesh_path
+    mesh_path = MESH_DIR / mesh_name
+
     # Output filepaths
     fold = 1 if split == "train" else 2
     common = f"dev-{split}-alight/fold{fold}_scene{scene_num}_{str(scape_num).zfill(3)}"
@@ -71,8 +95,17 @@ def generate(
     metadata_path = output_dir / f"metadata_dev/{common}.csv"
 
     # Skip over this generation if files already exist
-    if audio_path.exists() and metadata_path.exists():
+    if (
+        audio_path.with_name(audio_path.stem + "_mic.wav").exists()
+        and metadata_path.with_name(metadata_path.stem + "_mic.csv").exists()
+    ):
         return
+
+    # Choose a material to use
+    scene_material = random.choice(VALID_MATERIALS)
+
+    # Choose a noise floor for the scene
+    scene_ref_db = np.random.uniform(config.MIN_REF_DB, config.MAX_REF_DB)
 
     scene = Scene(
         duration=DURATION,
@@ -99,21 +132,39 @@ def generate(
         snr_dist=stats.uniform(
             config.MIN_EVENT_SNR, config.MAX_EVENT_SNR - config.MIN_EVENT_SNR
         ),
+        # Event augmentations will sample from this list
+        event_augmentations=[
+            Reverse,
+            Invert,
+            (PitchShift, dict(sample_rate=SAMPLE_RATE, semitones=stats.uniform(-7, 0))),
+            (
+                SpeedUp,
+                dict(sample_rate=SAMPLE_RATE, stretch_factor=stats.uniform(0.9, 0.2)),
+            ),
+            (
+                Distortion,
+                dict(sample_rate=SAMPLE_RATE, drive_db=stats.uniform(0.0, 10.0)),
+            ),
+        ],
         fg_path=Path(FG_DIR),
         max_overlap=MAX_OVERLAP,
-        ref_db=config.REF_DB,
+        ref_db=scene_ref_db,
         state_kwargs=dict(
-            add_to_context=False, rlr_kwargs=dict(sample_rate=SAMPLE_RATE)
+            add_to_context=False,
+            material=scene_material,
+            rlr_kwargs=dict(sample_rate=SAMPLE_RATE),
         ),
         allow_duplicate_audios=False,
     )
 
-    # Add the microphone, static + moving events, and ambience
+    # Add the microphone, static + moving events (one augmentation sampled randomly from above list)
     scene.add_microphone(microphone_type=config.MIC_ARRAY_TYPE, alias="mic")
     for _ in range(STATIC_EVENTS.rvs()):
-        scene.add_event(event_type="static")
+        scene.add_event(event_type="static", augmentations=1)
     for _ in range(MOVING_EVENTS.rvs()):
-        scene.add_event(event_type="moving")
+        scene.add_event(event_type="moving", augmentations=1)
+
+    # Always add gaussian noise
     scene.add_ambience(noise="gaussian")
 
     # Do the generation: create audio and DCASE metadata
@@ -124,17 +175,6 @@ def generate(
         metadata_json=True,
         metadata_dcase=True,
     )
-
-
-def dump_room_csv(outdir: Path) -> None:
-    """
-    Dumps a CSV file with the paths + splits of the rooms used
-    """
-    # List comprehensions -> list of dicts -> dataframe -> CSV
-    room_paths = [{"split": "train", "mesh": str(p.resolve())} for p in TRAIN_ROOMS]
-    room_paths.extend([{"split": "test", "mesh": str(p.resolve())} for p in TEST_ROOMS])
-    room_df = pd.DataFrame(room_paths)
-    room_df.to_csv(outdir / "rooms.csv", index=True)
 
 
 def main(outdir: str):
@@ -148,9 +188,6 @@ def main(outdir: str):
     ]:
         if not fp.exists():
             os.makedirs(fp)
-
-    # Dump a CSV file containing the rooms + splits
-    dump_room_csv(outdir)
 
     # Start iterating to create the required number of training scenes
     logger.info("Generating training scenes...")
