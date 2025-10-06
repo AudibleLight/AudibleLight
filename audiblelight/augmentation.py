@@ -1551,6 +1551,53 @@ class Fade(EventAugmentation):
         return input_audio * fade
 
 
+class Invert(EventAugmentation):
+    r"""
+    Inverts the phase of an input audio array (i.e., flips it "vertically")
+
+    Applies phase inversion, such that the output audio is equivalent to
+
+    ..math::
+        y[n] = -y[n]
+
+    Arguments:
+        sample_rate (custom_types.Numeric): not used by this augmentation, but required for compatibility with parent
+    """
+
+    def __init__(
+        self,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+    ):
+        super().__init__(sample_rate)
+        self.fx = self._apply_fx
+        self.params = dict()
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        # Equivalent to doing `-array` as a callable
+        return np.negative(input_audio)
+
+
+class Reverse(EventAugmentation):
+    """
+    Reverses an input audio array (i.e., flips it "horizontally").
+
+    Arguments:
+        sample_rate (custom_types.Numeric): not used by this augmentation, but required for compatibility with parent
+    """
+
+    def __init__(
+        self,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+    ):
+        super().__init__(sample_rate)
+        self.fx = self._apply_fx
+        self.params = dict()
+
+    def _apply_fx(self, input_audio: np.ndarray, *_, **__) -> np.ndarray:
+        # Flip along the last axis (should be equivalent to samples)
+        return np.flip(input_audio, axis=-1)
+
+
 class TimeWarp(EventAugmentation):
     """
     Parent class for all time-warping augmentations.
@@ -1767,6 +1814,8 @@ ALL_EVENT_AUGMENTATIONS = [
     Limiter,
     HighShelfFilter,
     LowShelfFilter,
+    Invert,
+    Reverse,
 ]
 
 
