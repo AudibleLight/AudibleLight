@@ -16,6 +16,8 @@ DEFAULT_REF_DB = -65
 MIN_REF_DB, MAX_REF_DB = -80, -50
 MAX_OVERLAP = 2
 WARN_WHEN_SCENE_DURATION_BELOW = 5
+FG_PATH = "../resources/soundevents"
+BG_PATH = "../resources/soundevents"
 
 # Event
 DEFAULT_MOVING_TRAJECTORY = "linear"

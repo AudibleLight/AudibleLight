@@ -284,6 +284,15 @@ def test_magic_methods(audio_fpath: str, oyens_space):
         (LowpassFilter, MultibandEqualizer, Compressor),
         (Phaser, Compressor),
         (PitchShift, SpeedUp),
+        (
+            {
+                "name": "Phaser",
+                "sample_rate": 44100,
+                "rate_hz": 9.48033764655287,
+                "depth": 0.4725113710968438,
+                "centre_frequency_hz": 2348.1728842622597,
+            }
+        ),
     ],
 )
 def test_add_augmentations(audio_fpath, augmentations):
@@ -335,12 +344,12 @@ def test_add_bad_augmentation():
     # Mismatching sample rate
     aug = Compressor(sample_rate=8000)
     with pytest.raises(ValueError, match="Augmentation has mismatching sample rate!"):
-        ev.register_augmentations([aug])
+        ev.register_augmentation(aug)
 
     # Will raise an error when called with "sample rate" kwarg
     aug = int
     with pytest.raises(TypeError, match="'sample_rate' is an invalid keyword argument"):
-        ev.register_augmentations([aug])
+        ev.register_augmentation(aug)
 
     # Should not be able to get any augmentations
     with pytest.raises(IndexError, match="No augmentation with index 1000"):

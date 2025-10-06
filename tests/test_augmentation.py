@@ -11,6 +11,7 @@ from scipy import stats
 from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import (
     ALL_EVENT_AUGMENTATIONS,
+    AudioChannelSwapping,
     Augmentation,
     Chorus,
     Clipping,
@@ -24,19 +25,22 @@ from audiblelight.augmentation import (
     GSMFullRateCompressor,
     HighpassFilter,
     Invert,
+    LibriSpeechBasic,
     Limiter,
     LowpassFilter,
     MP3Compressor,
     MultibandEqualizer,
     Phaser,
     Reverse,
+    SpecAugmentPolicy,
     SpeedUp,
+    TimeFrequencyMasking,
     TimeWarp,
     TimeWarpDuplicate,
     TimeWarpRemove,
     TimeWarpReverse,
     TimeWarpSilence,
-    validate_event_augmentation,
+    validate_augmentation,
 )
 from audiblelight.event import Event
 from tests import utils_tests
@@ -474,17 +478,17 @@ def test_sample_value(override, raises):
 def test_validate_event_augmentation():
     # Not callable
     with pytest.raises(ValueError, match="Augmentation object must be callable"):
-        validate_event_augmentation(123)
+        validate_augmentation(123)
 
     # A type, not an instance
     with pytest.raises(
         ValueError, match="Augmentation object must be an instance of a class"
     ):
-        validate_event_augmentation(Distortion)
+        validate_augmentation(Distortion)
 
     # Not a subclass of EventAugmentation
     with pytest.raises(ValueError, match="Augmentation object must be a subclass"):
-        validate_event_augmentation(Augmentation())
+        validate_augmentation(Augmentation())
 
     # Does not have attributes
     temp = Distortion()
@@ -492,13 +496,170 @@ def test_validate_event_augmentation():
     with pytest.raises(
         AttributeError, match="Augmentation object must have 'fx' attribute"
     ):
-        validate_event_augmentation(temp)
+        validate_augmentation(temp)
 
     # Different augmentation type
     temp.fx = lambda x: x
     temp.AUGMENTATION_TYPE = "bad"
     with pytest.raises(ValueError, match="Augmentation type must be 'event'"):
-        validate_event_augmentation(temp)
+        validate_augmentation(temp, augmentation_cls=EventAugmentation)
+
+
+@pytest.mark.parametrize("policy", ["LB", "LD", "SM", "SS"])
+def test_time_frequency_masking(policy):
+    masker = TimeFrequencyMasking(policy=policy, sample_rate=22050)
+
+    # Generate some dummy audio: function should natively handle mono audio
+    input_audio = np.random.rand(44100)
+
+    # Process with the policy: this returns a WAVEFORM
+    outp = masker(input_audio)
+
+    # Check output: should have same dims to input, must be finite, but shouldn't be the same audio!
+    assert isinstance(outp, np.ndarray)
+    assert outp.shape == input_audio.shape
+    assert np.isfinite(outp).all()
+    assert not np.array_equal(outp, input_audio)
+
+    # Check to_dict functionality
+    as_dict = masker.to_dict()
+    assert Augmentation.from_dict(as_dict) == masker
+
+
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
+def test_time_frequency_masking_spectrogram(audio_fpath: str):
+    # Load up the audio file in librosa
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=22050, duration=10)
+
+    # Tile the audio to four channel
+    input_audio = np.array([loaded, loaded, loaded, loaded])
+
+    # Use an aggressive policy with lots of bands
+    masker = TimeFrequencyMasking(
+        policy={
+            "F": 27,
+            "m_F": 100,
+            "T": 70,
+            "m_T": 100,
+        },
+        sample_rate=22050,
+        return_spectrogram=True,
+        replace_with_zero=True,
+        mel_kwargs=dict(hop_length=64, win_length=128),
+    )
+
+    # Process with the policy: this returns a SPECTROGRAM
+    outp = masker(input_audio)
+    assert outp.shape[0] == 4  # expect four channels
+
+    # Iterate over the four channel audio
+    for channel in outp:
+        # Iterate over all the "columns": at least one should be all zeroes (because of the time masking)
+        assert np.any(np.all(channel == 0, axis=0))
+        # Do the same for rows (frequency masking)
+        assert np.any(np.all(channel == 0, axis=1))
+
+
+@pytest.mark.parametrize(
+    "policy,raises",
+    [
+        ("LB", False),
+        (["LB", "LD"], False),
+        (["LB", LibriSpeechBasic()], False),
+        (LibriSpeechBasic, False),
+        ({"F": 1, "m_F": 3, "T": 100, "m_T": 100}, False),
+        (
+            [
+                {"F": 1, "m_F": 3, "T": 100, "m_T": 100},
+                "LB",
+                LibriSpeechBasic,
+                LibriSpeechBasic(),
+            ],
+            False,
+        ),
+        (None, False),
+        ("ASDASD", KeyError),
+        (123, TypeError),
+        ([], ValueError),
+    ],
+)
+def test_time_frequency_masking_policy(policy, raises):
+    if not raises:
+        masker = TimeFrequencyMasking(policy=policy, sample_rate=22050)
+        assert issubclass(type(masker.policy), SpecAugmentPolicy)
+    else:
+        with pytest.raises(raises):
+            _ = TimeFrequencyMasking(policy=policy, sample_rate=22050)
+
+
+@pytest.mark.parametrize(
+    "input_fmt",
+    ["foa", "mic"],
+)
+def test_audio_channel_swapping(input_fmt):
+    # Generate random audio
+    input_audio = np.random.rand(4, 220500)
+
+    # Create FX class
+    swapper = AudioChannelSwapping(sample_rate=22050, input_format=input_fmt)
+
+    out = swapper(input_audio)
+
+    # Number of channels and samples should be the same as original
+    n_batch, n_channels, n_samples = out.shape
+    assert n_channels == input_audio.shape[0]
+    assert n_samples == input_audio.shape[1]
+
+    # Number of channels should be as desired
+    assert n_batch == 8
+
+    # Sanity check swapping
+    #  If input format is FOA
+    #  We should expect every output to maintain amplitude channel 1 position
+    if input_fmt == "foa":
+        for out_channel in out:
+            assert np.array_equal(out_channel[0, :], input_audio[0, :])
+
+    # Consider Table 1 in reference, row 3 shows that input audio == output audio here
+    assert np.array_equal(out[2, :, :], input_audio)
+
+    # Check function compatibility with magic methods
+    assert Augmentation.from_dict(swapper.to_dict()) == swapper
+
+
+@pytest.mark.parametrize(
+    "input_labels",
+    [
+        # Sample input: two sound events with class 5, overlapping on frame 2
+        np.array(
+            [
+                [0, 5, 0, 45, 0, 100],
+                [1, 5, 0, 45, 0, 100],
+                [2, 5, 0, 45, 0, 100],
+                [2, 5, 1, -45, -45, 100],
+            ]
+        )
+    ],
+)
+@pytest.mark.parametrize(
+    "input_fmt",
+    ["foa", "mic"],
+)
+def test_label_channel_swapping(input_labels, input_fmt):
+    # Create FX class
+    swapper = AudioChannelSwapping(sample_rate=22050, input_format=input_fmt)
+
+    # Swap labels
+    out_labels = swapper.swap_labels(input_labels)
+
+    # Dimensionality should be the same
+    n_batch, n_rows, n_cols = out_labels.shape
+    assert n_rows == input_labels.shape[0]
+    assert n_cols == input_labels.shape[1]
+    assert n_batch == 8
+
+    # Consider Table 1 in reference, row 3 shows that input == output here
+    assert np.array_equal(out_labels[2, :, :], input_labels)
 
 
 def test_invert():

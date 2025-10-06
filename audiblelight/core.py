@@ -6,12 +6,14 @@
 import json
 import random
 from collections import OrderedDict
+from copy import deepcopy
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional, Type, Union
 
 import numpy as np
+import pandas as pd
 import soundfile as sf
 from deepdiff import DeepDiff
 from loguru import logger
@@ -19,7 +21,12 @@ from scipy import stats
 
 from audiblelight import __version__, config, custom_types, utils
 from audiblelight.ambience import Ambience
-from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
+from audiblelight.augmentation import (
+    ALL_EVENT_AUGMENTATIONS,
+    EventAugmentation,
+    SceneAugmentation,
+    validate_augmentation,
+)
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState
@@ -55,7 +62,10 @@ class Scene:
                 Type[EventAugmentation],
             ]
         ] = None,
-        state_kwargs: Optional[dict] = None,
+        scene_augmentations: Optional[
+            Union[Type[SceneAugmentation], Iterable[Type[SceneAugmentation]]]
+        ] = None,
+        state_kwargs: Optional[Union[dict, WorldState]] = None,
     ):
         """
         Initializes the Scene with a given duration and mesh.
@@ -88,6 +98,8 @@ class Scene:
                 objects. The number of augmentations sampled from this list can be controlled by setting the value of
                 `augmentations` when calling `Scene.add_event`, i.e. `Scene.add_event(augmentations=3)` will sample
                 3 random augmentations from `event_augmentations` and apply them to the Event.
+            scene_augmentations: an iterable of `audiblelight.SceneAugmentation` objects that will be applied to the
+                entire Scene.
             state_kwargs: keyword arguments passed to `audiblelight.WorldState`.
         """
 
@@ -106,11 +118,13 @@ class Scene:
         self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
 
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
-        if state_kwargs is None:
-            state_kwargs = {}
-        utils.validate_kwargs(WorldState.__init__, **state_kwargs)
-        self.state = WorldState(mesh_path, **state_kwargs)
-
+        if isinstance(state_kwargs, WorldState):
+            self.state = state_kwargs
+        elif isinstance(state_kwargs, dict):
+            utils.validate_kwargs(WorldState.__init__, **state_kwargs)
+            self.state = WorldState(mesh_path, **state_kwargs)
+        else:
+            self.state = WorldState(mesh_path)
         self.sample_rate = self.state.cfg.sample_rate
 
         # Grab some attributes from the WorldState to make them easier to access
@@ -181,6 +195,14 @@ class Scene:
         # Spatialized audio
         #  Note that this is a dictionary to support multiple microphones
         self.audio = OrderedDict()
+        self.metadata_dcase = OrderedDict()
+
+        # Scene augmentations
+        self.scene_augmentations = []
+        # Need a flag to note whether channel swapping is ued
+        self.uses_channel_swapping = False
+        if scene_augmentations is not None:
+            self.register_augmentations(scene_augmentations)
 
     @staticmethod
     def _parse_audio_directories(
@@ -203,6 +225,90 @@ class Scene:
             for fg in audio_dir:
                 audio_paths.extend((fg.rglob(f"*.{ext}")))
         return utils.sanitise_filepaths(audio_paths)
+
+    def register_augmentation(self, augmentation: Type[SceneAugmentation]) -> None:
+        """
+        Alias for `Scene.register_augmentations([augmentation])`.
+        """
+        self.register_augmentations([augmentation])
+
+    def register_augmentations(
+        self, augmentations: Iterable[Type[SceneAugmentation]]
+    ) -> None:
+        """
+        Register augmentations associated with this Scene.
+
+        Arguments:
+            augmentations: Iterable of augmentations to register
+
+        Returns:
+            None
+        """
+        # Handle single augmentations
+        if not isinstance(augmentations, (list, tuple, set)):
+            augmentations = [augmentations]
+
+        # Iterate over all augmentations
+        for aug in augmentations:
+
+            # If the augmentation hasn't been initialised yet, try doing this now
+            if isinstance(aug, type):
+                try:
+                    aug = aug(sample_rate=self.sample_rate)
+                except Exception as e:
+                    raise e
+
+            # Instantiate dictionaries to SceneAugmentation classes
+            if isinstance(aug, dict):
+                aug = SceneAugmentation.from_dict(aug)
+
+            # Check that the sample rate is valid
+            if aug.sample_rate != self.sample_rate:
+                raise ValueError(
+                    f"Augmentation has mismatching sample rate! "
+                    f"expected {self.sample_rate}, got {aug.sample_rate}"
+                )
+
+            # Validate the augmentation and add it in if it's OK
+            validate_augmentation(aug, augmentation_cls=SceneAugmentation)
+            self.scene_augmentations.append(aug)
+
+            # If the augment is channel swapping, set a convenience flag
+            if aug.name == "AudioChannelSwapping":
+                self.uses_channel_swapping = True
+
+        # Whenever we register augmentations, we should also invalidate any cached audio
+        self.audio = OrderedDict()
+
+    def clear_augmentation(self, idx: int) -> None:
+        """
+        Clears an augmentation at a given index from the Scene
+        """
+        try:
+            retrieved_aug = self.scene_augmentations[idx]
+        except IndexError:
+            raise IndexError("No augmentation found at index {idx}".format(idx=idx))
+        else:
+            # Delete the augmentation
+            del self.scene_augmentations[idx]
+
+            # Remove the flag if required
+            if retrieved_aug.name == "AudioChannelSwapping":
+                self.uses_channel_swapping = False
+
+            # Invalidate any cached audio
+            self.audio = OrderedDict()
+
+    def clear_augmentations(self) -> None:
+        """
+        Removes all augmentations associated with this Scene.
+        """
+        if len(self.scene_augmentations) > 0:
+            self.scene_augmentations = []
+            # Invalidate any cached audio
+            self.audio = OrderedDict()
+            # Always remove the flag
+            self.uses_channel_swapping = False
 
     def _parse_event_augmentations(
         self,
@@ -1200,16 +1306,15 @@ class Scene:
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
 
+        # This populates the `metadata_dcase` attribute inside this instance
+        generate_dcase2024_metadata(self)
+
+        # Apply any augmentations as required
+        self._apply_augmentations()
+
         # Write the audio output to a separate .wav, one per mic
         if audio:
-            for mic_alias, mic_audio in self.audio.items():
-                sf.write(
-                    audio_path.with_suffix(".wav").with_stem(
-                        f"{audio_path.name}_{mic_alias}"
-                    ),
-                    mic_audio.T,
-                    int(self.sample_rate),
-                )
+            self._render_audio(audio_path)
 
         # Get the metadata and add the spatial audio format in
         if metadata_json or metadata_dcase:
@@ -1222,13 +1327,121 @@ class Scene:
 
         # Generate DCASE-2024 style metadata
         if metadata_dcase:
-            dcase_meta = generate_dcase2024_metadata(self)
-            # Save a single CSV file for every microphone we have
-            for mic, df in dcase_meta.items():
+            self._render_dcase_metadata(metadata_path)
+
+    def _render_dcase_metadata(self, metadata_path: Path) -> None:
+        """
+        Renders DCASE metadata to `metadata_path`
+        """
+        # If channel swapping, we have multiple DFs per mic
+        if self.uses_channel_swapping:
+
+            # Already checking earlier that we only have one AudioChannelSwapping aug
+            cswap = [
+                i for i in self.scene_augmentations if i.name == "AudioChannelSwapping"
+            ][0]
+
+            # Iterate over all mics
+            for alias, meta in self.metadata_dcase.items():
+
+                # Dataframe to Numpy
+                meta_numpy = meta.reset_index(drop=False).to_numpy()
+                # Output is (8, n_rows, n_cols)
+                meta_swapped_all = cswap.swap_labels(meta_numpy)
+
+                # Iterate over all swapped channels for this mic
+                for cs_num, meta_swapped in enumerate(meta_swapped_all):
+                    # Construct filename
+                    cs_num = str(cs_num).zfill(3)
+                    outp = metadata_path.with_suffix(".csv").with_stem(
+                        f"{metadata_path.name}_{alias}_cs{cs_num}"
+                    )
+
+                    # Reconstruct the dataframe
+                    meta_swapped_df = pd.DataFrame(
+                        meta_swapped[:, 1:],
+                        index=meta_swapped[:, 0],
+                        columns=meta.columns,
+                    )
+                    meta_swapped_df.index.name = meta.index.name
+
+                    # Dump the metadata
+                    meta_swapped_df.to_csv(outp, sep=",", encoding="utf-8", header=None)
+
+        # If not channel swapping, only one DF per mic
+        else:
+            for mic, df in self.metadata_dcase.items():
                 outp = metadata_path.with_suffix(".csv").with_stem(
                     f"{metadata_path.name}_{mic}"
                 )
                 df.to_csv(outp, sep=",", encoding="utf-8", header=None)
+
+    def _render_audio(self, audio_path: Path) -> None:
+        """
+        Renders generated spatial audio to `audio_path`
+        """
+
+        def out(stem: str, audio: np.ndarray) -> None:
+            sf.write(
+                audio_path.with_suffix(".wav").with_stem(stem),
+                audio.T,
+                int(self.sample_rate),
+            )
+
+        for mic_alias, mic_audio in self.audio.items():
+            # mic_audio can be a single audio file, or an array of audio files if channel swapping used
+            # single audio file case
+            if mic_audio.ndim == 2:
+                out(f"{audio_path.name}_{mic_alias}", mic_audio)
+
+            # multi audio file case
+            elif mic_audio.ndim == 3:
+                # this should never be hit, in practice
+                if not self.uses_channel_swapping:
+                    raise ValueError(
+                        "Audio is 3-dimensional, but no channel swapping augmentation used!"
+                    )
+
+                for audio_num, mic_audio_inner in enumerate(mic_audio):
+                    audio_num = str(audio_num).zfill(3)
+                    out(f"{audio_path.name}_{mic_alias}_cs{audio_num}", mic_audio_inner)
+
+            # unknown output format
+            else:
+                raise ValueError(
+                    f"Expected audio to have either 2 or 3 dimensions, but got {mic_audio.ndim}"
+                )
+
+    def _apply_augmentations(self) -> None:
+        """
+        Apply registered Scene augmentations to `Scene.audio`
+        """
+        # Make a copy of all underlying audio files
+        audio_out = OrderedDict({k: v.copy() for k, v in self.audio.items()})
+
+        # Make a copy of all augmentations
+        ordered_augs = deepcopy(self.scene_augmentations)
+
+        # Channel swapping augmentation needs to go at the end of the list
+        #  because it returns multiple audio files per mic
+        if self.uses_channel_swapping:
+            aug_idx = [
+                i
+                for i, a in enumerate(self.scene_augmentations)
+                if a.name == "AudioChannelSwapping"
+            ]
+            if len(aug_idx) > 1:
+                raise ValueError(
+                    "Only one AudioChannelSwapping augmentation should be added to a Scene!"
+                )
+            ordered_augs.append(ordered_augs.pop(aug_idx[0]))
+
+        # Apply all augmentations to the audio
+        for audio_alias, audio in self.audio.items():
+            for aug in ordered_augs:
+                audio_out[audio_alias] = aug(audio)
+
+        self.audio = audio_out
 
     def to_dict(self) -> dict:
         """
@@ -1246,6 +1459,7 @@ class Scene:
             ambience={k: a.to_dict() for k, a in self.ambience.items()},
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
+            scene_augmentations=[aug.to_dict() for aug in self.scene_augmentations],
         )
 
     @classmethod
@@ -1299,6 +1513,12 @@ class Scene:
                 f"errors, you should try running `pip install rlr_audio_propagation=={loaded_rlr}`"
             )
 
+        # Reconstruct augmentations
+        augs = []
+        if "scene_augmentations" in input_dict.keys():
+            for aug in input_dict["scene_augmentations"]:
+                augs.append(SceneAugmentation.from_dict(aug))
+
         # Instantiate the scene
         #  TODO: figure out some way to handle loading distributions here (non trivial as Scipy distributions cannot
         #   easily be saved to disk)
@@ -1307,6 +1527,8 @@ class Scene:
             "redefine these using, for instance, setattr(scene, 'event_start_dist', ...), repeating this "
             "for every distribution."
         )
+
+        ws = WorldState.from_dict(input_dict["state"])
         instantiated_scene = cls(
             duration=input_dict["duration"],
             mesh_path=input_dict["state"]["mesh"]["fpath"],
@@ -1314,10 +1536,9 @@ class Scene:
             bg_path=input_dict["bg_path"],
             ref_db=input_dict["ref_db"],
             max_overlap=input_dict["max_overlap"],
+            scene_augmentations=augs,
+            state_kwargs=ws,
         )
-
-        # Instantiate the state, which also creates all the emitters and microphones
-        instantiated_scene.state = WorldState.from_dict(input_dict["state"])
 
         # Instantiate the events by iterating over the list
         instantiated_scene.events = OrderedDict(
@@ -1402,6 +1623,12 @@ class Scene:
         """
         return self.state.get_microphone(alias)
 
+    def get_microphones(self) -> list[Type["MicArray"]]:
+        """
+        Get all microphone objects, as in `self.state.microphones.values`
+        """
+        return list(self.state.microphones.values())
+
     def get_ambience(self, alias) -> Ambience:
         """
         Given a valid alias, get an associated ambience event, as in `self.ambience[alias]`
@@ -1416,6 +1643,21 @@ class Scene:
         Get all ambience objects, as in `self.ambience.values()`
         """
         return list(self.ambience.values())
+
+    def get_augmentation(self, idx: int) -> Type[SceneAugmentation]:
+        """
+        Gets a single augmentation associated with this Scene by its integer index.
+        """
+        try:
+            return self.scene_augmentations[idx]
+        except IndexError:
+            raise IndexError("No augmentation with index {}".format(idx))
+
+    def get_augmentations(self) -> list[Type[EventAugmentation]]:
+        """
+        Gets all augmentations associated with this Scene.
+        """
+        return self.scene_augmentations
 
     # noinspection PyProtectedMember
     def clear_events(self) -> None:
