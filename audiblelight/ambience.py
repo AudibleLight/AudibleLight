@@ -36,7 +36,7 @@ class Ambience:
         alias: str,
         filepath: Optional[Union[str, Path]] = None,
         noise: Optional[Union[str, custom_types.Numeric]] = None,
-        ref_db: Optional[custom_types.Numeric] = config.REF_DB,
+        ref_db: Optional[custom_types.Numeric] = config.DEFAULT_REF_DB,
         sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         **kwargs,
     ):

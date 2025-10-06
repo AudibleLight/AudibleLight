@@ -397,6 +397,8 @@ def normalize_irs(irs: np.ndarray) -> np.ndarray:
         normalized_IRs = IR_normalizer(impulse_responses)
     """
     e = np.sqrt(np.sum(np.power(np.abs(irs), 2), axis=-1, keepdims=True))
+    # Prevents divide by zero
+    e += utils.tiny(e)
     return irs / np.mean(e, axis=-2, keepdims=True)
 
 
@@ -404,7 +406,7 @@ def render_event_audio(
     event: Event,
     irs: np.ndarray,
     mic_alias: str,
-    ref_db: custom_types.Numeric = config.REF_DB,
+    ref_db: custom_types.Numeric = config.DEFAULT_REF_DB,
     ignore_cache: Optional[bool] = True,
     fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
     win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,

@@ -90,8 +90,8 @@ def parse_arguments():
     parser.add_argument(
         "--ref-db",
         type=float,
-        default=config.REF_DB,
-        help=f"Reference decibel level (default: {config.REF_DB}).",
+        default=config.DEFAULT_REF_DB,
+        help=f"Reference decibel level (default: {config.DEFAULT_REF_DB}).",
     )
     parser.add_argument(
         "--min-snr",

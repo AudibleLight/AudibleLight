@@ -14,20 +14,23 @@ Generates similar training data to that contained in [this repo](https://zenodo.
 - Maximum polyphony of 2 (with possible same-class events overlapping)
 """
 
-
 import argparse
+import json
 import os
 import random
 from pathlib import Path
 from time import time
 
+import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
 from tqdm import tqdm
 
 from audiblelight import config, utils
+from audiblelight.augmentation import PitchShift, MultibandEqualizer, Compressor
 from audiblelight.core import Scene
+from audiblelight.worldstate import MATERIALS_JSON
 
 # For reproducible randomisation
 utils.seed_everything(utils.SEED)
@@ -57,6 +60,11 @@ MOVING_EVENTS = utils.sanitise_distribution(
     lambda: random.choice(range(config.MIN_MOVING_EVENTS, config.MAX_MOVING_EVENTS))
 )
 
+# Valid materials for the ray-tracing engine
+with open(MATERIALS_JSON, "r") as js_in:
+    js_out = json.load(js_in)
+VALID_MATERIALS = list({mat["name"] for mat in js_out["materials"]})
+
 
 def generate(
     mesh_path: str, split: str, scene_num: int, scape_num: int, output_dir: Path
@@ -71,8 +79,15 @@ def generate(
     metadata_path = output_dir / f"metadata_dev/{common}.csv"
 
     # Skip over this generation if files already exist
-    if audio_path.exists() and metadata_path.exists():
+    if (audio_path.with_name(audio_path.stem + "_mic.wav").exists() and
+            metadata_path.with_name(metadata_path.stem + "_mic.csv").exists()):
         return
+
+    # Choose a material to use
+    scene_material = random.choice(VALID_MATERIALS)
+
+    # Choose a noise floor for the scene
+    scene_ref_db = np.random.uniform(config.MIN_REF_DB, config.MAX_REF_DB)
 
     scene = Scene(
         duration=DURATION,
@@ -99,21 +114,31 @@ def generate(
         snr_dist=stats.uniform(
             config.MIN_EVENT_SNR, config.MAX_EVENT_SNR - config.MIN_EVENT_SNR
         ),
+        # Event augmentations will sample from this list
+        event_augmentations=[
+            PitchShift,
+            Compressor,
+            MultibandEqualizer
+        ],
         fg_path=Path(FG_DIR),
         max_overlap=MAX_OVERLAP,
-        ref_db=config.REF_DB,
+        ref_db=scene_ref_db,
         state_kwargs=dict(
-            add_to_context=False, rlr_kwargs=dict(sample_rate=SAMPLE_RATE)
+            add_to_context=False,
+            material=scene_material,
+            rlr_kwargs=dict(sample_rate=SAMPLE_RATE)
         ),
         allow_duplicate_audios=False,
     )
 
-    # Add the microphone, static + moving events, and ambience
+    # Add the microphone, static + moving events (one augmentation sampled randomly from above list)
     scene.add_microphone(microphone_type=config.MIC_ARRAY_TYPE, alias="mic")
     for _ in range(STATIC_EVENTS.rvs()):
-        scene.add_event(event_type="static")
+        scene.add_event(event_type="static", augmentations=1)
     for _ in range(MOVING_EVENTS.rvs()):
-        scene.add_event(event_type="moving")
+        scene.add_event(event_type="moving", augmentations=1)
+
+    # Always add gaussian noise
     scene.add_ambience(noise="gaussian")
 
     # Do the generation: create audio and DCASE metadata
@@ -137,6 +162,19 @@ def dump_room_csv(outdir: Path) -> None:
     room_df.to_csv(outdir / "rooms.csv", index=True)
 
 
+def read_room_csv(outdir: Path) -> None:
+    """
+    Load existing rooms from a disk
+    """
+    global TRAIN_ROOMS, TEST_ROOMS
+
+    print(f"Before loading: train rooms {TRAIN_ROOMS}, test rooms {TEST_ROOMS}")
+    room_df = pd.read_csv(outdir / "rooms.csv")
+    TRAIN_ROOMS = [Path(p) for p in room_df[room_df["split"] == "train"]["mesh"].tolist()]
+    TEST_ROOMS = [Path(p) for p in room_df[room_df["split"] == "test"]["mesh"].tolist()]
+    print(f"After loading: train rooms {TRAIN_ROOMS}, test rooms {TEST_ROOMS}")
+
+
 def main(outdir: str):
     # Create the output folders if they don't currently exist
     outdir = Path(outdir)
@@ -150,7 +188,10 @@ def main(outdir: str):
             os.makedirs(fp)
 
     # Dump a CSV file containing the rooms + splits
-    dump_room_csv(outdir)
+    if os.path.isfile(outdir / "rooms.csv"):
+        read_room_csv(outdir)
+    else:
+        dump_room_csv(outdir)
 
     # Start iterating to create the required number of training scenes
     logger.info("Generating training scenes...")

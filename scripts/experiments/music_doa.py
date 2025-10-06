@@ -43,7 +43,7 @@ def create_scene(mesh_path: Path) -> Scene:
         ),
         fg_path=Path(FG_DIR),
         max_overlap=1,
-        ref_db=config.REF_DB,
+        ref_db=config.DEFAULT_REF_DB,
         state_kwargs=dict(
             add_to_context=False, rlr_kwargs=dict(sample_rate=config.SAMPLE_RATE)
         ),
