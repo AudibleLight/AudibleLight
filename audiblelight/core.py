@@ -40,7 +40,7 @@ class Scene:
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
-        ref_db: Optional[custom_types.Numeric] = config.REF_DB,
+        ref_db: Optional[custom_types.Numeric] = config.DEFAULT_REF_DB,
         scene_start_dist: Optional[custom_types.DistributionLike] = None,
         event_start_dist: Optional[custom_types.DistributionLike] = None,
         event_duration_dist: Optional[custom_types.DistributionLike] = None,

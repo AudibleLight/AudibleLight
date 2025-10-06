@@ -406,7 +406,7 @@ def render_event_audio(
     event: Event,
     irs: np.ndarray,
     mic_alias: str,
-    ref_db: custom_types.Numeric = config.REF_DB,
+    ref_db: custom_types.Numeric = config.DEFAULT_REF_DB,
     ignore_cache: Optional[bool] = True,
     fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
     win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,

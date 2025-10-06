@@ -64,7 +64,7 @@ def main(n_scenes: int, outdir: str):
             output_folder=output_dir,
             fg_folder=FG_DIR,
             mesh_path=mesh,
-            ref_db=config.REF_DB,
+            ref_db=config.DEFAULT_REF_DB,
             min_snr=config.MIN_EVENT_SNR,
             max_snr=config.MAX_EVENT_SNR,
             min_velocity=config.MIN_EVENT_VELOCITY,
