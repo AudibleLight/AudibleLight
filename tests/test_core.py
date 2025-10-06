@@ -699,7 +699,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "beta": 1,
                     "filepath": None,
                     "channels": 4,
-                    "sample_rate": 44100.0,
+                    "sample_rate": 24000.0,
                     "duration": 10.0,
                     "ref_db": -50,
                     "noise_kwargs": {},
@@ -708,7 +708,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
             "scene_augmentations": [
                 {
                     "name": "TimeFrequencyMasking",
-                    "sample_rate": 44100.0,
+                    "sample_rate": 24000.0,
                     "mel_kwargs": {},
                     "return_spectrogram": False,
                     "replace_with_zero": False,
@@ -729,7 +729,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "event_end": 0.3922902494331066,
                     "duration": 0.3922902494331066,
                     "snr": None,
-                    "sample_rate": 44100.0,
+                    "sample_rate": 24000.0,
                     "spatial_resolution": None,
                     "spatial_velocity": None,
                     "num_emitters": 1,
@@ -744,7 +744,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "augmentations": [
                         {
                             "name": "Phaser",
-                            "sample_rate": 44100,
+                            "sample_rate": 24000,
                             "rate_hz": 9.480337646552867,
                             "depth": 0.4725113710968438,
                             "centre_frequency_hz": 2348.1728842622597,
@@ -816,7 +816,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "max_diffraction_order": 10,
                     "max_ir_length": 4.0,
                     "mesh_simplification": 0,
-                    "sample_rate": 44100.0,
+                    "sample_rate": 24000.0,
                     "size": 146,
                     "source_ray_count": 200,
                     "source_ray_depth": 10,
@@ -836,6 +836,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
 )
 def test_scene_from_dict(input_dict: dict):
     ev = Scene.from_dict(input_dict)
+    assert ev.sample_rate == input_dict["state"]["rlr_config"]["sample_rate"]
     assert isinstance(ev, Scene)
     assert len(ev.events) == len(input_dict["events"])
     assert (

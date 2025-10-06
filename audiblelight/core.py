@@ -65,7 +65,7 @@ class Scene:
         scene_augmentations: Optional[
             Union[Type[SceneAugmentation], Iterable[Type[SceneAugmentation]]]
         ] = None,
-        state_kwargs: Optional[dict] = None,
+        state_kwargs: Optional[Union[dict, WorldState]] = None,
     ):
         """
         Initializes the Scene with a given duration and mesh.
@@ -118,11 +118,13 @@ class Scene:
         self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
 
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
-        if state_kwargs is None:
-            state_kwargs = {}
-        utils.validate_kwargs(WorldState.__init__, **state_kwargs)
-        self.state = WorldState(mesh_path, **state_kwargs)
-
+        if isinstance(state_kwargs, WorldState):
+            self.state = state_kwargs
+        elif isinstance(state_kwargs, dict):
+            utils.validate_kwargs(WorldState.__init__, **state_kwargs)
+            self.state = WorldState(mesh_path, **state_kwargs)
+        else:
+            self.state = WorldState(mesh_path)
         self.sample_rate = self.state.cfg.sample_rate
 
         # Grab some attributes from the WorldState to make them easier to access
@@ -1525,6 +1527,8 @@ class Scene:
             "redefine these using, for instance, setattr(scene, 'event_start_dist', ...), repeating this "
             "for every distribution."
         )
+
+        ws = WorldState.from_dict(input_dict["state"])
         instantiated_scene = cls(
             duration=input_dict["duration"],
             mesh_path=input_dict["state"]["mesh"]["fpath"],
@@ -1533,10 +1537,8 @@ class Scene:
             ref_db=input_dict["ref_db"],
             max_overlap=input_dict["max_overlap"],
             scene_augmentations=augs,
+            state_kwargs=ws,
         )
-
-        # Instantiate the state, which also creates all the emitters and microphones
-        instantiated_scene.state = WorldState.from_dict(input_dict["state"])
 
         # Instantiate the events by iterating over the list
         instantiated_scene.events = OrderedDict(
