@@ -15,7 +15,6 @@ The purpose of wrapping these augmentations, rather than using them directly, is
 every augmentation class, parameters can either be sampled randomly from acceptable default distributions, or provided
 by the user. The exact parameters of the FX can then be reconstructed later from the `params` dictionary. Additionally,
 some FX (`MultibandEqualizer`, `TimeWarpXXXX`) are newly implemented for AudibleLight.
-
 """
 
 import math
@@ -117,7 +116,11 @@ class Augmentation:
             out = np.expand_dims(out, 0)
 
         # Pad or truncate the audio to keep the same dims
-        trunc = utils.pad_or_truncate_audio(out, max(input_array.shape))
+        #  When padding, use wrap to take samples from the start and put them at the end
+        #  E.g., if speeding up audio, wrap the start of the audio back around to the end
+        trunc = utils.pad_or_truncate_audio(
+            out, max(input_array.shape), pad_mode="wrap"
+        )
 
         # Stereo input, stereo output
         if input_array.ndim == 2:

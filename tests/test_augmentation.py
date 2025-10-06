@@ -380,12 +380,6 @@ def test_speed_up(audio_fpath, stretch_factor):
     if stretch_factor == 1.0:
         assert np.array_equal(out, loaded)
 
-    # With a stretch factor of more than 1.0, audio should be right padded with zeros
-    elif stretch_factor > 1.0:
-        assert np.array_equal(out[-100:], np.zeros(100))
-        assert not np.array_equal(loaded[-100:], np.zeros(100))
-        assert not np.array_equal(out, loaded)
-
     else:
         assert not np.array_equal(out, loaded)
 
