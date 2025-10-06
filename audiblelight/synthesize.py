@@ -397,6 +397,8 @@ def normalize_irs(irs: np.ndarray) -> np.ndarray:
         normalized_IRs = IR_normalizer(impulse_responses)
     """
     e = np.sqrt(np.sum(np.power(np.abs(irs), 2), axis=-1, keepdims=True))
+    # Prevents divide by zero
+    e += utils.tiny(e)
     return irs / np.mean(e, axis=-2, keepdims=True)
 
 
