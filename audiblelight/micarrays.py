@@ -585,6 +585,9 @@ def sanitize_microphone_input(microphone_type: Any) -> Type["MicArray"]:
     elif type(microphone_type) in MICARRAY_LIST:
         sanitized_microphone = type(microphone_type)
 
+    elif issubclass(microphone_type, MicArray):
+        sanitized_microphone = microphone_type
+
     # Otherwise, we don't know what the microphone is
     else:
         raise TypeError(f"Could not parse microphone type {type(microphone_type)}")

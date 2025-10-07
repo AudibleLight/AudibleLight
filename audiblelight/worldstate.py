@@ -1649,7 +1649,8 @@ class WorldState:
             len(self.microphones) > 0
         ), "Must have added valid microphones to the mesh before calling `.simulate`!"
         assert all(
-            type(m) in MICARRAY_LIST for m in self.microphones.values()
+            type(m) in MICARRAY_LIST or issubclass(type(m), MicArray)
+            for m in self.microphones.values()
         ), "Non-microphone objects in microphone attribute"
         assert (
             self.ctx.get_listener_count() > 0
