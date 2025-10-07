@@ -3,26 +3,37 @@
 
 """Modules and functions for "synthesizing" outputs (including audio, video, image, metadata)"""
 
+from collections import Counter
 from time import time
 from typing import Optional
 
 import librosa
 import numpy as np
+import pandas as pd
 from loguru import logger
 from scipy import fft, signal
-from tqdm import tqdm
 
-from audiblelight import utils
+from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.core import Scene
 from audiblelight.event import Event
 
+# See https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation
+DCASE_2024_COLUMNS = [
+    "frame_number",
+    "active_class_index",
+    "source_number_index",
+    "azimuth",
+    "elevation",
+    "distance",
+]
 
-def apply_snr(x: np.ndarray, snr: utils.Numeric) -> np.ndarray:
+
+def apply_snr(x: np.ndarray, snr: custom_types.Numeric) -> np.ndarray:
     """
     Scale an audio signal to a given maximum SNR.
 
-    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/spatialize.py#L147)
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/spatialize.py#L147)
 
     Return:
         np.ndarray: the scaled audio signal
@@ -30,12 +41,12 @@ def apply_snr(x: np.ndarray, snr: utils.Numeric) -> np.ndarray:
     return x * snr / np.abs(x).max(initial=1e-15)
 
 
-def db_to_multiplier(db: utils.Numeric, x: utils.Numeric) -> float:
+def db_to_multiplier(db: custom_types.Numeric, x: custom_types.Numeric) -> float:
     """
     Calculates the multiplier factor from a decibel (dB) value that, when applied to x, adjusts its amplitude to
     reflect the specified dB. The relationship is based on the formula 20 * log10(factor * x) ≈ db.
 
-    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/dd130d1e0f8aef0c93f5e1b73c3445f855b92e7b/spatialscaper/utils.py#L287)
+    Adapted from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/utils.py#L287)
 
     Arguments:
         db (float): The target decibel change to be applied.
@@ -44,7 +55,9 @@ def db_to_multiplier(db: utils.Numeric, x: utils.Numeric) -> float:
     Returns:
         float: The multiplier factor.
     """
-    return 10 ** (db / 20) / x
+    # Need to add a small value here to prevent divide by zero errors
+    #  These can cause the audio buffer to become filled with NaNs, which leads to errors later on
+    return 10 ** (db / 20) / (x + utils.tiny(x))
 
 
 def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
@@ -87,9 +100,9 @@ def time_invariant_convolution(audio: np.ndarray, ir: np.ndarray) -> np.ndarray:
 
 def stft(
     y: np.ndarray,
-    fft_size: Optional[utils.Numeric] = 512,
-    win_size: Optional[utils.Numeric] = 256,
-    hop_size: Optional[utils.Numeric] = 128,
+    fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
     stft_dims_first: Optional[bool] = True,
 ) -> np.ndarray:
     """
@@ -126,9 +139,9 @@ def stft(
 
 def generate_interpolation_matrix(
     ir_times: np.ndarray,
-    sr: utils.Numeric,
-    hop_size: utils.Numeric,
-    n_frames: Optional[utils.Numeric] = None,
+    sr: custom_types.Numeric = config.SAMPLE_RATE,
+    hop_size: custom_types.Numeric = config.HOP_SIZE,
+    n_frames: Optional[custom_types.Numeric] = None,
 ) -> np.ndarray:
     """
     Generate impulse response interpolation weights that determines how the source moves through space.
@@ -164,8 +177,8 @@ def perform_time_variant_convolution(
     s_audio: np.ndarray,
     s_ir: np.ndarray,
     w_ir: np.ndarray,
-    ir_slice_min: utils.Numeric = 0,
-    ir_relevant_ratio_max: utils.Numeric = 0.5,
+    ir_slice_min: custom_types.Numeric = 0,
+    ir_relevant_ratio_max: custom_types.Numeric = 0.5,
 ) -> np.ndarray:
     """
     Convolve a bank of time-varying impulse responses with an audio spectrogram.
@@ -233,9 +246,9 @@ def perform_time_variant_convolution(
 
 def istft_overlap_synthesis(
     spatial_stft: np.ndarray,
-    fft_size: utils.Numeric,
-    win_size: utils.Numeric,
-    hop_size: utils.Numeric,
+    fft_size: custom_types.Numeric = config.FFT_SIZE,
+    win_size: custom_types.Numeric = config.WIN_SIZE,
+    hop_size: custom_types.Numeric = config.HOP_SIZE,
 ) -> np.ndarray:
     """
     Given a stft, recompose it into audio samples using overlap-add synthesis.
@@ -256,8 +269,9 @@ def istft_overlap_synthesis(
 def time_variant_convolution(
     irs: np.ndarray,
     event: Event,
-    win_size: utils.Numeric,
-    hop_size: Optional[utils.Numeric] = None,
+    fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
 ) -> np.ndarray:
     """
     Performs time-variant convolution for given IRs and Event object
@@ -268,10 +282,8 @@ def time_variant_convolution(
 
     # Get parameters and shapes
     win_size = utils.sanitise_positive_number(win_size, cast_to=int)
-    if hop_size is None:
-        hop_size = win_size // 2
     hop_size = utils.sanitise_positive_number(hop_size, cast_to=int)
-    fft_size = 2 * win_size
+    fft_size = utils.sanitise_positive_number(fft_size, cast_to=int)
 
     # Compute the spectrograms for both the IRs and the audio
     # Output is (n_frames, n_freq_bins, n_capsules, n_sources)
@@ -300,67 +312,105 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
     Returns:
         None
     """
-    # Create empty array with shape (n_channels, n_samples)
-    channels = max([ev.spatial_audio.shape[0] for ev in scene.events.values()])
-    duration = round(scene.duration * scene.sample_rate)
-    scene_audio = np.zeros((channels, duration), dtype=np.float32)
+    # We'll create audio separately for every microphone added to the state
+    for mic_alias in scene.state.microphones.keys():
 
-    # If we have ambient noise for the scene, and it is valid, add it in now
-    if len(scene.ambience) > 0:
-        for ambience in scene.ambience.values():
-            if not isinstance(ambience, Ambience):
-                raise TypeError(
-                    f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
+        # Create empty array with shape (n_channels, n_samples)
+        channels = max(
+            [ev.spatial_audio[mic_alias].shape[0] for ev in scene.events.values()]
+        )
+        duration = round(scene.duration * scene.sample_rate)
+        scene_audio = np.zeros((channels, duration), dtype=np.float32)
+
+        # If we have ambient noise for the scene, and it is valid, add it in now
+        if len(scene.ambience) > 0:
+            for ambience in scene.ambience.values():
+                if not isinstance(ambience, Ambience):
+                    raise TypeError(
+                        f"Expected scene ambient noise to be of type Ambience, but got {type(ambience)}!"
+                    )
+
+                ambient_noise = ambience.load_ambience(normalize=True)
+                if ambient_noise.shape != scene_audio.shape:
+                    raise ValueError(
+                        f"Scene ambient noise does not match expected shape. "
+                        f"Expected {scene_audio.shape}, but got {ambient_noise.shape}."
+                    )
+
+                # Now we scale to match the desired noise floor (taken from SpatialScaper)
+                scaled = db_to_multiplier(
+                    ambience.ref_db, np.mean(np.abs(ambient_noise))
                 )
+                amb = scaled * ambient_noise
 
-            ambient_noise = ambience.load_ambience()
-            if ambient_noise.shape != scene_audio.shape:
-                raise ValueError(
-                    f"Scene ambient noise does not match expected shape. "
-                    f"Expected {scene_audio.shape}, but got {ambient_noise.shape}."
+                # TODO: ideally, we can also support adding noise with a given offset and duration
+                scene_audio += amb
+
+        # Iterate over all the events
+        for event in scene.events.values():
+            # Compute scene time in samples
+            scene_start = max(0, round(event.scene_start * scene.sample_rate))
+            scene_end = min(round(event.scene_end * scene.sample_rate), duration)
+
+            # Ensure valid slice
+            if scene_end <= scene_start:
+                logger.warning(
+                    f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}"
                 )
+                continue
 
-            # Now we scale to match the desired noise floor (taken from SpatialScaper)
-            scaled = db_to_multiplier(ambience.ref_db, np.mean(np.abs(ambient_noise)))
-            amb = scaled * ambient_noise
-
-            # TODO: ideally, we can also support adding noise with a given offset and duration
-            scene_audio += amb
-
-    # Iterate over all the events
-    for event in scene.events.values():
-        # Compute scene time in samples
-        scene_start = max(0, round(event.scene_start * scene.sample_rate))
-        scene_end = min(round(event.scene_end * scene.sample_rate), duration)
-
-        # Ensure valid slice
-        if scene_end <= scene_start:
-            logger.warning(
-                f"Skipping event due to invalid slice: start={scene_start}, end={scene_end}"
+            # Truncate or pad spatial_audio to fit the scene slice length
+            num_samples = scene_end - scene_start
+            spatial_audio = utils.pad_or_truncate_audio(
+                event.spatial_audio[mic_alias], num_samples
             )
-            continue
 
-        # Truncate or pad spatial_audio to fit the scene slice length
-        num_samples = scene_end - scene_start
-        spatial_audio = utils.pad_or_truncate_audio(event.spatial_audio, num_samples)
+            # Additive synthesis
+            scene_audio[:, scene_start:scene_end] += spatial_audio
 
-        # Additive synthesis
-        scene_audio[:, scene_start:scene_end] += spatial_audio
+        # Sanity check everything
+        librosa.util.valid_audio(scene_audio)
+        utils.validate_shape(scene_audio.shape, (channels, duration))
 
-    # Sanity check everything
-    librosa.util.valid_audio(scene_audio)
-    utils.validate_shape(scene_audio.shape, (channels, duration))
+        scene.audio[mic_alias] = scene_audio
 
-    scene.audio = scene_audio
+
+def normalize_irs(irs: np.ndarray) -> np.ndarray:
+    """
+    Normalizes impulse responses based on their energy.
+
+    This function calculates the energy of each impulse response as the square root of the sum of its squared values.
+    It then normalizes each impulse response by the mean energy across all responses.
+
+    Taken from [`SpatialScaper`](https://github.com/marl/SpatialScaper/blob/main/spatialscaper/spatialize.py#L193)
+
+    Parameters:
+        irs (numpy.array): A 2D or 3D array of impulse responses, where each row (in the 2D case) or matrix
+            (in the 3D case) represents an individual impulse response.
+
+    Returns:
+        numpy.array: The normalized impulse responses, having the same shape as the input `IRs`.
+
+    Example:
+        # Example of normalizing a set of impulse responses
+        impulse_responses = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        normalized_IRs = IR_normalizer(impulse_responses)
+    """
+    e = np.sqrt(np.sum(np.power(np.abs(irs), 2), axis=-1, keepdims=True))
+    # Prevents divide by zero
+    e += utils.tiny(e)
+    return irs / np.mean(e, axis=-2, keepdims=True)
 
 
 def render_event_audio(
     event: Event,
     irs: np.ndarray,
-    ref_db: utils.Numeric,
+    mic_alias: str,
+    ref_db: custom_types.Numeric = config.DEFAULT_REF_DB,
     ignore_cache: Optional[bool] = True,
-    win_size: Optional[utils.Numeric] = 512,
-    hop_size: Optional[utils.Numeric] = None,
+    fft_size: Optional[custom_types.Numeric] = config.FFT_SIZE,
+    win_size: Optional[custom_types.Numeric] = config.WIN_SIZE,
+    hop_size: Optional[custom_types.Numeric] = config.HOP_SIZE,
 ) -> None:
     """
     Renders audio for a given `Event` object.
@@ -375,37 +425,46 @@ def render_event_audio(
     Arguments:
         event (Event): the Event object to render audio for
         irs (np.ndarray): the IR audio array for the given event, taken from the WorldState and this event's Emitters
-        ref_db (utils.Numeric): the noise floor for the Scene
+        mic_alias: the microphone alias associated with the IRs used here
+        ref_db (custom_types.Numeric): the noise floor for the Scene
         ignore_cache (bool): if True, any cached spatial audio from a previous call to this function will be discarded
-        win_size (int): the window size of the FFT, defaults to 512 samples
-        hop_size (utils.Numeric): the size of the hop between FFTs, defaults to (win_size // 2) samples
+        fft_size (custom_types.Numeric): size of the FFT, defaults to 512 samples
+        win_size (int): the window size of the FFT, defaults to 256 samples
+        hop_size (custom_types.Numeric): the size of the hop between FFTs, defaults to 128 samples
 
     Returns:
         None
     """
     # In cases where we've already cached the spatial audio, and we want to use it, skip over
-    if event.spatial_audio is not None and not ignore_cache:
+    if mic_alias in event.spatial_audio.keys() and not ignore_cache:
         return
 
-    # Grab the IRs for the current event's emitters
+    # Grab the IRs for the current event's emitters (make a copy first)
     #  This gets us (N_capsules, N_emitters, N_samples)
-    n_ch, n_emitters, n_ir_samples = irs.shape
+    irs_copy = irs.copy()
+    n_ch, n_emitters, n_ir_samples = irs_copy.shape
 
     # Grab the audio for the event as well and validate
-    audio = event.load_audio(ignore_cache=ignore_cache)
+    #  This also applies any augmentations, etc. associated with the Event and normalizes the audio
+    audio = event.load_audio(ignore_cache=ignore_cache, normalize=True)
     librosa.util.valid_audio(audio)
-
-    # TODO: this is when we'd also apply any data augmentation, etc.
     n_audio_samples = audio.shape[0]
 
+    # Normalize IRs for this event
+    #  This goes (n_caps, n_source, n_samp) -> (n_source, n_caps, n_samp)
+    #  Then normalization is applied to each (n_caps, n_samp)
+    #  Stacked back to (n_source, n_caps, n_samp)
+    #  Then transposed back to (n_caps, n_source, n_samp)
+    irs_copy = normalize_irs(irs_copy.transpose(1, 0, 2)).transpose(1, 0, 2)
+
+    # THIS IS NOW EQUIVALENT TO spatialscaper.spatialize FUNC
     # Only a single emitter (IR): we can convolve easily with scipy
     if n_emitters == 1:
         if event.is_moving:
             raise ValueError(
                 "Moving Event has only one emitter!"
             )  # something has gone very wrong to hit this
-        # TODO: if any emitters are not mono, this will break silently
-        spatial = time_invariant_convolution(audio, irs[:, 0].T)
+        spatial = time_invariant_convolution(audio, irs_copy[:, 0].T)
 
     # No emitters: means that audio is not spatialized
     elif n_emitters == 0:
@@ -421,7 +480,9 @@ def render_event_audio(
             raise ValueError(
                 "Expected a moving event!"
             )  # something has gone very wrong to hit this
-        spatial = time_variant_convolution(irs, event, win_size, hop_size)
+        spatial = time_variant_convolution(
+            irs_copy, event, fft_size, win_size, hop_size
+        )
 
     # Pad or truncate the audio to match the desired number of samples
     spatial = utils.pad_or_truncate_audio(spatial, n_audio_samples)
@@ -429,6 +490,8 @@ def render_event_audio(
     # Deal with amplitude: this logic is taken from SpatialScaper
     #  This scales the audio simply to the maximum SNR
     spatial = apply_snr(spatial, event.snr)
+    # SPATIAL IS NOW EQUIVALENT TO OUTPUT OF SPATIALSCAPER FUNC
+
     #  This scales to match the Scene's noise floor + the SNR for the Event
     event_scale = db_to_multiplier(ref_db + event.snr, np.mean(np.abs(spatial)))
     spatial = event_scale * spatial
@@ -438,11 +501,11 @@ def render_event_audio(
     librosa.util.valid_audio(spatial)
 
     # Cast the audio as an attribute of the event, function has no direct return
-    event.spatial_audio = spatial
+    event.spatial_audio[mic_alias] = spatial
 
 
 def render_audio_for_all_scene_events(
-    scene: Scene, ignore_cache: Optional[bool] = True
+    scene: Scene, ignore_cache: Optional[bool] = False
 ) -> None:
     """
     Renders audio for all `Events` associated with a given `Scene` object.
@@ -457,7 +520,7 @@ def render_audio_for_all_scene_events(
 
     Arguments:
         scene: Scene object with associated `WorldState`, `Emitter`, `MicArray`, `Event` objects added.
-        ignore_cache (optional): If True (default), cached Event audio will be ignored
+        ignore_cache (optional): If True, cached Event audio will be ignored
 
     Returns:
         None
@@ -473,32 +536,39 @@ def render_audio_for_all_scene_events(
         except AttributeError:
             scene.state.simulate()
 
-    # Grab the IRs from the entire WorldState
-    #  The expected IR shape is (N_capsules, N_emitters, N_channels (== 1), N_samples)
-    irs = scene.state.ctx.get_audio()
-    # TODO: probably won't work with more than one microphone!
-    emitter_counter = 0
+    # Validate the scene
+    validate_scene(scene)
+    # Grab the IRs from the WorldState
+    #  This is a dictionary with format {mic000: [N_channels, N_emitters, N_samples], ...}
+    irs = scene.state.get_irs()
 
-    # Iterate over each one of our Events
+    # Iterate over all microphones
     start = time()
-    for event_alias, event in tqdm(
-        scene.events.items(), desc="Rendering event audio..."
-    ):
+    for mic_alias, mic_ir in irs.items():
+        # We need a separate counter for each microphone
+        emitter_counter = 0
 
-        # Grab the IRs for the current event's emitters
-        #  This gets us (N_capsules, N_emitters, N_samples)
-        event_irs = irs[:, emitter_counter : len(event) + emitter_counter, 0, :]
+        # Iterate over all events
+        for event_alias, event in scene.events.items():
 
-        # Render the audio for the event
-        #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
-        render_event_audio(
-            event, event_irs, ref_db=scene.ref_db, ignore_cache=ignore_cache
-        )
+            # Grab the IRs for the current event's emitters
+            #  This gets us (N_capsules, N_emitters, N_samples)
+            event_irs = mic_ir[:, emitter_counter : len(event) + emitter_counter, :]
 
-        # Update the counter
-        emitter_counter += len(event)
+            # Render the audio for the event at this microphone
+            #  This function has no return, instead it just sets the `spatial_audio` attribute for the Event
+            render_event_audio(
+                event,
+                event_irs,
+                mic_alias=mic_alias,
+                ref_db=scene.ref_db,
+                ignore_cache=ignore_cache,
+            )
 
-    logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds.!")
+            # Update the counter
+            emitter_counter += len(event)
+
+    logger.info(f"Rendered scene audio in {(time() - start):.2f} seconds!")
 
 
 # noinspection PyProtectedMember
@@ -540,7 +610,7 @@ def validate_scene(scene: Scene) -> None:
             f"{scene.state.ctx.get_source_count()} sources."
         )
 
-    capsules = sum(m.n_capsules for m in scene.state.microphones.values())
+    capsules = sum(m.n_listeners for m in scene.state.microphones.values())
     if capsules != scene.state.ctx.get_listener_count():
         raise ValueError(
             f"Mismatching number of microphones and listeners! "
@@ -549,3 +619,137 @@ def validate_scene(scene: Scene) -> None:
 
     if any(not ev.has_emitters for ev in scene.events.values()):
         raise ValueError("Some events have no emitters registered to them!")
+
+
+def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
+    """
+    Given a Scene, generate metadata for each microphone in the DCASE 2024 format.
+
+    The output format is given as {"mic_alias_0": <pd.DataFrame>, "mic_alias_1": <pd.DataFrame>} for every microphone
+    added to the scene. The exact specification of the metadata can be found on the [DCASE 2024 challenge website]
+    (https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation)
+
+    In particular, the columns of each dataframe are as follows:
+    - frame number (int): the index of the frame
+    - active class index (int): the index of the soundevent: see `audiblelight.event.DCASE_SOUND_EVENT_CLASSES` for
+        a complete mapping.
+    - source number index (int): a unique integer identifier for each event in the scene.
+    - azimuth (int): the azimuth, increasing counter-clockwise (ϕ=90∘ at the left, ϕ=0∘ at the front).
+    - elevation (int): the elevation angle (θ=0∘ at the front).
+    - distance (int): the distance from the microphone, measured in centimeters.
+
+    The audio is quantised to 10 frames per second (i.e., frame length = 100 ms). In cases of moving trajectories, the
+    position of each IR is linearly interpolated throughout the duration of the audio file in order to obtain a value
+    for azimuth, elevation, and distance estimated at every frame.
+
+    Note that, `source number index` value is assigned **separately** for each class (in the STARSS format):
+    thus, with two `telephone` classes and one `femaleSpeech`, we would expect to see values of 0 and 1 for the two
+    `telephone` instances and only `0` for the `femaleSpeech` instance. Events that share the same audio file are
+    always assigned the same source ID every time they occur.
+
+    Finally, note that frames without sound events are omitted from the output.
+    """
+
+    # Produce an array of frames, lasting as long as the scene itself.
+    frames = np.round(np.arange(0, scene.duration + 0.1, 0.1), 1)
+
+    # Aliases for all microphones
+    microphones = list(scene.state.microphones.keys())
+    res = {mic: [] for mic in microphones}
+
+    # This mapping will be used to count the number of times that each class IDX appears
+    unique_ids = Counter()
+
+    # Need to sort events by starting time in the scene
+    events = scene.get_events()
+    sorted_events = sorted(events, key=lambda e: e.scene_start)
+
+    # Keep track of the files we've already seen and their IDs
+    seen_filepaths = {}
+
+    for event in sorted_events:
+        # Determine frame indices for event start and end
+        start_idx = np.where(frames == round(max(event.scene_start, 0.0), 1))[0][0]
+        end_idx = np.where(frames == round(min(event.scene_end, scene.duration), 1))[0][
+            0
+        ]
+
+        # This is the frame indices where the frame lasts
+        event_range = np.arange(start_idx, end_idx + 1)
+
+        # Raise an error if the event has no DCASE class idx or this is somehow invalid otherwise
+        if not isinstance(event.class_id, int):
+            raise ValueError(
+                "Can't convert Event to DCASE format without valid DCASE class indices"
+            )
+
+        # If we haven't already seen this file before, grab the ID
+        if event.filename not in seen_filepaths:
+            source_idx = unique_ids.get(event.class_id, 0)
+            seen_filepaths[event.filename] = source_idx
+            # Increment the counter by one for the next occurrence of this class
+            unique_ids[event.class_id] += 1
+
+        # If we have seen this file before, use the same source ID as before
+        else:
+            source_idx = seen_filepaths[event.filename]
+
+        # Iterate over every microphone for each event
+        for mic in microphones:
+            # Processing static events
+            if not event.is_moving:
+                # Static events just have one emitter, so grab the relative position to the mic directly
+                az, elv, dist = event.emitters[0].coordinates_relative_polar[mic][0]
+                # Need to round values and convert metres -> centimetres
+                az, elv, dist = round(az), round(elv), round(dist * 100)
+                # We want a new row for every frame
+                frame_data = [
+                    [int(idx), event.class_id, source_idx, az, elv, dist]
+                    for idx in event_range
+                ]
+                res[mic].extend(frame_data)
+
+            # Processing moving events
+            else:
+                # Get the relative positions of all emitters for this event vs the current mic
+                coords = np.vstack(
+                    [e.coordinates_relative_polar[mic] for e in event.emitters]
+                )
+                # Get the times we'll interpolate using
+                interp_times = frames[event_range]
+                # Get the approximate times for every coordinate
+                coord_times = np.linspace(
+                    min(interp_times), max(interp_times), num=len(coords)
+                )
+                # Interpolate between the coordinates and timepoints
+                interpolated = np.stack(
+                    [
+                        np.interp(interp_times, coord_times, coords[:, dim])
+                        for dim in range(coords.shape[1])
+                    ],
+                    axis=1,
+                )
+                # Create a separate row for each frame
+                for idx, (az, elv, dist) in zip(event_range, interpolated):
+                    # Need to round values and convert metres -> centimetres
+                    az, elv, dist = round(az), round(elv), round(dist * 100)
+                    frame_data = [
+                        int(idx),
+                        event.class_id,
+                        source_idx,
+                        az,
+                        elv,
+                        dist,
+                    ]
+                    res[mic].append(frame_data)
+
+    # Output dataframes
+    res_df = {mic: None for mic in microphones}
+    for mic, data in res.items():
+        res_df[mic] = (
+            pd.DataFrame(data, columns=DCASE_2024_COLUMNS)
+            .sort_values(["frame_number", "active_class_index", "source_number_index"])
+            .set_index("frame_number")
+        )
+
+    return res_df

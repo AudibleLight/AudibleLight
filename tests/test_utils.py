@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from audiblelight import utils
+from audiblelight import custom_types, utils
 from tests import utils_tests
 
 
@@ -30,6 +30,8 @@ from tests import utils_tests
         (np.array([[180, 0, 1]]), np.array([[-1, 0, 0]])),
         # azimuth=0°, elevation=-90°, r=1 -> (0, 0, -1) → -Z
         (np.array([[0, -90, 1]]), np.array([[0, 0, -1]])),
+        # azimuth=-90, elevation=0, r=1 -> (0, -1, 0)
+        (np.array([-90, 0, 1]), np.array([[0, -1, 0]])),
         # Multiple points
         (
             np.array(
@@ -55,10 +57,10 @@ from tests import utils_tests
 )
 def test_polar_to_cartesian(polar, expected):
     result = utils.polar_to_cartesian(polar)
-    assert np.allclose(result, expected, atol=1e-4)
+    assert np.allclose(result, expected, atol=utils.SMALL)
     # Round trip check
     inverse = utils.cartesian_to_polar(result)
-    assert np.allclose(inverse, polar, atol=1e-4)
+    assert np.allclose(inverse, polar, atol=utils.SMALL)
 
 
 @pytest.mark.parametrize(
@@ -70,6 +72,7 @@ def test_polar_to_cartesian(polar, expected):
         (np.array([[0, 1, 0]]), np.array([[90, 0, 1]])),  # +Y
         (np.array([[-1, 0, 0]]), np.array([[180, 0, 1]])),  # -X
         (np.array([[0, 0, -1]]), np.array([[0, -90, 1]])),  # -Z
+        (np.array([[0, -1, 0]]), np.array([[-90, 0, 1]])),
         # Multiple points
         (
             np.array(
@@ -95,10 +98,10 @@ def test_polar_to_cartesian(polar, expected):
 )
 def test_cartesian_to_polar(cartesian, expected):
     result = utils.cartesian_to_polar(cartesian)
-    np.testing.assert_allclose(result, expected, atol=1e-4)
+    np.testing.assert_allclose(result, expected, atol=utils.SMALL)
     # Round trip check
     inverse = utils.polar_to_cartesian(result)
-    assert np.allclose(inverse, cartesian, atol=1e-4)
+    assert np.allclose(inverse, cartesian, atol=utils.SMALL)
 
 
 @pytest.mark.parametrize(
@@ -117,11 +120,13 @@ def test_cartesian_to_polar(cartesian, expected):
             np.array([[0, 0, 0]]),
             np.array([[0, 0, -1]]),
         ),  # straight down
+        # Straight right
+        (np.array([[-90, 0, 1]]), np.array([[0, 0, 0]]), np.array([[0, -1, 0]])),
     ],
 )
 def test_polar_relative_to(polar, reference, expected):
     result = reference + utils.polar_to_cartesian(polar)
-    assert np.allclose(result, expected, atol=1e-4)
+    assert np.allclose(result, expected, atol=utils.SMALL)
 
 
 @pytest.mark.parametrize(
@@ -139,6 +144,52 @@ def test_sanitise_filepath(fpath, expected):
             _ = utils.sanitise_filepath(fpath)
     else:
         assert expected == utils.sanitise_filepath(fpath)
+
+
+@pytest.mark.parametrize(
+    "filepaths, raises",
+    [
+        (utils_tests.TEST_MUSICS, False),
+        (["a/fake/filepath", utils_tests.TEST_MUSICS[0]], True),
+    ],
+)
+def test_sanitise_filepaths(filepaths, raises):
+    if raises:
+        with pytest.raises(FileNotFoundError):
+            _ = utils.sanitise_filepaths(filepaths)
+    else:
+        out = utils.sanitise_filepaths(filepaths)
+        for fp in out:
+            assert isinstance(fp, Path)
+
+
+@pytest.mark.parametrize(
+    "directory, create, expected",
+    [
+        (utils_tests.SOUNDEVENT_DIR, False, Path(utils_tests.SOUNDEVENT_DIR)),
+        (Path(utils_tests.SOUNDEVENT_DIR), False, Path(utils_tests.SOUNDEVENT_DIR)),
+        ("a/broken/filepath", False, FileNotFoundError),
+        (123456, False, TypeError),
+        (
+            str(utils.get_project_root() / "makedir"),
+            True,
+            Path(utils.get_project_root() / "makedir"),
+        ),
+    ],
+)
+def test_sanitise_directory(directory, create, expected):
+    if isinstance(expected, type) and issubclass(expected, Exception):
+        with pytest.raises(expected):
+            _ = utils.sanitise_directory(directory, create_if_missing=create)
+    else:
+        result = utils.sanitise_directory(directory, create_if_missing=create)
+        assert result == expected
+        assert isinstance(result, Path)
+        assert result.is_dir()
+
+        # If we're creating the directory, tidy it up
+        if create:
+            os.removedirs(directory)
 
 
 @pytest.mark.parametrize(
@@ -335,7 +386,7 @@ def test_validate_shape(
 def test_sample_distribution(distribution, override, raises):
     if not raises:
         out = utils.sample_distribution(distribution, override)
-        assert isinstance(out, utils.Numeric)
+        assert isinstance(out, custom_types.Numeric)
     else:
         with pytest.raises(raises):
             _ = utils.sample_distribution(distribution, override)
@@ -506,7 +557,7 @@ def test_generate_circular_trajectory(
     radius = np.linalg.norm(xyz_end - xyz_start) / 2
     distances = np.linalg.norm(traj - midpoint, axis=1)
     assert np.allclose(
-        distances, radius, atol=1e-4
+        distances, radius, atol=utils.SMALL
     ), "Points not equidistant from midpoint"
 
 
@@ -519,7 +570,7 @@ def test_generate_circular_trajectory(
     ],
 )
 def test_generate_random_trajectory(
-    xyz_start: np.ndarray, max_step: utils.Numeric, n_points: int
+    xyz_start: np.ndarray, max_step: custom_types.Numeric, n_points: int
 ):
     traj = utils.generate_random_trajectory(xyz_start, max_step, n_points)
 
@@ -534,7 +585,7 @@ def test_generate_random_trajectory(
     # Check each step is within max_step length
     steps = np.diff(traj, axis=0)
     step_lengths = np.linalg.norm(steps, axis=1)
-    assert np.all(step_lengths <= max_step + 1e-4), "Step exceeds max_step"
+    assert np.all(step_lengths <= max_step + utils.SMALL), "Step exceeds max_step"
 
 
 @pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])
@@ -545,3 +596,12 @@ def test_center_coords(x: int, y: int, z: int):
     # Everything should be centered around the mean
     #  As we only passed in one row, this will mean that every coordinate becomes a 0
     assert np.allclose(np.mean(coords_dict_centered, axis=0), [0, 0, 0])
+
+
+@pytest.mark.parametrize("x", [0.0, np.random.rand(1000), 0, np.array([1, 2, 3, 4, 5])])
+def test_tiny(x):
+    tiny_out = utils.tiny(x)
+    assert np.isfinite(tiny_out)
+    assert not np.isnan(tiny_out)
+    assert not np.isinf(tiny_out)
+    assert np.isclose(tiny_out, 0, atol=utils.SMALL)

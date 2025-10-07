@@ -7,7 +7,9 @@ import json
 
 import numpy as np
 import pytest
+from rlr_audio_propagation import ChannelLayout
 
+from audiblelight import utils
 from audiblelight.micarrays import (
     MICARRAY_LIST,
     AmbeoVR,
@@ -21,9 +23,10 @@ from audiblelight.micarrays import (
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
 def test_string_attributes(micarray):
     # The class should have all the desired attributes as non-empty strings
-    assert hasattr(micarray(), "name")
-    assert isinstance(getattr(micarray(), "name"), str)
-    assert getattr(micarray(), "name") != ""
+    for attr in ["name", "channel_layout_type"]:
+        assert hasattr(micarray(), attr)
+        assert isinstance(getattr(micarray(), attr), str)
+        assert getattr(micarray(), attr) != ""
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
@@ -46,6 +49,8 @@ def test_polar_coordinates(micarray):
             == (micarray().n_capsules, 3)
             == (len(micarray()), 3)
         )
+        # All azimuth values must be in range [-180, 180]
+        assert all(-180 <= p <= 180 for p in polar[:, 0])
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
@@ -55,7 +60,8 @@ def test_cartesian_coordinates(micarray):
     cartesian: np.ndarray = getattr(micarray(), "coordinates_cartesian")
     assert isinstance(cartesian, np.ndarray)
     # Everything should have the same shape
-    assert cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
+    if micarray.channel_layout_type == "mic":
+        assert cartesian.shape == (micarray().n_capsules, 3) == (len(micarray()), 3)
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
@@ -114,6 +120,7 @@ def test_sanitize_microphone_input(array_name: str, expected: object):
             "name": "ambeovr",
             "micarray_type": "AmbeoVR",
             "is_spherical": True,
+            "channel_layout_type": "mic",
             "n_capsules": 4,
             "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
             "coordinates_absolute": [
@@ -142,7 +149,7 @@ def test_micarray_from_dict(input_dict):
         if isinstance(input_dict[k], (np.ndarray, list)) and not isinstance(
             input_dict[k][0], str
         ):
-            assert np.isclose(input_dict[k], out_dict[k], atol=1e-4).all()
+            assert np.isclose(input_dict[k], out_dict[k], atol=utils.SMALL).all()
         else:
             assert input_dict[k] == out_dict[k]
 
@@ -161,3 +168,12 @@ def test_magic_methods(mictype):
     # Compare equality
     instant2 = mictype.from_dict(instant.to_dict())
     assert instant == instant2
+
+
+@pytest.mark.parametrize("mictype", MICARRAY_LIST)
+def test_channel_layout(mictype):
+    micarray = mictype()
+    assert hasattr(micarray, "channel_layout")
+    assert hasattr(micarray, "channel_layout_type")
+    assert isinstance(micarray.channel_layout, ChannelLayout)
+    assert micarray.channel_layout.channel_count == micarray.n_capsules

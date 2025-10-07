@@ -4,7 +4,6 @@
 """Core modules and functions for generation and synthesis."""
 
 import json
-import os
 import random
 from collections import OrderedDict
 from datetime import datetime
@@ -18,16 +17,12 @@ from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
-from audiblelight import __version__, utils
+from audiblelight import __version__, config, custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState
-
-MAX_OVERLAPPING_EVENTS = 3
-REF_DB = -50
-WARN_WHEN_DURATION_LOWER_THAN = 5
 
 
 class Scene:
@@ -40,18 +35,19 @@ class Scene:
 
     def __init__(
         self,
-        duration: utils.Numeric,
+        duration: custom_types.Numeric,
         mesh_path: Union[str, Path],
         fg_path: Optional[Union[str, Path]] = None,
-        state_kwargs: Optional[dict] = None,
-        ref_db: Optional[utils.Numeric] = REF_DB,
-        scene_start_dist: Optional[utils.DistributionLike] = None,
-        event_start_dist: Optional[utils.DistributionLike] = None,
-        event_duration_dist: Optional[utils.DistributionLike] = None,
-        event_velocity_dist: Optional[utils.DistributionLike] = None,
-        event_resolution_dist: Optional[utils.DistributionLike] = None,
-        snr_dist: Optional[utils.DistributionLike] = None,
-        max_overlap: Optional[utils.Numeric] = MAX_OVERLAPPING_EVENTS,
+        bg_path: Optional[Union[str, Path]] = None,
+        allow_duplicate_audios: bool = True,
+        ref_db: Optional[custom_types.Numeric] = config.DEFAULT_REF_DB,
+        scene_start_dist: Optional[custom_types.DistributionLike] = None,
+        event_start_dist: Optional[custom_types.DistributionLike] = None,
+        event_duration_dist: Optional[custom_types.DistributionLike] = None,
+        event_velocity_dist: Optional[custom_types.DistributionLike] = None,
+        event_resolution_dist: Optional[custom_types.DistributionLike] = None,
+        snr_dist: Optional[custom_types.DistributionLike] = None,
+        max_overlap: Optional[custom_types.Numeric] = config.MAX_OVERLAP,
         event_augmentations: Optional[
             Union[
                 Iterable[Type[EventAugmentation]],
@@ -59,21 +55,52 @@ class Scene:
                 Type[EventAugmentation],
             ]
         ] = None,
+        state_kwargs: Optional[dict] = None,
     ):
+        """
+        Initializes the Scene with a given duration and mesh.
+
+        Arguments:
+            duration: the length of time the scene audio should last for.
+            mesh_path: the name of the mesh file. Units will be coerced to meters when loading.
+            fg_path: a directory (or list of directories) pointing to foreground audio. Note that directories will be
+                introspected recursively, such that audio files within any subdirectories will be detected also.
+            bg_path: a directory (or list of directories pointing to background audio. Note that directories will be
+                introspected recursively, such that audio files within any subdirectories will be detected also.
+            allow_duplicate_audios: if True (default), the same audio file can appear multiple times in the Scene.
+            ref_db: reference decibel level for scene noise floor, defaults to -65 dB
+            scene_start_dist: distribution-like object or callable used to sample starting times for any Event objects
+                applied to the scene. If not provided, will be a uniform distribution between 0 and `duration`
+            event_start_dist: distribution-like object used to sample starting (offset) times for Event audio files.
+                If not provided, Event audio files will always start at 0 seconds. Note that this can be overridden
+                by passing a value into `Scene.add_event(event_start=...)`
+            event_duration_dist: distribution-like object used to sample Event audio duration times. If not provided,
+                Event audio files will always use their full duration. Note that this can be overridden by passing a
+                value into `Scene.add_event(duration=...)`
+            event_velocity_dist: distribution-like object used to sample Event spatial velocities. If not provided, a
+                uniform distribution between 0.5 and 2.0 metres-per-second will be used.
+            event_resolution_dist: distribution-like object used to sample Event spatial resolutions. If not provided,
+                a uniform distribution between 1.0 and 4.0 Hz (i.e., IRs-per-second) will be used.
+            snr_dist: distribution-like object used to sample Event signal-to-noise ratios. If not provided, a uniform
+                distribution between 5 and 30 will be used.
+            max_overlap: the maximum number of overlapping audio Events allowed in the Scene, defaults to 2.
+            event_augmentations: an iterable of `audiblelight.EventAugmentation` objects that can be applied to Event
+                objects. The number of augmentations sampled from this list can be controlled by setting the value of
+                `augmentations` when calling `Scene.add_event`, i.e. `Scene.add_event(augmentations=3)` will sample
+                3 random augmentations from `event_augmentations` and apply them to the Event.
+            state_kwargs: keyword arguments passed to `audiblelight.WorldState`.
+        """
+
         # Set attributes passed in by the user
         self.duration = utils.sanitise_positive_number(duration)
         # Raise a warning when the duration is very short.
-        if self.duration < WARN_WHEN_DURATION_LOWER_THAN:
+        if self.duration < config.WARN_WHEN_SCENE_DURATION_BELOW:
             logger.warning(
                 f"The duration for this Scene is very short ({duration:.2f} seconds). "
                 f"You may encounter issues with Events overlapping or being truncated to fit the "
                 f"duration of the Scene. It is recommended to increase the duration to at least "
-                f"{WARN_WHEN_DURATION_LOWER_THAN} seconds."
+                f"{config.WARN_WHEN_SCENE_DURATION_BELOW} seconds."
             )
-
-        self.fg_path = (
-            utils.sanitise_directory(fg_path) if fg_path is not None else None
-        )
         self.ref_db = utils.sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
         self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
@@ -84,7 +111,7 @@ class Scene:
         utils.validate_kwargs(WorldState.__init__, **state_kwargs)
         self.state = WorldState(mesh_path, **state_kwargs)
 
-        self.sample_rate = self.state.ctx.config.sample_rate
+        self.sample_rate = self.state.cfg.sample_rate
 
         # Grab some attributes from the WorldState to make them easier to access
         self.mesh = self.state.mesh
@@ -92,19 +119,22 @@ class Scene:
 
         # Define defaults for all distributions
         #  Events can start any time within the duration of the scene, minus some padding
-        # TODO: this is not consistent with how `stats.uniform` actually works.
-        #  see https://stackoverflow.com/questions/44572109/what-are-the-arguments-for-scipy-stats-uniform
         if scene_start_dist is None:
             scene_start_dist = stats.uniform(0.0, self.duration - 1)
-        #  Events move between 0.25 and 2.0 metres per second
         if event_velocity_dist is None:
-            event_velocity_dist = stats.uniform(0.25, 2.0)
-        #  Events have a resolution of between 1-4 Hz (i.e., number of IRs per second)
+            event_velocity_dist = stats.uniform(
+                config.MIN_EVENT_VELOCITY,
+                config.MAX_EVENT_VELOCITY - config.MIN_EVENT_VELOCITY,
+            )
         if event_resolution_dist is None:
-            event_resolution_dist = stats.uniform(1.0, 4.0)
-        #  Events have an SNR with a mean of 5, SD of 1, and boundary between 2 and 8
+            event_resolution_dist = stats.uniform(
+                config.MIN_EVENT_RESOLUTION,
+                config.MAX_EVENT_RESOLUTION - config.MIN_EVENT_RESOLUTION,
+            )
         if snr_dist is None:
-            snr_dist = stats.truncnorm(a=-3, b=3, loc=5, scale=1)
+            snr_dist = stats.uniform(
+                config.MIN_EVENT_SNR, config.MAX_EVENT_SNR - config.MIN_EVENT_SNR
+            )
 
         # No distribution for `event_start` and `event_distribution`
         #  Unless a distribution is passed, we default to using the full duration of the audio (capped at 10 seconds)
@@ -120,12 +150,19 @@ class Scene:
         self.event_resolution_dist = utils.sanitise_distribution(event_resolution_dist)
         self.snr_dist = utils.sanitise_distribution(snr_dist)
 
-        # Assuming path structure with audio files organized in directories per category of interest
-        self.fg_category_paths = (
-            utils.list_deepest_directories(self.fg_path)
-            if self.fg_path is not None
-            else None
+        # Parse foreground audio directory (or directories) and obtain all valid audio files from within it
+        self.fg_paths = (
+            self._parse_audio_directories(fg_path) if fg_path is not None else []
         )
+        self.fg_audios = self._introspect_audio_directories(self.fg_paths)
+        # Do the same for background audio
+        self.bg_paths = (
+            self._parse_audio_directories(bg_path) if bg_path is not None else []
+        )
+        self.bg_audios = self._introspect_audio_directories(self.bg_paths)
+
+        # If False, we'll ensure that all randomly sampled event/ambience audio is unique when sampling
+        self.allow_duplicate_audios = allow_duplicate_audios
 
         # Events will be stored within here
         self.events = OrderedDict()
@@ -141,7 +178,31 @@ class Scene:
         #  if not None (i.e., with a call to `add_ambience`), will be added to audio when synthesising
         self.ambience = OrderedDict()
 
-        self.audio = None
+        # Spatialized audio
+        #  Note that this is a dictionary to support multiple microphones
+        self.audio = OrderedDict()
+
+    @staticmethod
+    def _parse_audio_directories(
+        audio_dir: Union[str, Path, list[str], list[Path]]
+    ) -> tuple[list[Path], list[Path]]:
+        """
+        Validate audio directory (or list of directories) and return as a list of Path objects
+        """
+        if not isinstance(audio_dir, list):
+            audio_dir = [audio_dir]
+        return utils.sanitise_directories(audio_dir)
+
+    @staticmethod
+    def _introspect_audio_directories(audio_dir: list[Path]) -> list[Path]:
+        """
+        Introspect a list of audio directories to obtain all valid audio files
+        """
+        audio_paths = []
+        for ext in custom_types.AUDIO_EXTS:
+            for fg in audio_dir:
+                audio_paths.extend((fg.rglob(f"*.{ext}")))
+        return utils.sanitise_filepaths(audio_paths)
 
     def _parse_event_augmentations(
         self,
@@ -161,7 +222,7 @@ class Scene:
         EventAugmentation class.
 
         Arguments:
-            event_augmentations: the augmentation types. Can be a list of types, a list of tuples, or a single type.
+            event_augmentations: the augmentation custom_types. Can be a list of types, a list of tuples, or a single type.
 
         Returns:
             list[tuple]: the list of augmentation types and validated kwargs
@@ -346,9 +407,9 @@ class Scene:
     def add_ambience(
         self,
         filepath: Optional[Union[str, Path]] = None,
-        noise: Optional[Union[str, utils.Numeric]] = None,
+        noise: Optional[Union[str, custom_types.Numeric]] = None,
         channels: Optional[int] = None,
-        ref_db: Optional[utils.Numeric] = None,
+        ref_db: Optional[custom_types.Numeric] = None,
         alias: Optional[str] = None,
         **kwargs,
     ):
@@ -361,20 +422,26 @@ class Scene:
 
         Arguments:
             channels (int): the number of channels to generate noise for. If None, will be inferred from available mics.
-            filepath (str or Path): a path to an audio file on the disk. Must be provided when `noise` is None.
+            filepath (str or Path): a path to an audio file on the disk. If None (and `noise` is None), will try and
+                sample a random audio file from `Scene.bg_audios`.
             noise (str): either the type of noise to generate, e.g. "white", "red", or an arbitrary numeric exponent to
-                use when generating noise with `powerlaw_psd_gaussian`. Must be provided if `filepath` is None.
+                use when generating noise with `powerlaw_psd_gaussian`.
             ref_db (Numeric): the noise floor, in decibels
             alias (str): string reference to refer to this `Ambience` object inside `Scene.ambience`
             kwargs: additional keyword arguments passed to `audiblelight.ambience.powerlaw_psd_gaussian`
         """
         # If the number of channels is not provided, try and get this from the number of microphone capsules
         if channels is None:
+            if len(self.state.microphones) == 0:
+                raise ValueError(
+                    "Cannot infer Ambience channels when no microphones have been added to the WorldState."
+                )
+
             available_mics = [mic.n_capsules for mic in self.state.microphones.values()]
             # Raise an error when added microphones have a different number of channels
             if not all([a == available_mics[0] for a in available_mics]):
-                raise TypeError(
-                    "Cannot infer noise channels when available microphones have different number of capsules"
+                raise ValueError(
+                    "Cannot infer Ambience channels when available microphones have different number of capsules"
                 )
             else:
                 channels = available_mics[0]
@@ -387,8 +454,28 @@ class Scene:
         )
         if alias in self.ambience:
             raise KeyError(
-                f"Ambience event with alias {alias} has already been added to the scene!"
+                f"Ambience with alias '{alias}' has already been added to the Scene!"
             )
+
+        # Handling filepaths
+        if noise is None:
+            # Get a random filepath when neither noise or filepath provided
+            if filepath is None:
+                filepath = self._get_random_audio(self.bg_audios)
+            # Otherwise, check provided filepath is valid
+            else:
+                filepath = utils.sanitise_filepath(filepath)
+
+            # If we don't want to allow for duplicate filepaths, check this now
+            if not self.allow_duplicate_audios:
+                seen_audios = self._get_used_audios()
+                if filepath in seen_audios:
+                    raise ValueError(
+                        f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                        f"Either increase the number of `bg_paths` in Scene.__init__, "
+                        f"choose a different audio file, "
+                        f"or set `Scene.allow_duplicate_audios=False`."
+                    )
 
         # Add the ambience to the dictionary
         self.ambience[alias] = Ambience(
@@ -417,7 +504,7 @@ class Scene:
             k is not None in event_kwargs
             for k in ("scene_start", "event_start", "duration")
         )
-        max_place_attempts = utils.MAX_PLACE_ATTEMPTS if not has_overrides else 1
+        max_place_attempts = config.MAX_PLACE_ATTEMPTS if not has_overrides else 1
 
         # Pre-resolve all user-specified override values (only done once)
         overrides = {
@@ -471,8 +558,12 @@ class Scene:
 
             # Reject this attempt if overlap would be exceeded
             if self._would_exceed_temporal_overlap(
-                current_event.scene_start, current_event.duration
+                current_event.scene_start, current_event.scene_end
             ):
+                continue
+
+            # Reject this attempt if the duration exceeds the duration of the scene
+            if current_event.scene_end > self.duration:
                 continue
 
             # Store the event: we'll register the emitters later in the function
@@ -481,20 +572,43 @@ class Scene:
 
         return False
 
-    def _get_random_foreground_audio(self) -> Path:
+    def _get_used_audios(self) -> list[Path]:
         """
-        Gets a path to a random foreground audio file from the provided directory
+        Gets a list of audio files used in all Ambience and Event objects currently added to the Scene
         """
-        if self.fg_category_paths is None:
-            raise ValueError("No foreground audio path specified!")
-        audios = []
-        for fg_category_path in self.fg_category_paths:
-            for i_ in os.listdir(fg_category_path):
-                if i_.endswith(utils.AUDIO_EXTS):
-                    audios.append(fg_category_path / Path(i_))
-        if len(audios) == 0:
-            raise FileNotFoundError("No audio files found!")
-        return utils.sanitise_filepath(random.choice(audios))
+        # Get all Ambience and Event objects
+        events_ambs = self.get_events() + self.get_ambiences()
+        # Get audio files: note that `filepath` can be None for ambience objects using noise types instead
+        return [ev.filepath for ev in events_ambs if ev.filepath is not None]
+
+    def _get_random_audio(self, audio_paths: Optional[list[Path]] = None) -> Path:
+        """
+        Gets a path to a random audio file from the provided list of directories
+
+        Arguments:
+            audio_paths: a list of audio paths; if not provided, use `fg_audios`
+        """
+        # Use foreground audio paths by default
+        if audio_paths is None:
+            audio_paths = self.fg_audios
+
+        # Sanitise all audio paths (converting to pathlib.Path objects, checking they exist...)
+        audio_paths = utils.sanitise_filepaths(audio_paths)
+
+        # If we want to ensure that the same audio file is not used multiple times across Events/Ambiences, do this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            audio_paths = [i for i in audio_paths if i not in seen_audios]
+
+        # Raise an error when no audio files available
+        if len(audio_paths) == 0:
+            raise FileNotFoundError(
+                "No audio files found to sample from! "
+                "Make sure you pass a value to `fg_path` in Scene.__init__`."
+            )
+
+        # Choose a random filepath: no need to sanitise, we did this already
+        return random.choice(audio_paths)
 
     def _coerce_polar_position(
         self,
@@ -526,7 +640,7 @@ class Scene:
         )[0]
 
     def _get_n_random_event_augmentations(
-        self, n_augmentations: utils.Numeric
+        self, n_augmentations: custom_types.Numeric
     ) -> list[Type[EventAugmentation]]:
         """
         Given a number N, get N random, unique Event augmentations
@@ -573,25 +687,29 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                custom_types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[custom_types.Numeric] = None,
+        event_start: Optional[custom_types.Numeric] = None,
+        duration: Optional[custom_types.Numeric] = None,
+        snr: Optional[custom_types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
         shape: Optional[str] = None,
-        spatial_resolution: Optional[utils.Numeric] = None,
-        spatial_velocity: Optional[utils.Numeric] = None,
+        spatial_resolution: Optional[custom_types.Numeric] = None,
+        spatial_velocity: Optional[custom_types.Numeric] = None,
     ) -> Event:
         """
-        Add an event to the foreground, either "static" or "moving"
+        Add an event to the foreground, either "static" or "moving".
+
+        Note that the arguments "scene_start", "event_start", "duration", "snr", "spatial_velocity", &
+        "spatial_resolution" will (by default) sample from their respective distributions, provided in `Scene.__init__`.
+        If a numeric value is provided, this will be treated as an override and used instead of random sampling.
 
         Arguments:
             event_type (str): the type of event to add, must be either "static" or "moving"
@@ -616,16 +734,13 @@ class Scene:
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
-                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
-                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
             duration: Time the Event audio lasts in seconds. Must be a positive number.
-                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
             snr: Signal to noise ratio for the audio file with respect to the noise floor
             class_label: Optional label to use for sound event class.
-                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+                If not provided, will attempt to infer label from filepath using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
-                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+                If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
@@ -634,6 +749,16 @@ class Scene:
             the Event object added to the Scene
 
         Examples:
+            Creating an event with random sampling of parameters.
+            Here, note that "scene_start", "event_start", "duration", "snr" will be sampled at random
+            from the distributions defined when initialising the `Scene`.
+
+            >>> scene = Scene(...)
+            >>> scene.add_event(
+            >>>     event_type="static",
+            >>>     filepath="some/path.wav"
+            >>> )
+
             Creating an event with a predefined position:
 
             >>> scene = Scene(...)
@@ -713,22 +838,26 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                custom_types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[custom_types.Numeric] = None,
+        event_start: Optional[custom_types.Numeric] = None,
+        duration: Optional[custom_types.Numeric] = None,
+        snr: Optional[custom_types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
     ) -> Event:
         """
         Add a static event to the foreground with optional overrides.
+
+        Note that the arguments "scene_start", "event_start", "duration", & "snr" will (by default) sample from their
+        respective distributions, provided in `Scene.__init__`. If a numeric value is provided, this will be treated as
+        an override and used instead of random sampling.
 
         Arguments:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
@@ -739,10 +868,7 @@ class Scene:
                 If a number, this many augmentations will be sampled from either `Scene.event_augmentations`, or a master
                 list of valid augmentations (defined inside `audiblelight.augmentations`)
                 If not provided, EventAugmentations can be registered later by calling `register_augmentations` on the Event.
-            position: Location to add the event.
-                When `event_type=="static"`, this will be the position of the Event.
-                When `event_type=="moving"`, this will be the starting position of the Event.
-                When not provided, a random point inside the mesh will be chosen.
+            position: Location to add the event. When not provided, a random point inside the mesh will be chosen.
             mic: String reference to a microphone inside `self.state.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
             polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
@@ -752,16 +878,13 @@ class Scene:
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
-                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
-                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
             duration: Time the Event audio lasts in seconds. Must be a positive number.
-                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
             snr: Signal to noise ratio for the audio file with respect to the noise floor
             class_label: Optional label to use for sound event class.
-                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+                If not provided, will attempt to infer label from filepath using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
-                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+                If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
 
         Returns:
             the Event object added to the Scene
@@ -771,17 +894,31 @@ class Scene:
             utils.get_default_alias("event", self.events) if alias is None else alias
         )
         filepath = (
-            self._get_random_foreground_audio()
+            self._get_random_audio(self.fg_audios)
             if filepath is None
             else utils.sanitise_filepath(filepath)
         )
 
+        # If we don't want to allow for duplicate filepaths, check this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            if filepath in seen_audios:
+                raise ValueError(
+                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                    f"Either increase the number of `fg_paths` in Scene.__init__, "
+                    f"choose a different audio file, "
+                    f"or set `Scene.allow_duplicate_audios=False`."
+                )
+
         # Convert polar positions to cartesian here
         if polar:
             position = self._coerce_polar_position(position, mic)
+            # Set mic to None so we don't add the offset again inside WorldState
+            # TODO: this is hacky, could be better
+            mic = None
 
         # Sample N random augmentations from our list, if required
-        if isinstance(augmentations, utils.Numeric):
+        if isinstance(augmentations, custom_types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Construct kwargs dictionary for emitter and event
@@ -828,7 +965,7 @@ class Scene:
             #  we should probably truncate to a sensible maximum duration
             #  based on the duration of the scene
             raise ValueError(
-                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not place event in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
                 f"`duration` of the scene (currently {self.duration})."
             )
@@ -849,24 +986,28 @@ class Scene:
             Union[
                 Iterable[Type[EventAugmentation]],
                 Type[EventAugmentation],
-                utils.Numeric,
+                custom_types.Numeric,
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         shape: Optional[str] = None,
-        scene_start: Optional[utils.Numeric] = None,
-        event_start: Optional[utils.Numeric] = None,
-        duration: Optional[utils.Numeric] = None,
-        snr: Optional[utils.Numeric] = None,
+        scene_start: Optional[custom_types.Numeric] = None,
+        event_start: Optional[custom_types.Numeric] = None,
+        duration: Optional[custom_types.Numeric] = None,
+        snr: Optional[custom_types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
-        spatial_resolution: Optional[utils.Numeric] = None,
-        spatial_velocity: Optional[utils.Numeric] = None,
+        spatial_resolution: Optional[custom_types.Numeric] = None,
+        spatial_velocity: Optional[custom_types.Numeric] = None,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
+
+        Note that the arguments "scene_start", "event_start", "duration", "snr", "spatial_velocity", &
+        "spatial_resolution" will (by default) sample from their respective distributions, provided in `Scene.__init__`.
+        If a numeric value is provided, this will be treated as an override and used instead of random sampling.
 
         Arguments:
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
@@ -877,25 +1018,19 @@ class Scene:
                 If a number, this many augmentations will be sampled from either `Scene.event_augmentations`, or a master
                 list of valid augmentations (defined inside `audiblelight.augmentations`)
                 If not provided, EventAugmentations can be registered later by calling `register_augmentations` on the Event.
-            position: Location to add the event.
-                When `event_type=="static"`, this will be the position of the Event.
-                When `event_type=="moving"`, this will be the starting position of the Event.
-                When not provided, a random point inside the mesh will be chosen.
+            position: Starting point for the event. When not provided, a random point inside the mesh will be chosen.
             mic: String reference to a microphone inside `self.state.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
             polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
                 units are [x, y, z] in absolute, cartesian terms.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
-                If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
-                If not provided, defaults to starting the audio at the very beginning (i.e., 0 seconds).
             duration: Time the Event audio lasts in seconds. Must be a positive number.
-                If None or greater than the duration of the audio, defaults to using the full duration of the audio.
             snr: Signal to noise ratio for the audio file with respect to the noise floor
             class_label: Optional label to use for sound event class.
-                If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
+                If not provided, will attempt to infer label from filepath using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
-                If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+                If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
@@ -912,19 +1047,35 @@ class Scene:
             utils.get_default_alias("event", self.events) if alias is None else alias
         )
         filepath = (
-            self._get_random_foreground_audio()
+            self._get_random_audio(self.fg_audios)
             if filepath is None
             else utils.sanitise_filepath(filepath)
         )
 
+        # If we don't want to allow for duplicate filepaths, check this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            if filepath in seen_audios:
+                raise ValueError(
+                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                    f"Either increase the number of `fg_paths` in Scene.__init__, "
+                    f"choose a different audio file, "
+                    f"or set `Scene.allow_duplicate_audios=False`."
+                )
+
         # Sample N random augmentations from our list, if required
-        if isinstance(augmentations, utils.Numeric):
+        if isinstance(augmentations, custom_types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
         emitter_kwargs = dict(
             starting_position=position,
-            shape=shape,
+            # Sample a random shape if not provided
+            shape=(
+                shape
+                if shape is not None
+                else random.choice(["linear", "circular", "random"])
+            ),
         )
         event_kwargs = dict(
             filepath=filepath,
@@ -951,7 +1102,7 @@ class Scene:
         if not placed:
             # No need to clear out any emitters (as in `add_event_static`) because we haven't placed them yet
             raise ValueError(
-                f"Could not place event in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not place event in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
                 f"`duration` of the scene (currently {self.duration})."
             )
@@ -985,61 +1136,99 @@ class Scene:
         return event
 
     def _would_exceed_temporal_overlap(
-        self, new_event_start: float, new_event_duration: float
+        self, new_event_start: float, new_event_end: float
     ) -> bool:
         """
         Determine whether an event is overlapping with other events more than `max_overlap` times.
         """
 
         intersections = 0
-        new_event_end = new_event_start + new_event_duration
         for event_alias, event in self.events.items():
             # Check if intervals [new_start, new_end] and [existing_start, existing_end] overlap
             if new_event_start < event.scene_end and new_event_end > event.scene_start:
                 intersections += 1
         return intersections >= self.max_overlap
 
+    # noinspection PyProtectedMember
+    # noinspection PyUnboundLocalVariable
     def generate(
         self,
-        audio_path: Optional[Union[str, Path]] = None,
-        metadata_path: Optional[Union[str, Path]] = None,
-        spatial_audio_format: Optional[str] = "A",
+        output_dir: Optional[Union[str, Path]] = None,
+        audio: bool = True,
+        metadata_json: bool = True,
+        metadata_dcase: bool = True,
+        audio_fname: Optional[Union[str, Path]] = "audio_out",
+        metadata_fname: Optional[Union[str, Path]] = "metadata_out",
     ) -> None:
         """
         Render scene to disk. Currently only audio and metadata are rendered.
 
         Arguments:
-            audio_path: Path to the audio file.
-            metadata_path: Path to the metadata file.
-            spatial_audio_format: Format to use for saving spatial audio, defaults to ambisonics "A" format
+            output_dir: directory to save the output, defaults to a temp directory inside AudibleLight/spatial_scenes
+            audio: whether to save audio as an output, default to `True`
+            metadata_json: whether to save metadata JSON file, default to `True`
+            metadata_dcase: whether to save metadata CSVs in DCASE format, default to `True`
+            audio_fname: name to use for the output audio file, default to "audio_out"
+            metadata_fname: name to use for the output metadata, default to "metadata_out"
 
         Returns:
             None
         """
         from audiblelight.synthesize import (
+            generate_dcase2024_metadata,
             generate_scene_audio_from_events,
             render_audio_for_all_scene_events,
-            validate_scene,
         )
+
+        # Sanitise output directory
+        #  Create a new temporary directory inside project root if not provided
+        if output_dir is None:
+            output_dir = Path.cwd()
+        if not isinstance(output_dir, Path):
+            output_dir = Path(output_dir)
+        if not output_dir.is_dir():
+            raise FileNotFoundError(f"Output directory {output_dir} does not exist")
+
+        # Sanitise filepaths: strip out suffixes, we'll add these in later
+        audio_path = (output_dir / audio_fname).with_suffix("")
+        metadata_path = (output_dir / metadata_fname).with_suffix("")
 
         # Render all the audio
         #  This renders the IRs inside the worldstate
         #  It then populates the `.spatial_audio` attribute inside each Event
         #  And populates the `audio` attribute inside this instance
-        validate_scene(self)
         render_audio_for_all_scene_events(self)
         generate_scene_audio_from_events(self)
 
-        # Write the audio output
-        sf.write(audio_path, self.audio.T, int(self.state.ctx.config.sample_rate))
+        # Write the audio output to a separate .wav, one per mic
+        if audio:
+            for mic_alias, mic_audio in self.audio.items():
+                sf.write(
+                    audio_path.with_suffix(".wav").with_stem(
+                        f"{audio_path.name}_{mic_alias}"
+                    ),
+                    mic_audio.T,
+                    int(self.sample_rate),
+                )
 
         # Get the metadata and add the spatial audio format in
-        metadata = self.to_dict()
-        metadata["spatial_format"] = spatial_audio_format
+        if metadata_json or metadata_dcase:
+            metadata = self.to_dict()
 
         # Dump the metadata to a JSON
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=4, ensure_ascii=False)
+        if metadata_json:
+            with open(metadata_path.with_suffix(".json"), "w") as f:
+                json.dump(metadata, f, indent=4, ensure_ascii=False)
+
+        # Generate DCASE-2024 style metadata
+        if metadata_dcase:
+            dcase_meta = generate_dcase2024_metadata(self)
+            # Save a single CSV file for every microphone we have
+            for mic, df in dcase_meta.items():
+                outp = metadata_path.with_suffix(".csv").with_stem(
+                    f"{metadata_path.name}_{mic}"
+                )
+                df.to_csv(outp, sep=",", encoding="utf-8", header=None)
 
     def to_dict(self) -> dict:
         """
@@ -1052,7 +1241,8 @@ class Scene:
             duration=self.duration,
             ref_db=self.ref_db,
             max_overlap=self.max_overlap,
-            fg_path=str(self.fg_path),
+            fg_path=[str(fg.resolve()) for fg in self.fg_paths],
+            bg_path=[str(fg.resolve()) for fg in self.bg_paths],
             ambience={k: a.to_dict() for k, a in self.ambience.items()},
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
@@ -1121,6 +1311,7 @@ class Scene:
             duration=input_dict["duration"],
             mesh_path=input_dict["state"]["mesh"]["fpath"],
             fg_path=input_dict["fg_path"],
+            bg_path=input_dict["bg_path"],
             ref_db=input_dict["ref_db"],
             max_overlap=input_dict["max_overlap"],
         )
@@ -1219,6 +1410,12 @@ class Scene:
             return self.ambience[alias]
         else:
             raise KeyError("Ambience alias '{}' not found.".format(alias))
+
+    def get_ambiences(self) -> list[Ambience]:
+        """
+        Get all ambience objects, as in `self.ambience.values()`
+        """
+        return list(self.ambience.values())
 
     # noinspection PyProtectedMember
     def clear_events(self) -> None:

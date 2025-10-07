@@ -12,7 +12,7 @@ import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
 
-from audiblelight import utils
+from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
 from audiblelight.worldstate import Emitter
 
@@ -35,10 +35,52 @@ DCASE_SOUND_EVENT_CLASSES = {
 _DCASE_SOUND_EVENT_CLASSES_INV = {v: k for v, k in DCASE_SOUND_EVENT_CLASSES.items()}
 
 # If no duration override passed in, this will be the maximum duration for an event
-MAX_DEFAULT_DURATION = 10
 
 
-def _infer_dcase_class_id_labels(
+def infer_dcase_label_idx_from_filepath(
+    filepath: Union[Path, str]
+) -> Union[tuple[int, str], tuple[None, None]]:
+    """
+    Given a filepath, infer the DCASE class label and index from this.
+
+    Returns a tuple of None, None if the DCASE class label cannot be inferred.
+
+    Arguments:
+        filepath: the path to infer the class label from
+
+    Examples:
+        >>> fpath = "/AudibleLight/resources/soundevents/maleSpeech/train/Male_speech_and_man_speaking/67669.wav"
+        >>> cls, idx = infer_dcase_label_idx_from_filepath(fpath)
+        >>> print(cls, idx)
+        tuple("maleSpeech", 1)
+    """
+    # Coerce paths
+    if not isinstance(filepath, Path):
+        filepath = Path(filepath)
+
+    cls, idx = None, None
+    # Search for the label key in the path
+    for part in filepath.parts:
+        if part in DCASE_SOUND_EVENT_CLASSES.keys():
+
+            # Update the variables, only if we haven't already done so
+            if not cls and not idx:
+                cls = part
+                idx = DCASE_SOUND_EVENT_CLASSES[cls]
+
+            # Raise if we have multiple possible matches
+            else:
+                raise ValueError(
+                    f"Found multiple possible DCASE classes for filepath {str(filepath)}. "
+                    f"This filepath matches both classes {cls} and {part}. "
+                    f"Please adjust your filepaths as necessary so that they only contain one DCASE class."
+                )
+
+    # This will just return None, None if no matches
+    return idx, cls
+
+
+def _infer_missing_dcase_values(
     class_id: Optional[int], class_label: Optional[str]
 ) -> tuple[Optional[int], Optional[str]]:
     """
@@ -74,7 +116,7 @@ class Event:
         event_start: Optional[float] = None,
         duration: Optional[float] = None,
         snr: Optional[float] = None,
-        sample_rate: Optional[int] = utils.SAMPLE_RATE,
+        sample_rate: Optional[int] = config.SAMPLE_RATE,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
         spatial_resolution: Optional[Union[int, float]] = None,
@@ -118,7 +160,9 @@ class Event:
             self.register_augmentations(augmentations)
 
         # Spatial audio attributes, set in the synthesizer
-        self.spatial_audio = None
+        #  This is a dictionary where every key is the alias of a microphone
+        #  and the value is the spatialised audio FOR that microphone
+        self.spatial_audio = OrderedDict()
 
         # Spatial attributes
         self.spatial_resolution = spatial_resolution
@@ -126,10 +170,17 @@ class Event:
 
         # Metadata attributes
         self.filename = self.filepath.name
+
         #  Attempt to infer class ID and labels in cases where only one is provided
-        self.class_id, self.class_label = _infer_dcase_class_id_labels(
-            class_id, class_label
-        )
+        if class_id or class_label:
+            self.class_id, self.class_label = _infer_missing_dcase_values(
+                class_id, class_label
+            )
+        # Otherwise, try and infer both the ID and the label from the filepath
+        else:
+            self.class_id, self.class_label = infer_dcase_label_idx_from_filepath(
+                self.filepath
+            )
 
         # Get the full duration of the audio file
         self.audio_full_duration = utils.sanitise_positive_number(
@@ -215,7 +266,7 @@ class Event:
         #  This will force us to reload the audio and apply the augmentations again
         #  when we call `self.load_audio`.
         self.audio = None
-        self.spatial_audio = None
+        self.spatial_audio = OrderedDict()
 
     def register_emitters(
         self,
@@ -382,7 +433,9 @@ class Event:
         else:
             raise TypeError("Cannot parse emitters with type {}".format(type(emitters)))
 
-    def _parse_audio_start(self, audio_start: Optional[utils.Numeric] = None) -> float:
+    def _parse_audio_start(
+        self, audio_start: Optional[custom_types.Numeric] = None
+    ) -> float:
         """
         Safely handle getting the start/offset time for an audio event, with an optional override.
         """
@@ -426,12 +479,15 @@ class Event:
                 return duration
 
     # noinspection PyTypeChecker
-    def load_audio(self, ignore_cache: Optional[bool] = False) -> np.ndarray:
+    def load_audio(
+        self, ignore_cache: Optional[bool] = False, normalize: Optional[bool] = True
+    ) -> np.ndarray:
         """
         Returns the audio array of the Event.
 
         The audio will be loaded, resampled to the desired sample rate, converted to mono, and then truncated to match
-        the event start time and duration.
+        the event start time and duration. If `normalize` (defaults to True), audio will also be normalized to have a
+        maximum absolute peak of 1.
 
         After calling this function once, `audio` is cached as an attribute of this Event instance, and this
         attribute will be returned on successive calls unless `ignore_cache` is True.
@@ -460,6 +516,10 @@ class Event:
         audio_out = audio_raw.copy()
         for aug in self.augmentations:
             audio_out = aug(audio_out)
+
+        # Normalize the audio to peak at 1
+        if normalize:
+            audio_out = audio_out / np.max(np.abs(audio_out))
 
         self.audio = audio_out
         return self.audio
@@ -628,7 +688,7 @@ class Event:
         else:
             # Invalidate any cached audio
             self.audio = None
-            self.spatial_audio = None
+            self.spatial_audio = OrderedDict()
 
     def clear_augmentations(self) -> None:
         """
@@ -638,4 +698,4 @@ class Event:
             self.augmentations = []
             # Invalidate any cached audio
             self.audio = None
-            self.spatial_audio = None
+            self.spatial_audio = OrderedDict()

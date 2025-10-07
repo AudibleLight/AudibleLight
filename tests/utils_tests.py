@@ -9,6 +9,8 @@ from audiblelight import utils
 
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
 SOUNDEVENT_DIR = TEST_RESOURCES / "soundevents"
+# Use tap for background audio
+BACKGROUND_DIR = SOUNDEVENT_DIR / "waterTap"
 MESH_DIR = TEST_RESOURCES / "meshes"
 OYENS_PATH = MESH_DIR / "Oyens.glb"
 

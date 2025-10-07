@@ -10,6 +10,7 @@ from typing import Any, Type
 import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
+from rlr_audio_propagation import ChannelLayout, ChannelLayoutType
 
 from audiblelight import utils
 
@@ -21,6 +22,7 @@ __all__ = [
     "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST",
+    "FOAListener",
 ]
 
 
@@ -32,6 +34,8 @@ class MicArray:
     Attributes:
         name (str): the name of the array.
         is_spherical (bool): whether the array is spherical. If False, positions_spherical will be None.
+        channel_layout_type (str): the expected channel layout for each capsule. If "mic" (default), one channel will
+            be created for every capsule. If "foa", four channels will be created per capsule.
 
     Properties:
         coordinates_polar (np.array): the positions of the capsules on the array, given as azimuth, elevation, radius.
@@ -46,14 +50,51 @@ class MicArray:
         capsule_names (list[str]): the names of the microphone capsules
     """
 
-    # TODO: note that we assume that colatitude is measured from 0 -> 180. In reality, users may want/expect to use
-    #  elevation, where 0 == straight ahead, 90 == straight up, -90 straight down. We should add support for this.
-
     name: str = ""
     is_spherical: bool = False
+    channel_layout_type: str = "mic"
+
     irs: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_absolute: np.ndarray = field(default=None, init=False, repr=False)
     _coordinates_center: np.ndarray = field(default=None, init=False, repr=False)
+
+    @property
+    def channel_layout(self) -> ChannelLayout:
+        """
+        Returns the ray-tracing engine ChannelLayout object for this MicArray
+        """
+        if self.channel_layout_type == "mic":
+            layout_type = ChannelLayoutType.Mono
+        elif self.channel_layout_type == "foa":
+            layout_type = ChannelLayoutType.Ambisonics
+        elif self.channel_layout_type == "binaural":
+            layout_type = ChannelLayoutType.Binaural
+        else:
+            raise ValueError(
+                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"but got '{self.channel_layout_type}'"
+            )
+        return ChannelLayout(layout_type, self.n_capsules)
+
+    @property
+    def n_listeners(self) -> int:
+        """
+        Returns the number of listeners this `MicArray` should be associated with in the engine.
+
+        If channel_layout == foa, we will only have 1 listener, but 4 "capsules" and IRs.
+        Otherwise, if channel_layout == mono, we will have as many listeners as capsules.
+        """
+        if self.channel_layout_type == "mic":
+            return self.n_capsules
+        elif self.channel_layout_type == "foa":
+            return 1
+        elif self.channel_layout_type == "binaural":
+            return 1
+        else:
+            raise ValueError(
+                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"but got '{self.channel_layout_type}'"
+            )
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -178,6 +219,7 @@ class MicArray:
             name=self.name,
             micarray_type=self.__class__.__name__,
             is_spherical=self.is_spherical,
+            channel_layout_type=self.channel_layout_type,
             n_capsules=self.n_capsules,
             capsule_names=self.capsule_names,
             **coord_dict,
@@ -240,7 +282,7 @@ class MicArray:
                 expected = getattr(self, attr_name)
                 # Need to use different equality comparisons for arrays vs non-arrays
                 eq = (
-                    np.isclose(expected, value, atol=1e-4).all()
+                    np.isclose(expected, value, atol=utils.SMALL).all()
                     if isinstance(value, np.ndarray)
                     else expected == value
                 )
@@ -285,6 +327,7 @@ class MonoCapsule(MicArray):
 
     name: str = "monocapsule"
     is_spherical: bool = False
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_cartesian(self) -> np.ndarray:
@@ -293,6 +336,33 @@ class MonoCapsule(MicArray):
     @property
     def capsule_names(self) -> list[str]:
         return ["mono"]
+
+
+@dataclass(repr=False, eq=False)
+class FOAListener(MicArray):
+    """
+    First Order Ambisonics (FOA) microphone "capsule"
+
+    This implementation uses a single listener with 4 ambisonics channels (W, X, Y, Z)
+    following the AmbiX convention. Unlike `AmbeoVR` which places 4 separate mono capsules,
+    this represents a single point in space with 4-channel ambisonics encoding.
+    """
+
+    name: str = "foalistener"
+    is_spherical: bool = False
+    channel_layout_type: str = "foa"
+
+    @property
+    def coordinates_cartesian(self) -> np.ndarray:
+        # Note that this just means there is a single capsule placed at the same position as the
+        #  "origin" of the microphone. Normally, this array would return the cartesian coords
+        #  of the capsules WRT the origin. However, as there is only one """capsule""" here,
+        #  the array just contains zeroes.
+        return np.array([[0.0, 0.0, 0.0]])
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return ["w", "x", "y", "z"]
 
 
 @dataclass(repr=False, eq=False)
@@ -305,11 +375,12 @@ class AmbeoVR(MicArray):
 
     name: str = "ambeovr"
     is_spherical: bool = True
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
         return np.array(
-            [[45, 35, 0.01], [315, -35, 0.01], [135, -35, 0.01], [225, 35, 0.01]]
+            [[45, 35, 0.01], [-45, -35, 0.01], [135, -35, 0.01], [-135, 35, 0.01]]
         )
 
     @property
@@ -332,6 +403,7 @@ class Eigenmike32(MicArray):
 
     name: str = "eigenmike32"
     is_spherical: bool = True
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -341,35 +413,35 @@ class Eigenmike32(MicArray):
                 [0.0, 21.0, 0.042],
                 [32.0, 0.0, 0.042],
                 [0.0, -21.0, 0.042],
-                [328.0, 0.0, 0.042],
+                [-32.0, 0.0, 0.042],
                 [0.0, 58.0, 0.042],
                 [45.0, 35.0, 0.042],
                 [69.0, 0.0, 0.042],
                 [45.0, -35.0, 0.042],
                 [0.0, -58.0, 0.042],
-                [315.0, -35.0, 0.042],
-                [291.0, 0.0, 0.042],
-                [315.0, 35.0, 0.042],
+                [-45.0, -35.0, 0.042],
+                [-69.0, 0.0, 0.042],
+                [-45.0, 35.0, 0.042],
                 [91.0, 69.0, 0.042],
                 [90.0, 32.0, 0.042],
                 [90.0, -31.0, 0.042],
                 [89.0, -69.0, 0.042],
                 [180.0, 21.0, 0.042],
-                [212.0, 0.0, 0.042],
+                [-148.0, 0.0, 0.042],
                 [180.0, -21.0, 0.042],
                 [148.0, 0.0, 0.042],
                 [180.0, 58.0, 0.042],
-                [225.0, 35.0, 0.042],
-                [249.0, 0.0, 0.042],
-                [225.0, -35.0, 0.042],
+                [-135.0, 35.0, 0.042],
+                [-111.0, 0.0, 0.042],
+                [-135.0, -35.0, 0.042],
                 [180.0, -58.0, 0.042],
                 [135.0, -35.0, 0.042],
                 [111.0, 0.0, 0.042],
                 [135.0, 35.0, 0.042],
-                [269.0, 69.0, 0.042],
-                [270.0, 32.0, 0.042],
-                [270.0, -32.0, 0.042],
-                [271.0, -69.0, 0.042],
+                [-91.0, 69.0, 0.042],
+                [-90.0, 32.0, 0.042],
+                [-90.0, -32.0, 0.042],
+                [-89.0, -69.0, 0.042],
             ]
         )
 
@@ -393,6 +465,7 @@ class Eigenmike64(MicArray):
 
     name: str = "eigenmike64"
     is_spherical: bool = True
+    channel_layout_type: str = "mic"
 
     @property
     def coordinates_polar(self) -> np.ndarray:
@@ -401,19 +474,19 @@ class Eigenmike64(MicArray):
         # We assume a radius of 4.2 cm given the stated diameter of 8.4 cm
         return np.array(
             [
-                [197.0, 73.0, 0.042],
+                [-163.0, 73.0, 0.042],
                 [116.0, 68.0, 0.042],
                 [82.0, 48.0, 0.042],
-                [313.0, 77.0, 0.042],
+                [-47.0, 77.0, 0.042],
                 [43.0, 67.0, 0.042],
                 [47.0, 37.0, 0.042],
-                [336.0, 52.0, 0.042],
+                [-24.0, 52.0, 0.042],
                 [15.0, 47.0, 0.042],
-                [204.0, 44.0, 0.042],
-                [207.0, 20.0, 0.042],
-                [247.0, 57.0, 0.042],
-                [234.0, 30.0, 0.042],
-                [265.0, 34.0, 0.042],
+                [-156.0, 44.0, 0.042],
+                [-153.0, 20.0, 0.042],
+                [-113.0, 57.0, 0.042],
+                [-126.0, 30.0, 0.042],
+                [-95.0, 34.0, 0.042],
                 [100.0, 23.0, 0.042],
                 [105.0, -3.0, 0.042],
                 [121.0, 42.0, 0.042],
@@ -427,25 +500,25 @@ class Eigenmike64(MicArray):
                 [56.0, -16.0, 0.042],
                 [71.0, 22.0, 0.042],
                 [78.0, -2.0, 0.042],
-                [293.0, 50.0, 0.042],
-                [291.0, 49.0, 0.042],
-                [318.0, 31.0, 0.042],
-                [334.0, 8.0, 0.042],
-                [352.0, 27.0, 0.042],
+                [-67.0, 50.0, 0.042],
+                [-69.0, 49.0, 0.042],
+                [-42.0, 31.0, 0.042],
+                [-26.0, 8.0, 0.042],
+                [-8.0, 27.0, 0.042],
                 [0.0, 0.0, 0.042],
                 [174.0, -48.0, 0.042],
-                [213.0, -50.0, 0.042],
-                [252.0, -45.0, 0.042],
+                [-147.0, -50.0, 0.042],
+                [-108.0, -45.0, 0.042],
                 [151.0, -19.0, 0.042],
-                [241.0, -18.0, 0.042],
-                [293.0, -52.0, 0.042],
-                [331.0, -21.0, 0.042],
+                [-119.0, -18.0, 0.042],
+                [-67.0, -52.0, 0.042],
+                [-29.0, -21.0, 0.042],
                 [61.0, -19.0, 0.042],
-                [227.0, -25.0, 0.042],
-                [234.0, 4.0, 0.042],
-                [194.0, -26.0, 0.042],
-                [210.0, -5.0, 0.042],
-                [183.0, 0.0, 0.042],
+                [-133.0, -25.0, 0.042],
+                [-126.0, 4.0, 0.042],
+                [-166.0, -26.0, 0.042],
+                [-150.0, -5.0, 0.042],
+                [-177.0, 0.0, 0.042],
                 [164.0, -21.0, 0.042],
                 [157.0, 15.0, 0.042],
                 [139.0, 10.0, 0.042],
@@ -453,18 +526,18 @@ class Eigenmike64(MicArray):
                 [102.0, 37.0, 0.042],
                 [113.0, 62.0, 0.042],
                 [83.0, 63.0, 0.042],
-                [308.0, 35.0, 0.042],
-                [309.0, 90.0, 0.042],
-                [278.0, 66.0, 0.042],
-                [283.0, 41.0, 0.042],
-                [253.0, 54.0, 0.042],
-                [260.0, 29.0, 0.042],
+                [-52.0, 35.0, 0.042],
+                [-51.0, 90.0, 0.042],
+                [-82.0, 66.0, 0.042],
+                [-77.0, 41.0, 0.042],
+                [-107.0, 54.0, 0.042],
+                [-100.0, 29.0, 0.042],
                 [60.0, 44.0, 0.042],
                 [14.0, 36.0, 0.042],
                 [32.0, 55.0, 0.042],
-                [334.0, 44.0, 0.042],
+                [-26.0, 44.0, 0.042],
                 [2.0, 64.0, 0.042],
-                [335.0, 55.0, 0.042],
+                [-25.0, 55.0, 0.042],
             ]
         )
 
@@ -479,7 +552,7 @@ class Eigenmike64(MicArray):
 
 
 # A list of all mic array objects
-MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule]
+MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, FOAListener]
 MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 
@@ -507,6 +580,11 @@ def sanitize_microphone_input(microphone_type: Any) -> Type["MicArray"]:
     # If a class contained inside MICARRAY_LIST
     elif microphone_type in MICARRAY_LIST:
         sanitized_microphone = microphone_type
+
+    # If an instance of a class contained inside MICARRAY_LIST
+    elif type(microphone_type) in MICARRAY_LIST:
+        sanitized_microphone = type(microphone_type)
+
     # Otherwise, we don't know what the microphone is
     else:
         raise TypeError(f"Could not parse microphone type {type(microphone_type)}")
@@ -522,7 +600,7 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
     acceptable_values = [ma().name for ma in MICARRAY_LIST]
     if micarray_name not in acceptable_values:
         raise ValueError(
-            f"Cannot find array {micarray_name}: expected one of {','.join(acceptable_values)}"
+            f"Cannot find array {micarray_name}: expected one of {', '.join(acceptable_values)}"
         )
     else:
         # Using `next` avoids having to build the whole list

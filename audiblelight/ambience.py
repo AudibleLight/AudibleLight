@@ -16,7 +16,7 @@ import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
 
-from audiblelight import utils
+from audiblelight import config, custom_types, utils
 
 # This dictionary maps popular "names" to β values for generating noise
 #  In general, higher β values cause more energy in high frequency parts of the power spectral density
@@ -32,12 +32,12 @@ class Ambience:
     def __init__(
         self,
         channels: int,
-        duration: utils.Numeric,
+        duration: custom_types.Numeric,
         alias: str,
         filepath: Optional[Union[str, Path]] = None,
-        noise: Optional[Union[str, utils.Numeric]] = None,
-        ref_db: Optional[utils.Numeric] = utils.REF_DB,
-        sample_rate: Optional[utils.Numeric] = utils.SAMPLE_RATE,
+        noise: Optional[Union[str, custom_types.Numeric]] = None,
+        ref_db: Optional[custom_types.Numeric] = config.DEFAULT_REF_DB,
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         **kwargs,
     ):
         """
@@ -139,7 +139,9 @@ class Ambience:
         """
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
-    def load_ambience(self, ignore_cache: Optional[bool] = False) -> np.ndarray:
+    def load_ambience(
+        self, ignore_cache: Optional[bool] = False, normalize: Optional[bool] = True
+    ) -> np.ndarray:
         """
         Load the background ambience as an array with shape (channels, samples).
         """
@@ -152,9 +154,19 @@ class Ambience:
         # We want to use a "colored" form of noise
         if self.beta is not None:
             # This gives a matrix of shape (N_channels, N_samples)
-            #  It is normalized to approximately unit variance and zero mean
             shape = (self.channels, total_samples)
-            out = powerlaw_psd_gaussian(self.beta, shape, **self.noise_kwargs)
+
+            # Gaussian noise is a special case
+            if self.beta == "gaussian":
+                out = np.random.normal(
+                    0,
+                    1,
+                    shape,
+                )
+
+            else:
+                # It is normalized to approximately unit variance and zero mean
+                out = powerlaw_psd_gaussian(self.beta, shape, **self.noise_kwargs)
 
         # Or, we want to use a noise file from disk
         else:
@@ -194,6 +206,10 @@ class Ambience:
             out = np.tile(utils.coerce2d(ambient), (tile_channels, repeats))[
                 :, :total_samples
             ]
+
+        # Normalise noise to have max(abs(noise)) == 1 per channel
+        if normalize:
+            out = out / np.max(np.abs(out), axis=1, keepdims=True)
 
         self.audio = out
         return self.audio
@@ -251,9 +267,9 @@ class Ambience:
 
 # noinspection PyUnreachableCode
 def powerlaw_psd_gaussian(
-    beta: utils.Numeric,
+    beta: custom_types.Numeric,
     shape: Union[int, Iterable[int]],
-    fmin: Optional[utils.Numeric] = 0.0,
+    fmin: Optional[custom_types.Numeric] = 0.0,
     seed: Optional[int] = utils.SEED,
 ) -> np.ndarray:
     """Generate Gaussian (1 / f) ** β noise.
@@ -303,7 +319,7 @@ def powerlaw_psd_gaussian(
     # Validate / normalise fmin
     fmin = utils.sanitise_positive_number(fmin)
     if 0 <= fmin <= 0.5:
-        fmin = max(fmin, 1.0 / samples)  # Low frequency cutoff
+        fmin = max(fmin, 1.0 / (samples + utils.tiny(samples)))  # Low frequency cutoff
     else:
         raise ValueError(
             f"Argument `fmin` must be chosen between 0 and 0.5 but got {fmin:.2f}."
@@ -319,7 +335,7 @@ def powerlaw_psd_gaussian(
     # Calculate theoretical output standard deviation from scaling
     w = s_scale[1:].copy()
     w[-1] *= (1 + (samples % 2)) / 2.0  # correct f = +-0.5
-    sigma = 2 * np.sqrt(np.sum(w**2)) / samples
+    sigma = 2 * np.sqrt(np.sum(w**2)) / (samples + utils.tiny(samples))
 
     # Adjust size to generate one Fourier component per frequency
     size[-1] = len(f)
@@ -357,7 +373,7 @@ def powerlaw_psd_gaussian(
     return y
 
 
-def _parse_beta(noise: Any) -> float:
+def _parse_beta(noise: Any) -> Union[float, str]:
     """
     Parses the noise exponential term from either a string representation of a color (white) or a number.
     """
@@ -365,12 +381,14 @@ def _parse_beta(noise: Any) -> float:
     if isinstance(noise, str):
         if noise in NOISE_MAPPING.keys():
             return NOISE_MAPPING[noise]
+        elif noise.lower() == "gaussian":
+            return "gaussian"
         else:
             keys = ", ".join(k for k in NOISE_MAPPING.keys())
             raise KeyError(f"Expected a string in {keys} but got {noise}.")
 
     # Otherwise, exponent must be numeric
-    elif isinstance(noise, utils.Numeric):
+    elif isinstance(noise, custom_types.Numeric):
         return noise
 
     # Must provide either a color or exponent

@@ -9,7 +9,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from audiblelight import utils
+from audiblelight import custom_types, utils
+from audiblelight.ambience import Ambience
 from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
 from audiblelight.core import Scene
 from audiblelight.event import Event
@@ -52,6 +53,20 @@ from tests import utils_tests
             scene_start=0.0,
             augmentations=[LowpassFilter, Phaser()],
         ),
+        # Test 6: event right at the end of the scene (but valid)
+        dict(
+            filepath=utils.sanitise_filepath(utils_tests.TEST_MUSICS[0]),
+            scene_start=45,
+            duration=4.99,
+        ),
+        # Test 7: polar position, azimuth exceeds 180 so "wraps around"
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+            polar=True,
+            # -90 azimuth == straight right
+            position=[-90, 0.0, 0.5],
+            scene_start=0.0,
+        ),
     ],
 )
 def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
@@ -75,6 +90,10 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
     assert not ev.is_moving
     assert ev.has_emitters
     assert len(ev) == 1
+
+    # Check that the starting and end time of the event is within temporal bounds for the scene
+    assert ev.scene_start >= 0
+    assert ev.scene_end < oyens_scene_no_overlap.duration
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     desired_position = kwargs.get("position", None)
@@ -148,13 +167,25 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             spatial_velocity=1,
             spatial_resolution=2,
         ),
-        # Test with a polar starting position
+        # Test with polar starting positions
         dict(
             filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
             polar=True,
             position=[0.0, 90.0, 1.0],
             shape="linear",
             scene_start=5.0,  # start five seconds in
+            spatial_resolution=1.5,
+            spatial_velocity=1.0,
+            duration=2,
+            augmentations=[Phaser, LowpassFilter],
+        ),
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            polar=True,
+            mic="mic000",
+            position=[-90.0, 0.0, 1.0],
+            shape="linear",
+            scene_start=5.0,
             spatial_resolution=1.5,
             spatial_velocity=1.0,
             duration=2,
@@ -184,6 +215,10 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     assert ev.is_moving
     assert ev.has_emitters
     assert len(ev) >= 2
+
+    # Check that the starting and end time of the event is within temporal bounds for the scene
+    assert ev.scene_start >= 0
+    assert ev.scene_end < oyens_scene_no_overlap.duration
 
     # If we've passed in a custom position for the emitter, ensure that this is set correctly
     desired_position = kwargs.get("position", None)
@@ -293,32 +328,17 @@ def test_add_bad_event(
         )
 
 
-@pytest.mark.parametrize(
-    "fg_path,raises",
-    [
-        (
-            [utils_tests.SOUNDEVENT_DIR / "music"],
-            False,
-        ),  # this folder has some audio files inside it, so it's all good
-        (None, ValueError),  # as if we've not provided `fp_path` to `Scene.__init__`
-        (
-            [utils.get_project_root() / "tests"],
-            FileNotFoundError,
-        ),  # no audio files inside this folder!
-    ],
-)
-def test_get_random_foreground_audio(
-    fg_path: str, raises, oyens_scene_no_overlap: Scene
-):
-    setattr(oyens_scene_no_overlap, "fg_category_paths", fg_path)
-    if not raises:
-        out = oyens_scene_no_overlap._get_random_foreground_audio()
-        assert str(out).endswith(utils.AUDIO_EXTS)
-        assert os.path.isfile(out)
-        assert isinstance(out, Path)
-    else:
-        with pytest.raises(raises):
-            _ = oyens_scene_no_overlap._get_random_foreground_audio()
+@pytest.mark.parametrize("event_type", ["static", "moving"])
+def test_add_event_exceeds_scene_duration(event_type, oyens_scene_no_overlap):
+    # This event is too long to be added to the scene, should be rejected
+    with pytest.raises(ValueError):
+        oyens_scene_no_overlap.add_event(
+            event_type=event_type,
+            duration=20,
+            scene_start=40,
+            event_start=0,
+            filepath=utils_tests.TEST_MUSICS[0],
+        )
 
 
 @pytest.mark.parametrize(
@@ -377,6 +397,7 @@ def test_get_event(oyens_scene_no_overlap):
 
 def test_get_funcs(oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.add_event(event_type="static")
+    oyens_scene_no_overlap.add_ambience(alias="tester", noise="white")
     # Test all the get functions
     mic = oyens_scene_no_overlap.get_microphone("mic000")
     assert issubclass(type(mic), MicArray)
@@ -387,6 +408,12 @@ def test_get_funcs(oyens_scene_no_overlap: Scene):
     events = oyens_scene_no_overlap.get_events()
     assert isinstance(events, list)
     assert isinstance(events[0], Event)
+    ambience = oyens_scene_no_overlap.get_ambience("tester")
+    assert isinstance(ambience, Ambience)
+    ambiences = oyens_scene_no_overlap.get_ambiences()
+    assert isinstance(ambiences, list)
+    assert isinstance(ambiences[0], Ambience)
+    assert ambiences[0] == ambience
 
 
 def test_clear_funcs(oyens_scene_no_overlap: Scene):
@@ -434,17 +461,147 @@ def test_clear_funcs(oyens_scene_no_overlap: Scene):
         3,
     ],
 )
-def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
+def test_generate_single_mic(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
     for n_event in range(n_events):
         # Use a short duration here so we don't run into issues with placing events
         oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
 
-    oyens_scene_no_overlap.generate("tmp.wav", "tmp.json")
+    # Suffixes will be stripped out
+    oyens_scene_no_overlap.generate(audio_fname="tmp.wav", metadata_fname="tmp.json")
 
-    for fout in ["tmp.wav", "tmp.json"]:
+    for fout in ["tmp_mic000.wav", "tmp.json", "tmp_mic000.csv"]:
         assert os.path.isfile(fout)
         os.remove(fout)
+
+
+@pytest.mark.parametrize(
+    "mic1_type,mic2_type",
+    [("monocapsule", "ambeovr"), ("eigenmike32", "ambeovr"), ("ambeovr", "ambeovr")],
+)
+def test_generate_multiple_mics(
+    mic1_type: str, mic2_type, oyens_scene_no_overlap: Scene
+):
+    # Add multiple mics in
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphone(
+        alias="mic1", microphone_type=mic1_type, keep_existing=True
+    )
+    oyens_scene_no_overlap.add_microphone(
+        alias="mic2", microphone_type=mic2_type, keep_existing=True
+    )
+
+    # Add events in
+    oyens_scene_no_overlap.clear_events()
+    for n_event in range(2):
+        # Use a short duration here so we don't run into issues with placing events
+        oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+
+    # Do the generation
+    oyens_scene_no_overlap.generate(
+        audio_fname="tmp.wav", metadata_fname="tmp.json", metadata_json=False
+    )
+
+    # Check all events
+    for event in oyens_scene_no_overlap.get_events():
+        # Should have created required attributes for all events
+        assert "mic1" in event.spatial_audio.keys()
+        assert "mic2" in event.spatial_audio.keys()
+
+        # Audios should be different but have equivalent dims
+        mic1_ev = event.spatial_audio["mic1"]
+        mic2_ev = event.spatial_audio["mic2"]
+        assert mic1_ev.shape[1] == mic2_ev.shape[1]
+        assert not np.array_equal(mic1_ev, mic2_ev)
+
+    # Check the scene
+    # Should have created required audios in the scene
+    assert "mic1" in oyens_scene_no_overlap.audio.keys()
+    assert "mic2" in oyens_scene_no_overlap.audio.keys()
+
+    # Audios should be different but have equivalent dims
+    mic1 = oyens_scene_no_overlap.audio["mic1"]
+    mic2 = oyens_scene_no_overlap.audio["mic2"]
+    assert not np.array_equal(mic1, mic2)
+    assert mic1.shape[1] == mic2.shape[1]
+
+    # Should have required filepaths
+    for fout in ["tmp_mic1.wav", "tmp_mic1.csv", "tmp_mic2.wav", "tmp_mic2.csv"]:
+        assert os.path.isfile(fout)
+        os.remove(fout)
+
+
+def test_generated_csv(oyens_scene_no_overlap: Scene):
+    # Add a single event in
+    oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+
+    # Do the generation, save metadata csv file only
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_fname="tmp"
+    )
+
+    # This code is copied from this repo https://github.com/sharathadavanne/seld-dcase2023
+    _fid = open("tmp_mic000.csv", "r")
+    _output_dict = {}
+    for _line in _fid:
+        _words = _line.strip().split(",")
+        _frame_ind = int(_words[0])
+        if _frame_ind not in _output_dict:
+            _output_dict[_frame_ind] = []
+        if (
+            len(_words) == 5
+        ):  # frame, class idx, source_id, polar coordinates(2), no distance data
+            _output_dict[_frame_ind].append(
+                [int(_words[1]), int(_words[2]), float(_words[3]), float(_words[4])]
+            )
+        if (
+            len(_words) == 6
+        ):  # frame, class idx, source_id, polar coordinates(2), distance
+            _output_dict[_frame_ind].append(
+                [int(_words[1]), int(_words[2]), float(_words[3]), float(_words[4])]
+            )
+        elif (
+            len(_words) == 7
+        ):  # frame, class idx, source_id, cartesian coordinates(3), distance
+            _output_dict[_frame_ind].append(
+                [
+                    int(_words[1]),
+                    int(_words[2]),
+                    float(_words[3]),
+                    float(_words[4]),
+                    float(_words[5]),
+                ]
+            )
+    _fid.close()
+    # Should have stored some values
+    assert len(_output_dict) > 0
+    os.remove("tmp_mic000.csv")
+
+
+@pytest.mark.parametrize(
+    "dirpath,raises",
+    [(None, False), (os.getcwd(), False), ("not/a/dir", FileNotFoundError)],
+)
+def test_generate_parse_filepaths(dirpath, raises, oyens_scene_no_overlap):
+    oyens_scene_no_overlap.clear_events()
+    # Use a short duration here so we don't run into issues with placing events
+    oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+
+    if not raises:
+        oyens_scene_no_overlap.generate(output_dir=dirpath)
+        assert len(oyens_scene_no_overlap.audio) > 0
+        # Cleanup
+        for fout in [
+            "audio_out_mic000.wav",
+            "metadata_out.json",
+            "metadata_out_mic000.csv",
+        ]:
+            assert os.path.isfile(fout)
+            os.remove(fout)
+    else:
+        with pytest.raises(raises):
+            oyens_scene_no_overlap.generate(output_dir=dirpath)
+        assert len(oyens_scene_no_overlap.audio) == 0
 
 
 @pytest.mark.parametrize(
@@ -459,6 +616,8 @@ def test_generate(n_events: int, oyens_scene_no_overlap: Scene):
             None,
             utils_tests.TEST_RESOURCES / "spatialsoundevents/voice_whitenoise_foa.wav",
         ),
+        # Neither noise nor filepath specified, get random audio from background directory
+        (None, None),
     ],
 )
 def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
@@ -473,6 +632,49 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
     assert ambience_audio.shape == (4, expected_duration)
 
 
+def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
+    # Trying to add ambience with channels not specified and no microphones
+    oyens_scene_no_overlap.clear_microphones()
+    with pytest.raises(
+        ValueError,
+        match="Cannot infer Ambience channels when no microphones have been added to the WorldState",
+    ):
+        oyens_scene_no_overlap.add_ambience()
+
+    # Trying to add ambience with microphones with different number of channels
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr")
+    oyens_scene_no_overlap.add_microphone(
+        microphone_type="eigenmike32", alias="will_break_later"
+    )
+    with pytest.raises(
+        ValueError,
+        match="Cannot infer Ambience channels when available microphones have different number of capsules",
+    ):
+        oyens_scene_no_overlap.add_ambience()
+    # Cleanup so we don't get the same error in the next test
+    oyens_scene_no_overlap.clear_microphone(alias="will_break_later")
+
+    # Trying to add ambience with duplicate aliases
+    oyens_scene_no_overlap.add_ambience(
+        filepath=utils_tests.TEST_MUSICS[0], alias="dupe_alias"
+    )
+    with pytest.raises(KeyError, match="Ambience with alias"):
+        oyens_scene_no_overlap.add_ambience(alias="dupe_alias")
+
+    # Trying to add ambience with duplicate audio file when this not permitted
+    oyens_scene_no_overlap.allow_duplicate_audios = False
+    with pytest.raises(ValueError, match="Audio file"):
+        oyens_scene_no_overlap.add_ambience(
+            alias="ok", filepath=utils_tests.TEST_MUSICS[0]
+        )
+
+    # Reset back to default
+    oyens_scene_no_overlap.clear_ambience()
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr")
+    oyens_scene_no_overlap.allow_duplicate_audios = True
+
+
 @pytest.mark.parametrize(
     "input_dict",
     [
@@ -483,7 +685,8 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
             "duration": 50.0,
             "ref_db": -50,
             "max_overlap": 1,
-            "fg_path": str(utils_tests.SOUNDEVENT_DIR),
+            "fg_path": [str(utils_tests.SOUNDEVENT_DIR)],
+            "bg_path": [str(utils_tests.SOUNDEVENT_DIR)],
             "ambience": {
                 "test_ambience": {
                     "alias": "test_ambience",
@@ -501,8 +704,8 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                     "alias": "test_event",
                     "filename": "000010.mp3",
                     "filepath": str(utils_tests.SOUNDEVENT_DIR / "music/000010.mp3"),
-                    "class_id": None,
-                    "class_label": None,
+                    "class_id": 8,
+                    "class_label": "music",
                     "is_moving": False,
                     "scene_start": 0.0,
                     "scene_end": 0.3922902494331066,
@@ -519,7 +722,7 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                     ],
                     "emitters_relative": {
                         "mic000": [
-                            [203.9109387558252, -5.976352087676762, 3.3744825372046803]
+                            [-156.0890612441748, -5.976352087676762, 3.3744825372046803]
                         ]
                     },
                     "augmentations": [
@@ -546,6 +749,7 @@ def test_add_ambience(noise, filepath, oyens_scene_no_overlap: Scene):
                         "name": "ambeovr",
                         "micarray_type": "AmbeoVR",
                         "is_spherical": True,
+                        "channel_layout_type": "mic",
                         "n_capsules": 4,
                         "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                         "coordinates_absolute": [
@@ -783,7 +987,7 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
         for k, v in expected_aug_kwargs.items():
 
             # Explicitly provided a value, should be used
-            if isinstance(v, utils.Numeric):
+            if isinstance(v, custom_types.Numeric):
                 assert getattr(actual_aug, k) == v
 
             # Provided a function to sample the value, should be within range
@@ -791,7 +995,182 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
                 # Call the function N times and check that the actual value is within the range
                 sampled_values = [v() for _ in range(1000)]
                 assert (
-                    (min(sampled_values) - 1e-4)
+                    (min(sampled_values) - utils.SMALL)
                     < getattr(actual_aug, k)
-                    < (max(sampled_values) + 1e-4)
+                    < (max(sampled_values) + utils.SMALL)
                 )
+
+
+@pytest.mark.parametrize(
+    "fg_path,bg_path",
+    [
+        # Single paths
+        (
+            utils_tests.SOUNDEVENT_DIR / "music",
+            str(utils_tests.SOUNDEVENT_DIR / "waterTap"),
+        ),
+        # list of paths
+        (
+            [
+                utils_tests.SOUNDEVENT_DIR / "music",
+                utils_tests.SOUNDEVENT_DIR / "femaleSpeech",
+            ],
+            [
+                utils_tests.SOUNDEVENT_DIR / "waterTap",
+                str(utils_tests.SOUNDEVENT_DIR / "maleSpeech"),
+            ],
+        ),
+        # No paths
+        (None, None),
+    ],
+)
+def test_parse_audio_paths(fg_path, bg_path):
+    sc = Scene(
+        duration=50, mesh_path=utils_tests.OYENS_PATH, fg_path=fg_path, bg_path=bg_path
+    )
+    assert isinstance(sc.fg_audios, list)
+    assert isinstance(sc.bg_audios, list)
+
+    for path, audios in zip([fg_path, bg_path], [sc.fg_audios, sc.bg_audios]):
+        if path is not None:
+            assert len(audios) > 0
+            out = sc._get_random_audio(audios)
+            assert isinstance(out, Path)
+            assert out.is_file()
+            assert out.suffix.replace(".", "") in custom_types.AUDIO_EXTS
+        else:
+            assert len(audios) == 0
+            with pytest.raises(FileNotFoundError):
+                _ = sc._get_random_audio(audios)
+
+
+@pytest.mark.parametrize("bad_event_type", ["static", "moving"])
+def test_add_duplicated_event_audio(bad_event_type):
+    sc = Scene(
+        duration=50, mesh_path=utils_tests.OYENS_PATH, allow_duplicate_audios=False
+    )
+
+    # Add the audio in the first time: should be fine
+    ok_event_type = "static" if bad_event_type == "moving" else "moving"
+    sc.add_event(
+        event_type=ok_event_type,
+        alias="ok",
+        filepath=utils_tests.TEST_MUSICS[0],
+        duration=1.0,
+    )
+
+    # Add the audio in the second time: should raise an error
+    with pytest.raises(ValueError, match="Audio file"):
+        sc.add_event(
+            event_type=bad_event_type,
+            alias="bad",
+            filepath=utils_tests.TEST_MUSICS[0],
+            duration=1.0,
+        )
+
+
+def test_add_duplicated_ambience_audio():
+    sc = Scene(
+        duration=50, mesh_path=utils_tests.OYENS_PATH, allow_duplicate_audios=False
+    )
+
+    # Add the audio in the first time should be fine
+    sc.add_ambience(alias="ok", filepath=utils_tests.TEST_MUSICS[0], channels=4)
+
+    # Add the ambience in the second time, should raise
+    with pytest.raises(ValueError, match="Audio file"):
+        sc.add_ambience(alias="bad", filepath=utils_tests.TEST_MUSICS[0], channels=4)
+
+
+@pytest.mark.parametrize("allow_dupes", [True, False])
+def test_get_random_audio_dupes(allow_dupes):
+    sc = Scene(
+        mesh_path=utils_tests.OYENS_PATH,
+        duration=50,
+        allow_duplicate_audios=allow_dupes,
+    )
+
+    chosen_audio = utils.sanitise_filepath(utils_tests.TEST_MUSICS[0])
+    sc.add_event(duration=1, event_type="static", filepath=chosen_audio)
+
+    # Get N random audios
+    randoms = [sc._get_random_audio(utils_tests.TEST_MUSICS) for _ in range(50)]
+
+    # Allow for duplicates in the result or not depending on the argument
+    if allow_dupes:
+        assert chosen_audio in randoms
+    else:
+        assert chosen_audio not in randoms
+
+
+@pytest.mark.parametrize("n_events", [1, 2, 3])
+def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.clear_microphones()
+
+    # Add FOA capsule microphone + events then do generation
+    oyens_scene_no_overlap.add_microphone(
+        microphone_type="foalistener", alias="foa_test", keep_existing=False
+    )
+    for n in range(n_events):
+        oyens_scene_no_overlap.add_event(event_type="static", duration=1)
+    oyens_scene_no_overlap.generate(
+        audio=False, metadata_json=False, metadata_dcase=False
+    )
+
+    # Shape of the audio should be 4 channel
+    assert oyens_scene_no_overlap.audio["foa_test"].shape[0] == 4
+    for ev in oyens_scene_no_overlap.events.values():
+        assert ev.spatial_audio["foa_test"].shape[0] == 4
+        assert ev.spatial_audio["foa_test"].shape[1] > 0
+        assert not np.all(ev.spatial_audio["foa_test"] == 0)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        dict(
+            event_type="static",
+            scene_start=10,
+            duration=5,
+            event_start=1,
+        ),
+        dict(event_type="static", snr=5),
+        dict(
+            event_type="moving",
+            scene_start=10,
+            duration=5,
+            event_start=1,
+            spatial_resolution=2,
+            spatial_velocity=2,
+        ),
+    ],
+)
+def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
+    # Use a music file as this should be nice and long
+    oyens_scene_no_overlap.clear_events()
+    created = oyens_scene_no_overlap.add_event(
+        filepath=utils_tests.TEST_MUSICS[0], **overrides
+    )
+
+    # Define the kwargs we'll use for all event types
+    all_kwargs = ["scene_start", "event_start", "duration", "snr"]
+    if created.is_moving:
+        all_kwargs.extend(["spatial_resolution", "spatial_velocity"])
+
+    # Iterate over all expected kwargs
+    for kw in all_kwargs:
+
+        # Event must have the kwarg
+        assert hasattr(created, kw)
+
+        # If set as an override, should be used directly
+        if kw in overrides:
+            assert getattr(created, kw) == overrides[kw]
+
+        # Otherwise, sample N values from the Scene distribution: should be in range
+        else:
+            dist = getattr(oyens_scene_no_overlap, kw + "_dist", None)
+            if dist is not None:
+                sampled = [dist.rvs() for _ in range(1000)]
+                assert min(sampled) <= getattr(created, kw) <= max(sampled)

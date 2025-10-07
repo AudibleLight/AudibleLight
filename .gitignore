@@ -14,15 +14,31 @@ coverage.xml
 *.obj
 *.glb
 *.navmesh
+*.zip
+
 # Ignore outputs
 *.wav
+*.mp3
+*.aac
+*.mpeg4
+*.m4a
+*.flac
 *.png
+*.gif
+*.jpeg
+*.bpm
+*.ico
+!/docs/_static/favicon.ico
+!/icon.png
+*.jpg
 !icon.png
 *.sofa
 *.h5
 *.reapeaks
 *.json
+*.csv
 
+!/resources/mp3d_material_config.json
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
 
@@ -32,3 +48,4 @@ coverage.xml
 /docs/_examples/
 
 .env
+wget-log

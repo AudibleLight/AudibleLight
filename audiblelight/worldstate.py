@@ -3,10 +3,12 @@
 
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
+import json
 import os
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
+from types import MethodType
 from typing import Any, Optional, Type, Union
 
 import matplotlib.pyplot as plt
@@ -14,29 +16,16 @@ import numpy as np
 import trimesh
 from deepdiff import DeepDiff
 from loguru import logger
-from rlr_audio_propagation import ChannelLayout, ChannelLayoutType, Config, Context
+from rlr_audio_propagation import Config, Context
 
-from audiblelight import utils
+from audiblelight import config, custom_types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
-
-MIN_AVG_RAY_LENGTH = 3.0
-
-EMPTY_SPACE_AROUND_EMITTER = 0.2  # Minimum distance one emitter can be from another
-EMPTY_SPACE_AROUND_MIC = 0.1  # Minimum distance one emitter can be from the mic
-EMPTY_SPACE_AROUND_SURFACE = 0.2  # Minimum distance from the nearest mesh surface
-EMPTY_SPACE_AROUND_CAPSULE = (
-    0.05  # Minimum distance from individual microphone capsules
-)
-
-WARN_WHEN_EFFICIENCY_BELOW = (
-    0.5  # when the ray efficiency is below this value, raise a warning in .simulate
-)
-
-MOVING_EMITTER_MAX_SPEED = 1  # meters per second
-MOVING_EMITTER_TEMPORAL_RESOLUTION = (
-    4  # number of IRs created per second for a moving emitter
+MATERIALS_JSON = str(
+    utils.sanitise_filepath(
+        utils.get_project_root() / "resources/mp3d_material_config.json"
+    )
 )
 
 
@@ -55,11 +44,11 @@ def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
         mesh_fpath, file_type=mesh_fpath.suffix, metadata=metadata
     )
     # Convert the units of the mesh to meters, if this is not provided
-    if loaded_mesh.units != utils.MESH_UNITS:
+    if loaded_mesh.units != config.MESH_UNITS:
         logger.warning(
-            f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {utils.MESH_UNITS}"
+            f"Mesh {mesh_fpath.stem} has units {loaded_mesh.units}, converting to {config.MESH_UNITS}"
         )
-        loaded_mesh = loaded_mesh.convert_units(utils.MESH_UNITS, guess=True)
+        loaded_mesh = loaded_mesh.convert_units(config.MESH_UNITS, guess=True)
     return loaded_mesh
 
 
@@ -93,7 +82,7 @@ def add_sphere(
     scene: trimesh.Scene,
     pos: np.ndarray,
     color: Optional[list[int]] = None,
-    r: Optional[utils.Numeric] = 0.2,
+    r: Optional[custom_types.Numeric] = 0.2,
 ) -> None:
     """
     Adds a sphere object to a scene with given position, color, and radius
@@ -294,22 +283,25 @@ class WorldState:
     def __init__(
         self,
         mesh: Union[str, Path],
-        empty_space_around_mic: Optional[utils.Numeric] = EMPTY_SPACE_AROUND_MIC,
+        empty_space_around_mic: Optional[
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_MIC,
         empty_space_around_emitter: Optional[
-            utils.Numeric
-        ] = EMPTY_SPACE_AROUND_EMITTER,
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_EMITTER,
         empty_space_around_surface: Optional[
-            utils.Numeric
-        ] = EMPTY_SPACE_AROUND_SURFACE,
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_SURFACE,
         empty_space_around_capsule: Optional[
-            utils.Numeric
-        ] = EMPTY_SPACE_AROUND_CAPSULE,
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_CAPSULE,
         add_to_context: Optional[bool] = True,
         ensure_minimum_weighted_average_ray_length: Optional[bool] = False,
         minimum_weighted_average_ray_length: Optional[
-            utils.Numeric
-        ] = MIN_AVG_RAY_LENGTH,
-        repair_threshold: Optional[utils.Numeric] = None,
+            custom_types.Numeric
+        ] = config.MIN_AVG_RAY_LENGTH,
+        repair_threshold: Optional[custom_types.Numeric] = None,
+        material: Optional[str] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
         """
@@ -330,6 +322,7 @@ class WorldState:
                 evaluated when `ensure_minimum_weighted_average_ray_length` is True
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
+            material (str): the name of a material to use, defaults to None (i.e., Default material)
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
                 For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
         """
@@ -376,38 +369,37 @@ class WorldState:
             if len(broken_faces) / self.mesh.faces.shape[0] < repair_threshold:
                 repair_mesh(self.mesh)
 
-        # Setting up audio context
+        # Setting up audio configuration
+        self.material = self._validate_material(material)
         self.cfg = self._parse_rlr_config(rlr_kwargs)
-        self.ctx = Context(self.cfg)
-        self._setup_audio_context()
+        self.ctx = None
+        # If required, create the audio context now
+        if self.add_to_state:
+            self._setup_audio_context()
 
     # noinspection PyUnreachableCode
     def _update(self) -> None:
         """
         Updates the state, setting emitter positions and adding all items to the ray-tracing context correctly.
         """
-        # Destroy the old context
-        self.ctx.reset(self.cfg)
-        if self.ctx.get_listener_count() > 0:
-            self.ctx.clear_listeners()
-        if self.ctx.get_source_count() > 0:
-            self.ctx.clear_sources()
-
-        # Remake the context
+        # (re)make the audio context
         self._setup_audio_context()
 
         # Update the ray-tracing listeners
         if len(self.microphones) > 0:
-            all_caps = np.vstack(
-                [m.coordinates_absolute for m in self.microphones.values()]
-            )
-            for caps_idx, caps_pos in enumerate(all_caps):  # type: np.ndarray
-                # Add a single listener for each individual capsule
-                self.ctx.add_listener(ChannelLayout(ChannelLayoutType.Mono, 1))
-                self.ctx.set_listener_position(
-                    caps_idx,
-                    caps_pos.tolist() if isinstance(caps_pos, np.ndarray) else caps_pos,
-                )
+            counter = 0
+            # Iterate through all the microphones we've added
+            for mic in self.microphones.values():
+                # Iterate through all capsules of this micarray class
+                for caps in mic.coordinates_absolute:
+                    # Add the listener in with the correct layout for the current mic
+                    self.ctx.add_listener(mic.channel_layout)
+                    # Set the position of the listener and update the counter
+                    self.ctx.set_listener_position(
+                        counter,
+                        caps.tolist() if isinstance(caps, np.ndarray) else caps,
+                    )
+                    counter += 1
 
         # Update the ray-tracing sources
         if self.num_emitters > 0:
@@ -445,7 +437,7 @@ class WorldState:
         return cfg
 
     @property
-    def irs(self) -> dict[str, np.ndarray]:
+    def irs(self) -> OrderedDict[str, np.ndarray]:
         """
         Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         """
@@ -457,8 +449,10 @@ class WorldState:
             return self._irs
 
     def calculate_weighted_average_ray_length(
-        self, point: np.ndarray, num_rays: Optional[utils.Numeric] = 100
-    ) -> utils.Numeric:
+        self,
+        point: np.ndarray,
+        num_rays: Optional[custom_types.Numeric] = config.NUM_RAYS,
+    ) -> custom_types.Numeric:
         """
         Estimate how spatially "open" a point is by computing the weighted average length of rays cast from that point.
 
@@ -511,14 +505,59 @@ class WorldState:
         # Calculate weighted average of the distances using the computed weights and return
         return np.sum(distances * weights) / np.sum(weights)
 
+    @staticmethod
+    def _validate_material(material: Optional[str] = None) -> str:
+        """
+        Validates that an input material is acceptable for the ray-tracing engine.
+
+        Arguments:
+            material (str): name of the material to use. Must be a key inside `../references/mp3d_material_config.json`.
+                Defaults to "Default" material if not provided.
+
+        Returns:
+            str: name of the material to use in the ray-tracing engine.
+        """
+        with open(MATERIALS_JSON, "r") as js_in:
+            js_out = json.load(js_in)
+        valid_materials = {mat["name"] for mat in js_out["materials"]}
+
+        if not material:
+            material = "Default"
+
+        if material not in valid_materials:
+            raise ValueError(f"Material {material} is not a valid material.")
+
+        return material
+
     def _setup_audio_context(self) -> None:
         """
         Initializes the audio context and configures the mesh for the context.
         """
+
+        def get_audio(_) -> None:
+            raise NotImplementedError(
+                "Do not call `WorldState.ctx.get_audio` directly: instead, use `WorldState.get_irs`."
+            )
+
+        # If the context doesn't exist, make it
+        if self.ctx is None:
+            self.ctx = Context(self.cfg)
+        # If the context does exist, reset it
+        else:
+            self.ctx.reset(self.cfg)
+            if self.ctx.get_listener_count() > 0:
+                self.ctx.clear_listeners()
+            if self.ctx.get_source_count() > 0:
+                self.ctx.clear_sources()
+
+        # Add the mesh into the context
         self.ctx.add_object()
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
-        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, "default")
+        self.ctx.set_material_database_json(MATERIALS_JSON)
+        self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, self.material)
         self.ctx.finalize_object_mesh(0)
+        # Need to monkey-patch get_audio for Context obj as it won't work with multiple channel layout types
+        self.ctx.get_audio = MethodType(get_audio, self.ctx)
 
     def _try_add_microphone(
         self, mic_cls, position: Optional[Union[list, np.ndarray]], alias: str
@@ -529,7 +568,7 @@ class WorldState:
         if alias in self.microphones.keys():
             raise KeyError(f"Alias {alias} already exists in microphone dictionary")
 
-        for attempt in range(utils.MAX_PLACE_ATTEMPTS):
+        for attempt in range(config.MAX_PLACE_ATTEMPTS):
             # Grab a random position for the microphone if required
             pos = position if position is not None else self.get_random_position()
             assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
@@ -598,7 +637,7 @@ class WorldState:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place microphone in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                     f"Consider reducing `empty_space_around` arguments."
                 )
             # If we were trying to add it to a specific position
@@ -697,7 +736,7 @@ class WorldState:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (
-                        f"Could not place microphone in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Could not place microphone in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                         f"Consider reducing `empty_space_around` arguments."
                     )
                 # If we were trying to add it to a specific position
@@ -727,7 +766,7 @@ class WorldState:
         keep_existing_mics: Optional[bool] = True,
         keep_existing_emitters: Optional[bool] = True,
         ensure_direct_path: Optional[bool] = True,
-        max_place_attempts: Optional[int] = utils.MAX_PLACE_ATTEMPTS,
+        max_place_attempts: Optional[int] = config.MAX_PLACE_ATTEMPTS,
     ) -> None:
         """
         Add both a microphone and emitter with specified relationship.
@@ -875,7 +914,7 @@ class WorldState:
 
         # If we care about checking vs minimum weighted average ray length, we need to iterate
         if self.ensure_minimum_weighted_average_ray_length:
-            for attempt in range(utils.MAX_PLACE_ATTEMPTS):
+            for attempt in range(config.MAX_PLACE_ATTEMPTS):
 
                 # Compute the weighted average ray length with this position and return if the position is acceptable
                 if (
@@ -891,14 +930,14 @@ class WorldState:
 
             # If we haven't found an acceptable position, log this and use the most recent one.
             logger.error(
-                f"Could not find a suitable position after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Could not find a suitable position after {config.MAX_PLACE_ATTEMPTS} attempts. "
                 f"Using the last attempted position: {mic_pos}."
             )
 
         return mic_pos
 
     def get_random_point_inside_mesh(
-        self, batch_size: Optional[utils.Numeric] = 10
+        self, batch_size: Optional[custom_types.Numeric] = config.POINT_BATCH_SIZE
     ) -> np.ndarray:
         """
         Generates a random valid point inside the mesh.
@@ -1022,7 +1061,7 @@ class WorldState:
         position_is_assigned = position is not None
         # If we have already provided a position, this loop will only iterate once
         #  Otherwise, we want a random position, so we iterate N times until the position is valid
-        for attempt in range(1 if position_is_assigned else utils.MAX_PLACE_ATTEMPTS):
+        for attempt in range(1 if position_is_assigned else config.MAX_PLACE_ATTEMPTS):
             # Get a random position if required or use the assigned one
             pos = position if position_is_assigned else self.get_random_position()
             if len(pos) != 3:
@@ -1200,7 +1239,7 @@ class WorldState:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                     f"If this is happening frequently, consider reducing the number of `emitters`, "
                     f"or the `empty_space_around` arguments."
                 )
@@ -1303,7 +1342,7 @@ class WorldState:
                 # If we were trying to add it to a random position
                 if position_ is None:
                     msg = (
-                        f"Could not place emitter in the mesh after {utils.MAX_PLACE_ATTEMPTS} attempts. "
+                        f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
                         f"Consider reducing `empty_space_around` arguments."
                     )
                 # If we were trying to add it to a specific position
@@ -1324,16 +1363,16 @@ class WorldState:
     def get_valid_position_with_max_distance(
         self,
         ref: np.ndarray,
-        r: utils.Numeric,
-        n: Optional[utils.Numeric] = utils.MAX_PLACE_ATTEMPTS,
+        r: custom_types.Numeric,
+        n: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> np.ndarray:
         """
         Generate a sphere with origin `ref` and radius `r` and sample a valid position from within its volume.
 
         Arguments:
             ref (np.ndarray): the reference point, treated as the origin of the sphere
-            r (utils.Numeric): the maximum distance for the sampled point from `ref`
-            n (utils.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
+            r (custom_types.Numeric): the maximum distance for the sampled point from `ref`
+            n (custom_types.Numeric): the number of points to create on the sphere. Only the first valid point will be returned
 
         Raises:
             ValueError: if a valid point from within `n` samples cannot be found
@@ -1374,8 +1413,8 @@ class WorldState:
     def _validate_trajectory(
         self,
         trajectory: np.ndarray,
-        max_distance: utils.Numeric,
-        step_distance: utils.Numeric,
+        max_distance: custom_types.Numeric,
+        step_distance: custom_types.Numeric,
         requires_direct_line: bool,
     ) -> bool:
         """
@@ -1384,8 +1423,8 @@ class WorldState:
         Arguments:
             trajectory (np.ndarray): the trajectory to be validated
             requires_direct_line (bool): whether a direct line must exist between the starting and ending position
-            max_distance (utils.Numeric): the maximum distance traversed in the trajectory, from start to end
-            step_distance (utils.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            max_distance (custom_types.Numeric): the maximum distance traversed in the trajectory, from start to end
+            step_distance (custom_types.Numeric): the maximum distance traversed from one step to the next in the trajectory
 
         Returns:
             bool: whether the trajectory is valid
@@ -1418,7 +1457,7 @@ class WorldState:
 
         # Check distance between every step
         step_deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
-        if np.any(step_deltas > step_distance + 1e-4):
+        if np.any(step_deltas > step_distance + utils.SMALL):
             return False
 
         # Validate all positions in the trajectory WRT the rest of the mesh
@@ -1427,12 +1466,12 @@ class WorldState:
     # @utils.timer("define trajectory")
     def define_trajectory(
         self,
-        duration: utils.Numeric,
+        duration: custom_types.Numeric,
         starting_position: Optional[Union[np.ndarray, list]] = None,
-        velocity: Optional[utils.Numeric] = None,
-        resolution: Optional[utils.Numeric] = None,
-        shape: Optional[str] = None,
-        max_place_attempts: Optional[utils.Numeric] = None,
+        velocity: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
+        resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ):
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
@@ -1462,18 +1501,6 @@ class WorldState:
         Returns:
             np.ndarray: the sanitised trajectory, with shape (n_points, 3)
         """
-        # Use defaults if not provided
-        shape = "linear" if shape is None else shape
-        velocity = MOVING_EMITTER_MAX_SPEED if velocity is None else velocity
-        resolution = (
-            MOVING_EMITTER_TEMPORAL_RESOLUTION if resolution is None else resolution
-        )
-        max_place_attempts = (
-            utils.MAX_PLACE_ATTEMPTS
-            if max_place_attempts is None
-            else max_place_attempts
-        )
-
         # Compute the number of samples based on duration and resolution
         n_points = (
             utils.sanitise_positive_number(duration * resolution, cast_to=round) + 1
@@ -1638,13 +1665,15 @@ class WorldState:
             sum(len(em) for em in self.emitters.values()) == self.ctx.get_source_count()
         )
         assert (
-            sum(m.n_capsules for m in self.microphones.values())
+            sum(m.n_listeners for m in self.microphones.values())
             == self.ctx.get_listener_count()
         )
 
     def simulate(self) -> None:
         """
         Simulates audio propagation in the state with the current listener and sound emitter positions.
+
+        Note that returned IRs are NOT NORMALIZED: this occurs inside `synthesize.render_event_audio`.
         """
         # Update the ray-tracing engine with our current emitters, microphones, etc.
         self._update()
@@ -1664,44 +1693,68 @@ class WorldState:
         logger.info(
             f"Finished simulation! Overall indirect ray efficiency: {efficiency:.3f}"
         )
-        if efficiency < WARN_WHEN_EFFICIENCY_BELOW:
+        if efficiency < config.WARN_WHEN_RAY_EFFICIENCY_BELOW:
             logger.warning(
-                f"Ray efficiency is below {WARN_WHEN_EFFICIENCY_BELOW:.0%}. It is possible that the mesh "
+                f"Ray efficiency is below {config.WARN_WHEN_RAY_EFFICIENCY_BELOW :.0%}. It is possible that the mesh "
                 f"may have holes in it. Consider decreasing `repair_threshold` when initialising the "
                 f"`WorldState` object, or running `trimesh.repair.fill_holes` on your mesh."
             )
-        # Compute the IRs: this gives us shape (N_capsules, N_emitters, N_channels == 1, N_samples)
-        irs = self.ctx.get_audio()
         # Format irs into a dictionary of {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
         #  with one key-value pair per microphone. We have to do this because we cannot have ragged arrays
         #  The individual arrays can then be accessed by calling `self.irs.values()`
-        self._irs = self._format_irs(irs)
+        self._irs = self.get_irs()
 
-    def _format_irs(self, irs: np.ndarray) -> dict:
+    def get_irs(self) -> OrderedDict[str, np.ndarray]:
         """
-        Formats IRs from the ray tracing engine into a dictionary of {mic1: (N_capsules, N_emitters, N_samples), ...}
+        Get the IRs from the ray-tracing context
+
+        By default, `Context.get_audio` expects all listeners to have the same channel layout type. If, however, e.g.
+        some listeners have Mono and others have Ambisonics, `Context.get_audio` will fail due to `numpy` expecting all
+        arrays to have equal dims.
+
+        Instead, we need to return a dictionary of numpy arrays.
+        The output will have shape: {mic1: (N_capsules, N_emitters, N_samples), ...}
         """
-        # Define a counter that we can use to access the flat array of (capsules, emitters, samples)
-        counter = 0
-        all_irs = OrderedDict()
-        for mic_alias, mic in self.microphones.items():
-            mic_ir = []
-            # Iterate over the capsules associated with this microphone
-            for n_capsule in range(counter, mic.n_capsules + counter):
-                counter += 1
-                # This just gets the mono audio for each capsule
-                capsule_ir = irs[n_capsule, :, 0, :]
-                mic_ir.append(capsule_ir)
-            # Stack to a shape of (N_capsules, N_emitters, N_samples)
-            mic.irs = np.stack(mic_ir)
-            # Get the name of the mic and create a new key-value pair
-            all_irs[mic_alias] = mic.irs
-        return all_irs
+        listener_counter = 0
+        maxlen_samples = 0
+
+        # Do a first pass to get the maximum length of a single IR
+        for mic in self.microphones.values():
+            for i in range(listener_counter, listener_counter + mic.n_listeners):
+                for j in range(self.ctx.get_source_count()):
+                    for k in range(self.ctx.get_ir_channel_count(i, j)):
+                        ir_ijk = self.ctx.get_listener_source_channel_audio(i, j, k)
+                        maxlen_samples = max(maxlen_samples, len(ir_ijk))
+            listener_counter += mic.n_listeners
+
+        # Now that we know the maximum length of an IR, we can do another pass with padding
+        listener_counter = 0
+        for mic in self.microphones.values():
+            # By initialising an empty array, we prevent the need to explicitly call `np.pad`
+            zero_arr = np.zeros(
+                (mic.n_capsules, self.ctx.get_source_count(), maxlen_samples)
+            )
+            # We need to track both the cumulative capsule number and the capsule number WRT just this mic
+            for i_ctx, i_mic in zip(
+                range(listener_counter, listener_counter + mic.n_capsules),
+                range(mic.n_capsules),
+            ):
+                if i_ctx >= self.ctx.get_listener_count():
+                    break
+                for j in range(self.ctx.get_source_count()):
+                    for k in range(self.ctx.get_ir_channel_count(i_ctx, j)):
+                        ir_ijk = self.ctx.get_listener_source_channel_audio(i_ctx, j, k)
+                        zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
+            mic.irs = zero_arr
+            listener_counter += mic.n_listeners
+
+        # Returns a dictionary with shape {mic1: (N_capsules, N_emitters, N_samples), ...}
+        return OrderedDict({m_alias: m.irs for m_alias, m in self.microphones.items()})
 
     def create_scene(
         self,
-        mic_radius: Optional[utils.Numeric] = 0.2,
-        emitter_radius: Optional[utils.Numeric] = 0.1,
+        mic_radius: Optional[custom_types.Numeric] = 0.2,
+        emitter_radius: Optional[custom_types.Numeric] = 0.1,
     ) -> trimesh.Scene:
         """
         Creates a trimesh.Scene with the Space's mesh, microphone position, and emitters all added
@@ -1810,6 +1863,11 @@ class WorldState:
             else:
                 return inp
 
+        # Fix bug where we haven't created the context yet
+        if self.ctx is None:
+            self._setup_audio_context()
+            self._update()
+
         return dict(
             emitters={
                 s_alias: [coerce(s_.coordinates_absolute) for s_ in s]
@@ -1835,6 +1893,7 @@ class WorldState:
             empty_space_around_surface=self.empty_space_around_surface,
             empty_space_around_capsule=self.empty_space_around_capsule,
             repair_threshold=self.repair_threshold,
+            material=self.material,
         )
 
     @classmethod
@@ -1863,6 +1922,7 @@ class WorldState:
             empty_space_around_capsule=input_dict["empty_space_around_capsule"],
             repair_threshold=input_dict["repair_threshold"],
             rlr_kwargs=input_dict["rlr_config"],
+            material=input_dict.get("material", None),
         )
 
         # Instantiate the microphones and emitters from their dictionaries

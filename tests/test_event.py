@@ -8,7 +8,7 @@ from typing import Optional
 import numpy as np
 import pytest
 
-from audiblelight import utils
+from audiblelight import config, utils
 from audiblelight.augmentation import (
     Augmentation,
     Compressor,
@@ -19,7 +19,7 @@ from audiblelight.augmentation import (
     PitchShift,
     SpeedUp,
 )
-from audiblelight.event import Event
+from audiblelight.event import Event, infer_dcase_label_idx_from_filepath
 from tests import utils_tests
 
 
@@ -45,18 +45,20 @@ def test_create_static_event(audio_fpath: str, oyens_space):
     "audio_fpath,duration,start_time",
     [
         # These are all music audio files, which we use as they're long
-        (utils_tests.TEST_AUDIOS[6], 0.5, 0.5),
-        (utils_tests.TEST_AUDIOS[7], 1.0, 1.0),
-        (utils_tests.TEST_AUDIOS[8], None, 1.0),
-        (utils_tests.TEST_AUDIOS[6], 0.5, None),
-        (utils_tests.TEST_AUDIOS[7], None, None),
-        (utils_tests.TEST_AUDIOS[8], 2.0, 5.0),
+        (utils_tests.TEST_MUSICS[0], 0.5, 0.5),
+        (utils_tests.TEST_MUSICS[1], 1.0, 1.0),
+        (utils_tests.TEST_MUSICS[2], None, 1.0),
+        (utils_tests.TEST_MUSICS[0], 0.5, None),
+        (utils_tests.TEST_MUSICS[1], None, None),
+        (utils_tests.TEST_MUSICS[2], 2.0, 5.0),
     ],
 )
+@pytest.mark.parametrize("normalize", [True, False])
 def test_load_audio(
     audio_fpath: str,
     duration: Optional[float],
     start_time: Optional[float],
+    normalize: bool,
     oyens_space,
 ):
     # Create a dummy event
@@ -69,19 +71,28 @@ def test_load_audio(
         emitters=emitter,
         duration=duration,
         event_start=start_time,
-        sample_rate=utils.SAMPLE_RATE,
+        sample_rate=config.SAMPLE_RATE,
     )
+
     # Try and load the audio
-    audio = ev.load_audio(ignore_cache=True)
+    audio = ev.load_audio(ignore_cache=True, normalize=normalize)
     assert isinstance(audio, np.ndarray)
     assert audio.ndim == 1  # should be mono
     assert ev.is_audio_loaded
+
+    # Audio should be normalized if required, with peak at +/- 1
+    if normalize:
+        assert pytest.approx(np.max(np.abs(audio))) == 1
+    else:
+        assert not pytest.approx(np.max(np.abs(audio))) == 1
+
     # Try and load the audio again, should be cached
     audio2 = ev.load_audio(ignore_cache=False)
     assert np.array_equal(audio, audio2)
+
     # If we've passed in a custom duration, this should be respected
     if duration is not None:
-        assert len(audio) / utils.SAMPLE_RATE == duration
+        assert len(audio) / config.SAMPLE_RATE == duration
         # We should set the end time correctly
         if start_time is not None:
             assert ev.event_end == start_time + duration
@@ -106,7 +117,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
         alias="test_event",
         emitters=emitter,
         duration=duration,
-        sample_rate=utils.SAMPLE_RATE,
+        sample_rate=config.SAMPLE_RATE,
     )
     parsed_duration = round(ev._parse_duration(duration))  # should be 30 seconds
     assert np.isclose(parsed_duration, expected)
@@ -119,8 +130,8 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "alias": "test_event",
             "filename": "000010.mp3",
             "filepath": str(utils_tests.SOUNDEVENT_DIR / "music/000010.mp3"),
-            "class_id": None,
-            "class_label": None,
+            "class_id": 8,
+            "class_label": "music",
             "is_moving": False,
             "scene_start": 0.0,
             "scene_end": 0.3922902494331066,
@@ -134,7 +145,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "num_emitters": 1,
             "emitters": [[1.8156068957785347, -1.863507837016133, 1.8473540916136413]],
             "emitters_relative": {
-                "mic000": [[203.9109387558252, -5.976352087676762, 3.3744825372046803]]
+                "mic000": [[-156.0890612441748, -5.976352087676762, 3.3744825372046803]]
             },
             "augmentations": [],
         },
@@ -142,8 +153,8 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "alias": "test_event",
             "filename": "000010.mp3",
             "filepath": str(utils_tests.SOUNDEVENT_DIR / "music/000010.mp3"),
-            "class_id": None,
-            "class_label": None,
+            "class_id": 8,
+            "class_label": "music",
             "is_moving": True,
             "scene_start": 5.0,
             "scene_end": 10.0,
@@ -282,6 +293,8 @@ def test_add_augmentations(audio_fpath, augmentations):
     )
     # Load up the pre-augmented audio
     init_audio = ev.load_audio(ignore_cache=True)
+    # Audio should be normalized, peak at +/- 1
+    assert pytest.approx(np.max(np.abs(init_audio))) == 1
 
     # Add in the augmentations
     ev.register_augmentations(augmentations)
@@ -293,6 +306,8 @@ def test_add_augmentations(audio_fpath, augmentations):
     aug_audio = ev.load_audio()
     assert not np.array_equal(init_audio, aug_audio)
     assert ev.audio is not None
+    # Audio should be normalized, peak at +/- 1
+    assert pytest.approx(np.max(np.abs(aug_audio))) == 1
 
     # However, audio should have the same shape after augmentation
     try:
@@ -334,3 +349,40 @@ def test_add_bad_augmentation():
     # Should not be able to clear augmentation
     with pytest.raises(IndexError, match="No augmentation found at index 1000"):
         ev.clear_augmentation(1000)
+
+
+@pytest.mark.parametrize(
+    "filepath,expected_class,expected_idx,raises",
+    [
+        (
+            "/AudibleLight/resources/soundevents/music/train/Pop/001649.mp3",
+            "music",
+            8,
+            False,
+        ),
+        (
+            "/AudibleLight/resources/soundevents/femaleSpeech/train/Female_speech_and_woman_speaking/109902.wav",
+            "femaleSpeech",
+            0,
+            False,
+        ),
+        (
+            "i/will/never/get/a/match/butitsok.wav",
+            None,
+            None,
+            False,
+        ),
+        ("i/will/match/both/music/and/femaleSpeech/sowillfail.wav", None, None, True),
+    ],
+)
+def test_infer_dcase_from_filepath(
+    filepath, expected_class: str, expected_idx: int, raises: bool
+):
+    if raises:
+        with pytest.raises(ValueError):
+            _, __ = infer_dcase_label_idx_from_filepath(filepath)
+
+    else:
+        actual_idx, actual_cls = infer_dcase_label_idx_from_filepath(filepath)
+        assert actual_cls == expected_class
+        assert actual_idx == expected_idx

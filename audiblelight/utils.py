@@ -11,40 +11,31 @@ import wave
 from contextlib import contextmanager
 from pathlib import Path
 from time import time
-from typing import Any, Callable, Generator, Optional, Protocol, Union
+from typing import Any, Callable, Generator, Optional, Union
 
 import numpy as np
 import torch
 from loguru import logger
 
-MESH_UNITS = "meters"  # will convert to this if
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-FOREGROUND_DIR = "FSD50K_FMA_SMALL"
-RIR_DIR = None
-FORMAT = "foa"  # First-order ambisonics by default
-N_EVENTS_MEAN = 15  # Mean number of foreground events in a soundscape
-N_EVENTS_STD = 6  # Standard deviation of the number of foreground events
-DURATION = 60.0  # Duration in seconds of each soundscape
-SR = 24000  # SpatialScaper default sampling rate for the audio files
-OUTPUT_DIR = "output"  # Directory to store the generated soundscapes
-REF_DB = (
-    -65
-)  # Reference decibel level for the background ambient noise. Try making this random too!
-NSCAPES = 20
+from audiblelight.config import SAMPLE_RATE
+from audiblelight.custom_types import (
+    NUMERIC_DTYPES,
+    DistributionLike,
+    DistributionWrapper,
+    Numeric,
+)
+
+# Units for mesh
+# Device for any torch code: default to GPU, then MPS (on macOS), then CPU
+DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.mps.is_available() else "cpu"
+)
+# Seed used for randomisation
 SEED = 42
-SAMPLE_RATE = 44100  # Default to 44.1kHz sample rate
-MAX_PLACE_ATTEMPTS = 1000  # Max number of times we'll attempt to place a source or microphone before giving up
-
-NUMERIC_DTYPES = (
-    int,
-    float,
-    complex,
-    np.integer,
-    np.floating,
-)  # used for isinstance(x, ...) checking
-Numeric = Union[int, float, complex, np.integer, np.floating]  # used as a typehint
-
-AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
+# Useful as a constant for tolerance checking, when `utils.tiny(...)` is going to be too small
+SMALL = 1e-4
 
 
 @contextmanager
@@ -154,7 +145,7 @@ def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
     Converts an array of spherical coordinates (azimuth°, polar°, radius) to Cartesian coordinates (XYZ).
 
     Assumptions:
-        Azimuth: [0, 360), counter-clockwise from front.
+        Azimuth: [-180, 180), increasing counter-clockwise from front (i.e, azimuth=90 == left)
         Elevation: [-90, 90], 0 = horizontal, 90 = up, -90 = down.
         Radius: unbounded, in metres.
     """
@@ -181,7 +172,7 @@ def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
     Converts an array of Cartesian coordinates (XYZ) to spherical coordinates (azimuth°, polar°, radius).
 
     Assumptions:
-        Azimuth: [0, 360), counter-clockwise from front.
+        Azimuth: [-180, 180), increasing counter-clockwise from front (i.e, azimuth=90 == left)
         Elevation: [-90, 90], 0 = horizontal, 90 = up, -90 = down.
         Radius: unbounded, in metres.
     """
@@ -199,9 +190,6 @@ def cartesian_to_polar(cartesian_array: np.ndarray) -> np.ndarray:
     # Get azimuth and polar in radians first, then convert to degrees
     azimuth = np.rad2deg(np.arctan2(y, x))  # φ, angle in x-y plane from x-axis
     elevation = np.rad2deg(np.arcsin(z / r))  # θ, angle from z-axis in [-90, 90]
-
-    # Ensure azimuth is in [0, 360)
-    azimuth = np.mod(azimuth, 360)
 
     # Stack everything back into a 2D array of shape (n_capsules, 3)
     return np.column_stack((azimuth, elevation, r))
@@ -256,9 +244,18 @@ def sanitise_filepath(filepath: Any) -> Path:
         )
 
 
-def sanitise_directory(directory: Any) -> Path:
+def sanitise_filepaths(filepaths: list[Any]) -> list[Path]:
     """
-    Validate that a directory exists on the disk and coerce to a `Path` object
+    Equivalent to [sanitise_filepath(fp) for fp in filepaths]
+    """
+    return [sanitise_filepath(fp) for fp in filepaths]
+
+
+def sanitise_directory(directory: Any, create_if_missing: bool = False) -> Path:
+    """
+    Validate that a directory exists on the disk and coerce to a `Path` object.
+
+    If `create_if_missing` and the folder does not exist, it will be created
     """
     if isinstance(directory, (str, Path)):
         # Coerce string types to Path
@@ -266,9 +263,13 @@ def sanitise_directory(directory: Any) -> Path:
             directory = Path(directory)
         # Raise a nicer error when the file can't be found
         if not directory.is_dir():
-            raise FileNotFoundError(
-                f"Cannot find file at {str(directory)}, does it exist?"
-            )
+            if create_if_missing:
+                directory.mkdir(parents=True, exist_ok=True)
+                return directory
+            else:
+                raise FileNotFoundError(
+                    f"Cannot find directory at {str(directory)}, does it exist?"
+                )
         else:
             if not any(directory.iterdir()):
                 logger.warning(
@@ -277,8 +278,17 @@ def sanitise_directory(directory: Any) -> Path:
             return directory
     else:
         raise TypeError(
-            f"Expected filepath to be either a string or Path object, but got {type(directory)}"
+            f"Expected directory to be either a string or Path object, but got {type(directory)}"
         )
+
+
+def sanitise_directories(
+    directories: list[Any], create_if_missing: bool = False
+) -> list[Path]:
+    """
+    Equivalent to [sanitise_directory(dir) for dir in directories]
+    """
+    return [sanitise_directory(dir_, create_if_missing) for dir_ in directories]
 
 
 def sanitise_positive_number(x: Any, cast_to: type = float) -> Optional[Numeric]:
@@ -306,33 +316,6 @@ def sanitise_coordinates(x: Any) -> Optional[np.ndarray]:
         return x
     else:
         raise TypeError("Expected a list or array input, but got {}".format(type(x)))
-
-
-class DistributionLike(Protocol):
-    """
-    Typing protocol for any distribution-like object.
-
-    Must expose an `rvs()` method that returns a single random variate as a float (or float-compatible number).
-    """
-
-    def rvs(self, *args: Any, **kwargs: Any) -> Numeric:
-        pass
-
-
-class DistributionWrapper:
-    """
-    Wraps a callable (e.g. a function) as a distribution-like object with an `rvs()` method.
-    """
-
-    def __init__(self, distribution: Callable):
-        self.distribution = distribution
-
-    def rvs(self, *_: Any, **__: Any) -> Numeric:
-        return self.distribution()
-
-    def __call__(self) -> Numeric:
-        """Makes the wrapper itself callable like the original."""
-        return self.rvs()
 
 
 def sanitise_distribution(
@@ -633,14 +616,21 @@ def generate_random_trajectory(
     return np.vstack([xyz_start, trajectory])
 
 
-def pad_or_truncate_audio(audio: np.ndarray, desired_samples: Numeric) -> np.ndarray:
+def pad_or_truncate_audio(
+    audio: np.ndarray, desired_samples: Numeric, pad_mode: str = "constant"
+) -> np.ndarray:
     """
     Pads or truncates audio with desired number of samples.
+
+    Arguments:
+        audio (np.ndarray): array to pad or truncate
+        desired_samples (Numeric): desired number of samples for the target audio
+        pad_mode (str): mode to use with `np.pad`, defaults to constant
     """
     # Audio is too short, needs padding
     if audio.shape[1] < desired_samples:
         return np.pad(
-            audio, ((0, 0), (0, desired_samples - audio.shape[1])), mode="constant"
+            audio, ((0, 0), (0, desired_samples - audio.shape[1])), mode=pad_mode
         )
     # Audio is too long, needs truncating
     elif audio.shape[1] > desired_samples:
@@ -648,3 +638,21 @@ def pad_or_truncate_audio(audio: np.ndarray, desired_samples: Numeric) -> np.nda
     # Audio is just right
     else:
         return audio
+
+
+def tiny(x: Union[float, np.ndarray]) -> Numeric:
+    """
+    Compute the tiny-value corresponding to an input's data type, preventing underflow and divide-by-zero errors
+    """
+    # Make sure we have an array view
+    x = np.asarray(x)
+
+    # Only floating types generate a tiny
+    if np.issubdtype(x.dtype, np.floating) or np.issubdtype(
+        x.dtype, np.complexfloating
+    ):
+        dtype = x.dtype
+    else:
+        dtype = np.dtype(np.float32)
+
+    return np.finfo(dtype).tiny

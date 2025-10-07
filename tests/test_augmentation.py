@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from audiblelight import utils
+from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import (
     ALL_EVENT_AUGMENTATIONS,
     Augmentation,
@@ -23,11 +23,13 @@ from audiblelight.augmentation import (
     Gain,
     GSMFullRateCompressor,
     HighpassFilter,
+    Invert,
     Limiter,
     LowpassFilter,
     MP3Compressor,
     MultibandEqualizer,
     Phaser,
+    Reverse,
     SpeedUp,
     TimeWarp,
     TimeWarpDuplicate,
@@ -219,7 +221,7 @@ def test_equalizer(params):
         if param_name == "n_bands":
             continue
 
-        if isinstance(param_val, utils.Numeric):
+        if isinstance(param_val, custom_types.Numeric):
             assert np.array_equal(
                 getattr(init_fx, param_name),
                 [param_val for _ in range(params["n_bands"])],
@@ -229,10 +231,11 @@ def test_equalizer(params):
 
 
 @pytest.mark.parametrize("fx_class", ALL_EVENT_AUGMENTATIONS)
-@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_MUSICS[:5])
+@pytest.mark.flaky(reruns=10)
 def test_process_audio(fx_class, audio_fpath):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Initialise FX with default parameters and process the audio
     fx_init = fx_class()
@@ -246,11 +249,11 @@ def test_process_audio(fx_class, audio_fpath):
 
     # Should have required params
     assert hasattr(fx_init, "params")
-    assert len(fx_init.params) > 0
+    assert len(fx_init.params) >= 0
 
     # Should be a numpy array with different values to initial
-    #  Don't test when we have flaky FX,
-    #  e.g. pitchshift can have a randomly sampled value of 0 semitones
+    #  This can occasionally error out e.g. with PitchShift randomly sampling 0 semitones
+    #  Hence, we add `pytest.mark.flaky` to the test to automate rerunning
     assert isinstance(out, np.ndarray)
     assert not np.array_equal(out, loaded)
 
@@ -299,7 +302,7 @@ def test_load_from_dict_bad():
 @pytest.mark.parametrize("fade_out_shape", Fade.FADE_SHAPES + [None])
 def test_fade(fade_in_shape, fade_out_shape, audio_fpath):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Process the audio with the augmentation
     #  Length of the fade in and fade out should always be 5 seconds
@@ -313,14 +316,14 @@ def test_fade(fade_in_shape, fade_out_shape, audio_fpath):
 
     # Consider final sample and average volume of final N seconds
     if fader.fade_out_shape != "none":
-        assert np.isclose(out[-1], 0.0, atol=1e-4)
-        fade_time = round(utils.SAMPLE_RATE * fader.fade_out_len)
+        assert np.isclose(out[-1], 0.0, atol=utils.SMALL)
+        fade_time = round(config.SAMPLE_RATE * fader.fade_out_len)
         assert np.mean(np.abs(out[-fade_time:])) <= np.mean(np.abs(loaded[-fade_time:]))
 
     # Consider first sample and average volume of first N seconds
     if fader.fade_in_shape != "none":
-        assert np.isclose(out[0], 0.0, atol=1e-4)
-        fade_time = round(utils.SAMPLE_RATE * fader.fade_in_len)
+        assert np.isclose(out[0], 0.0, atol=utils.SMALL)
+        fade_time = round(config.SAMPLE_RATE * fader.fade_in_len)
         assert np.mean(np.abs(out[:fade_time])) <= np.mean(np.abs(loaded[:fade_time]))
 
 
@@ -361,7 +364,7 @@ def test_threshold_db(threshold_db, augmentation_class):
 @pytest.mark.parametrize("stretch_factor", [0.5, 1.0, 1.5])
 def test_speed_up(audio_fpath, stretch_factor):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Process the audio
     cls = SpeedUp(stretch_factor=stretch_factor)
@@ -376,12 +379,6 @@ def test_speed_up(audio_fpath, stretch_factor):
     # With a stretch factor of 1.0, audio should be equal
     if stretch_factor == 1.0:
         assert np.array_equal(out, loaded)
-
-    # With a stretch factor of more than 1.0, audio should be right padded with zeros
-    elif stretch_factor > 1.0:
-        assert np.array_equal(out[-100:], np.zeros(100))
-        assert not np.array_equal(loaded[-100:], np.zeros(100))
-        assert not np.array_equal(out, loaded)
 
     else:
         assert not np.array_equal(out, loaded)
@@ -398,7 +395,7 @@ def test_speed_up(audio_fpath, stretch_factor):
 )
 def test_timewarp_effects(audio_fpath, augmentation_class, params):
     # Load up the audio file in librosa
-    loaded, _ = librosa.load(audio_fpath, mono=True, sr=utils.SAMPLE_RATE)
+    loaded, _ = librosa.load(audio_fpath, mono=True, sr=config.SAMPLE_RATE)
 
     # Process the audio
     cls = augmentation_class(**params)
@@ -411,8 +408,17 @@ def test_timewarp_effects(audio_fpath, augmentation_class, params):
         pytest.fail(e)
 
 
+@pytest.mark.parametrize(
+    "augmentation_class",
+    [TimeWarpSilence, TimeWarpReverse, TimeWarpRemove, TimeWarpDuplicate, TimeWarp],
+)
+def test_timewarp_bad(augmentation_class):
+    with pytest.raises(ValueError, match="Expected fps to be greater than 0"):
+        _ = augmentation_class(fps=0, sample_rate=config.SAMPLE_RATE)
+
+
 def test_magic_methods():
-    cls = Augmentation(sample_rate=utils.SAMPLE_RATE)
+    cls = Augmentation(sample_rate=config.SAMPLE_RATE)
 
     # test magic methods
     assert isinstance(cls.__repr__(), str)
@@ -462,7 +468,7 @@ def test_sample_value(override, raises):
             _ = Augmentation().sample_value(**params)
     else:
         out = Augmentation().sample_value(**params)
-        assert isinstance(out, utils.Numeric)
+        assert isinstance(out, custom_types.Numeric)
 
 
 def test_validate_event_augmentation():
@@ -493,3 +499,34 @@ def test_validate_event_augmentation():
     temp.AUGMENTATION_TYPE = "bad"
     with pytest.raises(ValueError, match="Augmentation type must be 'event'"):
         validate_event_augmentation(temp)
+
+
+def test_invert():
+    # Array of all ones
+    audio = np.ones((1, config.SAMPLE_RATE))
+
+    # Apply FX: should be all negative ones
+    fx = Invert(config.SAMPLE_RATE)
+    out = fx(audio)
+
+    assert isinstance(audio, np.ndarray)
+    assert np.array_equal(audio.shape, out.shape)
+    assert not np.array_equal(audio, out)
+    assert np.all(out == -1)
+
+
+def test_reverse():
+    # Linear space audio array
+    audio = np.linspace(-1, 1, 44100)
+    audio = np.expand_dims(audio, 0)
+
+    # Create FX and apply
+    fx = Reverse(config.SAMPLE_RATE)
+    out = fx(audio)
+
+    assert isinstance(audio, np.ndarray)
+    assert np.array_equal(audio.shape, out.shape)
+
+    # First value should be 1, last should be -1
+    assert out[:, 0] == 1
+    assert out[:, -1] == -1

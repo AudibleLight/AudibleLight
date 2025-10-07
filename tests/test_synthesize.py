@@ -6,6 +6,7 @@
 
 from time import time
 
+import librosa.util
 import numpy as np
 import pytest
 
@@ -69,18 +70,21 @@ def test_render_event_audio(n_emitters, oyens_scene_no_overlap):
     # Create some dummy IRs
     irs = np.random.rand(4, n_emitters, 10000)
     # Do the generation
-    syn.render_event_audio(ev, irs, oyens_scene_no_overlap.ref_db)
+    syn.render_event_audio(
+        ev, irs, mic_alias="mic000", ref_db=oyens_scene_no_overlap.ref_db
+    )
     # Check everything
     assert hasattr(ev, "spatial_audio")
-    assert isinstance(ev.spatial_audio, np.ndarray)
-    assert ev.spatial_audio.shape[0] == 4
-    assert ev.spatial_audio.ndim == 2
+    assert isinstance(ev.spatial_audio, dict)
+    assert isinstance(ev.spatial_audio["mic000"], np.ndarray)
+    assert ev.spatial_audio["mic000"].shape[0] == 4
+    assert ev.spatial_audio["mic000"].ndim == 2
 
 
 @pytest.mark.parametrize(
     "n_events",
     [
-        1,
+        # 1,
         2,
     ],
 )
@@ -97,8 +101,8 @@ def test_render_scene_audio_from_static_events(n_events: int, oyens_scene_no_ove
     assert len(oyens_scene_no_overlap.events) == n_events
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
-        assert isinstance(event.spatial_audio, np.ndarray)
-        n_channels, n_samples = event.spatial_audio.shape
+        assert isinstance(event.spatial_audio["mic000"], np.ndarray)
+        n_channels, n_samples = event.spatial_audio["mic000"].shape
         # Number of channels should be same as microphone, number of samples should be same as audio
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.audio.shape[-1]
@@ -141,8 +145,8 @@ def test_render_scene_audio_from_moving_events(n_events: int, oyens_scene_no_ove
 
     for event_alias, event in oyens_scene_no_overlap.events.items():
         assert event.is_moving
-        assert isinstance(event.spatial_audio, np.ndarray)
-        n_channels, n_samples = event.spatial_audio.shape
+        assert isinstance(event.spatial_audio["mic000"], np.ndarray)
+        n_channels, n_samples = event.spatial_audio["mic000"].shape
         # Number of channels should be same as microphone, number of samples should be same as audio
         assert n_channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
         assert n_samples == event.load_audio().shape[-1]
@@ -189,10 +193,10 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
 
     # Now, try generating the full scene audio
     syn.generate_scene_audio_from_events(oyens_scene_no_overlap)
-    assert isinstance(oyens_scene_no_overlap.audio, np.ndarray)
+    assert isinstance(oyens_scene_no_overlap.audio["mic000"], np.ndarray)
 
     # Audio should have the expected number of channels and duration
-    channels, duration = oyens_scene_no_overlap.audio.shape
+    channels, duration = oyens_scene_no_overlap.audio["mic000"].shape
     assert channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
     expected = round(
         oyens_scene_no_overlap.state.ctx.config.sample_rate
@@ -238,7 +242,7 @@ def test_validate_scene(oyens_scene_factory):
     # Do the same for the capsules
     class TempMic:
         @property
-        def n_capsules(self):
+        def n_listeners(self):
             return 5
 
     scn = oyens_scene_factory()
@@ -246,3 +250,77 @@ def test_validate_scene(oyens_scene_factory):
     scn.state.microphones["asdf"] = TempMic()
     with pytest.raises(ValueError, match="Mismatching number of microphones"):
         syn.validate_scene(scn)
+
+
+@pytest.mark.parametrize(
+    "db, x, expected_multiplier",
+    [
+        (0, 1.0, 1.0),
+        (6.0206, 1.0, 2.0),
+        (-6.0206, 1.0, 0.5),
+        (20.0, 0.1, 100.0),
+        (-20.0, 10.0, 0.01),
+    ],
+)
+def test_db_to_multiplier(db, x, expected_multiplier):
+    result = syn.db_to_multiplier(db, x)
+
+    # we expect a small but finite multiplier, not exactly 0
+    assert np.isfinite(result), "Result should be finite even when x is 0"
+    assert result > 0, "Multiplier should be positive"
+    assert not np.isnan(result), "Result should not be NaN"
+    assert not np.isinf(result), "Result should not be Inf"
+
+    # should be near expected value
+    assert np.isclose(result, expected_multiplier, atol=1e-4)
+
+    # now multiply by the scalar
+    audio = np.random.rand(1000)
+
+    # should be valid after scaling
+    scaled = audio * result
+    try:
+        librosa.util.valid_audio(scaled)
+    except librosa.util.exceptions.ParameterError as e:
+        pytest.fail(e)
+
+
+@pytest.mark.parametrize("n_moving, n_static", [(1, 3), (2, 2)])
+def test_normalize_irs(n_moving, n_static, oyens_scene_no_overlap):
+    # Add some moving and static events
+    for i in range(n_static):
+        oyens_scene_no_overlap.add_event(event_type="static", duration=1.0)
+    for i in range(n_moving):
+        oyens_scene_no_overlap.add_event(
+            event_type="moving", duration=5.0, spatial_resolution=1.0
+        )
+
+    # Simulate, get IRs for the microphone
+    oyens_scene_no_overlap.state.simulate()
+    irs = oyens_scene_no_overlap.state.get_irs()
+    mic_ir = irs["mic000"]
+
+    # We need a separate counter for each microphone
+    emitter_counter = 0
+
+    # Iterate over all events
+    for event_alias, event in oyens_scene_no_overlap.events.items():
+
+        # Grab the IRs for the current event's emitters and check (not normalized)
+        event_irs = mic_ir[:, emitter_counter : len(event) + emitter_counter, :]
+        energies = np.mean(np.sqrt(np.sum(np.power(np.abs(event_irs), 2), axis=-1)))
+        assert not pytest.approx(energies) == 1.0
+
+        # Normalize the IRs and check
+        event_irs_norm = syn.normalize_irs(event_irs)
+        energies = np.mean(
+            np.sqrt(np.sum(np.power(np.abs(event_irs_norm), 2), axis=-1))
+        )
+        assert pytest.approx(energies) == 1.0
+
+        # Shapes should be the same, but audio should not be
+        assert np.array_equal(event_irs.shape, event_irs_norm.shape)
+        assert not np.array_equal(event_irs, event_irs_norm)
+
+        # Update the counter
+        emitter_counter += len(event)

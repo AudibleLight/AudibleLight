@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from trimesh import Scene, Trimesh
 
-from audiblelight import utils
+from audiblelight import config, utils
 from audiblelight.micarrays import (
     MICARRAY_LIST,
     AmbeoVR,
@@ -28,7 +28,7 @@ def test_load_mesh_from_fpath(mesh_fpath: str):
     assert loaded.metadata["fpath"] == str(
         mesh_fpath
     )  # need both to be a string, or we'll get TypeError
-    assert loaded.units == utils.MESH_UNITS  # units should be in meters
+    assert loaded.units == config.MESH_UNITS  # units should be in meters
     # If we try to load from a mesh object, should raise an error
     with pytest.raises(TypeError):
         # noinspection PyTypeChecker
@@ -371,12 +371,12 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
         assert isinstance(src, Emitter)
         # coordinates_relative dict should be as expected
         assert np.allclose(
-            src.coordinates_relative_cartesian["tester"], position, atol=1e-4
+            src.coordinates_relative_cartesian["tester"], position, atol=utils.SMALL
         )
         assert np.allclose(
             src.coordinates_relative_polar["tester"],
             utils.cartesian_to_polar(position),
-            atol=1e-4,
+            atol=utils.SMALL,
         )
 
 
@@ -452,12 +452,12 @@ def test_add_emitters_relative_to_mic(
                 assert np.allclose(
                     emitter.coordinates_relative_cartesian["testmic"],
                     position,
-                    atol=1e-4,
+                    atol=utils.SMALL,
                 )
                 assert np.allclose(
                     emitter.coordinates_relative_polar["testmic"],
                     utils.cartesian_to_polar(position),
-                    atol=1e-4,
+                    atol=utils.SMALL,
                 )
                 assert oyens_space._is_point_inside_mesh(emitter.coordinates_absolute)
 
@@ -508,7 +508,9 @@ def test_add_emitters_at_specific_position(
     for position, is_added, alias in zip(test_position, expected, emit_alias):
         if is_added:
             for emitter in oyens_space[alias]:
-                assert np.allclose(emitter.coordinates_absolute, position, atol=1e-4)
+                assert np.allclose(
+                    emitter.coordinates_absolute, position, atol=utils.SMALL
+                )
 
 
 def test_add_emitters_invalid(oyens_space: WorldState):
@@ -638,6 +640,8 @@ def test_config_parse(cfg, expected):
 
 
 def test_to_dict(oyens_space: WorldState):
+    # Should still work
+    oyens_space.ctx = None
     oyens_space.add_microphone(
         microphone_type="ambeovr", alias="tester_mic", keep_existing=False
     )
@@ -659,6 +663,7 @@ def test_to_dict(oyens_space: WorldState):
     [
         # Test with Polar and Cartesian coordinate systems
         (np.array([0.0, 90.0, 0.2]), True, True, True),
+        (np.array([-90.0, 0.0, 0.2]), True, True, True),
         (np.array([0.5, 0.5, -0.5]), False, True, True),
         (np.array([1000, 1000, 1000]), False, False, False),
     ],
@@ -702,7 +707,7 @@ def test_add_microphone_and_emitter(
             placed_at = placed_at[0]
 
         # Should be equivalent with what we passed in
-        assert np.allclose(placed_at, position, atol=1e-4)
+        assert np.allclose(placed_at, position, atol=utils.SMALL)
         # Should be a direct path between the emitter and mic if required
         if ensure_direct_path:
             mic = oyens_space.get_microphone("main_mic")
@@ -751,6 +756,7 @@ def test_emitter_from_dict(input_dict):
                     "micarray_type": "AmbeoVR",
                     "is_spherical": True,
                     "n_capsules": 4,
+                    "channel_layout_type": "mic",
                     "capsule_names": ["FLU", "FRD", "BLD", "BRU"],
                     "coordinates_absolute": [
                         [-0.38804551239949914, -8.630788873071257, 1.4665762923251686],
@@ -908,7 +914,7 @@ def test_define_trajectory(
 
         # If we've explicitly provided a starting and ending position, these should be maintained in the trajectory
         if starting_position is not None:
-            assert np.allclose(trajectory[0, :], starting_position, atol=1e-4)
+            assert np.allclose(trajectory[0, :], starting_position, atol=utils.SMALL)
 
         # Check that speed constraints are never violated between points
         deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
@@ -917,7 +923,7 @@ def test_define_trajectory(
 
         # If the shape is linear, check that the distance between all points is roughly equivalent
         if shape == "linear":
-            assert np.allclose(deltas, deltas[0], atol=1e-4)
+            assert np.allclose(deltas, deltas[0], atol=utils.SMALL)
 
         # Check distance between starting and ending point
         total_distance = np.linalg.norm(trajectory[-1, :] - trajectory[0, :])
@@ -954,3 +960,53 @@ def test_get_valid_position_with_max_distance(ref, r, n, raises, oyens_space):
     else:
         with pytest.raises(ValueError):
             _ = oyens_space.get_valid_position_with_max_distance(ref, r, n)
+
+
+def test_add_foa_capsule(oyens_space):
+    # Add many different types of microphone in
+    oyens_space.add_microphone(
+        microphone_type="foalistener",
+        position=[-0.5, -0.5, 0.5],
+        keep_existing=False,
+        alias="foa_tester",
+    )
+    oyens_space.add_microphone(
+        microphone_type="monocapsule", keep_existing=True, alias="mono_tester"
+    )
+    oyens_space.add_microphone(
+        microphone_type="ambeovr", keep_existing=True, alias="ambeo_tester"
+    )
+
+    # Add two emitters in
+    oyens_space.add_emitter(alias="tester")
+    oyens_space.add_emitter(keep_existing=True, alias="tester2")
+
+    # Simulate the IR
+    oyens_space.simulate()
+
+    # Grab FOA microphone
+    mic = oyens_space.get_microphone("foa_tester")
+    assert mic.channel_layout_type == "foa"
+
+    # Test all microphones IRs as expected
+    for mic in oyens_space.microphones.values():
+        n_caps, n_emits, n_samps = mic.irs.shape
+        assert n_caps == mic.n_capsules
+        assert n_emits == 2
+        assert n_samps >= 1
+        # Should not be just zeroes
+        assert not np.all(mic.irs == 0)
+
+
+@pytest.mark.parametrize(
+    "material,expected",
+    [(None, "Default"), ("willbreak", ValueError), ("Carpet, Heavy", "Carpet, Heavy")],
+)
+def test_validate_material(material, expected, oyens_space):
+    if isinstance(expected, str):
+        out = oyens_space._validate_material(material)
+        assert out == expected
+
+    else:
+        with pytest.raises(expected):
+            oyens_space._validate_material(material)

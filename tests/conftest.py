@@ -43,6 +43,7 @@ def oyens_scene_no_overlap() -> Scene:
         # event_resolution_dist=stats.uniform(0, 10),
         # snr_dist=stats.norm(5, 1),
         fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
         max_overlap=1,  # no overlapping sound events allowed
     )
     sc.add_microphone(microphone_type="ambeovr")
