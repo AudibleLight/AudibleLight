@@ -623,6 +623,10 @@ class Scene:
             # In cases where we only have one microphone, just use this
             if len(self.state.microphones) == 1:
                 mic = list(self.state.microphones.keys())[0]
+            elif len(self.state.microphones) == 0:
+                raise ValueError(
+                    "Cannot set `polar=True` when adding an Event when no microphone has been added to the Scene"
+                )
             else:
                 raise ValueError(
                     "Must pass a microphone alias when `polar` is True and more than one microphone "
