@@ -1208,7 +1208,8 @@ class WorldState:
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
-                ensured with all of these microphones. If False, no direct line is required for a emitter.
+                ensured with all of these microphones. If False, no direct line is required for an emitter.
+            max_place_attempts (Numeric): the number of times to try and create the trajectory.
 
         Examples:
             Create a state with a given mesh and add a microphone
