@@ -163,7 +163,10 @@ def generate(
     for _ in range(STATIC_EVENTS.rvs()):
         try:
             scene.add_event(
-                event_type="static", augmentations=1, ensure_direct_path=True
+                event_type="static",
+                augmentations=1,
+                ensure_direct_path=True,
+                max_place_attempts=50,
             )
         except ValueError as e:
             logger.warning(e)
@@ -171,7 +174,10 @@ def generate(
     for _ in range(MOVING_EVENTS.rvs()):
         try:
             scene.add_event(
-                event_type="moving", augmentations=1, ensure_direct_path=True
+                event_type="moving",
+                augmentations=1,
+                ensure_direct_path=True,
+                max_place_attempts=50,
             )
         except ValueError as e:
             logger.warning(e)
