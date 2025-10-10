@@ -1575,7 +1575,7 @@ class WorldState:
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # Try and create the trajectory a specified number of times
-        for attempt in tqdm(range(max_place_attempts), desc="Placing trajectory..."):
+        for _ in tqdm(range(max_place_attempts), desc="Placing trajectory..."):
 
             # If we've not provided a starting position, randomly sample one
             if starting_position is None:

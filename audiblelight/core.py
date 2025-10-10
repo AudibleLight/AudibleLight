@@ -806,6 +806,7 @@ class Scene:
                 class_id=class_id,
                 class_label=class_label,
                 augmentations=augmentations,
+                max_place_attempts=max_place_attempts,
             )
 
         elif event_type == "moving":
@@ -826,6 +827,7 @@ class Scene:
                 spatial_velocity=spatial_velocity,
                 augmentations=augmentations,
                 ensure_direct_path=ensure_direct_path,
+                max_place_attempts=max_place_attempts,
             )
 
         else:
