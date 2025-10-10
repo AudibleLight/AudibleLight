@@ -17,6 +17,7 @@ import trimesh
 from deepdiff import DeepDiff
 from loguru import logger
 from rlr_audio_propagation import Config, Context
+from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
@@ -120,6 +121,8 @@ class Emitter:
             OrderedDict()
         )
 
+        self.has_direct_paths: OrderedDict[str, bool] = OrderedDict()
+
     # noinspection PyUnresolvedReferences
     def update_coordinates(
         self,
@@ -222,6 +225,7 @@ class Emitter:
         return dict(
             alias=self.alias,
             coordinates_absolute=coerce(self.coordinates_absolute),
+            has_direct_paths=self.has_direct_paths,
         )
 
     @classmethod
@@ -418,6 +422,14 @@ class WorldState:
                     )
                     # Update the counter used in the ray-tracing engine by one
                     emitter_counter += 1
+
+                    # Add in a flag if the Emitter has a direct path to each microphone
+                    for mic_alias, mic in self.microphones.items():
+                        emitter.has_direct_paths[mic_alias] = (
+                            self.path_exists_between_points(
+                                mic.coordinates_center, emitter.coordinates_absolute
+                            )
+                        )
 
     @staticmethod
     def _parse_rlr_config(rlr_kwargs: dict) -> Config:
@@ -1052,6 +1064,7 @@ class WorldState:
         relative_mic: Optional[Type["MicArray"]],
         alias: str,
         path_between: list[str],
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> bool:
         """
         Attempt to add a emitter at the given position with the specified alias.
@@ -1061,7 +1074,7 @@ class WorldState:
         position_is_assigned = position is not None
         # If we have already provided a position, this loop will only iterate once
         #  Otherwise, we want a random position, so we iterate N times until the position is valid
-        for attempt in range(1 if position_is_assigned else config.MAX_PLACE_ATTEMPTS):
+        for attempt in range(1 if position_is_assigned else max_place_attempts):
             # Get a random position if required or use the assigned one
             pos = position if position_is_assigned else self.get_random_position()
             if len(pos) != 3:
@@ -1178,6 +1191,7 @@ class WorldState:
         mic: Optional[str] = None,
         keep_existing: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> None:
         """
         Add an emitter to the state.
@@ -1194,7 +1208,8 @@ class WorldState:
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
-                ensured with all of these microphones. If False, no direct line is required for a emitter.
+                ensured with all of these microphones. If False, no direct line is required for an emitter.
+            max_place_attempts (Numeric): the number of times to try and create the trajectory.
 
         Examples:
             Create a state with a given mesh and add a microphone
@@ -1232,14 +1247,16 @@ class WorldState:
         )
 
         # Try and place inside the mesh: return True if placed, False if not
-        placed = self._try_add_emitter(position, desired_mic, alias, direct_path_to)
+        placed = self._try_add_emitter(
+            position, desired_mic, alias, direct_path_to, max_place_attempts
+        )
 
         # If we can't add the emitter to the mesh
         if not placed:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place emitter in the mesh after {max_place_attempts} attempts. "
                     f"If this is happening frequently, consider reducing the number of `emitters`, "
                     f"or the `empty_space_around` arguments."
                 )
@@ -1415,16 +1432,18 @@ class WorldState:
         trajectory: np.ndarray,
         max_distance: custom_types.Numeric,
         step_distance: custom_types.Numeric,
-        requires_direct_line: bool,
+        requires_direct_line_between_start_and_end: bool,
+        ensure_direct_path_to_mic: Optional[list[str]] = None,
     ) -> bool:
         """
         Given a trajectory (created in `define_trajectory`), return True if valid, False otherwise
 
         Arguments:
             trajectory (np.ndarray): the trajectory to be validated
-            requires_direct_line (bool): whether a direct line must exist between the starting and ending position
+            requires_direct_line_between_start_and_end (bool): whether a direct line must exist between the starting and ending position
             max_distance (custom_types.Numeric): the maximum distance traversed in the trajectory, from start to end
             step_distance (custom_types.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            ensure_direct_path_to_mic (list[str]): a list of microphone aliases to ensure a direct path with
 
         Returns:
             bool: whether the trajectory is valid
@@ -1433,10 +1452,23 @@ class WorldState:
         if trajectory.shape[0] < 2:
             return False
 
+        if ensure_direct_path_to_mic is None:
+            ensure_direct_path_to_mic = []
+
         # Compute distances from start to all other points
         start = trajectory[0]
         differences = trajectory[1:] - start
         distances = np.linalg.norm(differences, axis=1)
+
+        # If required, check that a direct path exists to all mic objects
+        for d in ensure_direct_path_to_mic:
+            if not all(
+                self.path_exists_between_points(
+                    t, self.microphones[d].coordinates_center
+                )
+                for t in trajectory
+            ):
+                return False
 
         # Get the furthest point from the starting position
         #  Note: for circular and linear trajectories, this should be the same as the last point.
@@ -1452,7 +1484,10 @@ class WorldState:
             return False
 
         # Optional: check for line of sight
-        if requires_direct_line and not self.path_exists_between_points(start, end):
+        if (
+            requires_direct_line_between_start_and_end
+            and not self.path_exists_between_points(start, end)
+        ):
             return False
 
         # Check distance between every step
@@ -1472,7 +1507,8 @@ class WorldState:
         resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
         shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
-    ):
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+    ) -> np.ndarray:
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
 
@@ -1494,6 +1530,10 @@ class WorldState:
             resolution (Numeric): the number of emitters created per second
             shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
 
         Raises:
             ValueError: if a trajectory cannot be defined after `max_place_attempts`
@@ -1531,12 +1571,11 @@ class WorldState:
             if not self._validate_position(starting_position):
                 raise ValueError(f"Invalid starting position ({starting_position})")
 
-        # Try and create the trajectory a specified number of times
-        for attempt in range(max_place_attempts):
+        # Parse the list of microphone aliases that we require a direct line to
+        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
-            # Log progress every 100 attempts
-            if (attempt + 1) % 100 == 0:
-                logger.info(f"Trajectory attempt {attempt + 1}/{max_place_attempts}")
+        # Try and create the trajectory a specified number of times
+        for _ in tqdm(range(max_place_attempts), desc="Placing trajectory..."):
 
             # If we've not provided a starting position, randomly sample one
             if starting_position is None:
@@ -1592,7 +1631,10 @@ class WorldState:
                 trajectory,
                 max_distance,
                 step_limit,
-                requires_direct_line=True if shape == "linear" else False,
+                requires_direct_line_between_start_and_end=(
+                    True if shape == "linear" else False
+                ),
+                ensure_direct_path_to_mic=direct_path_to,
             ):
                 return trajectory
 
