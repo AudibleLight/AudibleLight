@@ -185,6 +185,10 @@ def generate(
     # Always add gaussian noise
     scene.add_ambience(noise="gaussian")
 
+    # If no events added successfully, try again
+    if len(scene.get_events()) == 0:
+        generate(mesh_name, split=split, scene_num=scene_num, scape_num=scape_num, output_dir=output_dir)
+
     # Do the generation: create audio and DCASE metadata
     scene.generate(
         audio_fname=audio_path,
