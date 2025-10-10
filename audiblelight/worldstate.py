@@ -1064,6 +1064,7 @@ class WorldState:
         relative_mic: Optional[Type["MicArray"]],
         alias: str,
         path_between: list[str],
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> bool:
         """
         Attempt to add a emitter at the given position with the specified alias.
@@ -1073,7 +1074,7 @@ class WorldState:
         position_is_assigned = position is not None
         # If we have already provided a position, this loop will only iterate once
         #  Otherwise, we want a random position, so we iterate N times until the position is valid
-        for attempt in range(1 if position_is_assigned else config.MAX_PLACE_ATTEMPTS):
+        for attempt in range(1 if position_is_assigned else max_place_attempts):
             # Get a random position if required or use the assigned one
             pos = position if position_is_assigned else self.get_random_position()
             if len(pos) != 3:
@@ -1190,6 +1191,7 @@ class WorldState:
         mic: Optional[str] = None,
         keep_existing: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> None:
         """
         Add an emitter to the state.
@@ -1244,14 +1246,16 @@ class WorldState:
         )
 
         # Try and place inside the mesh: return True if placed, False if not
-        placed = self._try_add_emitter(position, desired_mic, alias, direct_path_to)
+        placed = self._try_add_emitter(
+            position, desired_mic, alias, direct_path_to, max_place_attempts
+        )
 
         # If we can't add the emitter to the mesh
         if not placed:
             # If we were trying to add it to a random position
             if position is None:
                 raise ValueError(
-                    f"Could not place emitter in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
+                    f"Could not place emitter in the mesh after {max_place_attempts} attempts. "
                     f"If this is happening frequently, consider reducing the number of `emitters`, "
                     f"or the `empty_space_around` arguments."
                 )
