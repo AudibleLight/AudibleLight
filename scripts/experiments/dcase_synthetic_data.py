@@ -162,13 +162,17 @@ def generate(
     scene.add_microphone(microphone_type=config.MIC_ARRAY_TYPE, alias="mic")
     for _ in range(STATIC_EVENTS.rvs()):
         try:
-            scene.add_event(event_type="static", augmentations=1, ensure_direct_path=True)
+            scene.add_event(
+                event_type="static", augmentations=1, ensure_direct_path=True
+            )
         except ValueError as e:
             logger.warning(e)
 
     for _ in range(MOVING_EVENTS.rvs()):
         try:
-            scene.add_event(event_type="moving", augmentations=1, ensure_direct_path=True)
+            scene.add_event(
+                event_type="moving", augmentations=1, ensure_direct_path=True
+            )
         except ValueError as e:
             logger.warning(e)
 
@@ -183,6 +187,10 @@ def generate(
         metadata_json=True,
         metadata_dcase=True,
     )
+
+    # Also dump an image of the state
+    fig = scene.state.create_plot()
+    fig.savefig(metadata_path.with_suffix(".png").as_posix())
 
 
 def main(outdir: str):
