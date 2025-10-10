@@ -823,6 +823,7 @@ class Scene:
                 spatial_resolution=spatial_resolution,
                 spatial_velocity=spatial_velocity,
                 augmentations=augmentations,
+                ensure_direct_path=ensure_direct_path
             )
 
         else:
@@ -1005,6 +1006,7 @@ class Scene:
         class_label: Optional[str] = None,
         spatial_resolution: Optional[custom_types.Numeric] = None,
         spatial_velocity: Optional[custom_types.Numeric] = None,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
@@ -1038,6 +1040,10 @@ class Scene:
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
 
         Returns:
             the Event object added to the Scene
@@ -1080,6 +1086,7 @@ class Scene:
                 if shape is not None
                 else random.choice(["linear", "circular", "random"])
             ),
+            ensure_direct_path=ensure_direct_path
         )
         event_kwargs = dict(
             filepath=filepath,

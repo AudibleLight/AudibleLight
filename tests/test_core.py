@@ -272,6 +272,53 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
 
 
 @pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(
+            shape="linear",
+            ensure_direct_path=True
+        ),
+        dict(
+            shape="circular",
+            ensure_direct_path="mic000"
+        ),
+        dict(
+            shape="random",
+            ensure_direct_path=["mic000"]
+        )
+    ]
+)
+def add_event_moving_direct_path(kwargs, oyens_scene_no_overlap: Scene):
+    # Add the event in
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
+        filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
+        event_type="moving",
+        alias="test_event",
+        snr=5,
+        spatial_velocity=1,
+        spatial_resolution=1,
+        duration=5,
+        **kwargs
+    )
+
+    # Should have added exactly one event
+    assert len(oyens_scene_no_overlap.events) == 1
+
+    # Get the event
+    ev = oyens_scene_no_overlap.get_event("test_event")
+    assert isinstance(ev, Event)
+    assert ev.is_moving
+
+    # All emitters must have a direct path to the mic
+    mic = oyens_scene_no_overlap.get_microphone("mic000")
+    for emitter in ev.get_emitters():
+        assert oyens_scene_no_overlap.state.path_exists_between_points(
+            emitter.coordinates_absolute, mic.coordinates_center
+        )
+
+
+@pytest.mark.parametrize(
     "new_event_audio,event_kwargs,raises",
     [
         (

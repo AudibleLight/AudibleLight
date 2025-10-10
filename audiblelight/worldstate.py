@@ -1415,16 +1415,18 @@ class WorldState:
         trajectory: np.ndarray,
         max_distance: custom_types.Numeric,
         step_distance: custom_types.Numeric,
-        requires_direct_line: bool,
+        requires_direct_line_between_start_and_end: bool,
+        ensure_direct_path_to_mic: Optional[list[str]] = None
     ) -> bool:
         """
         Given a trajectory (created in `define_trajectory`), return True if valid, False otherwise
 
         Arguments:
             trajectory (np.ndarray): the trajectory to be validated
-            requires_direct_line (bool): whether a direct line must exist between the starting and ending position
+            requires_direct_line_between_start_and_end (bool): whether a direct line must exist between the starting and ending position
             max_distance (custom_types.Numeric): the maximum distance traversed in the trajectory, from start to end
             step_distance (custom_types.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            ensure_direct_path_to_mic (list[str]): a list of microphone aliases to ensure a direct path with
 
         Returns:
             bool: whether the trajectory is valid
@@ -1433,10 +1435,23 @@ class WorldState:
         if trajectory.shape[0] < 2:
             return False
 
+        if ensure_direct_path_to_mic is None:
+            ensure_direct_path_to_mic = []
+
         # Compute distances from start to all other points
         start = trajectory[0]
         differences = trajectory[1:] - start
         distances = np.linalg.norm(differences, axis=1)
+
+        # If required, check that a direct path exists to all mic objects
+        for d in ensure_direct_path_to_mic:
+            if not all(
+                self.path_exists_between_points(
+                    t, self.microphones[d].coordinates_center
+                )
+                for t in trajectory
+            ):
+                return False
 
         # Get the furthest point from the starting position
         #  Note: for circular and linear trajectories, this should be the same as the last point.
@@ -1452,7 +1467,7 @@ class WorldState:
             return False
 
         # Optional: check for line of sight
-        if requires_direct_line and not self.path_exists_between_points(start, end):
+        if requires_direct_line_between_start_and_end and not self.path_exists_between_points(start, end):
             return False
 
         # Check distance between every step
@@ -1472,7 +1487,8 @@ class WorldState:
         resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
         shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
-    ):
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+    ) -> np.ndarray:
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
 
@@ -1494,6 +1510,10 @@ class WorldState:
             resolution (Numeric): the number of emitters created per second
             shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
 
         Raises:
             ValueError: if a trajectory cannot be defined after `max_place_attempts`
@@ -1530,6 +1550,9 @@ class WorldState:
             starting_position = utils.sanitise_coordinates(starting_position)
             if not self._validate_position(starting_position):
                 raise ValueError(f"Invalid starting position ({starting_position})")
+
+        # Parse the list of microphone aliases that we require a direct line to
+        direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # Try and create the trajectory a specified number of times
         for attempt in range(max_place_attempts):
@@ -1592,7 +1615,8 @@ class WorldState:
                 trajectory,
                 max_distance,
                 step_limit,
-                requires_direct_line=True if shape == "linear" else False,
+                requires_direct_line_between_start_and_end=True if shape == "linear" else False,
+                ensure_direct_path_to_mic=direct_path_to
             ):
                 return trajectory
 
