@@ -1460,8 +1460,14 @@ class Scene:
         ray-tracing engine by updating the `state.emitters` dictionary and calling `state._update`.
         """
         if alias in self.events.keys():
+            # Grab the event
+            ev = self.events[alias]
+            # Clear out all emitters associated with this event
+            #  This all calls `state._update` to remove them from the backend
+            for emitter in ev.get_emitters():
+                self.state.clear_emitter(emitter.alias)
+            # Remove the event from the Scene API
             del self.events[alias]
-            self.state.clear_emitter(alias)  # this calls state._update for us
         else:
             raise KeyError("Event alias '{}' not found.".format(alias))
 
