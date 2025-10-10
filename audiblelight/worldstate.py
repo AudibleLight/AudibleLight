@@ -17,6 +17,7 @@ import trimesh
 from deepdiff import DeepDiff
 from loguru import logger
 from rlr_audio_propagation import Config, Context
+from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
 from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
@@ -120,6 +121,8 @@ class Emitter:
             OrderedDict()
         )
 
+        self.has_direct_paths: OrderedDict[str, bool] = OrderedDict()
+
     # noinspection PyUnresolvedReferences
     def update_coordinates(
         self,
@@ -222,6 +225,7 @@ class Emitter:
         return dict(
             alias=self.alias,
             coordinates_absolute=coerce(self.coordinates_absolute),
+            has_direct_paths=self.has_direct_paths,
         )
 
     @classmethod
@@ -418,6 +422,14 @@ class WorldState:
                     )
                     # Update the counter used in the ray-tracing engine by one
                     emitter_counter += 1
+
+                    # Add in a flag if the Emitter has a direct path to each microphone
+                    for mic_alias, mic in self.microphones.items():
+                        emitter.has_direct_paths[mic_alias] = (
+                            self.path_exists_between_points(
+                                mic.coordinates_center, emitter.coordinates_absolute
+                            )
+                        )
 
     @staticmethod
     def _parse_rlr_config(rlr_kwargs: dict) -> Config:
@@ -1416,7 +1428,7 @@ class WorldState:
         max_distance: custom_types.Numeric,
         step_distance: custom_types.Numeric,
         requires_direct_line_between_start_and_end: bool,
-        ensure_direct_path_to_mic: Optional[list[str]] = None
+        ensure_direct_path_to_mic: Optional[list[str]] = None,
     ) -> bool:
         """
         Given a trajectory (created in `define_trajectory`), return True if valid, False otherwise
@@ -1467,7 +1479,10 @@ class WorldState:
             return False
 
         # Optional: check for line of sight
-        if requires_direct_line_between_start_and_end and not self.path_exists_between_points(start, end):
+        if (
+            requires_direct_line_between_start_and_end
+            and not self.path_exists_between_points(start, end)
+        ):
             return False
 
         # Check distance between every step
@@ -1555,11 +1570,7 @@ class WorldState:
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # Try and create the trajectory a specified number of times
-        for attempt in range(max_place_attempts):
-
-            # Log progress every 100 attempts
-            if (attempt + 1) % 100 == 0:
-                logger.info(f"Trajectory attempt {attempt + 1}/{max_place_attempts}")
+        for attempt in tqdm(range(max_place_attempts), desc="Placing trajectory..."):
 
             # If we've not provided a starting position, randomly sample one
             if starting_position is None:
@@ -1615,8 +1626,10 @@ class WorldState:
                 trajectory,
                 max_distance,
                 step_limit,
-                requires_direct_line_between_start_and_end=True if shape == "linear" else False,
-                ensure_direct_path_to_mic=direct_path_to
+                requires_direct_line_between_start_and_end=(
+                    True if shape == "linear" else False
+                ),
+                ensure_direct_path_to_mic=direct_path_to,
             ):
                 return trajectory
 
