@@ -274,21 +274,12 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
 @pytest.mark.parametrize(
     "kwargs",
     [
-        dict(
-            shape="linear",
-            ensure_direct_path=True
-        ),
-        dict(
-            shape="circular",
-            ensure_direct_path="mic000"
-        ),
-        dict(
-            shape="random",
-            ensure_direct_path=["mic000"]
-        )
-    ]
+        dict(shape="linear", ensure_direct_path=True),
+        dict(shape="circular", ensure_direct_path="mic000"),
+        dict(shape="random", ensure_direct_path=["mic000"]),
+    ],
 )
-def add_event_moving_direct_path(kwargs, oyens_scene_no_overlap: Scene):
+def test_add_event_moving_direct_path(kwargs, oyens_scene_no_overlap: Scene):
     # Add the event in
     oyens_scene_no_overlap.clear_events()
     oyens_scene_no_overlap.add_event(
@@ -298,8 +289,8 @@ def add_event_moving_direct_path(kwargs, oyens_scene_no_overlap: Scene):
         snr=5,
         spatial_velocity=1,
         spatial_resolution=1,
-        duration=5,
-        **kwargs
+        duration=2,
+        **kwargs,
     )
 
     # Should have added exactly one event
