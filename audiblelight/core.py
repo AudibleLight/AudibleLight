@@ -1138,7 +1138,12 @@ class Scene:
         utils.validate_kwargs(self.state.define_trajectory, **emitter_kwargs)
 
         # Define the trajectory
-        trajectory = self.state.define_trajectory(**emitter_kwargs)
+        try:
+            trajectory = self.state.define_trajectory(**emitter_kwargs)
+        # If we can't place the trajectory, need to also remove the broken Event from the Scene
+        except ValueError:
+            self.clear_event(alias)
+            raise
 
         # Add the emitters to the state with the desired aliases
         #  This just adds the emitters in a loop with no additional checks
