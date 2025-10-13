@@ -588,7 +588,7 @@ def test_generate_random_trajectory(
     assert np.all(step_lengths <= max_step + utils.SMALL), "Step exceeds max_step"
 
 
-@pytest.mark.parametrize("x,y,z", [(45, 150, 9), (90, 90, 5), (0, 0, 1)])
+@pytest.mark.parametrize("x,y,z", [(45, 50, 9), (90, 90, 5), (0, 0, 1)])
 def test_center_coords(x: int, y: int, z: int):
     coords_dict_deg = np.array([x, y, z])
     coords_dict_cart = utils.polar_to_cartesian(coords_dict_deg)
