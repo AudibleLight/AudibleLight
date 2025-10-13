@@ -965,8 +965,9 @@ def test_get_valid_position_with_max_distance(ref, r, n, raises, oyens_space):
             _ = oyens_space.get_valid_position_with_max_distance(ref, r, n)
 
 
-def test_add_foa_capsule(oyens_space):
+def test_multiple_microphone_types(oyens_space):
     # Add many different types of microphone in
+    #  FOA, mono, ambeoVR
     oyens_space.add_microphone(
         microphone_type="foalistener",
         position=[-0.5, -0.5, 0.5],
@@ -997,8 +998,26 @@ def test_add_foa_capsule(oyens_space):
         assert n_caps == mic.n_capsules
         assert n_emits == 2
         assert n_samps >= 1
-        # Should not be just zeroes
-        assert not np.all(mic.irs == 0)
+
+        # Reshape so that all we get channels * emitters, samples
+        res = mic.irs.reshape(mic.irs.shape[0] * mic.irs.shape[1], mic.irs.shape[-1])
+
+        # Check that no channel is all zeroes
+        assert not np.any(np.all(res == 0, axis=1))
+
+        # Check that no channel is a copy of another: all must be unique
+        assert len(np.unique(res, axis=0)) == len(res)
+
+        # Iterate through every emitter
+        for emitter_idx in range(mic.irs.shape[1]):
+            irs_at_emitter = mic.irs[:, emitter_idx, :]
+
+            # Check that the IRs are all "from" this emitter
+            #  We can do this by checking that the first non-zero value
+            #  occurs at roughly the same time for every channel
+            mask: np.ndarray = irs_at_emitter != 0
+            ereflect = mask.argmax(axis=1)
+            assert np.max(ereflect) - np.min(ereflect) < 10
 
 
 @pytest.mark.parametrize(

@@ -562,12 +562,15 @@ class WorldState:
             if self.ctx.get_source_count() > 0:
                 self.ctx.clear_sources()
 
+        self.ctx.set_material_database_json(MATERIALS_JSON)
+
         # Add the mesh into the context
         self.ctx.add_object()
+        self.ctx.set_object_position(0, [0, 0, 0])
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
-        self.ctx.set_material_database_json(MATERIALS_JSON)
         self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, self.material)
         self.ctx.finalize_object_mesh(0)
+
         # Need to monkey-patch get_audio for Context obj as it won't work with multiple channel layout types
         self.ctx.get_audio = MethodType(get_audio, self.ctx)
 
@@ -1777,19 +1780,43 @@ class WorldState:
             zero_arr = np.zeros(
                 (mic.n_capsules, self.ctx.get_source_count(), maxlen_samples)
             )
-            # We need to track both the cumulative capsule number and the capsule number WRT just this mic
-            for i_ctx, i_mic in zip(
-                range(listener_counter, listener_counter + mic.n_capsules),
-                range(mic.n_capsules),
-            ):
-                if i_ctx >= self.ctx.get_listener_count():
-                    break
+
+            # Separate logic for MIC/FOA data
+            if mic.channel_layout_type == "mic":
+                # We need to track both the cumulative capsule number and the capsule number WRT just this mic
+                for i_ctx, i_mic in zip(
+                    range(listener_counter, listener_counter + mic.n_capsules),
+                    range(mic.n_capsules),
+                ):
+                    if i_ctx >= self.ctx.get_listener_count():
+                        break
+                    for j in range(self.ctx.get_source_count()):
+                        for k in range(self.ctx.get_ir_channel_count(i_ctx, j)):
+                            ir_ijk = self.ctx.get_listener_source_channel_audio(
+                                i_ctx, j, k
+                            )
+                            zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
+                listener_counter += mic.n_listeners
+
+            elif mic.channel_layout_type == "foa":
+                # Iterate over emitters
                 for j in range(self.ctx.get_source_count()):
-                    for k in range(self.ctx.get_ir_channel_count(i_ctx, j)):
-                        ir_ijk = self.ctx.get_listener_source_channel_audio(i_ctx, j, k)
-                        zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
+                    # Iterate over channels (FOA always has four)
+                    for k in range(mic.n_capsules):
+                        ir_ijk = self.ctx.get_listener_source_channel_audio(
+                            listener_counter, j, k
+                        )
+                        zero_arr[k, j, : len(ir_ijk)] = ir_ijk
+                # Only one listener for FOA
+                listener_counter += 1
+
+            else:
+                raise NotImplementedError(
+                    "Simulation currently only supported with 'foa' or 'mic' channel layouts"
+                )
+
+            # Set the IRs as a property of the MicArray object
             mic.irs = zero_arr
-            listener_counter += mic.n_listeners
 
         # Returns a dictionary with shape {mic1: (N_capsules, N_emitters, N_samples), ...}
         return OrderedDict({m_alias: m.irs for m_alias, m in self.microphones.items()})

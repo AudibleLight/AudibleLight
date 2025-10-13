@@ -1153,6 +1153,7 @@ class Scene:
         # Grab the emitters we just created and register them with the event
         emitters = self.state.get_emitters(alias)
         if len(emitters) != len(trajectory):
+            self.clear_event(alias)
             raise ValueError(
                 f"Did not add expected number of emitters into the WorldState "
                 f"(expected {len(trajectory)}, got {len(emitters)})"

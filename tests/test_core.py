@@ -1163,6 +1163,36 @@ def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
         assert ev.spatial_audio["foa_test"].shape[1] > 0
         assert not np.all(ev.spatial_audio["foa_test"] == 0)
 
+    # Test the IRs
+    foa = oyens_scene_no_overlap.get_microphone("foa_test")
+    assert foa.channel_layout_type == "foa"
+
+    # Should have expected shape
+    n_caps, n_emits, n_samps = foa.irs.shape
+    assert n_caps == 4
+    assert n_emits == sum(len(i) for i in oyens_scene_no_overlap.get_events())
+    assert n_samps >= 1
+
+    # Reshape so that all we get channels * emitters, samples
+    res = foa.irs.reshape(n_caps * n_emits, n_samps)
+
+    # Check that no channel is all zeroes
+    assert not np.any(np.all(res == 0, axis=1))
+
+    # Check that no channel is a copy of another: all must be unique
+    assert len(np.unique(res, axis=0)) == len(res)
+
+    # Iterate over all emitters
+    for emitter_idx in range(n_emits):
+        irs_at_emitter = foa.irs[:, emitter_idx, :]
+
+        # Check that the IRs are all "from" this emitter
+        #  We can do this by checking that the first non-zero value
+        #  occurs at roughly the same time for every channel
+        mask: np.ndarray = irs_at_emitter != 0
+        ereflect = mask.argmax(axis=1)
+        assert np.max(ereflect) - np.min(ereflect) < 10
+
 
 @pytest.mark.parametrize(
     "overrides",

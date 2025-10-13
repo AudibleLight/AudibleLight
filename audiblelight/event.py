@@ -469,11 +469,11 @@ class Event:
             duration = utils.sanitise_positive_number(duration)
             # If the duration combined with the offset time is longer than the actual audio itself
             if self.event_start + duration > self.audio_full_duration:
-                logger.warning(
-                    f"Duration {duration:.2f} is longer than audio duration {self.audio_full_duration:.2f} with "
-                    f"given audio start time {self.event_start:.2f}. Falling back to using full audio duration."
-                )
-                # Fall back to using
+                # logger.warning(
+                #     f"Duration {duration:.2f} is longer than audio duration {self.audio_full_duration:.2f} with "
+                #     f"given audio start time {self.event_start:.2f}. Falling back to using full audio duration."
+                # )
+                # Fall back to using full duration
                 return self.audio_full_duration - self.event_start
             else:
                 return duration

@@ -166,7 +166,7 @@ def generate(
                 event_type="static",
                 augmentations=1,
                 ensure_direct_path=True,
-                max_place_attempts=50,
+                max_place_attempts=100,
             )
         except ValueError as e:
             logger.warning(e)
@@ -177,7 +177,7 @@ def generate(
                 event_type="moving",
                 augmentations=1,
                 ensure_direct_path=True,
-                max_place_attempts=50,
+                max_place_attempts=100,
             )
         except ValueError as e:
             logger.warning(e)
@@ -187,7 +187,13 @@ def generate(
 
     # If no events added successfully, try again
     if len(scene.get_events()) == 0:
-        generate(mesh_name, split=split, scene_num=scene_num, scape_num=scape_num, output_dir=output_dir)
+        generate(
+            mesh_name,
+            split=split,
+            scene_num=scene_num,
+            scape_num=scape_num,
+            output_dir=output_dir,
+        )
 
     # Do the generation: create audio and DCASE metadata
     scene.generate(
