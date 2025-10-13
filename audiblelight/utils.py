@@ -151,6 +151,10 @@ def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
     """
     spherical_array = coerce2d(spherical_array)
 
+    # Sanity check inputs
+    assert np.all(np.abs(spherical_array[:, 0] <= 180)), "Invalid elevation angle"
+    assert np.all(np.abs(spherical_array[:, 1] <= 90)), "Invalid elevation angle"
+
     # Convert azimuth + elevation to radians
     azimuth_rad = np.deg2rad(spherical_array[:, 0])  # phi
     elevation_rad = np.deg2rad(spherical_array[:, 1])  # theta, polar angle from z-axis
