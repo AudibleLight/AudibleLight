@@ -1615,6 +1615,10 @@ class WorldState:
                 trajectory = utils.generate_semicircular_trajectory(
                     start_attempt, end_attempt, n_points
                 )
+            elif shape == "sine":
+                trajectory = utils.generate_sinusoidal_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
             elif shape == "random":
                 # Unlike all other trajectories, a random walk doesn't need a predefined ending
                 #  Instead, we just need to know the starting point, the number of steps,
@@ -1624,7 +1628,7 @@ class WorldState:
                 )
             # We don't know what the trajectory is
             else:
-                accepted = ["linear", "semicircular", "random"]
+                accepted = ["linear", "semicircular", "random", "sine"]
                 raise ValueError(
                     f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
                 )

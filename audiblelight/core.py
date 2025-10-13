@@ -748,7 +748,7 @@ class Scene:
                 If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
-            shape: the shape of a moving event trajectory; must be one of "linear", "semicircular", "random".
+            shape: the shape of a moving event trajectory; must be one of "linear", "semicircular", "random", "sine".
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
 
         Returns:
@@ -1093,7 +1093,7 @@ class Scene:
             shape=(
                 shape
                 if shape is not None
-                else random.choice(["linear", "semicircular", "random"])
+                else random.choice(["linear", "semicircular", "random", "sine"])
             ),
             ensure_direct_path=ensure_direct_path,
             max_place_attempts=max_place_attempts,

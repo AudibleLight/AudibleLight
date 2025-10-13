@@ -620,6 +620,46 @@ def generate_random_trajectory(
     return np.vstack([xyz_start, trajectory])
 
 
+def generate_sinusoidal_trajectory(
+    xyz_start: np.ndarray,
+    xyz_end: np.ndarray,
+    n_points: int,
+    amplitude: float = None,
+    frequency: int = None,
+) -> np.ndarray:
+    """
+    Generate a sinusoidal trajectory between a start and end coordinate given a particular number of points.
+    Amplitude and frequency of the sine wave are randomly sampled if not provided.
+    """
+    # Amplitude: between 10 cm and 500 cm
+    if amplitude is None:
+        amplitude = np.random.uniform(0.01, 0.5)
+    # Frequency (number of complete sine waves): between 1 and 3
+    if frequency is None:
+        frequency = np.random.randint(1, 4)
+
+    baseline = xyz_end - xyz_start
+    length = np.linalg.norm(baseline)
+
+    direction = baseline / length
+
+    if np.allclose(direction, [0, 0, 1]):
+        perp1 = np.array([1, 0, 0])
+    else:
+        perp1 = np.cross(direction, [0, 0, 1])
+        perp1 /= np.linalg.norm(perp1)
+    perp2 = np.cross(direction, perp1)
+
+    t = np.linspace(0, 1, n_points)
+    points = xyz_start + np.outer(t, baseline)
+
+    sine_wave = np.sin(2 * np.pi * frequency * t)
+    offset = amplitude * (np.outer(sine_wave, perp1) + np.outer(sine_wave, perp2))
+    points += offset
+
+    return points
+
+
 def pad_or_truncate_audio(
     audio: np.ndarray, desired_samples: Numeric, pad_mode: str = "constant"
 ) -> np.ndarray:
