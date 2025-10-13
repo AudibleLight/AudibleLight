@@ -1531,7 +1531,7 @@ class WorldState:
                 position within the mesh will be selected.
             velocity (Numeric): the speed limit for the trajectory, in meters per second
             resolution (Numeric): the number of emitters created per second
-            shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
+            shape (str): the shape of the trajectory; "linear", "circular", "semicircular", "random" are supported
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
@@ -1611,8 +1611,8 @@ class WorldState:
                 trajectory = utils.generate_linear_trajectory(
                     start_attempt, end_attempt, n_points
                 )
-            elif shape == "circular":
-                trajectory = utils.generate_circular_trajectory(
+            elif shape == "semicircular":
+                trajectory = utils.generate_semicircular_trajectory(
                     start_attempt, end_attempt, n_points
                 )
             elif shape == "random":
@@ -1624,7 +1624,7 @@ class WorldState:
                 )
             # We don't know what the trajectory is
             else:
-                accepted = ["linear", "circular", "random"]
+                accepted = ["linear", "semicircular", "random"]
                 raise ValueError(
                     f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
                 )

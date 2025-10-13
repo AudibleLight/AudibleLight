@@ -886,7 +886,7 @@ def test_emitter_magic_methods(oyens_space):
 )
 @pytest.mark.parametrize(
     "shape",
-    ["linear", "circular", "random"],
+    ["linear", "semicircular", "random"],
 )
 def test_define_trajectory(
     starting_position,

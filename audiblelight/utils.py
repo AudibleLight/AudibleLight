@@ -552,11 +552,11 @@ def generate_linear_trajectory(
     )
 
 
-def generate_circular_trajectory(
+def generate_semicircular_trajectory(
     xyz_start: np.ndarray, xyz_end: np.ndarray, n_points: int
 ) -> np.ndarray:
     """
-    Generate a circular trajectory between a start and end coordinate given a particular number of points
+    Generate a semicircular trajectory (arc) between a start and end coordinate given a particular number of points
     """
     # Vector from start to end
     start_to_end_vec = xyz_end - xyz_start
