@@ -159,35 +159,41 @@ def generate(
 
     # Add the microphone, static + moving events (one augmentation sampled randomly from above list)
     #  skip over any errors when adding the event and just continue to the next one
-    scene.add_microphone(microphone_type=config.MIC_ARRAY_TYPE, alias="mic")
-    for _ in range(STATIC_EVENTS.rvs()):
+    scene.add_microphone(microphone_type="foalistener", alias="mic")
+    for _ in range(1):
         try:
             scene.add_event(
                 event_type="static",
                 augmentations=1,
                 ensure_direct_path=True,
-                max_place_attempts=50,
+                max_place_attempts=100,
             )
         except ValueError as e:
             logger.warning(e)
 
-    for _ in range(MOVING_EVENTS.rvs()):
-        try:
-            scene.add_event(
-                event_type="moving",
-                augmentations=1,
-                ensure_direct_path=True,
-                max_place_attempts=50,
-            )
-        except ValueError as e:
-            logger.warning(e)
+    # for _ in range(MOVING_EVENTS.rvs()):
+    #     try:
+    #         scene.add_event(
+    #             event_type="moving",
+    #             augmentations=1,
+    #             ensure_direct_path=True,
+    #             max_place_attempts=100,
+    #         )
+    #     except ValueError as e:
+    #         logger.warning(e)
 
     # Always add gaussian noise
     scene.add_ambience(noise="gaussian")
 
     # If no events added successfully, try again
     if len(scene.get_events()) == 0:
-        generate(mesh_name, split=split, scene_num=scene_num, scape_num=scape_num, output_dir=output_dir)
+        generate(
+            mesh_name,
+            split=split,
+            scene_num=scene_num,
+            scape_num=scape_num,
+            output_dir=output_dir,
+        )
 
     # Do the generation: create audio and DCASE metadata
     scene.generate(
