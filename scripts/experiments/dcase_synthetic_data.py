@@ -159,8 +159,8 @@ def generate(
 
     # Add the microphone, static + moving events (one augmentation sampled randomly from above list)
     #  skip over any errors when adding the event and just continue to the next one
-    scene.add_microphone(microphone_type="foalistener", alias="mic")
-    for _ in range(1):
+    scene.add_microphone(microphone_type=config.MIC_ARRAY_TYPE, alias="mic")
+    for _ in range(STATIC_EVENTS.rvs()):
         try:
             scene.add_event(
                 event_type="static",
@@ -171,16 +171,16 @@ def generate(
         except ValueError as e:
             logger.warning(e)
 
-    # for _ in range(MOVING_EVENTS.rvs()):
-    #     try:
-    #         scene.add_event(
-    #             event_type="moving",
-    #             augmentations=1,
-    #             ensure_direct_path=True,
-    #             max_place_attempts=100,
-    #         )
-    #     except ValueError as e:
-    #         logger.warning(e)
+    for _ in range(MOVING_EVENTS.rvs()):
+        try:
+            scene.add_event(
+                event_type="moving",
+                augmentations=1,
+                ensure_direct_path=True,
+                max_place_attempts=100,
+            )
+        except ValueError as e:
+            logger.warning(e)
 
     # Always add gaussian noise
     scene.add_ambience(noise="gaussian")
