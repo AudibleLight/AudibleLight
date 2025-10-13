@@ -562,12 +562,15 @@ class WorldState:
             if self.ctx.get_source_count() > 0:
                 self.ctx.clear_sources()
 
+        self.ctx.set_material_database_json(MATERIALS_JSON)
+
         # Add the mesh into the context
         self.ctx.add_object()
+        self.ctx.set_object_position(0, [0, 0, 0])
         self.ctx.add_mesh_vertices(self.mesh.vertices.flatten().tolist())
-        self.ctx.set_material_database_json(MATERIALS_JSON)
         self.ctx.add_mesh_indices(self.mesh.faces.flatten().tolist(), 3, self.material)
         self.ctx.finalize_object_mesh(0)
+
         # Need to monkey-patch get_audio for Context obj as it won't work with multiple channel layout types
         self.ctx.get_audio = MethodType(get_audio, self.ctx)
 
