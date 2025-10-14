@@ -274,7 +274,9 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
 @pytest.mark.parametrize(
     "kwargs",
     [
+        dict(shape="sine", ensure_direct_path=True),
         dict(shape="linear", ensure_direct_path=True),
+        dict(shape="sawtooth", ensure_direct_path="mic000"),
         dict(shape="semicircular", ensure_direct_path="mic000"),
         dict(shape="random", ensure_direct_path=["mic000"]),
     ],

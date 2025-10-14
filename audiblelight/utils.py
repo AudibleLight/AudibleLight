@@ -660,6 +660,48 @@ def generate_sinusoidal_trajectory(
     return points
 
 
+def generate_sawtooth_trajectory(
+    xyz_start: np.ndarray,
+    xyz_end: np.ndarray,
+    n_points: int,
+    amplitude: float = None,
+    frequency: int = None,
+    plane: Optional[str] = None,
+) -> np.ndarray:
+    """
+    Generate a sawtooth (zigzag) trajectory between `start` and `end` points.
+    Amplitude, frequency, and plane are randomly sampled if not provided.
+    """
+    # Amplitude: between 10 cm and 500 cm
+    if amplitude is None:
+        amplitude = np.random.uniform(0.01, 0.5)
+    # Frequency (number of complete zigzags): between 1 and 3
+    if frequency is None:
+        frequency = np.random.randint(1, 4)
+
+    if plane is None:
+        plane = np.random.choice(["xy", "xz", "yz"])
+
+    # Linearly interpolate the straight path
+    t = np.linspace(0, 1, n_points)
+    trajectory = (1 - t)[:, None] * xyz_start + t[:, None] * xyz_end
+
+    # Create zigzag wave (sharp turns)
+    zigzag_wave = amplitude * np.sign(np.sin(2 * np.pi * frequency * t))
+
+    # Apply zigzag to one of the axes depending on plane
+    if plane == "xy":
+        trajectory[:, 0] += zigzag_wave  # Zig along X
+    elif plane == "xz":
+        trajectory[:, 0] += zigzag_wave  # Zig along X
+    elif plane == "yz":
+        trajectory[:, 1] += zigzag_wave  # Zig along Y
+    else:
+        raise ValueError(f"Invalid plane: {plane}. Must be 'xy', 'xz', or 'yz'.")
+
+    return trajectory
+
+
 def pad_or_truncate_audio(
     audio: np.ndarray, desired_samples: Numeric, pad_mode: str = "constant"
 ) -> np.ndarray:

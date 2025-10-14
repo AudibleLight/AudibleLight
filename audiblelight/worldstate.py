@@ -1531,7 +1531,7 @@ class WorldState:
                 position within the mesh will be selected.
             velocity (Numeric): the speed limit for the trajectory, in meters per second
             resolution (Numeric): the number of emitters created per second
-            shape (str): the shape of the trajectory; "linear", "circular", "semicircular", "random" are supported
+            shape (str): the shape of the trajectory; "linear", "circular", "semicircular", "random", "sawtooth"
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
@@ -1619,6 +1619,10 @@ class WorldState:
                 trajectory = utils.generate_sinusoidal_trajectory(
                     start_attempt, end_attempt, n_points
                 )
+            elif shape == "sawtooth":
+                trajectory = utils.generate_sawtooth_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
             elif shape == "random":
                 # Unlike all other trajectories, a random walk doesn't need a predefined ending
                 #  Instead, we just need to know the starting point, the number of steps,
@@ -1628,7 +1632,7 @@ class WorldState:
                 )
             # We don't know what the trajectory is
             else:
-                accepted = ["linear", "semicircular", "random", "sine"]
+                accepted = ["linear", "semicircular", "random", "sine", "sawtooth"]
                 raise ValueError(
                     f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
                 )
