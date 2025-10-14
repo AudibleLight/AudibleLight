@@ -756,6 +756,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "sample_rate": 44100.0,
                     "spatial_resolution": None,
                     "spatial_velocity": None,
+                    "shape": "static",
                     "num_emitters": 1,
                     "emitters": [
                         [1.8156068957785347, -1.863507837016133, 1.8473540916136413]

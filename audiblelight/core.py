@@ -954,6 +954,8 @@ class Scene:
             # No spatial resolution/velocity for static events
             spatial_resolution=None,
             spatial_velocity=None,
+            # Shape is always "static"
+            shape="static",
             augmentations=augmentations,
         )
 
@@ -1086,17 +1088,14 @@ class Scene:
         if isinstance(augmentations, custom_types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
+        # Sample a random shape if not provided
+        if shape is None:
+            shape = random.choice(config.MOVING_EVENT_SHAPES)
+
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
         emitter_kwargs = dict(
             starting_position=position,
-            # Sample a random shape if not provided
-            shape=(
-                shape
-                if shape is not None
-                else random.choice(
-                    ["linear", "semicircular", "random", "sine", "sawtooth"]
-                )
-            ),
+            shape=shape,
             ensure_direct_path=ensure_direct_path,
             max_place_attempts=max_place_attempts,
         )
@@ -1107,6 +1106,8 @@ class Scene:
             event_start=event_start,
             duration=duration,
             snr=snr,
+            # Useful to store the shape of the moving event trajectory
+            shape=shape,
             sample_rate=self.sample_rate,
             class_id=class_id,
             class_label=class_label,
