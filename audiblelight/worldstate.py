@@ -1508,7 +1508,7 @@ class WorldState:
         starting_position: Optional[Union[np.ndarray, list]] = None,
         velocity: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
         resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
-        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        shape: Optional[str] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> np.ndarray:
@@ -1556,6 +1556,10 @@ class WorldState:
                 f"2 internally. If this is happening frequently, consider increasing `resolution` "
                 f"(currently {resolution:.3f})."
             )
+
+        # Sample a random shape if not given
+        if shape is None:
+            shape = str(np.random.choice(config.MOVING_EVENT_SHAPES))
 
         # Sanitise the maximum distance that we'll travel in the trajectory
         max_distance = utils.sanitise_positive_number(velocity * duration)
