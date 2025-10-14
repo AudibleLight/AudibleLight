@@ -172,12 +172,15 @@ def generate(
             logger.warning(e)
 
     for _ in range(MOVING_EVENTS.rvs()):
+        # Sample the shape to use for this moving event: one of random walk, semicircular, linear
+        shape = random.choice(config.MOVING_EVENT_SHAPES)
         try:
             scene.add_event(
                 event_type="moving",
                 augmentations=1,
                 ensure_direct_path=True,
                 max_place_attempts=100,
+                shape=shape,
             )
         except ValueError as e:
             logger.warning(e)
