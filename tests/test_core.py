@@ -145,7 +145,7 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             duration=5,
             event_start=5,
             scene_start=5,
-            shape="circular",
+            shape="semicircular",
             filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             augmentations=SpeedUp,
         ),
@@ -275,7 +275,7 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     "kwargs",
     [
         dict(shape="linear", ensure_direct_path=True),
-        dict(shape="circular", ensure_direct_path="mic000"),
+        dict(shape="semicircular", ensure_direct_path="mic000"),
         dict(shape="random", ensure_direct_path=["mic000"]),
     ],
 )

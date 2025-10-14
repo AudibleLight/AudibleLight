@@ -528,7 +528,6 @@ def test_generate_linear_trajectory(
 @pytest.mark.parametrize(
     "xyz_start, xyz_end, n_points",
     [
-        (np.array([1.0, 2.0, 3.0]), np.array([1.0, 2.0, 3.0]), 10),
         (np.array([0.0, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]), 10),
         (np.array([1.0, 1.0, 1.0]), np.array([-1.0, -1.0, -1.0]), 20),
         (np.array([1.0, 2.0, 3.0]), np.array([4.0, 6.0, 8.0]), 15),
