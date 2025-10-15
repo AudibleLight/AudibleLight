@@ -121,6 +121,7 @@ class Event:
         class_label: Optional[str] = None,
         spatial_resolution: Optional[Union[int, float]] = None,
         spatial_velocity: Optional[Union[int, float]] = None,
+        shape: Optional[str] = None,
     ):
         """
         Initializes the Event object, representing a single audio event taking place inside a Scene.
@@ -144,6 +145,7 @@ class Event:
                 If not provided, the label will attempt to be inferred from the ID using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
                 If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
+            shape: the shape of the trajectory defined by `emitters`. Can be any string, only used in metadata.
         """
         # Setting attributes for audio
         self.filepath = utils.sanitise_filepath(
@@ -212,6 +214,9 @@ class Event:
         self.end_coordinates_relative_cartesian = None
         self.start_coordinates_relative_polar = None
         self.end_coordinates_relative_polar = None
+
+        # Register the shape of the event: can be any string, only useful for metadata
+        self.shape = shape
 
         # If we've provided emitters, go ahead and register them now
         #  Otherwise, we must provide these before calling any synthesis functions
@@ -568,6 +573,7 @@ class Event:
             # Spatial stuff (inherited from Emitter objects)
             spatial_resolution=self.spatial_resolution if self.is_moving else None,
             spatial_velocity=self.spatial_velocity if self.is_moving else None,
+            shape=self.shape,
             # start_coordinates=coerce(self.start_coordinates_absolute),
             # end_coordinates=coerce(self.end_coordinates_absolute),
             num_emitters=len(self.emitters),
@@ -640,6 +646,7 @@ class Event:
             event_start=input_dict["event_start"],
             duration=input_dict["duration"],
             snr=input_dict["snr"],
+            shape=input_dict.get("shape", None),
             sample_rate=input_dict["sample_rate"],
             class_id=input_dict["class_id"],
             class_label=input_dict["class_label"],

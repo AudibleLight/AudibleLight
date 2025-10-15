@@ -1508,7 +1508,7 @@ class WorldState:
         starting_position: Optional[Union[np.ndarray, list]] = None,
         velocity: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
         resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
-        shape: Optional[str] = config.DEFAULT_MOVING_TRAJECTORY,
+        shape: Optional[str] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
     ) -> np.ndarray:
@@ -1531,7 +1531,7 @@ class WorldState:
                 position within the mesh will be selected.
             velocity (Numeric): the speed limit for the trajectory, in meters per second
             resolution (Numeric): the number of emitters created per second
-            shape (str): the shape of the trajectory; currently, only "linear" and "circular" are supported.
+            shape (str): the shape of the trajectory; "linear", "circular", "semicircular", "random", "sawtooth"
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
@@ -1556,6 +1556,10 @@ class WorldState:
                 f"2 internally. If this is happening frequently, consider increasing `resolution` "
                 f"(currently {resolution:.3f})."
             )
+
+        # Sample a random shape if not given
+        if shape is None:
+            shape = str(np.random.choice(config.MOVING_EVENT_SHAPES))
 
         # Sanitise the maximum distance that we'll travel in the trajectory
         max_distance = utils.sanitise_positive_number(velocity * duration)
@@ -1611,8 +1615,16 @@ class WorldState:
                 trajectory = utils.generate_linear_trajectory(
                     start_attempt, end_attempt, n_points
                 )
-            elif shape == "circular":
-                trajectory = utils.generate_circular_trajectory(
+            elif shape == "semicircular":
+                trajectory = utils.generate_semicircular_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
+            elif shape == "sine":
+                trajectory = utils.generate_sinusoidal_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
+            elif shape == "sawtooth":
+                trajectory = utils.generate_sawtooth_trajectory(
                     start_attempt, end_attempt, n_points
                 )
             elif shape == "random":
@@ -1624,7 +1636,7 @@ class WorldState:
                 )
             # We don't know what the trajectory is
             else:
-                accepted = ["linear", "circular", "random"]
+                accepted = ["linear", "semicircular", "random", "sine", "sawtooth"]
                 raise ValueError(
                     f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
                 )

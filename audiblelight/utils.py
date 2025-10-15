@@ -552,11 +552,11 @@ def generate_linear_trajectory(
     )
 
 
-def generate_circular_trajectory(
+def generate_semicircular_trajectory(
     xyz_start: np.ndarray, xyz_end: np.ndarray, n_points: int
 ) -> np.ndarray:
     """
-    Generate a circular trajectory between a start and end coordinate given a particular number of points
+    Generate a semicircular trajectory (arc) between a start and end coordinate given a particular number of points
     """
     # Vector from start to end
     start_to_end_vec = xyz_end - xyz_start
@@ -618,6 +618,88 @@ def generate_random_trajectory(
 
     # Stack to add the starting position
     return np.vstack([xyz_start, trajectory])
+
+
+def generate_sinusoidal_trajectory(
+    xyz_start: np.ndarray,
+    xyz_end: np.ndarray,
+    n_points: int,
+    amplitude: float = None,
+    frequency: int = None,
+) -> np.ndarray:
+    """
+    Generate a sinusoidal trajectory between a start and end coordinate given a particular number of points.
+    Amplitude and frequency of the sine wave are randomly sampled if not provided.
+    """
+    # Amplitude: between 10 cm and 500 cm
+    if amplitude is None:
+        amplitude = np.random.uniform(0.01, 0.5)
+    # Frequency (number of complete sine waves): between 1 and 3
+    if frequency is None:
+        frequency = np.random.randint(1, 4)
+
+    baseline = xyz_end - xyz_start
+    length = np.linalg.norm(baseline)
+
+    direction = baseline / length
+
+    if np.allclose(direction, [0, 0, 1]):
+        perp1 = np.array([1, 0, 0])
+    else:
+        perp1 = np.cross(direction, [0, 0, 1])
+        perp1 /= np.linalg.norm(perp1)
+    perp2 = np.cross(direction, perp1)
+
+    t = np.linspace(0, 1, n_points)
+    points = xyz_start + np.outer(t, baseline)
+
+    sine_wave = np.sin(2 * np.pi * frequency * t)
+    offset = amplitude * (np.outer(sine_wave, perp1) + np.outer(sine_wave, perp2))
+    points += offset
+
+    return points
+
+
+def generate_sawtooth_trajectory(
+    xyz_start: np.ndarray,
+    xyz_end: np.ndarray,
+    n_points: int,
+    amplitude: float = None,
+    frequency: int = None,
+    plane: Optional[str] = None,
+) -> np.ndarray:
+    """
+    Generate a sawtooth (zigzag) trajectory between `start` and `end` points.
+    Amplitude, frequency, and plane are randomly sampled if not provided.
+    """
+    # Amplitude: between 10 cm and 500 cm
+    if amplitude is None:
+        amplitude = np.random.uniform(0.01, 0.5)
+    # Frequency (number of complete zigzags): between 1 and 3
+    if frequency is None:
+        frequency = np.random.randint(1, 4)
+
+    if plane is None:
+        plane = np.random.choice(["xy", "xz", "yz"])
+
+    # Linearly interpolate the straight path
+    t = np.linspace(0, 1, n_points)
+    trajectory = (1 - t)[:, None] * xyz_start + t[:, None] * xyz_end
+
+    # Create zigzag wave (sharp turns)
+    zigzag_wave = amplitude * np.sign(np.sin(2 * np.pi * frequency * t))
+
+    # Apply zigzag to one of the axes depending on plane
+    if plane == "xy":
+        trajectory[:, 0] += zigzag_wave  # Zig along X
+    elif plane == "xz":
+        trajectory[:, 0] += zigzag_wave  # Zig along X
+    elif plane == "yz":
+        trajectory[:, 1] += zigzag_wave  # Zig along Y
+    else:
+        raise ValueError(f"Invalid plane: {plane}. Must be 'xy', 'xz', or 'yz'.")
+
+    return trajectory
 
 
 def pad_or_truncate_audio(

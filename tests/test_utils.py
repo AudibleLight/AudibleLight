@@ -536,7 +536,7 @@ def test_generate_linear_trajectory(
 def test_generate_circular_trajectory(
     xyz_start: np.ndarray, xyz_end: np.ndarray, n_points: int
 ):
-    traj = utils.generate_circular_trajectory(xyz_start, xyz_end, n_points)
+    traj = utils.generate_semicircular_trajectory(xyz_start, xyz_end, n_points)
 
     # Check shape
     assert traj.shape == (

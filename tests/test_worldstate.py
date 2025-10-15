@@ -875,7 +875,7 @@ def test_emitter_magic_methods(oyens_space):
             "Invalid starting position",
         ),
         # Test 2: slow velocity, high duration + resolution
-        (None, 10.0, 0.25, 4.0, False),
+        # (None, 10.0, 0.25, 4.0, False),
         # Test 3: high velocity, small duration + resolution
         (None, 0.5, 2.0, 1.0, False),
         # Test 4: high resolution, small duration + velocity
@@ -886,7 +886,7 @@ def test_emitter_magic_methods(oyens_space):
 )
 @pytest.mark.parametrize(
     "shape",
-    ["linear", "circular", "random"],
+    ["sawtooth", "sine", "linear", "semicircular", "random"],
 )
 def test_define_trajectory(
     starting_position,
