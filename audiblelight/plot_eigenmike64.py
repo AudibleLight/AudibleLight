@@ -1,7 +1,5 @@
-
-import numpy as np
 import matplotlib.pyplot as plt
-from micarrays import Eigenmike64  
+from micarrays import Eigenmike64
 
 em = Eigenmike64()
 
@@ -18,9 +16,8 @@ ax.set_title("Eigenmike64 Microphone Positions (Cartesian)")
 ax.set_xlabel("X (meters)")
 ax.set_ylabel("Y (meters)")
 ax.set_zlabel("Z (meters)")
-ax.set_box_aspect([1, 1, 1]) 
+ax.set_box_aspect([1, 1, 1])
 
 plt.tight_layout()
 plt.savefig("eigenmike64_cartesian.png", dpi=300, bbox_inches="tight")
 plt.close()
-
