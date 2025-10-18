@@ -251,6 +251,13 @@ def test_validate_scene(oyens_scene_factory):
     with pytest.raises(ValueError, match="Mismatching number of microphones"):
         syn.validate_scene(scn)
 
+    # Test with events with no registered emitters
+    scn = oyens_scene_factory()
+    out = scn.add_event(event_type="static")
+    out.emitters = None
+    with pytest.raises(ValueError, match="Event with alias"):
+        syn.validate_scene(scn)
+
 
 @pytest.mark.parametrize(
     "db, x, expected_multiplier",

@@ -595,11 +595,20 @@ def validate_scene(scene: Scene) -> None:
     if len(scene.events) == 0:
         raise ValueError("Scene has no events!")
 
+    # Count number of emitters registered to all Events
+    total_ems = 0
+    for alias, ev in scene.events.items():
+        # Raise an error if any events have no emitters registered
+        try:
+            total_ems += len(ev)
+        except ValueError:
+            raise ValueError(
+                f"Event with alias '{alias}' has no emitters registered. Has it been orphaned?"
+            )
+
     # Validate across all parts of the library, e.g. WorldState, Scene, ray-tracing engine
     vals = (
-        sum(
-            len(ev) for ev in scene.events.values()
-        ),  # sums number of emitters for every event
+        total_ems,
         scene.state.num_emitters,
         scene.state.ctx.get_source_count(),
     )
@@ -607,18 +616,20 @@ def validate_scene(scene: Scene) -> None:
         raise ValueError(
             f"Mismatching number of emitters, events, and sources! "
             f"Got {len(scene.events)} events, {scene.state.num_emitters} emitters, "
-            f"{scene.state.ctx.get_source_count()} sources."
+            f"{scene.state.ctx.get_source_count()} sources. "
+            f"Have any been orphaned?"
         )
 
     capsules = sum(m.n_listeners for m in scene.state.microphones.values())
     if capsules != scene.state.ctx.get_listener_count():
         raise ValueError(
             f"Mismatching number of microphones and listeners! "
-            f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners."
+            f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners. "
+            f"Have any been orphaned?"
         )
 
-    if any(not ev.has_emitters for ev in scene.events.values()):
-        raise ValueError("Some events have no emitters registered to them!")
+    # if any(not ev.has_emitters for ev in scene.events.values()):
+    #     raise ValueError("Some events have no emitters registered to them!")
 
 
 def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:

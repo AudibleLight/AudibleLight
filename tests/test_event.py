@@ -142,6 +142,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "sample_rate": 44100.0,
             "spatial_resolution": None,
             "spatial_velocity": None,
+            "shape": "static",
             "num_emitters": 1,
             "emitters": [[1.8156068957785347, -1.863507837016133, 1.8473540916136413]],
             "emitters_relative": {
@@ -165,6 +166,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "sample_rate": 44100.0,
             "spatial_resolution": 3.544083664851323,
             "spatial_velocity": 0.5979377187987713,
+            "shape": "linear",
             "num_emitters": 19,
             "emitters": [
                 [2.7111620345263807, -1.801159962586631, 1.1798789132922645],
