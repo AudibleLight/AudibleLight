@@ -25,6 +25,26 @@ MESHES = {
         "scapes_per_train_mesh": 150,
         "scapes_per_test_mesh": 100,
     },
+    "12": {
+        "train": [
+            "Haymarket.glb",
+            "Swisshome.glb",
+            "Siren.glb",
+            "Traver.glb",
+            "Hercules.glb",
+            "Halfway.glb",
+            "Eagan.glb",
+            "Baneberry.glb",
+        ],
+        "test": [
+            "Helix.glb",
+            "Peacock.glb",
+            "Vails.glb",
+            "Assinippi.glb",
+        ],
+        "scapes_per_train_mesh": 120,
+        "scapes_per_test_mesh": 60,
+    },
     "18": {
         "train": [
             "Haymarket.glb",
