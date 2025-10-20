@@ -2,6 +2,7 @@
 /venv
 /.idea
 /notebooks/.ipynb_checkpoints
+/audiblelight/__pycache__
 
 # Ignore build
 /dist/
