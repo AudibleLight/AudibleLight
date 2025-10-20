@@ -707,6 +707,7 @@ class Scene:
         shape: Optional[str] = None,
         spatial_resolution: Optional[custom_types.Numeric] = None,
         spatial_velocity: Optional[custom_types.Numeric] = None,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> Event:
         """
         Add an event to the foreground, either "static" or "moving".
@@ -747,7 +748,8 @@ class Scene:
                 If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
-            shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
+            shape: the shape of a moving event trajectory; one of "linear", "semicircular", "random", "sine", "sawtooth"
+            max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
 
         Returns:
             the Event object added to the Scene
@@ -804,6 +806,7 @@ class Scene:
                 class_id=class_id,
                 class_label=class_label,
                 augmentations=augmentations,
+                max_place_attempts=max_place_attempts,
             )
 
         elif event_type == "moving":
@@ -823,6 +826,8 @@ class Scene:
                 spatial_resolution=spatial_resolution,
                 spatial_velocity=spatial_velocity,
                 augmentations=augmentations,
+                ensure_direct_path=ensure_direct_path,
+                max_place_attempts=max_place_attempts,
             )
 
         else:
@@ -855,6 +860,7 @@ class Scene:
         snr: Optional[custom_types.Numeric] = None,
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> Event:
         """
         Add a static event to the foreground with optional overrides.
@@ -889,6 +895,7 @@ class Scene:
                 If not provided, will attempt to infer label from filepath using the DCASE sound event classes.
             class_id: Optional ID to use for sound event class.
                 If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
+            max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
 
         Returns:
             the Event object added to the Scene
@@ -932,6 +939,7 @@ class Scene:
             mic=mic,
             ensure_direct_path=ensure_direct_path,
             keep_existing=True,
+            max_place_attempts=max_place_attempts,
         )
         event_kwargs = dict(
             filepath=filepath,
@@ -946,6 +954,8 @@ class Scene:
             # No spatial resolution/velocity for static events
             spatial_resolution=None,
             spatial_velocity=None,
+            # Shape is always "static"
+            shape="static",
             augmentations=augmentations,
         )
 
@@ -1005,6 +1015,8 @@ class Scene:
         class_label: Optional[str] = None,
         spatial_resolution: Optional[custom_types.Numeric] = None,
         spatial_velocity: Optional[custom_types.Numeric] = None,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
@@ -1037,7 +1049,12 @@ class Scene:
                 If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
-            shape: the shape of a moving event trajectory; must be one of "linear", "circular", "random".
+            shape: the shape of a moving event trajectory; one of "linear", "semicircular", "random", "sine", "sawtooth"
+            ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
+                If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
+                strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
+                ensured with all of these microphones. If False, no direct line is required for a emitter.
+            max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
 
         Returns:
             the Event object added to the Scene
@@ -1071,15 +1088,16 @@ class Scene:
         if isinstance(augmentations, custom_types.Numeric):
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
+        # Sample a random shape if not provided
+        if shape is None:
+            shape = random.choice(config.MOVING_EVENT_SHAPES)
+
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
         emitter_kwargs = dict(
             starting_position=position,
-            # Sample a random shape if not provided
-            shape=(
-                shape
-                if shape is not None
-                else random.choice(["linear", "circular", "random"])
-            ),
+            shape=shape,
+            ensure_direct_path=ensure_direct_path,
+            max_place_attempts=max_place_attempts,
         )
         event_kwargs = dict(
             filepath=filepath,
@@ -1088,6 +1106,8 @@ class Scene:
             event_start=event_start,
             duration=duration,
             snr=snr,
+            # Useful to store the shape of the moving event trajectory
+            shape=shape,
             sample_rate=self.sample_rate,
             class_id=class_id,
             class_label=class_label,
@@ -1121,7 +1141,12 @@ class Scene:
         utils.validate_kwargs(self.state.define_trajectory, **emitter_kwargs)
 
         # Define the trajectory
-        trajectory = self.state.define_trajectory(**emitter_kwargs)
+        try:
+            trajectory = self.state.define_trajectory(**emitter_kwargs)
+        # If we can't place the trajectory, need to also remove the broken Event from the Scene
+        except ValueError:
+            self.clear_event(alias)
+            raise
 
         # Add the emitters to the state with the desired aliases
         #  This just adds the emitters in a loop with no additional checks
@@ -1131,6 +1156,7 @@ class Scene:
         # Grab the emitters we just created and register them with the event
         emitters = self.state.get_emitters(alias)
         if len(emitters) != len(trajectory):
+            self.clear_event(alias)
             raise ValueError(
                 f"Did not add expected number of emitters into the WorldState "
                 f"(expected {len(trajectory)}, got {len(emitters)})"
@@ -1438,8 +1464,14 @@ class Scene:
         ray-tracing engine by updating the `state.emitters` dictionary and calling `state._update`.
         """
         if alias in self.events.keys():
+            # Grab the event
+            ev = self.events[alias]
+            # Clear out all emitters associated with this event
+            #  This all calls `state._update` to remove them from the backend
+            for emitter in ev.get_emitters():
+                self.state.clear_emitter(emitter.alias)
+            # Remove the event from the Scene API
             del self.events[alias]
-            self.state.clear_emitter(alias)  # this calls state._update for us
         else:
             raise KeyError("Event alias '{}' not found.".format(alias))
 

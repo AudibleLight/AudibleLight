@@ -65,16 +65,19 @@ class MicArray:
         """
         if self.channel_layout_type == "mic":
             layout_type = ChannelLayoutType.Mono
+            return ChannelLayout(layout_type, 1)
         elif self.channel_layout_type == "foa":
             layout_type = ChannelLayoutType.Ambisonics
+            return ChannelLayout(layout_type, 4)
         elif self.channel_layout_type == "binaural":
             layout_type = ChannelLayoutType.Binaural
+            return ChannelLayout(layout_type, 2)
         else:
             raise ValueError(
                 f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
                 f"but got '{self.channel_layout_type}'"
             )
-        return ChannelLayout(layout_type, self.n_capsules)
+        # return ChannelLayout(layout_type, self.n_capsules)
 
     @property
     def n_listeners(self) -> int:

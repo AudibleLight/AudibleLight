@@ -145,7 +145,7 @@ def test_add_event_static(kwargs, oyens_scene_no_overlap: Scene):
             duration=5,
             event_start=5,
             scene_start=5,
-            shape="circular",
+            shape="semicircular",
             filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
             augmentations=SpeedUp,
         ),
@@ -269,6 +269,46 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     assert not np.array_equal(
         ev.start_coordinates_absolute, ev.end_coordinates_absolute
     )
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(shape="sine", ensure_direct_path=True),
+        dict(shape="linear", ensure_direct_path=True),
+        dict(shape="sawtooth", ensure_direct_path="mic000"),
+        dict(shape="semicircular", ensure_direct_path="mic000"),
+        dict(shape="random", ensure_direct_path=["mic000"]),
+    ],
+)
+def test_add_event_moving_direct_path(kwargs, oyens_scene_no_overlap: Scene):
+    # Add the event in
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
+        filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
+        event_type="moving",
+        alias="test_event",
+        snr=5,
+        spatial_velocity=1,
+        spatial_resolution=1,
+        duration=2,
+        **kwargs,
+    )
+
+    # Should have added exactly one event
+    assert len(oyens_scene_no_overlap.events) == 1
+
+    # Get the event
+    ev = oyens_scene_no_overlap.get_event("test_event")
+    assert isinstance(ev, Event)
+    assert ev.is_moving
+
+    # All emitters must have a direct path to the mic
+    mic = oyens_scene_no_overlap.get_microphone("mic000")
+    for emitter in ev.get_emitters():
+        assert oyens_scene_no_overlap.state.path_exists_between_points(
+            emitter.coordinates_absolute, mic.coordinates_center
+        )
 
 
 @pytest.mark.parametrize(
@@ -716,6 +756,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "sample_rate": 44100.0,
                     "spatial_resolution": None,
                     "spatial_velocity": None,
+                    "shape": "static",
                     "num_emitters": 1,
                     "emitters": [
                         [1.8156068957785347, -1.863507837016133, 1.8473540916136413]
@@ -1124,6 +1165,36 @@ def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
         assert ev.spatial_audio["foa_test"].shape[0] == 4
         assert ev.spatial_audio["foa_test"].shape[1] > 0
         assert not np.all(ev.spatial_audio["foa_test"] == 0)
+
+    # Test the IRs
+    foa = oyens_scene_no_overlap.get_microphone("foa_test")
+    assert foa.channel_layout_type == "foa"
+
+    # Should have expected shape
+    n_caps, n_emits, n_samps = foa.irs.shape
+    assert n_caps == 4
+    assert n_emits == sum(len(i) for i in oyens_scene_no_overlap.get_events())
+    assert n_samps >= 1
+
+    # Reshape so that all we get channels * emitters, samples
+    res = foa.irs.reshape(n_caps * n_emits, n_samps)
+
+    # Check that no channel is all zeroes
+    assert not np.any(np.all(res == 0, axis=1))
+
+    # Check that no channel is a copy of another: all must be unique
+    assert len(np.unique(res, axis=0)) == len(res)
+
+    # Iterate over all emitters
+    for emitter_idx in range(n_emits):
+        irs_at_emitter = foa.irs[:, emitter_idx, :]
+
+        # Check that the IRs are all "from" this emitter
+        #  We can do this by checking that the first non-zero value
+        #  occurs at roughly the same time for every channel
+        mask: np.ndarray = irs_at_emitter != 0
+        ereflect = mask.argmax(axis=1)
+        assert np.max(ereflect) - np.min(ereflect) < 10
 
 
 @pytest.mark.parametrize(
