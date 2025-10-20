@@ -1501,6 +1501,27 @@ class WorldState:
         # Validate all positions in the trajectory WRT the rest of the mesh
         return self._validate_position(trajectory)
 
+    def load_mesh_navigation_waypoints(
+        self,
+        waypoints_json: Optional[Union[Path, str]] = None,
+    ) -> list[np.ndarray]:
+        """
+        Load the navigation waypoints for this mesh from a JSON file.
+
+        Default filepath is <project-root>/resources/waypoints/gibson/<mesh-name>.json.
+        """
+        if waypoints_json is None:
+            waypoints_json = (
+                utils.get_project_root() / "resources/waypoints/gibson" / self.mesh.metadata["fname"]
+            ).with_suffix(".json")
+
+        sanitised_file = utils.sanitise_filepath(waypoints_json)
+
+        with open(sanitised_file, "r") as js_in:
+            js_out = json.load(js_in)
+
+        return [np.array(wp["waypoints"]) for wp in js_out]
+
     # @utils.timer("define trajectory")
     def define_trajectory(
         self,
@@ -1511,6 +1532,7 @@ class WorldState:
         shape: Optional[str] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        waypoints_json: Optional[Union[str, Path]] = None
     ) -> np.ndarray:
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
@@ -1537,6 +1559,8 @@ class WorldState:
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
+            waypoints_json: a path to a JSON file containing navigation waypoints for this mesh. Only used when
+                shape == "predefined", in which case a single random navigation episode will be sampled from this file.
 
         Raises:
             ValueError: if a trajectory cannot be defined after `max_place_attempts`
@@ -1561,6 +1585,12 @@ class WorldState:
         if shape is None:
             shape = str(np.random.choice(config.MOVING_EVENT_SHAPES))
 
+        # If using a predefined episode, grab all options from the JSON
+        if shape == "predefined":
+            episodes = self.load_mesh_navigation_waypoints(waypoints_json)
+        else:
+            episodes = []
+
         # Sanitise the maximum distance that we'll travel in the trajectory
         max_distance = utils.sanitise_positive_number(velocity * duration)
 
@@ -1582,19 +1612,26 @@ class WorldState:
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # Try and create the trajectory a specified number of times
-        for _ in tqdm(range(max_place_attempts), desc="Placing trajectory..."):
+        place_attempts = max_place_attempts if shape != "predefined" else len(episodes)
+        for idx in tqdm(range(place_attempts), desc="Placing trajectory..."):
 
             # If we've not provided a starting position, randomly sample one
-            if starting_position is None:
-                start_attempt = self.get_random_position()
-            # Otherwise, just use the starting position we've provided
+            if shape != "predefined":
+                if starting_position is None:
+                    start_attempt = self.get_random_position()
+                # Otherwise, just use the starting position we've provided
+                else:
+                    start_attempt = starting_position
+            # Do not use a starting position for a predefined shape
             else:
-                start_attempt = starting_position
+                if starting_position is not None:
+                    raise ValueError("Cannot set starting_position when `shape` is `predefined`")
+                start_attempt = None
 
             # If we're doing a random walk, there's no need to sample an ending position directly
             #  Instead, the ending position will be defined by the last point of the walk
             #  So we can just set the `end_attempt` variable to None so that the linter is happy
-            if shape == "random":
+            if shape == "random" or shape == "predefined":
                 end_attempt = None
             # Try and sample a random valid position from the starting point
             else:
@@ -1634,9 +1671,12 @@ class WorldState:
                 trajectory = utils.generate_random_trajectory(
                     start_attempt, step_limit, n_points
                 )
+            elif shape == "predefined":
+                # Predefined shape: use the episode at this index
+                trajectory = episodes[idx]
             # We don't know what the trajectory is
             else:
-                accepted = ["linear", "semicircular", "random", "sine", "sawtooth"]
+                accepted = ["linear", "semicircular", "random", "sine", "sawtooth", "predefined"]
                 raise ValueError(
                     f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
                 )
@@ -1658,7 +1698,7 @@ class WorldState:
             f"Could not define a valid movement trajectory after {max_place_attempts} attempt(s). Consider:\n"
             f"- Reducing `empty_space_around parameters`\n"
             f"- Decreasing `temporal_resolution` (currently {resolution})\n"
-            f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
+            f"- Increasing `max_place_attempts` (currently {place_attempts})\n"
             f"- Decreasing `max_distance` (currently {max_distance:.3f})"
         )
 

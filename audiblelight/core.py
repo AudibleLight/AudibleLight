@@ -748,7 +748,7 @@ class Scene:
                 If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             spatial_velocity: Speed of a moving sound event in metres-per-second
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
-            shape: the shape of a moving event trajectory; one of "linear", "semicircular", "random", "sine", "sawtooth"
+            shape: the shape of a moving event trajectory; one of "linear", "semicircular", "random", "sine", "sawtooth", "predefined"
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
 
         Returns:

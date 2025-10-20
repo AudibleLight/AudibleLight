@@ -200,7 +200,7 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     is_polar = kwargs.get("polar", False)
     if is_polar:
         oyens_scene_no_overlap.clear_microphones()
-        oyens_scene_no_overlap.add_microphone(alias="mic000", position=[2.5, -1.0, 1.0])
+        oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr", alias="mic000", position=[2.5, -1.0, 1.0])
 
     # Add the event in
     oyens_scene_no_overlap.clear_events()
@@ -269,6 +269,42 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     assert not np.array_equal(
         ev.start_coordinates_absolute, ev.end_coordinates_absolute
     )
+
+
+@pytest.mark.parametrize(
+    "fpath",
+    utils_tests.TEST_MUSICS[:2]
+)
+def test_add_moving_event_predefined_trajectory(fpath, oyens_scene_no_overlap: Scene):
+    # Add microphone to center of the mesh
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr", alias="mic000", position=[2.0, -0.5, 1.0])
+
+    # Try N times to add the event in
+    oyens_scene_no_overlap.clear_events()
+    for _ in range(100):
+        try:
+            oyens_scene_no_overlap.add_event(
+                event_type="moving", alias="test_event", filepath=fpath, shape="predefined"
+            )
+        # Skip over ValueErrors, try again with different randomly sampled set of parameters
+        except ValueError:
+            continue
+
+    if len(oyens_scene_no_overlap.events) == 0:
+        pytest.fail()
+
+    # Should have added exactly one event
+    assert len(oyens_scene_no_overlap.events) == 1
+
+    # Get the event
+    ev = oyens_scene_no_overlap.get_event("test_event")
+    assert isinstance(ev, Event)
+    assert ev.is_moving
+    assert ev.has_emitters
+    assert len(ev) >= 2
+
+    assert ev.shape == "predefined"
 
 
 @pytest.mark.parametrize(
