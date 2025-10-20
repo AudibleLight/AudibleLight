@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""Extract Eigenmike64 coordinates from official documentation"""
+
 import os
 
 import numpy as np
@@ -90,4 +95,3 @@ spherical_df = pd.DataFrame(
 )
 
 spherical_df.to_csv("spherical_output.csv", index=False)
-os.system("code spherical_output.csv")  # Opens in vscode
