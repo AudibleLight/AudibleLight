@@ -3,10 +3,12 @@
 
 """Test cases for functionality inside audiblelight/event.py"""
 
+import os
 from typing import Optional
 
 import numpy as np
 import pytest
+import soundfile as sf
 
 from audiblelight import config, utils
 from audiblelight.augmentation import (
@@ -388,3 +390,22 @@ def test_infer_dcase_from_filepath(
         actual_idx, actual_cls = infer_dcase_label_idx_from_filepath(filepath)
         assert actual_cls == expected_class
         assert actual_idx == expected_idx
+
+
+def test_prevent_divide_by_zero():
+    # hacky approach: write a silent audio file (one second duration)
+    zero_audio = np.zeros(config.SAMPLE_RATE)
+    sf.write(
+        "tmp.wav",
+        zero_audio,
+        config.SAMPLE_RATE,
+    )
+    ev = Event(filepath="tmp.wav", alias="hacker")
+
+    # Internally, we add a small value to the audio to prevent a divide by zero error causing NaNs
+    #  Make sure to remove the audio file after loading so it doesn't linger if tests fail
+    out = ev.load_audio(ignore_cache=True, normalize=True)
+    os.remove("tmp.wav")
+    assert isinstance(out, np.ndarray)
+    assert not np.any(np.isnan(out))
+    # if we don't add a small value, we divide by zero which silently causes NaN values in the array

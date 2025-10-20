@@ -524,7 +524,7 @@ class Event:
 
         # Normalize the audio to peak at 1
         if normalize:
-            audio_out = audio_out / np.max(np.abs(audio_out))
+            audio_out = audio_out / np.max(np.abs(audio_out) + utils.tiny(audio_out))
 
         self.audio = audio_out
         return self.audio
