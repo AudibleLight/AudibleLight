@@ -7,18 +7,17 @@ Generates similar training data to that contained in [this repo](https://zenodo.
 - 1200 1-minute long spatial recordings
 - Sampling rate of 24kHz
 - Two 4-channel recording formats, first-order Ambisonics (FOA) and tetrahedral microphone array (MIC)
-    - Currently, only MIC is implemented
-- Spatial events spatialized in 9 unique rooms, using measured RIRs for the two formats
-    - 6 rooms designated as "training": 150 soundscapes created for each
-    - 3 rooms designated as "testing": 100 soundscapes created for each
+- Spatial events spatialized in N unique rooms, using measured RIRs for the two formats
 - Maximum polyphony of 2 (with possible same-class events overlapping)
 
-One augmentation added to every audio file, sampled from:
+Augmentations can be added to every audio file and are sampled from:
 - Pitch shifting (+/- up to half an octave)
 - Time stretching (between 0.9 and 1.1x)
 - Distortion (up to +10 dB gain)
 - Reverse
 - Phase inversion
+
+Materials can also be added to the simulation and are randomly sampled from those available in the backend.
 """
 
 import argparse
@@ -65,6 +64,38 @@ with open(MATERIALS_JSON, "r") as js_in:
     js_out = json.load(js_in)
 VALID_MATERIALS = list({mat["name"] for mat in js_out["materials"]})
 
+AUGMENTATIONS = {
+    "pitchshift": (
+        PitchShift,
+        dict(sample_rate=SAMPLE_RATE, semitones=stats.uniform(-7, 0)),
+    ),
+    "speedup": (
+        SpeedUp,
+        dict(sample_rate=SAMPLE_RATE, stretch_factor=stats.uniform(0.9, 0.2)),
+    ),
+    "reverse": Reverse,
+    "invert": Invert,
+    "distortion": (
+        Distortion,
+        dict(sample_rate=SAMPLE_RATE, drive_db=stats.uniform(0.0, 10.0)),
+    ),
+}
+
+
+def get_augmentations(augmentation_names: list[str]) -> list:
+    """
+    Given a list of augmentation names as strings, grab them from the AUGMENTATIONS dictionary
+    """
+    grabbed = []
+    for aug in augmentation_names:
+        if aug in AUGMENTATIONS.keys():
+            grabbed.append(AUGMENTATIONS[aug])
+        else:
+            raise ValueError(
+                f"Augmentation {aug} is not a valid parameter for this script!"
+            )
+    return grabbed
+
 
 def generate(
     mesh_name: str,
@@ -73,7 +104,7 @@ def generate(
     scape_num: int,
     output_dir: Path,
     channel_layout: str,
-    augmentations: bool,
+    augmentations: list[str],
     materials: bool,
 ) -> None:
     """
@@ -108,19 +139,7 @@ def generate(
 
     # Use augmentations
     if augmentations:
-        use_augmentations = [
-            Reverse,
-            Invert,
-            (PitchShift, dict(sample_rate=SAMPLE_RATE, semitones=stats.uniform(-7, 0))),
-            (
-                SpeedUp,
-                dict(sample_rate=SAMPLE_RATE, stretch_factor=stats.uniform(0.9, 0.2)),
-            ),
-            (
-                Distortion,
-                dict(sample_rate=SAMPLE_RATE, drive_db=stats.uniform(0.0, 10.0)),
-            ),
-        ]
+        use_augmentations = get_augmentations(augmentations)
     else:
         use_augmentations = None
 
@@ -172,7 +191,7 @@ def generate(
         try:
             scene.add_event(
                 event_type="static",
-                augmentations=1 if augmentations else None,
+                augmentations=1 if use_augmentations else None,
                 ensure_direct_path=True,
                 max_place_attempts=100,
             )
@@ -185,7 +204,7 @@ def generate(
         try:
             scene.add_event(
                 event_type="moving",
-                augmentations=1 if augmentations else None,
+                augmentations=1 if use_augmentations else None,
                 ensure_direct_path=True,
                 max_place_attempts=100,
                 shape=shape,
@@ -305,8 +324,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--augmentations",
-        action="store_true",
-        help="Add this flag to use augmentations",
+        type=str,
+        nargs="+",
+        help=f"The name of augmentations to use: supported are {', '.join(AUGMENTATIONS.keys())}",
+        default=None,
     )
     parser.add_argument(
         "--materials", action="store_true", help="Add this flag to use materials"
