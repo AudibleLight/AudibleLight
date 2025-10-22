@@ -67,7 +67,7 @@ VALID_MATERIALS = list({mat["name"] for mat in js_out["materials"]})
 AUGMENTATIONS = {
     "pitchshift": (
         PitchShift,
-        dict(sample_rate=SAMPLE_RATE, semitones=stats.uniform(-7, 0)),
+        dict(sample_rate=SAMPLE_RATE, semitones=lambda: np.random.randint(-7, 8)),
     ),
     "speedup": (
         SpeedUp,
