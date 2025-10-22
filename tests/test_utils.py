@@ -244,6 +244,25 @@ def test_sanitise_distribution(dist, error):
         assert hasattr(sanitised, "rvs")
         assert callable(sanitised.rvs)
         assert isinstance(sanitised.rvs(), (int, float, complex))
+
+        # Calling "RVS" multiple times should give different values each time
+        attempt1 = sanitised.rvs()
+        attempt2 = sanitised.rvs()
+        assert attempt1 != attempt2
+
+        # Should also have min, max values
+        assert hasattr(sanitised, "min")
+        assert hasattr(sanitised, "max")
+
+        # Min/max properties should be cached
+        attemptmin = sanitised.min
+        for _ in range(10):
+            assert attemptmin == sanitised.min
+        attemptmax = sanitised.max
+        for _ in range(10):
+            assert attemptmax == sanitised.max
+        assert attemptmin < attemptmax
+
     else:
         with pytest.raises(error):
             _ = utils.sanitise_distribution(dist)

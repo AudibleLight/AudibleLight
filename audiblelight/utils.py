@@ -333,7 +333,7 @@ def sanitise_distribution(
 
     # Otherwise, object is a scipy-like distribution
     elif hasattr(x, "rvs") and callable(x.rvs):
-        return x
+        return DistributionWrapper(x.rvs)
 
     # Otherwise, input is a function that might return random numbers
     elif callable(x):
