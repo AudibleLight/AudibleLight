@@ -29,6 +29,15 @@ MATERIALS_JSON = str(
     )
 )
 
+# These are the only moving event trajectores that are valid
+VALID_MOVING_EVENT_TRAJECTORIES = [
+    "linear",
+    "semicircular",
+    "sine",
+    "sawtooth",
+    "random",
+]
+
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     """
@@ -1441,6 +1450,7 @@ class WorldState:
         trajectory: np.ndarray,
         max_distance: custom_types.Numeric,
         step_distance: custom_types.Numeric,
+        n_points: custom_types.Numeric,
         requires_direct_line_between_start_and_end: bool,
         ensure_direct_path_to_mic: Optional[list[str]] = None,
     ) -> bool:
@@ -1452,6 +1462,7 @@ class WorldState:
             requires_direct_line_between_start_and_end (bool): whether a direct line must exist between the starting and ending position
             max_distance (custom_types.Numeric): the maximum distance traversed in the trajectory, from start to end
             step_distance (custom_types.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            n_points (custom_types.Numeric): the expected number of points in the trajectory.
             ensure_direct_path_to_mic (list[str]): a list of microphone aliases to ensure a direct path with
 
         Returns:
@@ -1459,6 +1470,8 @@ class WorldState:
         """
         # Early return if definitely invalid
         if trajectory.shape[0] < 2:
+            return False
+        if trajectory.shape[0] != n_points:
             return False
 
         if ensure_direct_path_to_mic is None:
@@ -1593,7 +1606,7 @@ class WorldState:
                 position within the mesh will be selected.
             velocity (Numeric): the speed limit for the trajectory, in meters per second
             resolution (Numeric): the number of emitters created per second
-            shape (str): the shape of the trajectory; "linear", "circular", "semicircular", "random", "sawtooth"
+            shape (str): the shape of the trajectory; "linear", "semicircular", "random", "sawtooth", "sine"
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
@@ -1623,13 +1636,6 @@ class WorldState:
         if shape is None:
             shape = str(np.random.choice(config.MOVING_EVENT_SHAPES))
 
-        # If using a predefined episode, grab all options from the JSON
-        if shape == "predefined":
-            if len(self.waypoints) == 0:
-                raise ValueError(
-                    "Cannot use shape 'predefined' when no waypoints exist."
-                )
-
         # Sanitise the maximum distance that we'll travel in the trajectory
         max_distance = utils.sanitise_positive_number(velocity * duration)
 
@@ -1651,30 +1657,19 @@ class WorldState:
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # Try and create the trajectory a specified number of times
-        place_attempts = (
-            max_place_attempts if shape != "predefined" else len(self.waypoints)
-        )
-        for idx in tqdm(range(place_attempts), desc="Placing trajectory..."):
+        for _ in tqdm(range(max_place_attempts), desc="Placing trajectory..."):
 
             # If we've not provided a starting position, randomly sample one
-            if shape != "predefined":
-                if starting_position is None:
-                    start_attempt = self.get_random_position()
-                # Otherwise, just use the starting position we've provided
-                else:
-                    start_attempt = starting_position
-            # Do not use a starting position for a predefined shape
+            if starting_position is None:
+                start_attempt = self.get_random_position()
+            # Otherwise, just use the starting position we've provided
             else:
-                if starting_position is not None:
-                    raise ValueError(
-                        "Cannot set starting_position when `shape` is `predefined`"
-                    )
-                start_attempt = None
+                start_attempt = starting_position
 
             # If we're doing a random walk, there's no need to sample an ending position directly
             #  Instead, the ending position will be defined by the last point of the walk
             #  So we can just set the `end_attempt` variable to None so that the linter is happy
-            if shape == "random" or shape == "predefined":
+            if shape == "random":
                 end_attempt = None
             # Try and sample a random valid position from the starting point
             else:
@@ -1714,21 +1709,10 @@ class WorldState:
                 trajectory = utils.generate_random_trajectory(
                     start_attempt, step_limit, n_points
                 )
-            elif shape == "predefined":
-                # Predefined shape: use the episode at this index
-                trajectory = self.waypoints[idx]
             # We don't know what the trajectory is
             else:
-                accepted = [
-                    "linear",
-                    "semicircular",
-                    "random",
-                    "sine",
-                    "sawtooth",
-                    "predefined",
-                ]
                 raise ValueError(
-                    f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
+                    f"`shape` must be one of {', '.join(VALID_MOVING_EVENT_TRAJECTORIES)} but got '{shape}'"
                 )
 
             # Validate the trajectory and return only if it is acceptable
@@ -1736,6 +1720,7 @@ class WorldState:
                 trajectory,
                 max_distance,
                 step_limit,
+                n_points=n_points,
                 requires_direct_line_between_start_and_end=(
                     True if shape == "linear" else False
                 ),
@@ -1748,7 +1733,7 @@ class WorldState:
             f"Could not define a valid movement trajectory after {max_place_attempts} attempt(s). Consider:\n"
             f"- Reducing `empty_space_around parameters`\n"
             f"- Decreasing `temporal_resolution` (currently {resolution})\n"
-            f"- Increasing `max_place_attempts` (currently {place_attempts})\n"
+            f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
             f"- Decreasing `max_distance` (currently {max_distance:.3f})"
         )
 
