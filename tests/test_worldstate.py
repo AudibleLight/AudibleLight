@@ -947,15 +947,7 @@ def test_define_trajectory(
             )
 
 
-@pytest.mark.parametrize(
-    "trajectory_kws",
-    [
-        dict(
-            duration=5,
-            resolution=0.5
-        )
-    ]
-)
+@pytest.mark.parametrize("trajectory_kws", [dict(duration=5, resolution=0.5)])
 def test_predefined_trajectory(oyens_space, trajectory_kws):
     oyens_space.add_microphone(
         microphone_type="foalistener",
@@ -964,9 +956,7 @@ def test_predefined_trajectory(oyens_space, trajectory_kws):
         alias="foa_tester",
     )
     trajectory = oyens_space.define_trajectory(
-        shape="predefined",
-        ensure_direct_path=True,
-        **trajectory_kws
+        shape="predefined", ensure_direct_path=True, **trajectory_kws
     )
 
     # Check the shape: expecting (n_points, xyz == 3)
@@ -976,9 +966,8 @@ def test_predefined_trajectory(oyens_space, trajectory_kws):
     assert n_points_actual >= 2
 
     # Check that it is one of our episodes from the JSON
-    episodes = oyens_space.load_mesh_navigation_waypoints()
     match = False
-    for ep in episodes:
+    for ep in oyens_space.waypoints:
         if np.array_equal(trajectory, ep):
             match = True
     if not match:

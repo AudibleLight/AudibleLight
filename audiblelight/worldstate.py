@@ -305,6 +305,7 @@ class WorldState:
             custom_types.Numeric
         ] = config.MIN_AVG_RAY_LENGTH,
         repair_threshold: Optional[custom_types.Numeric] = None,
+        waypoints_json: Optional[Union[str, Path]] = None,
         material: Optional[str] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
@@ -326,6 +327,8 @@ class WorldState:
                 evaluated when `ensure_minimum_weighted_average_ray_length` is True
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
+            waypoints_json (str|Path, optional): path pointing towards a JSON list containing waypoints for this mesh.
+                If not provided, will attempt to infer from the filename and set to None if cannot be found.
             material (str): the name of a material to use, defaults to None (i.e., Default material)
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
                 For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
@@ -361,6 +364,9 @@ class WorldState:
 
         # Load in the trimesh object
         self.mesh = load_mesh(mesh)
+
+        # Try and load up waypoints for this mesh
+        self.waypoints = self.load_mesh_navigation_waypoints(waypoints_json)
 
         # If we want to try and repair the mesh, and if it actually needs repairing
         self.repair_threshold = repair_threshold
@@ -1510,17 +1516,52 @@ class WorldState:
 
         Default filepath is <project-root>/resources/waypoints/gibson/<mesh-name>.json.
         """
+
+        # We haven't provided a path for the JSON, so try and infer from the default location and mesh name
         if waypoints_json is None:
-            waypoints_json = (
-                utils.get_project_root() / "resources/waypoints/gibson" / self.mesh.metadata["fname"]
-            ).with_suffix(".json")
+            mesh_fname = self.mesh.metadata["fname"]
+            default_loc = utils.get_project_root() / "resources/waypoints/gibson"
+            waypoints_json = (default_loc / mesh_fname).with_suffix(".json")
 
-        sanitised_file = utils.sanitise_filepath(waypoints_json)
+            # If it doesn't exist, don't worry, just skip over
+            if not waypoints_json.is_file():
+                logger.warning(
+                    f"Cannot find waypoints for mesh {mesh_fname} inside default location ({default_loc}). "
+                    f"No navigation waypoints will be loaded."
+                )
+                return []
 
-        with open(sanitised_file, "r") as js_in:
+        # Otherwise, check that the file we've provided exists (raises an error if not)
+        else:
+            waypoints_json = utils.sanitise_filepath(waypoints_json)
+
+        # Load up the JSON and grab waypoints from it
+        with open(waypoints_json, "r") as js_in:
             js_out = json.load(js_in)
 
-        return [np.array(wp["waypoints"]) for wp in js_out]
+        # Raise an error if not a list of dictionaries
+        if not isinstance(js_out, list):
+            raise ValueError(
+                f"Expected waypoints JSON to be a list of dictionaries, but got type {type(js_out)}"
+            )
+
+        # Raise an error if JSON format is invalid
+        elif not all("waypoints" in wp.keys() for wp in js_out):
+            raise KeyError(
+                "Waypoints JSON must be a list of dictionaries, each containing the key 'waypoints'."
+            )
+
+        # Load up the waypoints and validate that they are each inside the mesh
+        waypoints = [
+            np.array(wp["waypoints"])
+            for wp in js_out
+            if self._validate_position(wp["waypoints"])
+        ]
+
+        if len(waypoints) == 0:
+            logger.warning("No valid navigation waypoints found!")
+
+        return waypoints
 
     # @utils.timer("define trajectory")
     def define_trajectory(
@@ -1532,7 +1573,6 @@ class WorldState:
         shape: Optional[str] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
-        waypoints_json: Optional[Union[str, Path]] = None
     ) -> np.ndarray:
         """
         Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
@@ -1559,8 +1599,6 @@ class WorldState:
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
-            waypoints_json: a path to a JSON file containing navigation waypoints for this mesh. Only used when
-                shape == "predefined", in which case a single random navigation episode will be sampled from this file.
 
         Raises:
             ValueError: if a trajectory cannot be defined after `max_place_attempts`
@@ -1587,9 +1625,10 @@ class WorldState:
 
         # If using a predefined episode, grab all options from the JSON
         if shape == "predefined":
-            episodes = self.load_mesh_navigation_waypoints(waypoints_json)
-        else:
-            episodes = []
+            if len(self.waypoints) == 0:
+                raise ValueError(
+                    "Cannot use shape 'predefined' when no waypoints exist."
+                )
 
         # Sanitise the maximum distance that we'll travel in the trajectory
         max_distance = utils.sanitise_positive_number(velocity * duration)
@@ -1612,7 +1651,9 @@ class WorldState:
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # Try and create the trajectory a specified number of times
-        place_attempts = max_place_attempts if shape != "predefined" else len(episodes)
+        place_attempts = (
+            max_place_attempts if shape != "predefined" else len(self.waypoints)
+        )
         for idx in tqdm(range(place_attempts), desc="Placing trajectory..."):
 
             # If we've not provided a starting position, randomly sample one
@@ -1625,7 +1666,9 @@ class WorldState:
             # Do not use a starting position for a predefined shape
             else:
                 if starting_position is not None:
-                    raise ValueError("Cannot set starting_position when `shape` is `predefined`")
+                    raise ValueError(
+                        "Cannot set starting_position when `shape` is `predefined`"
+                    )
                 start_attempt = None
 
             # If we're doing a random walk, there's no need to sample an ending position directly
@@ -1673,10 +1716,17 @@ class WorldState:
                 )
             elif shape == "predefined":
                 # Predefined shape: use the episode at this index
-                trajectory = episodes[idx]
+                trajectory = self.waypoints[idx]
             # We don't know what the trajectory is
             else:
-                accepted = ["linear", "semicircular", "random", "sine", "sawtooth", "predefined"]
+                accepted = [
+                    "linear",
+                    "semicircular",
+                    "random",
+                    "sine",
+                    "sawtooth",
+                    "predefined",
+                ]
                 raise ValueError(
                     f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
                 )
