@@ -695,6 +695,7 @@ class Scene:
             ]
         ] = None,
         position: Optional[Union[list, np.ndarray]] = None,
+        trajectory: Optional[np.ndarray] = None,
         mic: Optional[str] = None,
         polar: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
@@ -710,14 +711,14 @@ class Scene:
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
     ) -> Event:
         """
-        Add an event to the foreground, either "static" or "moving".
+        Add an event to the foreground, either "static", "moving", or "predefined".
 
         Note that the arguments "scene_start", "event_start", "duration", "snr", "spatial_velocity", &
         "spatial_resolution" will (by default) sample from their respective distributions, provided in `Scene.__init__`.
         If a numeric value is provided, this will be treated as an override and used instead of random sampling.
 
         Arguments:
-            event_type (str): the type of event to add, must be either "static" or "moving"
+            event_type (str): the type of event to add, must be either "static", "moving", or "predefined".
             filepath: a path to a foreground event to use. If not provided, a foreground event will be sampled from
                 `fg_category_paths`, if this is provided inside `__init__`; otherwise, an error will be raised.
             alias: the string alias used to index this event inside the `events` dictionary
@@ -730,6 +731,9 @@ class Scene:
                 When `event_type=="static"`, this will be the position of the Event.
                 When `event_type=="moving"`, this will be the starting position of the Event.
                 When not provided, a random point inside the mesh will be chosen.
+            trajectory: The trajectory the moving event will follow, given in Cartesian coordinates inside the mesh.
+                Only used when `event_type=="predefined"`. If not provided, will attempt to infer from
+                `state.waypoints`.
             mic: String reference to a microphone inside `self.state.microphones`;
                 when provided, `position` is interpreted as RELATIVE to the center of this microphone
             polar: When True, expects `position` to be provided in [azimuth, elevation, radius] form; otherwise,
@@ -830,9 +834,29 @@ class Scene:
                 max_place_attempts=max_place_attempts,
             )
 
+        elif event_type == "predefined":
+            if spatial_velocity is not None or spatial_resolution is not None:
+                logger.warning(
+                    "Predefined event will ignore `spatial_velocity` or `spatial_resolution` parameters"
+                )
+            event = self.add_event_predefined(
+                filepath=filepath,
+                trajectory=trajectory,
+                alias=alias,
+                augmentations=augmentations,
+                scene_start=scene_start,
+                event_start=event_start,
+                duration=duration,
+                snr=snr,
+                class_id=class_id,
+                class_label=class_label,
+                ensure_direct_path=ensure_direct_path,
+                max_place_attempts=max_place_attempts,
+            )
+
         else:
             raise ValueError(
-                f"Cannot parse event type {event_type}, expected either 'static' or 'moving'!"
+                f"Cannot parse event type {event_type}, expected either 'static', 'moving', or 'predefined'!"
             )
 
         # Log the creation of the event
@@ -990,6 +1014,261 @@ class Scene:
         event.register_emitters(emitters)
 
         return event
+
+    # noinspection PyProtectedMember
+    def _try_add_predefined_event(
+        self,
+        trajectory: Optional[np.ndarray],
+        ensure_direct_path: Optional[bool],
+        max_place_attempts: Optional[custom_types.Numeric],
+        **event_kwargs,
+    ) -> bool:
+        """
+        Tries to add an Event with given kwargs and predefined trajectory.
+
+        The idea here is:
+            - Iterate over ALL valid trajectories associated with the state, or a SINGLE user trajectory
+                - Randomly sample duration, event start, etc. (or use overrides)
+                - Grab spatial resolution + velocity from the trajectory in combination with the duration
+                - If the trajectory is valid (e.g., has path to mic, inbounds with mesh), use it
+                - Otherwise, resample the parameters and try again
+            - If no valid combination for one trajectory, try with the next one
+
+        Returns:
+            bool: True if successful, False otherwise.
+        """
+
+        # Grab the alias: this should always be present inside the dictionary
+        alias = event_kwargs["alias"]
+
+        # Use only 1 placement attempt if all overrides are present
+        has_overrides = all(
+            k is not None in event_kwargs
+            for k in ("scene_start", "event_start", "duration")
+        )
+        max_place_attempts_per_trajectory = (
+            max_place_attempts if not has_overrides else 1
+        )
+
+        # Use only 1 placement attempt if trajectory provided
+        if trajectory is not None:
+            if not self.state._validate_position(trajectory):
+                raise ValueError("Provided trajectory is invalid")
+            trajectories = [trajectory]
+        else:
+            trajectories = self.state.waypoints
+
+        # Pre-resolve all user-specified override values (only done once)
+        #  Spatial resolution + velocity are defined by trajectory, not user
+        overrides = {
+            "scene_start": event_kwargs.get("scene_start"),
+            "event_start": event_kwargs.get("event_start"),
+            "duration": event_kwargs.get("duration"),
+            "snr": event_kwargs.get("snr"),
+        }
+
+        # Get valid aliases from the input
+        ensure_direct_path_to_mic = self.state._parse_valid_microphone_aliases(
+            ensure_direct_path
+        )
+
+        # Iterate over all the trajectories
+        #  If a user defined trajectory, we will only iterate once
+        #  Otherwise, we iterate over all valid trajectories associated with the state
+        for trajectory_current in trajectories:
+
+            # Compute some statistics based on the duration
+            n_points = trajectory_current.shape[0]
+            start = trajectory_current[0]
+            differences = trajectory_current[1:] - start
+            distances = np.linalg.norm(differences, axis=1)
+            max_distance = distances[np.argmax(distances)]
+
+            # If required, check that a direct path exists to all mic objects from this trajectory
+            for d in ensure_direct_path_to_mic:
+                if not all(
+                    self.state.path_exists_between_points(
+                        t, self.get_microphone(d).coordinates_center
+                    )
+                    for t in trajectory_current
+                ):
+                    continue
+
+            # Iterate a number of times over each trajectory
+            #  This allows us e.g. to try different duration values for a single trajectory
+            for _ in range(max_place_attempts_per_trajectory):
+
+                # Copy once per attempt
+                current_kws = event_kwargs.copy()
+
+                # If we haven't passed in a duration override OR a distribution, default to using the full audio duration
+                if overrides["duration"] is None and self.event_duration_dist is None:
+                    current_kws["duration"] = None
+                # Otherwise, try and sample from the distribution or use the override
+                else:
+                    current_kws["duration"] = utils.sample_distribution(
+                        self.event_duration_dist, overrides["duration"]
+                    )
+
+                # Do the same for event start time
+                if overrides["event_start"] is None and self.event_start_dist is None:
+                    current_kws["event_start"] = None
+                else:
+                    current_kws["event_start"] = utils.sample_distribution(
+                        self.event_start_dist, overrides["event_start"]
+                    )
+
+                # Sample values (with fallback to override if provided)
+                current_kws.update(
+                    {
+                        "scene_start": utils.sample_distribution(
+                            self.scene_start_dist, overrides["scene_start"]
+                        ),
+                        "snr": utils.sample_distribution(
+                            self.snr_dist, overrides["snr"]
+                        ),
+                        "shape": "predefined",
+                    }
+                )
+
+                # Create the event with the current keywords
+                current_event = Event(**current_kws)
+
+                # Reject this attempt if overlap would be exceeded
+                if self._would_exceed_temporal_overlap(
+                    current_event.scene_start, current_event.scene_end
+                ):
+                    continue
+
+                # Extract the spatial resolution from the trajectory
+                #  equivalent to number of points in trajectory over duration
+                #  We need the duration sampled for the current iteration here
+                #  So this has to be done inside the second loop
+                spatial_resolution = (
+                    utils.sanitise_positive_number(
+                        n_points / current_event.duration, cast_to=round
+                    )
+                    - 1
+                )
+                current_event.spatial_resolution = spatial_resolution
+
+                # Extract the spatial velocity from the trajectory
+                #  equivalent to total distance travelled over duration
+                spatial_velocity = max_distance / current_event.duration
+                current_event.spatial_velocity = spatial_velocity
+
+                if (
+                    current_event.spatial_velocity > self.event_velocity_dist.max
+                    or current_event.spatial_velocity < self.event_velocity_dist.min
+                ):
+                    continue
+
+                # Store the event and register the emitters with the current trajectory
+                self.state._add_emitters_without_validating(trajectory_current, alias)
+                emitters = self.state.get_emitters(alias)
+                if len(emitters) != len(trajectory_current):
+                    self.clear_event(alias)
+                    raise ValueError(
+                        f"Did not add expected number of emitters into the WorldState "
+                        f"(expected {len(trajectory_current)}, got {len(emitters)})"
+                    )
+                current_event.register_emitters(emitters)
+                self.events[alias] = current_event
+                return True
+
+        return False
+
+    # noinspection PyProtectedMember
+    def add_event_predefined(
+        self,
+        filepath: Optional[Union[str, Path]] = None,
+        trajectory: Optional[np.ndarray] = None,
+        alias: Optional[str] = None,
+        augmentations: Optional[
+            Union[
+                Iterable[Type[EventAugmentation]],
+                Type[EventAugmentation],
+                custom_types.Numeric,
+            ]
+        ] = None,
+        scene_start: Optional[custom_types.Numeric] = None,
+        event_start: Optional[custom_types.Numeric] = None,
+        duration: Optional[custom_types.Numeric] = None,
+        snr: Optional[custom_types.Numeric] = None,
+        class_id: Optional[int] = None,
+        class_label: Optional[str] = None,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+    ):
+        """
+        Add a moving event to the foreground that follows a predefined path.
+
+        The spatial velocity and resolution of the event will be inferred from the trajectory itself, in combination
+        with the duration (which may be provided or randomly sampled).
+        """
+        # Get a default alias and a random filepath if these haven't been provided
+        alias = (
+            utils.get_default_alias("event", self.events) if alias is None else alias
+        )
+        filepath = (
+            self._get_random_audio(self.fg_audios)
+            if filepath is None
+            else utils.sanitise_filepath(filepath)
+        )
+
+        # If we don't want to allow for duplicate filepaths, check this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            if filepath in seen_audios:
+                raise ValueError(
+                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                    f"Either increase the number of `fg_paths` in Scene.__init__, "
+                    f"choose a different audio file, "
+                    f"or set `Scene.allow_duplicate_audios=False`."
+                )
+
+        # Sample N random augmentations from our list, if required
+        if isinstance(augmentations, custom_types.Numeric):
+            augmentations = self._get_n_random_event_augmentations(augmentations)
+
+        # If no movement trajectory provided, try and sample one from the state
+        if not isinstance(trajectory, np.ndarray) and len(self.state.waypoints) == 0:
+            raise ValueError(
+                "State must have waypoints: did you set `waypoints_json` correctly?"
+            )
+
+        event_kwargs = dict(
+            filepath=filepath,
+            alias=alias,
+            scene_start=scene_start,
+            event_start=event_start,
+            duration=duration,
+            snr=snr,
+            sample_rate=self.sample_rate,
+            class_id=class_id,
+            class_label=class_label,
+            augmentations=augmentations,
+        )
+        # Pre-initialise the event with required arguments + register the emitters
+        utils.validate_kwargs(Event.__init__, **event_kwargs)
+        placed = self._try_add_predefined_event(
+            **event_kwargs,
+            trajectory=trajectory,
+            max_place_attempts=max_place_attempts,
+            ensure_direct_path=ensure_direct_path,
+        )
+
+        # Raise an error if we can't place the event correctly
+        if not placed:
+            # No need to clear out any emitters (as in `add_event_static`) because we haven't placed them yet
+            raise ValueError(
+                f"Could not place event in the mesh after {config.MAX_PLACE_ATTEMPTS} attempts. "
+                f"Consider increasing the value of `max_overlap` (currently {self.max_overlap}) or the "
+                f"`duration` of the scene (currently {self.duration})."
+            )
+
+        # Return the event we just created
+        return self.get_event(alias)
 
     # noinspection PyProtectedMember
     def add_event_moving(

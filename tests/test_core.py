@@ -200,7 +200,9 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     is_polar = kwargs.get("polar", False)
     if is_polar:
         oyens_scene_no_overlap.clear_microphones()
-        oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr", alias="mic000", position=[2.5, -1.0, 1.0])
+        oyens_scene_no_overlap.add_microphone(
+            microphone_type="ambeovr", alias="mic000", position=[2.5, -1.0, 1.0]
+        )
 
     # Add the event in
     oyens_scene_no_overlap.clear_events()
@@ -272,27 +274,35 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
 
 
 @pytest.mark.parametrize(
-    "fpath",
-    utils_tests.TEST_MUSICS[:2]
+    "event_kwargs",
+    [
+        dict(
+            filepath=utils_tests.TEST_MUSICS[0],
+            duration=5,
+            trajectory=None,
+            ensure_direct_path=True,
+        ),
+        dict(
+            filepath=utils_tests.TEST_MUSICS[0],
+            duration=0.3,
+            trajectory=np.array([[2.0, -0.3, 0.5], [2.0, -0.4, 0.5], [2.0, -0.5, 0.5]]),
+        ),
+    ],
 )
-def test_add_moving_event_predefined_trajectory(fpath, oyens_scene_no_overlap: Scene):
+def test_add_moving_event_predefined_trajectory(
+    event_kwargs, oyens_scene_no_overlap: Scene
+):
     # Add microphone to center of the mesh
     oyens_scene_no_overlap.clear_microphones()
-    oyens_scene_no_overlap.add_microphone(microphone_type="ambeovr", alias="mic000", position=[2.0, -0.5, 1.0])
+    oyens_scene_no_overlap.add_microphone(
+        microphone_type="ambeovr", alias="mic000", position=[2.0, -0.5, 1.0]
+    )
 
     # Try N times to add the event in
     oyens_scene_no_overlap.clear_events()
-    for _ in range(100):
-        try:
-            oyens_scene_no_overlap.add_event(
-                event_type="moving", alias="test_event", filepath=fpath, shape="predefined"
-            )
-        # Skip over ValueErrors, try again with different randomly sampled set of parameters
-        except ValueError:
-            continue
-
-    if len(oyens_scene_no_overlap.events) == 0:
-        pytest.fail()
+    oyens_scene_no_overlap.add_event(
+        event_type="predefined", alias="test_event", **event_kwargs
+    )
 
     # Should have added exactly one event
     assert len(oyens_scene_no_overlap.events) == 1
@@ -304,7 +314,30 @@ def test_add_moving_event_predefined_trajectory(fpath, oyens_scene_no_overlap: S
     assert ev.has_emitters
     assert len(ev) >= 2
 
+    # Should infer characteristics from the trajectory
     assert ev.shape == "predefined"
+    assert isinstance(ev.spatial_resolution, custom_types.Numeric)
+    assert isinstance(ev.spatial_velocity, custom_types.Numeric)
+    assert isinstance(ev.duration, custom_types.Numeric)
+
+    # Expected resolution should be equivalent to the number of emitters over the audio duration, subtracting 1
+    expected_resolution = (
+        utils.sanitise_positive_number(len(ev) / ev.duration, cast_to=round) - 1
+    )
+    assert ev.spatial_resolution == expected_resolution
+
+    # Expected velocity is equivalent to the distance travelled in the trajectory over the time
+    coords = np.array([em.coordinates_absolute for em in ev.get_emitters()])
+    start = coords[0]
+    differences = coords[1:] - start
+    distances = np.linalg.norm(differences, axis=1)
+    max_distance = distances[np.argmax(distances)]
+    expected_velocity = max_distance / ev.duration
+    assert ev.spatial_velocity == expected_velocity
+
+    # Expected velocity should be within bounds of distribution
+    assert ev.spatial_velocity < oyens_scene_no_overlap.event_velocity_dist.max
+    assert ev.spatial_velocity > oyens_scene_no_overlap.event_velocity_dist.min
 
 
 @pytest.mark.parametrize(
