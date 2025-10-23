@@ -29,6 +29,15 @@ MATERIALS_JSON = str(
     )
 )
 
+# These are the only moving event trajectores that are valid
+VALID_MOVING_EVENT_TRAJECTORIES = [
+    "linear",
+    "semicircular",
+    "sine",
+    "sawtooth",
+    "random",
+]
+
 
 def load_mesh(mesh_fpath: Union[str, Path]) -> trimesh.Trimesh:
     """
@@ -305,6 +314,7 @@ class WorldState:
             custom_types.Numeric
         ] = config.MIN_AVG_RAY_LENGTH,
         repair_threshold: Optional[custom_types.Numeric] = None,
+        waypoints_json: Optional[Union[str, Path]] = None,
         material: Optional[str] = None,
         rlr_kwargs: Optional[dict] = None,
     ):
@@ -326,6 +336,8 @@ class WorldState:
                 evaluated when `ensure_minimum_weighted_average_ray_length` is True
             repair_threshold (float, optional): when the proportion of broken faces on the mesh is below this value,
                 repair the mesh and fill holes. If None, will never repair the mesh.
+            waypoints_json (str|Path, optional): path pointing towards a JSON list containing waypoints for this mesh.
+                If not provided, will attempt to infer from the filename and set to None if cannot be found.
             material (str): the name of a material to use, defaults to None (i.e., Default material)
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
                 For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
@@ -361,6 +373,9 @@ class WorldState:
 
         # Load in the trimesh object
         self.mesh = load_mesh(mesh)
+
+        # Try and load up waypoints for this mesh
+        self.waypoints = self.load_mesh_navigation_waypoints(waypoints_json)
 
         # If we want to try and repair the mesh, and if it actually needs repairing
         self.repair_threshold = repair_threshold
@@ -1435,6 +1450,7 @@ class WorldState:
         trajectory: np.ndarray,
         max_distance: custom_types.Numeric,
         step_distance: custom_types.Numeric,
+        n_points: custom_types.Numeric,
         requires_direct_line_between_start_and_end: bool,
         ensure_direct_path_to_mic: Optional[list[str]] = None,
     ) -> bool:
@@ -1446,6 +1462,7 @@ class WorldState:
             requires_direct_line_between_start_and_end (bool): whether a direct line must exist between the starting and ending position
             max_distance (custom_types.Numeric): the maximum distance traversed in the trajectory, from start to end
             step_distance (custom_types.Numeric): the maximum distance traversed from one step to the next in the trajectory
+            n_points (custom_types.Numeric): the expected number of points in the trajectory.
             ensure_direct_path_to_mic (list[str]): a list of microphone aliases to ensure a direct path with
 
         Returns:
@@ -1453,6 +1470,8 @@ class WorldState:
         """
         # Early return if definitely invalid
         if trajectory.shape[0] < 2:
+            return False
+        if trajectory.shape[0] != n_points:
             return False
 
         if ensure_direct_path_to_mic is None:
@@ -1501,6 +1520,62 @@ class WorldState:
         # Validate all positions in the trajectory WRT the rest of the mesh
         return self._validate_position(trajectory)
 
+    def load_mesh_navigation_waypoints(
+        self,
+        waypoints_json: Optional[Union[Path, str]] = None,
+    ) -> list[np.ndarray]:
+        """
+        Load the navigation waypoints for this mesh from a JSON file.
+
+        Default filepath is <project-root>/resources/waypoints/gibson/<mesh-name>.json.
+        """
+
+        # We haven't provided a path for the JSON, so try and infer from the default location and mesh name
+        if waypoints_json is None:
+            mesh_fname = self.mesh.metadata["fname"]
+            default_loc = utils.get_project_root() / "resources/waypoints/gibson"
+            waypoints_json = (default_loc / mesh_fname).with_suffix(".json")
+
+            # If it doesn't exist, don't worry, just skip over
+            if not waypoints_json.is_file():
+                logger.warning(
+                    f"Cannot find waypoints for mesh {mesh_fname} inside default location ({default_loc}). "
+                    f"No navigation waypoints will be loaded."
+                )
+                return []
+
+        # Otherwise, check that the file we've provided exists (raises an error if not)
+        else:
+            waypoints_json = utils.sanitise_filepath(waypoints_json)
+
+        # Load up the JSON and grab waypoints from it
+        with open(waypoints_json, "r") as js_in:
+            js_out = json.load(js_in)
+
+        # Raise an error if not a list of dictionaries
+        if not isinstance(js_out, list):
+            raise ValueError(
+                f"Expected waypoints JSON to be a list of dictionaries, but got type {type(js_out)}"
+            )
+
+        # Raise an error if JSON format is invalid
+        elif not all("waypoints" in wp.keys() for wp in js_out):
+            raise KeyError(
+                "Waypoints JSON must be a list of dictionaries, each containing the key 'waypoints'."
+            )
+
+        # Load up the waypoints and validate that they are each inside the mesh
+        waypoints = [
+            np.array(wp["waypoints"])
+            for wp in js_out
+            if self._validate_position(wp["waypoints"])
+        ]
+
+        if len(waypoints) == 0:
+            logger.warning("No valid navigation waypoints found!")
+
+        return waypoints
+
     # @utils.timer("define trajectory")
     def define_trajectory(
         self,
@@ -1531,7 +1606,7 @@ class WorldState:
                 position within the mesh will be selected.
             velocity (Numeric): the speed limit for the trajectory, in meters per second
             resolution (Numeric): the number of emitters created per second
-            shape (str): the shape of the trajectory; "linear", "circular", "semicircular", "random", "sawtooth"
+            shape (str): the shape of the trajectory; "linear", "semicircular", "random", "sawtooth", "sine"
             max_place_attempts (Numeric): the number of times to try and create the trajectory.
             ensure_direct_path: Whether to ensure a direct line exists between the emitter and given microphone(s).
                 If True, will ensure a direct line exists between the emitter and ALL `microphone` objects. If a list of
@@ -1636,9 +1711,8 @@ class WorldState:
                 )
             # We don't know what the trajectory is
             else:
-                accepted = ["linear", "semicircular", "random", "sine", "sawtooth"]
                 raise ValueError(
-                    f"`shape` must be one of {', '.join(accepted)} but got '{shape}'"
+                    f"`shape` must be one of {', '.join(VALID_MOVING_EVENT_TRAJECTORIES)} but got '{shape}'"
                 )
 
             # Validate the trajectory and return only if it is acceptable
@@ -1646,6 +1720,7 @@ class WorldState:
                 trajectory,
                 max_distance,
                 step_limit,
+                n_points=n_points,
                 requires_direct_line_between_start_and_end=(
                     True if shape == "linear" else False
                 ),
