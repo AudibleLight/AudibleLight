@@ -209,7 +209,7 @@ class Ambience:
 
         # Normalise noise to have max(abs(noise)) == 1 per channel
         if normalize:
-            out = out / np.max(np.abs(out), axis=1, keepdims=True)
+            out = out / np.max(np.abs(out) + utils.tiny(out))
 
         self.audio = out
         return self.audio
