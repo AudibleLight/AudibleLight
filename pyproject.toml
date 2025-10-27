@@ -20,29 +20,24 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 librosa = "0.11.0"
+soundfile = "*"
 matplotlib = "*"
 numpy = "2.0.2"
 pandas = "2.2.2"
 pillow = "11.2.1"
 plotly = "5.24.1"
-rtree = "1.4.0"
 scipy = "*"
+rtree = "1.4.0"
 tqdm = "4.67.1"
 trimesh = "4.6.11"
-scaper = "*"
 torch = "*"
-pyglet = "<2"
 loguru = "*"
-pre-commit = "*"
-netCDF4 = "*"
 pyroomacoustics = "*"
-h5py = "*"
 deepdiff = "*"
-rlr-audio-propagation = { git = "https://github.com/beasteers/rlr-audio-propagation.git", branch = "main" }
+rlr-audio-propagation = { git = "https://github.com/AudibleLight/rlr-audio-propagation", branch = "main" }
 pedalboard = "0.9.17"
 
 [tool.poetry.group.dev.dependencies]
-notebook = "^7.4.5"
 pytest = "*"
 coverage = "*"
 pytest-cov = "*"
@@ -56,8 +51,10 @@ flake8 = "7.0.0"
 
 [tool.poetry.group.datasets.dependencies]
 soundata = "*"
+requests = "*"
 
 [tool.poetry.group.docs.dependencies]
+IPython = "*"
 notebook = "^7.4.5"
 sphinx = "*"
 sphinx-book-theme = "*"
