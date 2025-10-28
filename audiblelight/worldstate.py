@@ -5,17 +5,21 @@
 
 import json
 from collections import OrderedDict
+from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 from types import MethodType
 from typing import Any, Optional, Type, Union
 
+import librosa
 import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
 from deepdiff import DeepDiff
 from loguru import logger
+from pysofaconventions import SOFAFile
 from rlr_audio_propagation import Config, Context
+from scipy.spatial import KDTree
 from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
@@ -116,7 +120,9 @@ class Emitter:
     `Emitter`. In the case of a *moving* audio source, we will instead have multiple `Emitter` objects per `Event`.
     """
 
-    def __init__(self, alias: str, coordinates_absolute: np.ndarray):
+    def __init__(
+        self, alias: str, coordinates_absolute: np.ndarray, sofa_idx: int = None
+    ):
         self.alias: str = alias
         self.coordinates_absolute: np.ndarray = utils.sanitise_coordinates(
             coordinates_absolute
@@ -128,6 +134,9 @@ class Emitter:
         self.coordinates_relative_polar: Optional[OrderedDict[str, np.ndarray]] = (
             OrderedDict()
         )
+
+        # Index of the IR/position within the SOFA file
+        self.sofa_idx = utils.sanitise_positive_number(sofa_idx, cast_to=int)
 
         self.has_direct_paths: OrderedDict[str, bool] = OrderedDict()
 
@@ -230,11 +239,15 @@ class Emitter:
             else:
                 return inp
 
-        return dict(
+        # Create output dictionary
+        out_dict = dict(
             alias=self.alias,
             coordinates_absolute=coerce(self.coordinates_absolute),
             has_direct_paths=self.has_direct_paths,
         )
+        if self.sofa_idx:
+            out_dict["sofa_idx"] = self.sofa_idx
+        return out_dict
 
     @classmethod
     def from_dict(cls, input_dict: dict[str, Any]):
@@ -272,10 +285,16 @@ class Emitter:
             copied_dict[k] = unserialise(copied_dict[k])
 
         # Instantiate the class with the correct alias and absolute coordinates
-        return cls(
+        kws = dict(
             alias=copied_dict["alias"],
             coordinates_absolute=copied_dict["coordinates_absolute"],
         )
+
+        # Add in sofa IDX if required and present
+        if "sofa_idx" in copied_dict.keys():
+            kws["sofa_idx"] = copied_dict["sofa_idx"]
+
+        return cls(**kws)
 
 
 class WorldState:
@@ -475,41 +494,6 @@ class WorldState:
             self._update()
         else:
             raise KeyError("Emitter alias '{}' not found.".format(alias))
-
-    def _parse_valid_microphone_aliases(
-        self, aliases: Optional[Union[bool, list, str]]
-    ) -> list[str]:
-        """
-        Get valid microphone aliases from an input
-        """
-        # If True, we should get a list of all the microphones
-        if aliases is True:
-            return list(self.microphones.keys())
-
-        # If a single string, validate and convert to [string]
-        elif isinstance(aliases, str):
-            if aliases not in self.microphones.keys():
-                raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
-            return [aliases]
-
-        # If a list of strings, validate these
-        elif isinstance(aliases, list):
-            # Sanity check that all the provided aliases exist in our dictionary
-            not_in = [e for e in aliases if e not in self.microphones.keys()]
-            if len(not_in) > 0:
-                raise KeyError(
-                    f"Some provided microphone aliases were not found: {', '.join(not_in)}"
-                )
-            # Remove duplicates from the list
-            return list(set(aliases))
-
-        # If False or None, return an empty list (which we'll skip over later)
-        elif aliases is False or aliases is None:
-            return []
-
-        # Otherwise, we can't handle the input, so return an error
-        else:
-            raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
 
 class WorldStateRLR(WorldState):
@@ -1377,6 +1361,41 @@ class WorldStateRLR(WorldState):
                 return False
         # Direct line exists: either no blocking intersections, or no intersections at all
         return True
+
+    def _parse_valid_microphone_aliases(
+        self, aliases: Optional[Union[bool, list, str]]
+    ) -> list[str]:
+        """
+        Get valid microphone aliases from an input
+        """
+        # If True, we should get a list of all the microphones
+        if aliases is True:
+            return list(self.microphones.keys())
+
+        # If a single string, validate and convert to [string]
+        elif isinstance(aliases, str):
+            if aliases not in self.microphones.keys():
+                raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
+            return [aliases]
+
+        # If a list of strings, validate these
+        elif isinstance(aliases, list):
+            # Sanity check that all the provided aliases exist in our dictionary
+            not_in = [e for e in aliases if e not in self.microphones.keys()]
+            if len(not_in) > 0:
+                raise KeyError(
+                    f"Some provided microphone aliases were not found: {', '.join(not_in)}"
+                )
+            # Remove duplicates from the list
+            return list(set(aliases))
+
+        # If False or None, return an empty list (which we'll skip over later)
+        elif aliases is False or aliases is None:
+            return []
+
+        # Otherwise, we can't handle the input, so return an error
+        else:
+            raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
     def add_emitter(
         self,
@@ -2269,37 +2288,371 @@ class WorldStateSOFA(WorldState):
 
     name = "SOFA"
 
+    # When the distance between an input and matched point exceeds this value (in metres),
+    #  a warning will be raised
+    WARN_WHEN_DISTANCE_EXCEEDS = 0.1
+
     def __init__(
         self,
-        mesh: Union[str, Path],
-        empty_space_around_mic: Optional[
-            custom_types.Numeric
-        ] = config.EMPTY_SPACE_AROUND_MIC,
-        empty_space_around_emitter: Optional[
-            custom_types.Numeric
-        ] = config.EMPTY_SPACE_AROUND_EMITTER,
-        empty_space_around_surface: Optional[
-            custom_types.Numeric
-        ] = config.EMPTY_SPACE_AROUND_SURFACE,
-        empty_space_around_capsule: Optional[
-            custom_types.Numeric
-        ] = config.EMPTY_SPACE_AROUND_CAPSULE,
+        sofa: Union[str, Path],
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
+        mic_alias: Optional[str] = None,
+        allow_multiple_emitters_at_one_position: Optional[bool] = True,
     ):
         super().__init__()
 
-        # Distances from objects/mesh surfaces
-        self.empty_space_around_mic = utils.sanitise_positive_number(
-            empty_space_around_mic
+        # Validates the path to a sofa file
+        self.sofa_path = utils.sanitise_filepath(sofa)
+
+        # Sanitise the sample rate
+        self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
+
+        # Add a dummy microphone in to the worldstate
+        # TODO: we assume only one microphone
+        self.mic_alias = (
+            utils.get_default_alias("mic", self.microphones)
+            if mic_alias is None
+            else mic_alias
         )
-        self.empty_space_around_surface = utils.sanitise_positive_number(
-            empty_space_around_surface
+        self._add_dummy_microphone()
+
+        # If True, multiple emitters can be placed in the same location
+        self.allow_multiple_emitters_at_one_position = (
+            allow_multiple_emitters_at_one_position
         )
-        self.empty_space_around_emitter = utils.sanitise_positive_number(
-            empty_space_around_emitter
+
+    def _add_dummy_microphone(self) -> None:
+        """
+        Add a dummy microphone in to the WorldState at [0.0, 0.0, 0.0]
+        """
+        # TODO: is this OK?
+        marray = sanitize_microphone_input("monocapsule")()
+        marray.set_absolute_coordinates([0.0, 0.0, 0.0])
+        self.microphones[self.mic_alias] = marray
+
+    @contextmanager
+    def sofa(self) -> SOFAFile:
+        """
+        Context manager for loading and safely closing a .SOFA file.
+
+        Usage:
+            >>> with self.sofa() as sofa:
+            >>>     # do something
+            >>> # sofa file is now closed
+        """
+        loaded = SOFAFile(self.sofa_path, "r")
+        if not loaded.isValid():
+            raise ValueError(f"SOFA file at {self.sofa_path} is invalid!")
+        try:
+            yield loaded
+        finally:
+            loaded.close()
+
+    def get_source_positions(self) -> np.ndarray:
+        """
+        Retrieves the XYZ coordinates of impulse response positions in the room.
+
+        Returns:
+            np.ndarray: An array of XYZ coordinates for the impulse response positions.
+        """
+        with self.sofa() as sofa:
+            return sofa.getVariableValue("SourcePosition").data
+
+    def get_listener_positions(self) -> np.ndarray:
+        """
+        Retrieves the XYZ coordinates of listeners in the room.
+
+        Returns:
+            np.ndarray: An array of XYZ coordinates for the listener positions.
+        """
+        with self.sofa() as sofa:
+            return sofa.getVariableValue("ListenerPosition").data
+
+    def get_room_min_max(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Determines the minimum and maximum XYZ coordinates for the current room setup.
+
+        Returns:
+            tuple: A tuple containing the minimum and maximum XYZ coordinates for the room.
+        """
+        all_xyz = np.vstack(
+            [self.get_source_positions(), self.get_listener_positions()]
         )
-        self.empty_space_around_capsule = utils.sanitise_positive_number(
-            empty_space_around_capsule
+        return all_xyz.min(axis=0), all_xyz.max(axis=0)
+
+    def add_microphone(self, *_, **__) -> None:
+        raise ValueError(
+            "It is not possible to add a microphone to a WorldStateSOFA object. "
+            "This is because the location of a microphone is set by the SOFA file itself."
+            "Consider using `WorldStateRLR` to explicitly control the position of a microphone. "
         )
+
+    def add_microphones(self, *_, **__) -> None:
+        raise ValueError(
+            "It is not possible to add microphones to a WorldStateSOFA object. "
+            "This is because the location of microphones are set by the SOFA file itself. "
+            "Consider using `WorldStateRLR` to explicitly control the positions of microphones. "
+        )
+
+    def get_random_valid_position_idx(self) -> np.ndarray:
+        """
+        Get the index of a random valid position to place an object inside the state.
+
+        Returns:
+             np.ndarray: the random position to place an object inside the mesh
+        """
+        # First, get all source positions
+        all_positions = self.get_source_positions()
+
+        # If no current emitters, just choose one valid index at random
+        if self.num_emitters == 0 or self.allow_multiple_emitters_at_one_position:
+            random_idx = np.random.randint(0, all_positions.shape[0] + 1)
+            return np.array([random_idx])
+
+        # Otherwise, get positions that have already been used for an emitter
+        used_positions = np.vstack(
+            [i.coordinates_absolute for i in self.emitters.values()]
+        )
+
+        # Broadcast arr1 against arr2 by adding an extra dimension, then create a boolean mask
+        #  the mask has the shape all_positions.shape[0]
+        matches = np.isclose(all_positions[:, None, :], used_positions[None, :, :])
+        mask = np.any(np.all(matches, axis=2), axis=1)
+
+        # Subset all available positions and choose one at random
+        subsetted = all_positions[~mask]
+        random_idx = np.random.randint(0, subsetted.shape[0] + 1)
+        return np.array([random_idx])
+
+    def get_nearest_source_idx(self, candidate_position: np.ndarray) -> np.ndarray:
+        """
+        Maps a set of trajectory points to their nearest neighbors in a given set of coordinates using a k-d tree.
+
+        This function builds a k-d tree from a set of 3D coordinates and finds the nearest neighbor in these coordinates
+        for each point in `candidate_position`
+
+        Arguments:
+            candidate_position (np.ndarray): A 2D array of points for which nearest neighbors are to be found.
+
+        Returns:
+            np.ndarray: A 2D array of nearest neighbour points, with shape (candidate_position.shape[0], 3)
+        """
+        # Make input 2D if required
+        candidate_position = np.array(candidate_position)
+        if candidate_position.ndim == 1:
+            candidate_position = candidate_position[None, :]
+
+        # Build a KDTree from the source positions
+        source_positions = self.get_source_positions()
+        tree = KDTree(source_positions)
+
+        # Query the tree for candidate positions
+        matches = []
+        matched_points = []
+        for point in candidate_position:
+
+            # Iterate through nearest matches for this position
+            for k in range(source_positions.shape[0]):
+                distance, index = tree.query(point, k=k + 1)
+                matched_point = source_positions[index]
+
+                # Raise a warning if the distance is further away than expected
+                if distance >= self.WARN_WHEN_DISTANCE_EXCEEDS:
+                    logger.warning(
+                        f"Could not find a match for point {point} within {self.WARN_WHEN_DISTANCE_EXCEEDS} metres. "
+                        f"Using nearest point ({matched_point}), which is {round(distance, 2)}m away."
+                    )
+
+                # Skip over if we don't want to allow multiple emitters in the same place
+                if (
+                    self.num_emitters > 0
+                    and not self.allow_multiple_emitters_at_one_position
+                ):
+                    used_positions = np.vstack(
+                        [i.coordinates_absolute for i in self.emitters.values()]
+                        + matched_points
+                    )
+                    if matched_point in used_positions:
+                        continue
+
+                matches.append(index)
+                matched_points.append(matched_point)
+                break
+
+        return np.array(matches)
+
+    def _try_add_emitter(
+        self,
+        position: Optional[Union[list, np.ndarray]],
+        alias: str,
+    ) -> bool:
+        """
+        Attempt to add a emitter at the given position with the specified alias.
+        Returns True if placement is successful, otherwise False.
+        """
+        # First, get all source positions
+        source_positions = self.get_source_positions()
+        if len(source_positions) == 0:
+            raise ValueError("No source positions in SOFA file!")
+
+        # If no position provided, get the index of a random valid position
+        if position is None:
+            position_idx = self.get_random_valid_position_idx()
+        # Otherwise, get nearest position to the provided value
+        else:
+            position_idx = self.get_nearest_source_idx(position)
+
+        # Iterate over all indices provided
+        for idx in position_idx:
+
+            # Unpack the index
+            validated_position = source_positions[idx]
+
+            # Successfully placed: add to the emitter dictionary and return True
+            emitter = Emitter(
+                alias=alias,
+                coordinates_absolute=utils.sanitise_coordinates(validated_position),
+                sofa_idx=idx,
+            )
+            # Add the emitter to the list created for this alias, or create the list if it doesn't exist
+            if alias in self.emitters:
+                self.emitters[alias].append(emitter)
+            else:
+                self.emitters[alias] = [emitter]
+
+        # TODO: under what conditions might we want to return False?
+        return True
+
+    def add_emitter(
+        self,
+        position: Optional[Union[list, np.ndarray]] = None,
+        alias: Optional[str] = None,
+        mic: Optional[str] = None,  # noqa: F841
+        keep_existing: Optional[bool] = False,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,  # noqa: F841
+        max_place_attempts: Optional[
+            custom_types.Numeric
+        ] = config.MAX_PLACE_ATTEMPTS,  # noqa: F841
+    ) -> None:
+        """
+        Add an emitter to the state.
+        """
+        # Remove existing emitters if we wish to do this
+        if not keep_existing:
+            self.clear_emitters()
+
+        # Get the alias for this emitter
+        alias = (
+            utils.get_default_alias("src", self.emitters) if alias is None else alias
+        )
+
+        # Try and add the emitter with given position + alias
+        placed = self._try_add_emitter(position, alias)
+
+        # If we can't add the microphone to the mesh
+        if not placed:
+            # If we were trying to add it to a random position
+            if position is None:
+                raise ValueError("Could not find a valid position for emitter.")
+            # If we were trying to add it to a specific position
+            else:
+                raise ValueError(f"Position {position} invalid.")
+
+        # Update the state with the new emitter
+        self._update()
+
+    def _update(self) -> None:
+        """
+        Updates the state, setting emitter positions correctly
+        """
+        # Only update when we've added emitters
+        if self.num_emitters > 0:
+            # Grab positions and aliases for mic
+            listener_positions = self.get_listener_positions()
+
+            # Iterate through all emitters in the state
+            for emitter_alias, emitter_list in self.emitters.items():
+                for emitter in emitter_list:
+
+                    # Compute the polar and cartesian position WRT the listener
+                    listener_at_idx = listener_positions[emitter.sofa_idx, :]
+                    pos = emitter.coordinates_absolute - listener_at_idx
+
+                    # Update all dictionaries with relative positions
+                    # TODO: we assume only one microphone
+                    emitter.coordinates_relative_cartesian[self.mic_alias] = pos
+                    emitter.coordinates_relative_polar[self.mic_alias] = (
+                        utils.cartesian_to_polar(pos)
+                    )
+
+    def _simulation_sanity_check(self):
+        """
+        Check conditions required for simulation are met
+        """
+        assert (
+            self.num_emitters > 0
+        ), "Must have added valid emitters to the state before calling `.simulate`!"
+        assert (
+            len(self.microphones) > 0
+        ), "Must have added valid microphones to the state before calling `.simulate`!"
+        assert not any(
+            [
+                em.sofa_idx is None
+                for em_list in self.emitters.values()
+                for em in em_list
+            ]
+        ), "All Emitter objects must have corresponding indices in the .SOFA file"
+
+    def simulate(self):
+        """
+        Grabs all required IRs for Emitters in the WorldState, resampling if necessary
+        """
+        # Update the ray-tracing engine with our current emitters, microphones, etc.
+        self._update()
+        # Sanity check that we actually have emitters and microphones in the state
+        self._simulation_sanity_check()
+        # Format irs into a dictionary of {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
+        #  with one key-value pair per microphone. We have to do this because we cannot have ragged arrays
+        #  The individual arrays can then be accessed by calling `self.irs.values()`
+        self._irs = self.get_irs()
+
+    def get_irs(self) -> OrderedDict[str, np.ndarray]:
+        """
+        Get the IRs from the WorldState
+
+        The output will have shape: {mic_alias: (N_capsules, N_emitters, N_samples)}
+        """
+        # Load in all IRs and their sample rate
+        with self.sofa() as sofa:
+            ir_sr = int(sofa.getVariableValue("Data.SamplingRate"))
+            all_irs = sofa.getDataIR().data
+
+        # Get indices of all required IRs
+        required_irs = np.array(
+            [em.sofa_idx for em_list in self.emitters.values() for em in em_list]
+        )
+
+        # Create empty array with shape (n_channels, n_emitters, n_samples)
+        expected_out_samples = round(all_irs.shape[2] * (self.sample_rate / ir_sr))
+        final_irs = np.zeros(
+            (all_irs.shape[1], len(required_irs), expected_out_samples)
+        )
+
+        # Iterate over all IRs
+        for total_idx, required_ir_idx in enumerate(required_irs):
+            # Grab the current IR
+            required_ir = all_irs[required_ir_idx, :, :]
+
+            # Resample the IR if required
+            if ir_sr != self.sample_rate:
+                required_ir = librosa.resample(
+                    required_ir, orig_sr=ir_sr, target_sr=self.sample_rate
+                )
+
+            # Update the zeroed array
+            final_irs[:, total_idx, :] = required_ir
+
+        return OrderedDict({self.mic_alias: final_irs})
 
 
 class WorldStateShoebox(WorldState):
@@ -2310,15 +2663,15 @@ class WorldStateShoebox(WorldState):
     name = "SHOEBOX"
 
 
-WORLDSTATE_LIST = [WorldStateRLR, WorldStateSOFA]
+WORLDSTATE_LIST = [WorldStateRLR, WorldStateSOFA, WorldStateShoebox]
 
 
 def get_worldstate_from_string(worldstate_name: str) -> Type["WorldState"]:
     """
-    Given a string representation of a microphone array (e.g., `rlr`), return the correct MicArray object
+    Given a string representation of a worldstate type (e.g., `rlr`), return the correct WorldState object
     """
     # These are the name attributes for all valid WorldStates
-    acceptable_values = [ws().name for ws in WORLDSTATE_LIST]
+    acceptable_values = [ws.name for ws in WORLDSTATE_LIST]
     if worldstate_name.upper() not in acceptable_values:
         raise ValueError(
             f"Cannot find array {worldstate_name}: expected one of {', '.join(acceptable_values)}"
