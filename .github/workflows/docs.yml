@@ -33,16 +33,11 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt update
-          sudo apt install libsox-dev libsox-fmt-all freeglut3-dev pandoc
-
-      - name: Install Python dependencies with Poetry
-        run: |
-          poetry install --no-interaction --no-root
+          make install
 
       - name: Sphinx build
         run: |
-          poetry run sphinx-build docs _build
+          make docs
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
