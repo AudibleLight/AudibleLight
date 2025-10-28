@@ -47,6 +47,7 @@ coverage.xml
 /docs/_build/
 /docs/_autosummary/
 /docs/_examples/
+/_build/
 
 .env
 wget-log
