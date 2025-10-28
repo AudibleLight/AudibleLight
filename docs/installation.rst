@@ -5,7 +5,7 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 - ``git``
-- ``python3.10`` or above (tested up to ``python3.12'')
+- ``python3.10`` or above (tested up to ``python3.12``)
 - ``poetry``
 - ``make``
 - A modern Linux distro: current versions of ``Ubuntu`` and ``Red Hat`` have been tested and confirmed to work.
@@ -20,7 +20,6 @@ Install via the command line
    git clone https://github.com/AudibleLight/AudibleLight.git
    cd AudibleLight
    make install
-   poetry install
 
 Download datasets
 ^^^^^^^^^^^^^^^^^
