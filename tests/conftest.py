@@ -10,7 +10,7 @@ import pytest
 from tqdm import tqdm
 
 from audiblelight.core import Scene
-from audiblelight.worldstate import WorldStateRLR
+from audiblelight.worldstate import WorldStateRLR, WorldStateSOFA
 from tests import utils_tests
 
 tqdm.monitor_interval = 0
@@ -28,6 +28,14 @@ def oyens_space() -> WorldStateRLR:
         waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
     )
     return space
+
+
+@pytest.fixture(scope="function")
+def daga_space() -> WorldStateSOFA:
+    """Returns a WorldStateSOFA with DAGA file"""
+    return WorldStateSOFA(
+        sofa=utils_tests.TEST_RESOURCES / "daga_foa.sofa",
+    )
 
 
 @pytest.fixture(scope="function")
