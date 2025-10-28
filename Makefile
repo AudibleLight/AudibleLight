@@ -10,12 +10,12 @@ tests:
 	poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
 
 fix:
-    poetry run pre-commit install
+	poetry run pre-commit install
 	poetry run pre-commit run --all-files
 
 docs:
 	cd docs && make clean
-	poetry run sphinx-build docs _build
+	poetry run sphinx-build docs docs/_build
 
 download:
 	poetry run python scripts/download_data/download_fma.py --cleanup
