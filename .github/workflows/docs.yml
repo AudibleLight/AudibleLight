@@ -31,12 +31,9 @@ jobs:
       - name: Add Poetry to PATH
         run: echo "$HOME/.poetry/bin" >> $GITHUB_PATH
 
-      - name: Install system dependencies
+      - name: Install system dependencies + build
         run: |
           make install
-
-      - name: Sphinx build
-        run: |
           make docs
 
       - name: Deploy to GitHub Pages
@@ -44,5 +41,5 @@ jobs:
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: _build/
+          publish_dir: docs/_build/
           force_orphan: true

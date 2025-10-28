@@ -14,7 +14,7 @@ fix:
 	poetry run pre-commit run --all-files
 
 docs:
-	cd docs && make clean
+	cd docs && poetry run make clean
 	poetry run sphinx-build docs docs/_build
 
 download:
