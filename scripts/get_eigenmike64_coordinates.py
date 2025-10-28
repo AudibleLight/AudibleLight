@@ -3,8 +3,6 @@
 
 """Extract Eigenmike64 coordinates from official documentation"""
 
-import os
-
 import numpy as np
 import pandas as pd
 
