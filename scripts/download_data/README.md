@@ -3,6 +3,7 @@
 This folder contains scripts for downloading the following datasets, which may prove handy when working with `AudibleLight`:
 
 - [Gibson Database of 3D Spaces](http://gibsonenv.stanford.edu/database/): `download_gibson.py`
+  - Also `download_gibson_waypoints.py`, which downloads [preset navigation waypoints for the same spaces](https://github.com/StanfordVL/GibsonEnv/blob/master/gibson/data/README.md#navigation-waypoints).
 - [Free Music Archive](https://github.com/mdeff/fma): `download_fma.py`
 - [FSD50K](https://zenodo.org/records/4060432): `download_fsd.py`
 

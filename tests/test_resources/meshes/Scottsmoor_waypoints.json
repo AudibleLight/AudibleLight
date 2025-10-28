@@ -1,0 +1,3102 @@
+[
+    {
+        "dist": 1.713,
+        "goalX": -1.737,
+        "goalY": 0.098,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 1.713,
+        "split": "full+",
+        "startAngle": 0.128,
+        "startX": -0.027,
+        "startY": 0.003,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.795,
+        "goalX": -1.465,
+        "goalY": 0.31,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.525,
+        "split": "full+",
+        "startAngle": 3.576,
+        "startX": 0.33,
+        "startY": 0.304,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.456,
+        "goalX": -1.255,
+        "goalY": 0.29,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.728,
+        "split": "full+",
+        "startAngle": 4.186,
+        "startX": 0.192,
+        "startY": 0.449,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.519,
+        "goalX": -1.274,
+        "goalY": 0.134,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.565,
+        "split": "full+",
+        "startAngle": 5.102,
+        "startX": 0.237,
+        "startY": 0.287,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.336,
+        "goalX": -1.348,
+        "goalY": 0.533,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.713,
+        "split": "full+",
+        "startAngle": 0.675,
+        "startX": -0.017,
+        "startY": 0.419,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.721,
+        "goalX": -1.347,
+        "goalY": 0.157,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.569,
+        "split": "full+",
+        "startAngle": 6.277,
+        "startX": 0.372,
+        "startY": 0.234,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.53,
+        "goalX": -1.476,
+        "goalY": 0.305,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.524,
+        "split": "full+",
+        "startAngle": 4.149,
+        "startX": 0.044,
+        "startY": 0.475,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.817,
+        "goalX": -1.453,
+        "goalY": 0.108,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.446,
+        "split": "full+",
+        "startAngle": 1.79,
+        "startX": 0.36,
+        "startY": 0.231,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.549,
+        "goalX": -1.265,
+        "goalY": 0.439,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.729,
+        "split": "full+",
+        "startAngle": 4.009,
+        "startX": 0.279,
+        "startY": 0.311,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.9,
+        "goalX": -1.707,
+        "goalY": 0.432,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.459,
+        "split": "full+",
+        "startAngle": 2.387,
+        "startX": 0.191,
+        "startY": 0.352,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.671,
+        "goalX": -1.58,
+        "goalY": 0.28,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.077,
+        "split": "full+",
+        "startAngle": 4.342,
+        "startX": 0.078,
+        "startY": 0.067,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.901,
+        "goalX": -1.686,
+        "goalY": 0.203,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.37,
+        "split": "full+",
+        "startAngle": 3.711,
+        "startX": 0.192,
+        "startY": 0.497,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.806,
+        "goalX": -1.504,
+        "goalY": 0.22,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.326,
+        "split": "full+",
+        "startAngle": 1.141,
+        "startX": 0.299,
+        "startY": 0.13,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.701,
+        "goalX": -1.668,
+        "goalY": 0.196,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.166,
+        "split": "full+",
+        "startAngle": 1.127,
+        "startX": 0.028,
+        "startY": 0.331,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.704,
+        "goalX": -1.318,
+        "goalY": 0.146,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.548,
+        "split": "full+",
+        "startAngle": 2.445,
+        "startX": 0.383,
+        "startY": 0.052,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.642,
+        "goalX": -1.435,
+        "goalY": 0.468,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.732,
+        "split": "full+",
+        "startAngle": 6.263,
+        "startX": 0.207,
+        "startY": 0.491,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.706,
+        "goalX": -1.589,
+        "goalY": 0.157,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.026,
+        "split": "full+",
+        "startAngle": 0.374,
+        "startX": 0.114,
+        "startY": 0.063,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.609,
+        "goalX": -1.391,
+        "goalY": 0.381,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.37,
+        "split": "full+",
+        "startAngle": 2.126,
+        "startX": 0.18,
+        "startY": 0.035,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.76,
+        "goalX": -1.449,
+        "goalY": 0.563,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.525,
+        "split": "full+",
+        "startAngle": 1.795,
+        "startX": 0.234,
+        "startY": 0.05,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.695,
+        "goalX": -1.379,
+        "goalY": 0.243,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.439,
+        "split": "full+",
+        "startAngle": 2.129,
+        "startX": 0.306,
+        "startY": 0.069,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.591,
+        "goalX": -1.323,
+        "goalY": 0.1,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.421,
+        "split": "full+",
+        "startAngle": 1.279,
+        "startX": 0.266,
+        "startY": 0.013,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.372,
+        "goalX": -1.256,
+        "goalY": 0.222,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.601,
+        "split": "full+",
+        "startAngle": 4.387,
+        "startX": 0.108,
+        "startY": 0.371,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.916,
+        "goalX": -1.626,
+        "goalY": 0.574,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.614,
+        "split": "full+",
+        "startAngle": 3.748,
+        "startX": 0.269,
+        "startY": 0.289,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.99,
+        "goalX": -1.589,
+        "goalY": 0.505,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.695,
+        "split": "full+",
+        "startAngle": 2.937,
+        "startX": 0.396,
+        "startY": 0.353,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.716,
+        "goalX": -1.296,
+        "goalY": 0.444,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.801,
+        "split": "full+",
+        "startAngle": 2.619,
+        "startX": 0.413,
+        "startY": 0.294,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.648,
+        "goalX": -1.415,
+        "goalY": 0.31,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.638,
+        "split": "full+",
+        "startAngle": 4.685,
+        "startX": 0.223,
+        "startY": 0.481,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.392,
+        "goalX": -1.407,
+        "goalY": 0.243,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.224,
+        "split": "full+",
+        "startAngle": 3.938,
+        "startX": -0.018,
+        "startY": 0.154,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.803,
+        "goalX": -1.588,
+        "goalY": 0.383,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.259,
+        "split": "full+",
+        "startAngle": 4.011,
+        "startX": 0.187,
+        "startY": 0.071,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.671,
+        "goalX": -1.411,
+        "goalY": 0.314,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.539,
+        "split": "full+",
+        "startAngle": 3.84,
+        "startX": 0.26,
+        "startY": 0.33,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.475,
+        "goalX": -1.291,
+        "goalY": 0.501,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.599,
+        "split": "full+",
+        "startAngle": 5.761,
+        "startX": 0.157,
+        "startY": 0.221,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.409,
+        "goalX": -1.38,
+        "goalY": 0.598,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.789,
+        "split": "full+",
+        "startAngle": 4.551,
+        "startX": 0.023,
+        "startY": 0.463,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.838,
+        "goalX": -1.429,
+        "goalY": 0.16,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.468,
+        "split": "full+",
+        "startAngle": 1.067,
+        "startX": 0.407,
+        "startY": 0.084,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.916,
+        "goalX": -1.534,
+        "goalY": 0.133,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.413,
+        "split": "full+",
+        "startAngle": 5.456,
+        "startX": 0.376,
+        "startY": 0.288,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.52,
+        "goalX": -1.304,
+        "goalY": 0.586,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.791,
+        "split": "full+",
+        "startAngle": 4.51,
+        "startX": 0.2,
+        "startY": 0.364,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.351,
+        "goalX": -1.372,
+        "goalY": 0.184,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.268,
+        "split": "full+",
+        "startAngle": 5.505,
+        "startX": -0.021,
+        "startY": 0.183,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.772,
+        "goalX": -1.728,
+        "goalY": 0.495,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.213,
+        "split": "full+",
+        "startAngle": 3.402,
+        "startX": -0.0,
+        "startY": 0.103,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.571,
+        "goalX": -1.385,
+        "goalY": 0.114,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.56,
+        "split": "full+",
+        "startAngle": 1.535,
+        "startX": 0.145,
+        "startY": 0.467,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.921,
+        "goalX": -1.618,
+        "goalY": 0.565,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.619,
+        "split": "full+",
+        "startAngle": 1.163,
+        "startX": 0.283,
+        "startY": 0.292,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.613,
+        "goalX": -1.372,
+        "goalY": 0.254,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.508,
+        "split": "full+",
+        "startAngle": 3.986,
+        "startX": 0.241,
+        "startY": 0.298,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.393,
+        "goalX": -1.265,
+        "goalY": 0.468,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.453,
+        "split": "full+",
+        "startAngle": 2.63,
+        "startX": 0.078,
+        "startY": 0.096,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.804,
+        "goalX": -1.708,
+        "goalY": 0.315,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.102,
+        "split": "full+",
+        "startAngle": 3.209,
+        "startX": 0.086,
+        "startY": 0.13,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.97,
+        "goalX": -1.647,
+        "goalY": 0.11,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.199,
+        "split": "full+",
+        "startAngle": 2.087,
+        "startX": 0.321,
+        "startY": 0.192,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.809,
+        "goalX": -1.469,
+        "goalY": 0.546,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.644,
+        "split": "full+",
+        "startAngle": 0.55,
+        "startX": 0.312,
+        "startY": 0.23,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.702,
+        "goalX": -1.606,
+        "goalY": 0.108,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.194,
+        "split": "full+",
+        "startAngle": 6.35,
+        "startX": 0.081,
+        "startY": 0.335,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.608,
+        "goalX": -1.443,
+        "goalY": 0.514,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.472,
+        "split": "full+",
+        "startAngle": 4.893,
+        "startX": 0.133,
+        "startY": 0.195,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.748,
+        "goalX": -1.338,
+        "goalY": 0.191,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.58,
+        "split": "full+",
+        "startAngle": 4.08,
+        "startX": 0.409,
+        "startY": 0.14,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.619,
+        "goalX": -1.264,
+        "goalY": 0.464,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.671,
+        "split": "full+",
+        "startAngle": 6.114,
+        "startX": 0.316,
+        "startY": 0.111,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.805,
+        "goalX": -1.724,
+        "goalY": 0.202,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.097,
+        "split": "full+",
+        "startAngle": 1.723,
+        "startX": 0.079,
+        "startY": 0.262,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.765,
+        "goalX": -1.598,
+        "goalY": 0.392,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.335,
+        "split": "full+",
+        "startAngle": 2.796,
+        "startX": 0.16,
+        "startY": 0.235,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.714,
+        "goalX": -1.671,
+        "goalY": 0.457,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.342,
+        "split": "full+",
+        "startAngle": 5.556,
+        "startX": 0.032,
+        "startY": 0.262,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.936,
+        "goalX": -1.665,
+        "goalY": 0.342,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.264,
+        "split": "full+",
+        "startAngle": 2.616,
+        "startX": 0.255,
+        "startY": 0.095,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.813,
+        "goalX": -1.363,
+        "goalY": 0.55,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.906,
+        "split": "full+",
+        "startAngle": 2.362,
+        "startX": 0.443,
+        "startY": 0.386,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.506,
+        "goalX": -1.256,
+        "goalY": 0.244,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.617,
+        "split": "full+",
+        "startAngle": 0.652,
+        "startX": 0.249,
+        "startY": 0.295,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.362,
+        "goalX": -1.273,
+        "goalY": 0.433,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.336,
+        "split": "full+",
+        "startAngle": 1.641,
+        "startX": 0.023,
+        "startY": 0.011,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.819,
+        "goalX": -1.705,
+        "goalY": 0.341,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.283,
+        "split": "full+",
+        "startAngle": 5.061,
+        "startX": 0.114,
+        "startY": 0.296,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.668,
+        "goalX": -1.256,
+        "goalY": 0.214,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.677,
+        "split": "full+",
+        "startAngle": 6.27,
+        "startX": 0.411,
+        "startY": 0.172,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.87,
+        "goalX": -1.422,
+        "goalY": 0.535,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.869,
+        "split": "full+",
+        "startAngle": 6.093,
+        "startX": 0.443,
+        "startY": 0.403,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 2.128,
+        "goalX": -1.731,
+        "goalY": 0.272,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.411,
+        "split": "full+",
+        "startAngle": 1.969,
+        "startX": 0.397,
+        "startY": 0.312,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.96,
+        "goalX": -1.489,
+        "goalY": 0.418,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.664,
+        "split": "full+",
+        "startAngle": 1.059,
+        "startX": 0.464,
+        "startY": 0.242,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.685,
+        "goalX": -1.642,
+        "goalY": 0.354,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.402,
+        "split": "full+",
+        "startAngle": 2.444,
+        "startX": 0.041,
+        "startY": 0.414,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.281,
+        "goalX": -1.251,
+        "goalY": 0.579,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.83,
+        "split": "full+",
+        "startAngle": 1.537,
+        "startX": 0.022,
+        "startY": 0.434,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 2.061,
+        "goalX": -1.697,
+        "goalY": 0.302,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.342,
+        "split": "full+",
+        "startAngle": 5.824,
+        "startX": 0.36,
+        "startY": 0.17,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.415,
+        "goalX": -1.374,
+        "goalY": 0.104,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.147,
+        "split": "full+",
+        "startAngle": 1.587,
+        "startX": 0.039,
+        "startY": 0.03,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.782,
+        "goalX": -1.692,
+        "goalY": 0.434,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.135,
+        "split": "full+",
+        "startAngle": 4.97,
+        "startX": 0.046,
+        "startY": 0.043,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.501,
+        "goalX": -1.307,
+        "goalY": 0.462,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.625,
+        "split": "full+",
+        "startAngle": 1.67,
+        "startX": 0.183,
+        "startY": 0.282,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.637,
+        "goalX": -1.586,
+        "goalY": 0.229,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 1.984,
+        "split": "full+",
+        "startAngle": 1.826,
+        "startX": 0.038,
+        "startY": 0.031,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.911,
+        "goalX": -1.596,
+        "goalY": 0.288,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.437,
+        "split": "full+",
+        "startAngle": 2.994,
+        "startX": 0.314,
+        "startY": 0.351,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.814,
+        "goalX": -1.389,
+        "goalY": 0.487,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.631,
+        "split": "full+",
+        "startAngle": 1.266,
+        "startX": 0.367,
+        "startY": 0.031,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.547,
+        "goalX": -1.443,
+        "goalY": 0.235,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.264,
+        "split": "full+",
+        "startAngle": 5.012,
+        "startX": 0.102,
+        "startY": 0.19,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.806,
+        "goalX": -1.715,
+        "goalY": 0.498,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.363,
+        "split": "full+",
+        "startAngle": 2.458,
+        "startX": 0.071,
+        "startY": 0.233,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.733,
+        "goalX": -1.449,
+        "goalY": 0.578,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.574,
+        "split": "full+",
+        "startAngle": 0.611,
+        "startX": 0.232,
+        "startY": 0.156,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.48,
+        "goalX": -1.482,
+        "goalY": 0.366,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.299,
+        "split": "full+",
+        "startAngle": 4.184,
+        "startX": -0.01,
+        "startY": 0.218,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.729,
+        "goalX": -1.541,
+        "goalY": 0.576,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.383,
+        "split": "full+",
+        "startAngle": 4.409,
+        "startX": 0.112,
+        "startY": 0.067,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.952,
+        "goalX": -1.509,
+        "goalY": 0.539,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.737,
+        "split": "full+",
+        "startAngle": 1.304,
+        "startX": 0.425,
+        "startY": 0.275,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.638,
+        "goalX": -1.285,
+        "goalY": 0.443,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.695,
+        "split": "full+",
+        "startAngle": 3.009,
+        "startX": 0.335,
+        "startY": 0.203,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.564,
+        "goalX": -1.419,
+        "goalY": 0.218,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.465,
+        "split": "full+",
+        "startAngle": 4.524,
+        "startX": 0.137,
+        "startY": 0.381,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.881,
+        "goalX": -1.508,
+        "goalY": 0.394,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.71,
+        "split": "full+",
+        "startAngle": 1.137,
+        "startX": 0.371,
+        "startY": 0.483,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.651,
+        "goalX": -1.449,
+        "goalY": 0.509,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.742,
+        "split": "full+",
+        "startAngle": 5.517,
+        "startX": 0.201,
+        "startY": 0.479,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.816,
+        "goalX": -1.423,
+        "goalY": 0.297,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.5,
+        "split": "full+",
+        "startAngle": 5.838,
+        "startX": 0.381,
+        "startY": 0.083,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.498,
+        "goalX": -1.313,
+        "goalY": 0.115,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.386,
+        "split": "full+",
+        "startAngle": 0.522,
+        "startX": 0.185,
+        "startY": 0.132,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.88,
+        "goalX": -1.729,
+        "goalY": 0.191,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.057,
+        "split": "full+",
+        "startAngle": 6.153,
+        "startX": 0.15,
+        "startY": 0.181,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.768,
+        "goalX": -1.265,
+        "goalY": 0.533,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.822,
+        "split": "full+",
+        "startAngle": 2.649,
+        "startX": 0.437,
+        "startY": 0.053,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.566,
+        "goalX": -1.43,
+        "goalY": 0.115,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.221,
+        "split": "full+",
+        "startAngle": 2.981,
+        "startX": 0.136,
+        "startY": 0.119,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.807,
+        "goalX": -1.611,
+        "goalY": 0.209,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.097,
+        "split": "full+",
+        "startAngle": 0.226,
+        "startX": 0.187,
+        "startY": 0.037,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.763,
+        "goalX": -1.68,
+        "goalY": 0.407,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.093,
+        "split": "full+",
+        "startAngle": 1.719,
+        "startX": 0.038,
+        "startY": 0.009,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 2.134,
+        "goalX": -1.656,
+        "goalY": 0.418,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.578,
+        "split": "full+",
+        "startAngle": 6.249,
+        "startX": 0.468,
+        "startY": 0.208,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.825,
+        "goalX": -1.346,
+        "goalY": 0.242,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.626,
+        "split": "full+",
+        "startAngle": 3.209,
+        "startX": 0.467,
+        "startY": 0.036,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.724,
+        "goalX": -1.404,
+        "goalY": 0.357,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.488,
+        "split": "full+",
+        "startAngle": 1.645,
+        "startX": 0.304,
+        "startY": 0.126,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.642,
+        "goalX": -1.384,
+        "goalY": 0.306,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.435,
+        "split": "full+",
+        "startAngle": 2.792,
+        "startX": 0.25,
+        "startY": 0.147,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 2.116,
+        "goalX": -1.714,
+        "goalY": 0.214,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.452,
+        "split": "full+",
+        "startAngle": 2.393,
+        "startX": 0.387,
+        "startY": 0.466,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.634,
+        "goalX": -1.253,
+        "goalY": 0.551,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 3.015,
+        "split": "full+",
+        "startAngle": 2.318,
+        "startX": 0.38,
+        "startY": 0.496,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 2.199,
+        "goalX": -1.684,
+        "goalY": 0.574,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.703,
+        "split": "full+",
+        "startAngle": 1.991,
+        "startX": 0.469,
+        "startY": 0.128,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.764,
+        "goalX": -1.372,
+        "goalY": 0.539,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.631,
+        "split": "full+",
+        "startAngle": 1.594,
+        "startX": 0.318,
+        "startY": 0.032,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.525,
+        "goalX": -1.363,
+        "goalY": 0.217,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.372,
+        "split": "full+",
+        "startAngle": 1.84,
+        "startX": 0.162,
+        "startY": 0.19,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.516,
+        "goalX": -1.318,
+        "goalY": 0.217,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.42,
+        "split": "full+",
+        "startAngle": 1.208,
+        "startX": 0.197,
+        "startY": 0.155,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.765,
+        "goalX": -1.304,
+        "goalY": 0.568,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.92,
+        "split": "full+",
+        "startAngle": 3.284,
+        "startX": 0.444,
+        "startY": 0.32,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.571,
+        "goalX": -1.24,
+        "goalY": 0.324,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.856,
+        "split": "full+",
+        "startAngle": 4.845,
+        "startX": 0.323,
+        "startY": 0.487,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.65,
+        "goalX": -1.529,
+        "goalY": 0.164,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.097,
+        "split": "full+",
+        "startAngle": 0.573,
+        "startX": 0.119,
+        "startY": 0.079,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.42,
+        "goalX": -1.253,
+        "goalY": 0.372,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.755,
+        "split": "full+",
+        "startAngle": 3.924,
+        "startX": 0.164,
+        "startY": 0.451,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    },
+    {
+        "dist": 1.804,
+        "goalX": -1.534,
+        "goalY": 0.374,
+        "goalZ": 0.774,
+        "id": "Scottsmoor",
+        "level": 0,
+        "pathDist": 2.593,
+        "split": "full+",
+        "startAngle": 1.855,
+        "startX": 0.269,
+        "startY": 0.451,
+        "startZ": 0.769,
+        "waypoints": [
+            [
+                -0.027,
+                0.003,
+                0.769
+            ],
+            [
+                -1.026,
+                0.059,
+                0.772
+            ],
+            [
+                -1.737,
+                0.098,
+                0.774
+            ]
+        ]
+    }
+]

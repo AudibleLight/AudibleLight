@@ -13,6 +13,7 @@ SOUNDEVENT_DIR = TEST_RESOURCES / "soundevents"
 BACKGROUND_DIR = SOUNDEVENT_DIR / "waterTap"
 MESH_DIR = TEST_RESOURCES / "meshes"
 OYENS_PATH = MESH_DIR / "Oyens.glb"
+OYENS_WAYPOINTS_PATH = MESH_DIR / "Oyens_waypoints.json"
 
 TEST_MESHES = [MESH_DIR / glb for glb in MESH_DIR.glob("*.glb")]
 TEST_AUDIOS = sorted(

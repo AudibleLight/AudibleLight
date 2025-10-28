@@ -25,6 +25,7 @@ def oyens_space() -> WorldState:
         empty_space_around_emitter=0.2,  # all in meters
         empty_space_around_mic=0.1,  # all in meters
         empty_space_around_surface=0.2,  # all in meters
+        waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
     )
     return space
 
@@ -45,6 +46,7 @@ def oyens_scene_no_overlap() -> Scene:
         fg_path=utils_tests.SOUNDEVENT_DIR,
         bg_path=utils_tests.BACKGROUND_DIR,
         max_overlap=1,  # no overlapping sound events allowed
+        state_kwargs=dict(waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH),
     )
     sc.add_microphone(microphone_type="ambeovr")
     return sc
@@ -63,6 +65,7 @@ def oyens_scene_factory() -> Callable:
             # snr_dist=stats.norm(5, 1),
             fg_path=utils_tests.SOUNDEVENT_DIR,
             max_overlap=1,
+            state_kwargs=dict(waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH),
         )
         sc.add_microphone(microphone_type="ambeovr")
         return sc
