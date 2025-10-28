@@ -4,7 +4,6 @@
 """Provides classes and functions for representing triangular meshes, handling spatial operations, generating RIRs."""
 
 import json
-import os
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
@@ -281,17 +280,250 @@ class Emitter:
 
 class WorldState:
     """
-    Represents a 3D space defined by a mesh, microphone position(s), and emitter position(s)
+    Represents a 3D space defined by a mesh, microphone position(s), and emitter position(s).
 
-    This class is capable of handling spatial operations and simulating audio propagation using the ray-tracing library.
+    Should not be used directly: instead, a child class (e.g., `WorldStateRIR`, `WorldStateSOFA`) should be used.
+    """
+
+    def __init__(self):
+        # Store emitter and mic positions in here to access later; these should be in ABSOLUTE form
+        self.emitters = OrderedDict()
+        self.microphones = OrderedDict()
+        self._irs = None  # will be updated when calling `simulate`
+
+    def _update(self) -> None:
+        """
+        Updates the state, setting emitter positions correctly.
+        """
+        raise NotImplementedError
+
+    def simulate(self) -> None:
+        """
+        Simulates audio propagation in the state with the current listener and sound emitter positions.
+        """
+        raise NotImplementedError
+
+    def get_valid_position(self) -> np.ndarray:
+        """
+        Get a valid position to place an object inside the state
+
+        Returns:
+             np.ndarray: the random position to place an object inside the mesh
+        """
+        raise NotImplementedError
+
+    def to_dict(self) -> dict:
+        """
+        Returns metadata for this object as a dictionary
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def from_dict(cls, input_dict: dict[str, Any]):
+        """
+        Instantiate a `WorldState` from a dictionary.
+        """
+        raise NotImplementedError
+
+    @property
+    def irs(self) -> OrderedDict[str, np.ndarray]:
+        """
+        Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
+        """
+        if self._irs is None:
+            raise AttributeError(
+                "IRs have not been simulated yet: add microphones and emitters and call `simulate`."
+            )
+        else:
+            return self._irs
+
+    def get_irs(self) -> OrderedDict[str, np.ndarray]:
+        """
+        Get the IRs from the state
+        """
+        raise NotImplementedError
+
+    @property
+    def num_emitters(self) -> int:
+        """
+        Returns the number of emitters in the state.
+
+        Note that this is not the same as calling `len(self.emitters)`: the total number of emitters is equivalent
+        to the length of ALL lists inside this dictionary
+        """
+        return sum(len(v) for v in self.emitters.values())
+
+    def __len__(self) -> int:
+        """
+        Returns the number of objects in the mesh (i.e., number of microphones + emitters)
+        """
+        return len(self.microphones) + self.num_emitters
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the WorldState
+        """
+        return (
+            f"'{type(self)}' with {len(self)} objects "
+            f"({len(self.microphones)} microphones, {self.num_emitters} emitters)"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Returns a JSON-formatted string representation of the WorldState
+        """
+        return utils.repr_as_json(self)
+
+    def __getitem__(self, alias: str) -> list[Emitter]:
+        """
+        An alternative for `self.get_emitters(alias) or `self.emitters[alias]`
+        """
+        return self.get_emitters(alias)
+
+    def __eq__(self, other: Any):
+        """
+        Compare two WorldState objects for equality.
+
+        Returns:
+            bool: True if two WorldState objects are equal, False otherwise
+        """
+
+        # Objects with a different type objects are always not equal
+        if not isinstance(other, type(self)):
+            return False
+
+        # We use dictionaries to compare both objects together
+        d1 = self.to_dict()
+        d2 = other.to_dict()
+
+        # Compute the deepdiff between both dictionaries
+        diff = DeepDiff(
+            d1,
+            d2,
+            ignore_order=True,
+            significant_digits=4,
+            ignore_numeric_type_changes=True,
+        )
+
+        # If there is no difference, there should be no keys in the deepdiff object
+        return len(diff) == 0
+
+    def get_emitter(self, alias: str, emitter_idx: Optional[int] = 0) -> Emitter:
+        """
+        Given a valid alias and index, get a single `Emitter` object, as in `self.emitters[alias][emitter_idx]`
+        """
+        emitter_list = self.get_emitters(alias)
+        try:
+            return emitter_list[emitter_idx]
+        except IndexError:
+            raise IndexError(
+                f"Could not get idx {emitter_idx} for a list of Emitters with length {len(emitter_list)}"
+            )
+
+    def get_emitters(self, alias: str) -> list[Emitter]:
+        """
+        Given a valid alias, get a list of associated `Emitter` objects, as in `self.emitters[alias]`
+        """
+        if alias in self.emitters.keys():
+            return self.emitters[alias]
+        else:
+            raise KeyError("Emitter alias '{}' not found.".format(alias))
+
+    def get_microphone(self, alias: str) -> Type["MicArray"]:
+        """
+        Given a valid alias, get an associated `Microphone` object, as in `self.microphones[alias]`.
+        """
+        if alias in self.microphones.keys():
+            return self.microphones[alias]
+        else:
+            raise KeyError("Microphone alias '{}' not found.".format(alias))
+
+    def clear_microphones(self) -> None:
+        """
+        Removes all current microphones.
+        """
+        self.microphones = OrderedDict()
+        # Always update the state after clearing, regardless of `add_to_state` setting
+        self._update()
+
+    def clear_emitters(self) -> None:
+        """
+        Removes all current emitters.
+        """
+        self.emitters = OrderedDict()
+        # Always update the state after clearing, regardless of `add_to_state` setting
+        self._update()
+
+    def clear_microphone(self, alias: str) -> None:
+        """
+        Given an alias for a microphone, clear that microphone if it exists and update the state.
+        """
+        if alias in self.microphones.keys():
+            del self.microphones[alias]
+            # Always update the state after clearing, regardless of `add_to_state` setting
+            self._update()
+        else:
+            raise KeyError("Microphone alias '{}' not found.".format(alias))
+
+    def clear_emitter(self, alias: str) -> None:
+        """
+        Given an alias for an emitter, clear that emitter and update the state.
+        """
+        if alias in self.emitters.keys():
+            del self.emitters[alias]
+            # Always update the state after clearing, regardless of `add_to_state` setting
+            self._update()
+        else:
+            raise KeyError("Emitter alias '{}' not found.".format(alias))
+
+    def _parse_valid_microphone_aliases(
+        self, aliases: Optional[Union[bool, list, str]]
+    ) -> list[str]:
+        """
+        Get valid microphone aliases from an input
+        """
+        # If True, we should get a list of all the microphones
+        if aliases is True:
+            return list(self.microphones.keys())
+
+        # If a single string, validate and convert to [string]
+        elif isinstance(aliases, str):
+            if aliases not in self.microphones.keys():
+                raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
+            return [aliases]
+
+        # If a list of strings, validate these
+        elif isinstance(aliases, list):
+            # Sanity check that all the provided aliases exist in our dictionary
+            not_in = [e for e in aliases if e not in self.microphones.keys()]
+            if len(not_in) > 0:
+                raise KeyError(
+                    f"Some provided microphone aliases were not found: {', '.join(not_in)}"
+                )
+            # Remove duplicates from the list
+            return list(set(aliases))
+
+        # If False or None, return an empty list (which we'll skip over later)
+        elif aliases is False or aliases is None:
+            return []
+
+        # Otherwise, we can't handle the input, so return an error
+        else:
+            raise TypeError(f"Cannot handle input with type {type(aliases)}")
+
+
+class WorldStateRLR(WorldState):
+    """
+    A WorldState where audio propagation is simulated inside a 3D-scanned mesh using acoustic ray-tracing.
 
     Attributes:
         mesh (str, Path): The path to the mesh on the disk.
         microphones (np.array): Position of the microphone in the mesh.
         ctx (rlr_audio_propagation.Context): The context for audio propagation simulation.
         emitters (np.array): relative positions of sound emitter
-
     """
+
+    name = "RLR"
 
     def __init__(
         self,
@@ -342,10 +574,8 @@ class WorldState:
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
                 For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
         """
-        # Store emitter and mic positions in here to access later; these should be in ABSOLUTE form
-        self.emitters = OrderedDict()
-        self.microphones = OrderedDict()
-        self._irs = None  # will be updated when calling `simulate`
+        # This initialises microphones, emitters dictionaries
+        super().__init__()
 
         self.add_to_state = add_to_context
 
@@ -462,18 +692,6 @@ class WorldState:
             else:
                 raise AttributeError(f"Ray-tracing engine has no attribute {rlr_kwarg}")
         return cfg
-
-    @property
-    def irs(self) -> OrderedDict[str, np.ndarray]:
-        """
-        Returns a dictionary of IRs in the shape {mic000: (N_capsules, N_emitters, N_samples), mic001: (...)}
-        """
-        if self._irs is None:
-            raise AttributeError(
-                "IRs have not been simulated yet: add microphones and emitters and call `simulate`."
-            )
-        else:
-            return self._irs
 
     def calculate_weighted_average_ray_length(
         self,
@@ -600,7 +818,7 @@ class WorldState:
 
         for attempt in range(config.MAX_PLACE_ATTEMPTS):
             # Grab a random position for the microphone if required
-            pos = position if position is not None else self.get_random_position()
+            pos = position if position is not None else self.get_valid_position()
             assert len(pos) == 3, f"Expected three coordinates but got {len(pos)}"
             # Instantiate the microphone and set its coordinates
             mic = mic_cls()
@@ -632,7 +850,7 @@ class WorldState:
 
         Examples:
             Create a state from a given mesh
-            >>> spa = WorldState(mesh=...)
+            >>> spa = WorldStateRLR(mesh=...)
 
             Add a AmbeoVR microphone with a random position and default alias
             >>> spa.add_microphone("ambeovr")
@@ -705,7 +923,7 @@ class WorldState:
 
         Examples:
             Create a state with a given mesh
-            >>> spa = WorldState(mesh=...)
+            >>> spa = WorldStateRLR(mesh=...)
 
             Add some AmbeoVRs with random positions
             >>> spa.add_microphones(microphone_types=["ambeovr", "ambeovr", "ambeovr"])
@@ -823,7 +1041,7 @@ class WorldState:
 
         Examples:
             # Create a state with a given mesh
-            >>> spa = WorldState(mesh=...)
+            >>> spa = WorldStateRLR(mesh=...)
 
             # Place emitter 2 meters in front of microphone
             >>> spa.add_microphone_and_emitter(np.array([0, 0, 2.0]))
@@ -865,7 +1083,7 @@ class WorldState:
         # Attempt to find valid positions for both microphone and emitter
         for attempt in range(max_place_attempts):
             # Get a random position for the microphone
-            mic_pos = self.get_random_position()
+            mic_pos = self.get_valid_position()
 
             # Calculate emitter position based on spherical coordinates
             emitter_pos = mic_pos + emitter_offset
@@ -927,9 +1145,9 @@ class WorldState:
             f"- Increasing `max_placement_attempts` (currently {max_place_attempts})"
         )
 
-    def get_random_position(self) -> np.ndarray:
+    def get_valid_position(self) -> np.ndarray:
         """
-        Get a random position to place an object inside the mesh
+        Get a valid position to place an object inside the state
 
         If `ensure_minimum_weighted_average_ray_length` is enabled, this function attempts to find a position that
         meets the minimum openness criteria, measured by the weighted average ray length from the candidate point. It
@@ -1094,7 +1312,7 @@ class WorldState:
         #  Otherwise, we want a random position, so we iterate N times until the position is valid
         for attempt in range(1 if position_is_assigned else max_place_attempts):
             # Get a random position if required or use the assigned one
-            pos = position if position_is_assigned else self.get_random_position()
+            pos = position if position_is_assigned else self.get_valid_position()
             if len(pos) != 3:
                 raise ValueError(f"Expected three coordinates but got {len(pos)}")
             # Adjust position relative to the mic array if provided
@@ -1124,17 +1342,6 @@ class WorldState:
             return True
         # Cannot place: return False
         return False
-
-    def _get_mic_from_alias(
-        self, mic_alias: Optional[str] = None
-    ) -> Optional[Type["MicArray"]]:
-        """Get a given `MicArray` object from its alias"""
-        if mic_alias is not None:
-            if mic_alias not in self.microphones:
-                raise KeyError(f"No microphone found with alias {mic_alias}!")
-            return self.microphones[mic_alias]
-        else:
-            return None
 
     def path_exists_between_points(
         self, point_a: np.ndarray, point_b: np.ndarray
@@ -1171,37 +1378,6 @@ class WorldState:
         # Direct line exists: either no blocking intersections, or no intersections at all
         return True
 
-    def _parse_valid_microphone_aliases(
-        self, aliases: Optional[Union[bool, list, str]]
-    ) -> list[str]:
-        """
-        Get valid microphone aliases from an input
-        """
-        # If True, we should get a list of all the microphones
-        if aliases is True:
-            return list(self.microphones.keys())
-        # If a single string, validate and convert to [string]
-        elif isinstance(aliases, str):
-            if aliases not in self.microphones.keys():
-                raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
-            return [aliases]
-        # If a list of strings, validate these
-        elif isinstance(aliases, list):
-            # Sanity check that all the provided aliases exist in our dictionary
-            not_in = [e for e in aliases if e not in self.microphones.keys()]
-            if len(not_in) > 0:
-                raise KeyError(
-                    f"Some provided microphone aliases were not found: {', '.join(not_in)}"
-                )
-            # Remove duplicates from the list
-            return list(set(aliases))
-        # If False or None, return an empty list (which we'll skip over later)
-        elif aliases is False or aliases is None:
-            return []
-        # Otherwise, we can't handle the input, so return an error
-        else:
-            raise TypeError(f"Cannot handle input with type {type(aliases)}")
-
     def add_emitter(
         self,
         position: Optional[Union[list, np.ndarray]] = None,
@@ -1231,7 +1407,7 @@ class WorldState:
 
         Examples:
             Create a state with a given mesh and add a microphone
-            >>> spa = WorldState(mesh=...)
+            >>> spa = WorldStateRLR(mesh=...)
             >>> spa.add_microphone(alias="tester")
 
             Add a single emitter with a random position
@@ -1257,7 +1433,7 @@ class WorldState:
         direct_path_to = self._parse_valid_microphone_aliases(ensure_direct_path)
 
         # If we want to express our emitters relative to a given microphone, grab this now
-        desired_mic = self._get_mic_from_alias(mic)
+        desired_mic = self.get_microphone(mic) if mic is not None else None
 
         # Get the alias for this emitter
         alias = (
@@ -1358,7 +1534,9 @@ class WorldState:
             mic_alias_ = mics[idx] if mics is not None else None
 
             # If we want to express our emitters relative to a given microphone, grab this now
-            desired_mic = self._get_mic_from_alias(mic_alias_)
+            desired_mic = (
+                self.get_microphone(mic_alias_) if mic_alias_ is not None else None
+            )
 
             # Get the emitter alias
             emitter_alias_ = (
@@ -1661,7 +1839,7 @@ class WorldState:
 
             # If we've not provided a starting position, randomly sample one
             if starting_position is None:
-                start_attempt = self.get_random_position()
+                start_attempt = self.get_valid_position()
             # Otherwise, just use the starting position we've provided
             else:
                 start_attempt = starting_position
@@ -1981,32 +2159,6 @@ class WorldState:
         fig.tight_layout()
         return fig  # can be used with plt.show, fig.savefig, etc.
 
-    def save_irs_to_wav(self, outdir: str) -> None:
-        """
-        Writes IRs to WAV audio files.
-
-        IRs will be dumped in the form `mic{i1}_capsule{i2}_emitter_{i3}.wav`. For instance, with two emitters and two
-        mono microphones, we'd expect `mic000_capsule000_emitter000.wav`, `mic001_capsule_000_emitter_001.wav`,
-        `mic001_capsule_000_emitter_000.wav`, and `mic002_capsule000_emitter_002.wav`.
-
-        Args:
-            outdir (str): IRs will be saved here.
-        """
-        assert self._irs is not None, "IRs have not been created yet!"
-        assert os.path.isdir(outdir), f"Output directory {outdir} does not exist!"
-        # This iterates over [emitters, channels, samples]
-        for mic_alias, mic in self.microphones.items():
-            for caps_idx, caps in enumerate(mic.irs):
-                caps_idx = str(caps_idx).zfill(3)
-                for emitter_idx, emitter in enumerate(caps):
-                    emitter_idx = str(emitter_idx).zfill(3)
-                    fname = os.path.join(
-                        outdir,
-                        f"{mic_alias}_capsule{caps_idx}_emitter{emitter_idx}.wav",
-                    )
-                    # Dump the audio to a 16-bit PCM wav using our predefined sample rate
-                    utils.write_wav(emitter, fname, self.ctx.config.sample_rate)
-
     def to_dict(self) -> dict:
         """
         Returns metadata for this object as a dictionary
@@ -2056,13 +2208,13 @@ class WorldState:
     @classmethod
     def from_dict(cls, input_dict: dict[str, Any]):
         """
-        Instantiate a `WorldState` from a dictionary.
+        Instantiate a `WorldStateRLR` from a dictionary.
 
         Arguments:
-            input_dict: Dictionary that will be used to instantiate the `WorldState`.
+            input_dict: Dictionary that will be used to instantiate the `WorldStateRLR`.
 
         Returns:
-            WorldState instance.
+            WorldStateRLR instance.
         """
 
         # Validate the input
@@ -2098,135 +2250,79 @@ class WorldState:
 
         return state
 
-    @property
-    def num_emitters(self) -> int:
-        """
-        Returns the number of emitters in the state.
-
-        Note that this is not the same as calling `len(self.emitters)`: the total number of emitters is equivalent
-        to the length of ALL lists inside this dictionary
-        """
-        return sum(len(v) for v in self.emitters.values())
-
-    def __len__(self) -> int:
-        """
-        Returns the number of objects in the mesh (i.e., number of microphones + emitters)
-        """
-        return len(self.microphones) + self.num_emitters
-
     def __str__(self) -> str:
         """
         Returns a string representation of the WorldState
         """
         return (
-            f"'WorldState' with mesh '{self.mesh.metadata['fpath']}' and "
+            f"'{type(self)}' with mesh '{self.mesh.metadata['fpath']}' and "
             f"{len(self)} objects ({len(self.microphones)} microphones, {self.num_emitters} emitters)"
         )
 
-    def __repr__(self) -> str:
-        """
-        Returns a JSON-formatted string representation of the WorldState
-        """
-        return utils.repr_as_json(self)
 
-    def __getitem__(self, alias: str) -> list[Emitter]:
-        """
-        An alternative for `self.get_emitters(alias) or `self.emitters[alias]`
-        """
-        return self.get_emitters(alias)
+class WorldStateSOFA(WorldState):
+    """
+    A WorldState where audio propagation is simulated using pre-rendered RIRs saved in a .SOFA file.
 
-    def __eq__(self, other: Any):
-        """
-        Compare two WorldState objects for equality.
+    Functionally equivalent to `SpatialScaper` and compatible with .SOFA files generated using it.
+    """
 
-        Returns:
-            bool: True if two WorldState objects are equal, False otherwise
-        """
+    name = "SOFA"
 
-        # Non-Event objects are always not equal
-        if not isinstance(other, WorldState):
-            return False
+    def __init__(
+        self,
+        mesh: Union[str, Path],
+        empty_space_around_mic: Optional[
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_MIC,
+        empty_space_around_emitter: Optional[
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_EMITTER,
+        empty_space_around_surface: Optional[
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_SURFACE,
+        empty_space_around_capsule: Optional[
+            custom_types.Numeric
+        ] = config.EMPTY_SPACE_AROUND_CAPSULE,
+    ):
+        super().__init__()
 
-        # We use dictionaries to compare both objects together
-        d1 = self.to_dict()
-        d2 = other.to_dict()
-
-        # Compute the deepdiff between both dictionaries
-        diff = DeepDiff(
-            d1,
-            d2,
-            ignore_order=True,
-            significant_digits=4,
-            ignore_numeric_type_changes=True,
+        # Distances from objects/mesh surfaces
+        self.empty_space_around_mic = utils.sanitise_positive_number(
+            empty_space_around_mic
+        )
+        self.empty_space_around_surface = utils.sanitise_positive_number(
+            empty_space_around_surface
+        )
+        self.empty_space_around_emitter = utils.sanitise_positive_number(
+            empty_space_around_emitter
+        )
+        self.empty_space_around_capsule = utils.sanitise_positive_number(
+            empty_space_around_capsule
         )
 
-        # If there is no difference, there should be no keys in the deepdiff object
-        return len(diff) == 0
 
-    def get_emitter(self, alias: str, emitter_idx: Optional[int] = 0) -> Emitter:
-        """
-        Given a valid alias and index, get a single `Emitter` object, as in `self.emitters[alias][emitter_idx]`
-        """
-        emitter_list = self.get_emitters(alias)
-        try:
-            return emitter_list[emitter_idx]
-        except IndexError:
-            raise IndexError(
-                f"Could not get idx {emitter_idx} for a list of Emitters with length {len(emitter_list)}"
-            )
+class WorldStateShoebox(WorldState):
+    """
+    A WorldState where audio propagation is simulated inside a parameterized (user-controllable) "shoebox" room.
+    """
 
-    def get_emitters(self, alias: str) -> list[Emitter]:
-        """
-        Given a valid alias, get a list of associated `Emitter` objects, as in `self.emitters[alias]`
-        """
-        if alias in self.emitters.keys():
-            return self.emitters[alias]
-        else:
-            raise KeyError("Emitter alias '{}' not found.".format(alias))
+    name = "SHOEBOX"
 
-    def get_microphone(self, alias: str) -> Type["MicArray"]:
-        """
-        Given a valid alias, get an associated `Microphone` object, as in `self.microphones[alias]`.
-        """
-        if alias in self.microphones.keys():
-            return self.microphones[alias]
-        else:
-            raise KeyError("Microphone alias '{}' not found.".format(alias))
 
-    def clear_microphones(self) -> None:
-        """
-        Removes all current microphones.
-        """
-        self.microphones = OrderedDict()
-        # Always update the state after clearing, regardless of `add_to_state` setting
-        self._update()
+WORLDSTATE_LIST = [WorldStateRLR, WorldStateSOFA]
 
-    def clear_emitters(self) -> None:
-        """
-        Removes all current emitters.
-        """
-        self.emitters = OrderedDict()
-        # Always update the state after clearing, regardless of `add_to_state` setting
-        self._update()
 
-    def clear_microphone(self, alias: str) -> None:
-        """
-        Given an alias for a microphone, clear that microphone if it exists and update the state.
-        """
-        if alias in self.microphones.keys():
-            del self.microphones[alias]
-            # Always update the state after clearing, regardless of `add_to_state` setting
-            self._update()
-        else:
-            raise KeyError("Microphone alias '{}' not found.".format(alias))
-
-    def clear_emitter(self, alias: str) -> None:
-        """
-        Given an alias for an emitter, clear that emitter and update the state.
-        """
-        if alias in self.emitters.keys():
-            del self.emitters[alias]
-            # Always update the state after clearing, regardless of `add_to_state` setting
-            self._update()
-        else:
-            raise KeyError("Emitter alias '{}' not found.".format(alias))
+def get_worldstate_from_string(worldstate_name: str) -> Type["WorldState"]:
+    """
+    Given a string representation of a microphone array (e.g., `rlr`), return the correct MicArray object
+    """
+    # These are the name attributes for all valid WorldStates
+    acceptable_values = [ws().name for ws in WORLDSTATE_LIST]
+    if worldstate_name.upper() not in acceptable_values:
+        raise ValueError(
+            f"Cannot find array {worldstate_name}: expected one of {', '.join(acceptable_values)}"
+        )
+    else:
+        # Using `next` avoids having to build the whole list
+        return next(ws for ws in WORLDSTATE_LIST if ws.name == worldstate_name.upper())

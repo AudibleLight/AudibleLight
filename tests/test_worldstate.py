@@ -17,7 +17,7 @@ from audiblelight.micarrays import (
     MonoCapsule,
     sanitize_microphone_input,
 )
-from audiblelight.worldstate import Emitter, WorldState, load_mesh
+from audiblelight.worldstate import Emitter, WorldStateRLR, load_mesh
 from tests import utils_tests
 
 
@@ -66,7 +66,7 @@ def test_load_broken_mesh(mesh_fpath: str, expected):
         ),  # places AmbeoVR in assigned position
     ],
 )
-def test_add_microphone(microphone_type, position, alias, oyens_space: WorldState):
+def test_add_microphone(microphone_type, position, alias, oyens_space: WorldStateRLR):
     """Test adding a single microphone to the space"""
     # Add the microphones to the space: keep_existing=False ensures we remove previously-added microphones
     oyens_space.add_microphone(microphone_type, position, alias, keep_existing=False)
@@ -106,7 +106,7 @@ def test_add_microphone(microphone_type, position, alias, oyens_space: WorldStat
 
 
 # noinspection PyTypeChecker
-def test_place_invalid_microphones(oyens_space: WorldState):
+def test_place_invalid_microphones(oyens_space: WorldStateRLR):
     # Trying to access IRs before placing anything should raise an error
     with pytest.raises(AttributeError):
         _ = oyens_space.irs
@@ -145,7 +145,9 @@ def test_place_invalid_microphones(oyens_space: WorldState):
         ([None, AmbeoVR, "eigenmike32"], None, ["mono", "ambeo", "eigen"]),
     ],
 )
-def test_add_microphones(microphone_types, positions, aliases, oyens_space: WorldState):
+def test_add_microphones(
+    microphone_types, positions, aliases, oyens_space: WorldStateRLR
+):
     # Add microphone types into space
     oyens_space.add_microphones(
         microphone_types, positions, aliases, keep_existing=False, raise_on_error=True
@@ -179,7 +181,7 @@ def test_add_microphones(microphone_types, positions, aliases, oyens_space: Worl
 
 
 # noinspection PyTypeChecker
-def test_add_microphones_invalid_inputs(oyens_space: WorldState):
+def test_add_microphones_invalid_inputs(oyens_space: WorldStateRLR):
     # Trying to add non-unique aliases raises an error
     with pytest.raises(ValueError):
         oyens_space.add_microphones(
@@ -226,7 +228,7 @@ def test_add_microphones_invalid_inputs(oyens_space: WorldState):
     ],
 )
 def test_validate_position(
-    test_position: np.ndarray, expected: bool, oyens_space: WorldState
+    test_position: np.ndarray, expected: bool, oyens_space: WorldStateRLR
 ):
     """Given a microphone with coordinates [-0.5, -0.5, 0.5], test whether test_position is valid"""
     oyens_space.add_microphone(
@@ -247,7 +249,7 @@ def test_validate_position(
         (np.array([-0.5, -0.5, 0.5]), "custom_alias"),  # position as array, not list
     ],
 )
-def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
+def test_add_emitter(position, emitter_alias, oyens_space: WorldStateRLR):
     oyens_space.clear_microphones()
     # Add the emitters in and check that the shape of the resulting array is what we expect
     oyens_space.add_emitter(position, emitter_alias, mic=None, keep_existing=False)
@@ -280,7 +282,7 @@ def test_add_emitter(position, emitter_alias, oyens_space: WorldState):
     assert repr(src) != str(src)
 
 
-def test_add_emitter_invalid(oyens_space: WorldState):
+def test_add_emitter_invalid(oyens_space: WorldStateRLR):
     # Raise error when no microphone with alias has been added
     with pytest.raises(KeyError):
         oyens_space.add_emitter(
@@ -328,7 +330,7 @@ def test_add_emitter_invalid(oyens_space: WorldState):
         (123, TypeError),  # cannot handle this type
     ],
 )
-def test_get_microphones_from_alias(inputs, outputs, oyens_space: WorldState):
+def test_get_microphones_from_alias(inputs, outputs, oyens_space: WorldStateRLR):
     oyens_space.add_microphones(
         aliases=["tester1", "tester2", "tester3"], keep_existing=False
     )
@@ -350,7 +352,9 @@ def test_get_microphones_from_alias(inputs, outputs, oyens_space: WorldState):
         ([0.2, -0.3, -0.2], True),
     ],
 )
-def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldState):
+def test_add_emitter_relative_to_mic(
+    position, accept: bool, oyens_space: WorldStateRLR
+):
     # Add a microphone to the space
     oyens_space.add_microphone(
         microphone_type="ambeovr",
@@ -394,7 +398,7 @@ def test_add_emitter_relative_to_mic(position, accept: bool, oyens_space: WorldS
         ),
     ],
 )
-def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
+def test_add_emitters(positions, emitter_aliases, oyens_space: WorldStateRLR):
     oyens_space.clear_microphones()
     oyens_space.add_emitters(positions, emitter_aliases, keep_existing=False)
     assert oyens_space.num_emitters == len(positions)
@@ -420,7 +424,7 @@ def test_add_emitters(positions, emitter_aliases, oyens_space: WorldState):
     ],
 )
 def test_add_emitters_relative_to_mic(
-    test_position: np.ndarray, expected: tuple[bool], oyens_space: WorldState
+    test_position: np.ndarray, expected: tuple[bool], oyens_space: WorldStateRLR
 ):
     # Clear everything out
     oyens_space.clear_microphones()
@@ -466,7 +470,7 @@ def test_add_emitters_relative_to_mic(
     "n_emitters",
     [i for i in range(1, 10, 2)],
 )
-def test_add_n_emitters(n_emitters, oyens_space: WorldState):
+def test_add_n_emitters(n_emitters, oyens_space: WorldStateRLR):
     oyens_space.add_emitters(n_emitters=n_emitters, keep_existing=False)
     assert oyens_space.num_emitters == n_emitters
     for emitter_list in oyens_space.emitters.values():
@@ -491,7 +495,7 @@ def test_add_n_emitters(n_emitters, oyens_space: WorldState):
     ],
 )
 def test_add_emitters_at_specific_position(
-    test_position: np.ndarray, expected: tuple[bool], oyens_space: WorldState
+    test_position: np.ndarray, expected: tuple[bool], oyens_space: WorldStateRLR
 ):
     oyens_space.add_microphone(
         microphone_type=AmbeoVR, position=[-0.5, -0.5, 0.5], keep_existing=False
@@ -513,7 +517,7 @@ def test_add_emitters_at_specific_position(
                 )
 
 
-def test_add_emitters_invalid(oyens_space: WorldState):
+def test_add_emitters_invalid(oyens_space: WorldStateRLR):
     # n_emitters must be a postive integer
     with pytest.raises(AssertionError):
         for inp in ["asdf", [], -1, -100, 0]:
@@ -533,9 +537,11 @@ def test_add_emitters_invalid(oyens_space: WorldState):
 
 
 @pytest.mark.parametrize("num_rays", [1, 10, 100])
-def test_calculate_weighted_average_ray_length(num_rays: int, oyens_space: WorldState):
+def test_calculate_weighted_average_ray_length(
+    num_rays: int, oyens_space: WorldStateRLR
+):
     # Get a random valid point inside the mesh
-    point = oyens_space.get_random_position()
+    point = oyens_space.get_valid_position()
     result = oyens_space.calculate_weighted_average_ray_length(point, num_rays=num_rays)
     # Validate output is positive float and finite (since rays should hit mesh)
     assert isinstance(result, float)
@@ -550,7 +556,7 @@ def test_calculate_weighted_average_ray_length(num_rays: int, oyens_space: World
 
 
 @pytest.mark.parametrize("test_num", range(1, 5))
-def test_get_random_position(test_num: int, oyens_space: WorldState):
+def test_get_random_position(test_num: int, oyens_space: WorldStateRLR):
     # For reproducible results
     utils.seed_everything(test_num)
     # Add some microphones and emitters to the space
@@ -558,17 +564,19 @@ def test_get_random_position(test_num: int, oyens_space: WorldState):
         oyens_space.add_microphone(keep_existing=True)
         oyens_space.add_emitter(keep_existing=True)
     # Grab a random position
-    random_point = oyens_space.get_random_position()
+    random_point = oyens_space.get_valid_position()
     # It should be valid (suitable distance from surfaces, inside mesh, away from mics/emitters...)
     assert oyens_space._validate_position(random_point)
     assert random_point.shape == (3,)  # should be a 1D array of XYZ
 
 
-def test_get_random_position_with_weighted_average_ray_length(oyens_space: WorldState):
+def test_get_random_position_with_weighted_average_ray_length(
+    oyens_space: WorldStateRLR,
+):
     # Test that, when this parameter is true, any random position has a minimum ray length
     oyens_space.ensure_minimum_weighted_average_ray_length = True
     oyens_space.minimum_weighted_average_ray_length = 1.0
-    point = oyens_space.get_random_position()
+    point = oyens_space.get_valid_position()
     ray_length = oyens_space.calculate_weighted_average_ray_length(point, num_rays=1000)
     assert ray_length >= oyens_space.minimum_weighted_average_ray_length
     # Reset back to default
@@ -612,7 +620,7 @@ def test_path_between_points(
     point_a: np.ndarray,
     point_b: np.ndarray,
     expected_result: bool,
-    oyens_space: WorldState,
+    oyens_space: WorldStateRLR,
 ):
     """Tests function for ensuring a direct path exists between two points inside a mesh"""
     # Go "both ways" for this function: result should be identical
@@ -630,16 +638,16 @@ def test_path_between_points(
 )
 def test_config_parse(cfg, expected):
     if expected is None:
-        space = WorldState(mesh=str(utils_tests.TEST_MESHES[-1]), rlr_kwargs=cfg)
+        space = WorldStateRLR(mesh=str(utils_tests.TEST_MESHES[-1]), rlr_kwargs=cfg)
         for ke, val in cfg.items():
             assert getattr(space.ctx.config, ke) == val
 
     else:
         with pytest.raises(expected):
-            _ = WorldState(mesh=str(utils_tests.TEST_MESHES[-1]), rlr_kwargs=cfg)
+            _ = WorldStateRLR(mesh=str(utils_tests.TEST_MESHES[-1]), rlr_kwargs=cfg)
 
 
-def test_to_dict(oyens_space: WorldState):
+def test_to_dict(oyens_space: WorldStateRLR):
     # Should still work
     oyens_space.ctx = None
     oyens_space.add_microphone(
@@ -823,8 +831,8 @@ def test_emitter_from_dict(input_dict):
     ],
 )
 def test_worldstate_from_dict(input_dict: dict):
-    wstate = WorldState.from_dict(input_dict)
-    assert isinstance(wstate, WorldState)
+    wstate = WorldStateRLR.from_dict(input_dict)
+    assert isinstance(wstate, WorldStateRLR)
     # Should have the correct number of emitters and microphones
     assert (
         wstate.ctx.get_source_count()
@@ -844,7 +852,7 @@ def test_worldstate_magic_methods(oyens_space):
         assert hasattr(oyens_space, method)
         _ = getattr(oyens_space, method)
     # Compare equality
-    assert oyens_space == WorldState.from_dict(oyens_space.to_dict())
+    assert oyens_space == WorldStateRLR.from_dict(oyens_space.to_dict())
 
 
 def test_emitter_magic_methods(oyens_space):

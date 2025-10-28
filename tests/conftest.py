@@ -10,16 +10,16 @@ import pytest
 from tqdm import tqdm
 
 from audiblelight.core import Scene
-from audiblelight.worldstate import WorldState
+from audiblelight.worldstate import WorldStateRLR
 from tests import utils_tests
 
 tqdm.monitor_interval = 0
 
 
 @pytest.fixture(scope="function")
-def oyens_space() -> WorldState:
+def oyens_space() -> WorldStateRLR:
     """Returns a WorldState object with the Oyens mesh (Gibson)"""
-    space = WorldState(
+    space = WorldStateRLR(
         utils_tests.OYENS_PATH,
         add_to_context=True,  # update worldstate with every addition
         empty_space_around_emitter=0.2,  # all in meters

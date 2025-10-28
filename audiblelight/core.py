@@ -22,7 +22,7 @@ from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
-from audiblelight.worldstate import Emitter, WorldState
+from audiblelight.worldstate import Emitter, WorldStateRLR
 
 
 class Scene:
@@ -108,8 +108,8 @@ class Scene:
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
         if state_kwargs is None:
             state_kwargs = {}
-        utils.validate_kwargs(WorldState.__init__, **state_kwargs)
-        self.state = WorldState(mesh_path, **state_kwargs)
+        utils.validate_kwargs(WorldStateRLR.__init__, **state_kwargs)
+        self.state = WorldStateRLR(mesh_path, **state_kwargs)
 
         self.sample_rate = self.state.cfg.sample_rate
 
@@ -1626,7 +1626,7 @@ class Scene:
         )
 
         # Instantiate the state, which also creates all the emitters and microphones
-        instantiated_scene.state = WorldState.from_dict(input_dict["state"])
+        instantiated_scene.state = WorldStateRLR.from_dict(input_dict["state"])
 
         # Instantiate the events by iterating over the list
         instantiated_scene.events = OrderedDict(
