@@ -7,18 +7,17 @@ Generates similar training data to that contained in [this repo](https://zenodo.
 - 1200 1-minute long spatial recordings
 - Sampling rate of 24kHz
 - Two 4-channel recording formats, first-order Ambisonics (FOA) and tetrahedral microphone array (MIC)
-    - Currently, only MIC is implemented
-- Spatial events spatialized in 9 unique rooms, using measured RIRs for the two formats
-    - 6 rooms designated as "training": 150 soundscapes created for each
-    - 3 rooms designated as "testing": 100 soundscapes created for each
+- Spatial events spatialized in N unique rooms, using measured RIRs for the two formats
 - Maximum polyphony of 2 (with possible same-class events overlapping)
 
-One augmentation added to every audio file, sampled from:
+Augmentations can be added to every audio file and are sampled from:
 - Pitch shifting (+/- up to half an octave)
 - Time stretching (between 0.9 and 1.1x)
 - Distortion (up to +10 dB gain)
 - Reverse
 - Phase inversion
+
+Materials can also be added to the simulation and are randomly sampled from those available in the backend.
 """
 
 import argparse
@@ -28,6 +27,7 @@ import random
 from pathlib import Path
 from time import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 from scipy import stats
@@ -50,20 +50,43 @@ OUTPUT_DIR = utils.get_project_root() / "spatial_scenes_dcase_synthetic"
 # Parameters taken from DCASE data
 DURATION = 60
 SAMPLE_RATE = 24000
-MAX_OVERLAP = 2
-
-# Distributions to sample for events
-STATIC_EVENTS = utils.sanitise_distribution(
-    lambda: random.choice(range(config.MIN_STATIC_EVENTS, config.MAX_STATIC_EVENTS))
-)
-MOVING_EVENTS = utils.sanitise_distribution(
-    lambda: random.choice(range(config.MIN_MOVING_EVENTS, config.MAX_MOVING_EVENTS))
-)
 
 # Valid materials for the ray-tracing engine
 with open(MATERIALS_JSON, "r") as js_in:
     js_out = json.load(js_in)
 VALID_MATERIALS = list({mat["name"] for mat in js_out["materials"]})
+
+AUGMENTATIONS = {
+    "pitchshift": (
+        PitchShift,
+        dict(sample_rate=SAMPLE_RATE, semitones=stats.uniform(-7, 0)),
+    ),
+    "speedup": (
+        SpeedUp,
+        dict(sample_rate=SAMPLE_RATE, stretch_factor=stats.uniform(0.9, 0.2)),
+    ),
+    "reverse": Reverse,
+    "invert": Invert,
+    "distortion": (
+        Distortion,
+        dict(sample_rate=SAMPLE_RATE, drive_db=stats.uniform(0.0, 10.0)),
+    ),
+}
+
+
+def get_augmentations(augmentation_names: list[str]) -> list:
+    """
+    Given a list of augmentation names as strings, grab them from the AUGMENTATIONS dictionary
+    """
+    grabbed = []
+    for aug in augmentation_names:
+        if aug in AUGMENTATIONS.keys():
+            grabbed.append(AUGMENTATIONS[aug])
+        else:
+            raise ValueError(
+                f"Augmentation {aug} is not a valid parameter for this script!"
+            )
+    return grabbed
 
 
 def generate(
@@ -73,8 +96,13 @@ def generate(
     scape_num: int,
     output_dir: Path,
     channel_layout: str,
-    augmentations: bool,
+    augmentations: list[str],
     materials: bool,
+    max_overlap: int,
+    min_events_static,
+    max_events_static: int,
+    min_events_moving: int,
+    max_events_moving: int,
 ) -> None:
     """
     Make a single generation with required arguments
@@ -95,7 +123,7 @@ def generate(
             metadata_path.stem + f"_{channel_layout}.csv"
         ).exists()
     ):
-        return
+        return None
 
     # Choose a material to use
     if materials:
@@ -108,21 +136,17 @@ def generate(
 
     # Use augmentations
     if augmentations:
-        use_augmentations = [
-            Reverse,
-            Invert,
-            (PitchShift, dict(sample_rate=SAMPLE_RATE, semitones=stats.uniform(-7, 0))),
-            (
-                SpeedUp,
-                dict(sample_rate=SAMPLE_RATE, stretch_factor=stats.uniform(0.9, 0.2)),
-            ),
-            (
-                Distortion,
-                dict(sample_rate=SAMPLE_RATE, drive_db=stats.uniform(0.0, 10.0)),
-            ),
-        ]
+        use_augmentations = get_augmentations(augmentations)
     else:
         use_augmentations = None
+
+    # Distributions to sample for events
+    static_events = utils.sanitise_distribution(
+        lambda: random.choice(range(min_events_static, max_events_static + 1)),
+    )
+    moving_events = utils.sanitise_distribution(
+        lambda: random.choice(range(min_events_moving, max_events_moving + 1)),
+    )
 
     scene = Scene(
         duration=DURATION,
@@ -152,7 +176,7 @@ def generate(
         # Event augmentations will sample from this list
         event_augmentations=use_augmentations,
         fg_path=Path(FG_DIR),
-        max_overlap=MAX_OVERLAP,
+        max_overlap=max_overlap,
         ref_db=scene_ref_db,
         state_kwargs=dict(
             add_to_context=False,
@@ -168,24 +192,24 @@ def generate(
         microphone_type="ambeovr" if channel_layout == "mic" else "foalistener",
         alias=channel_layout,
     )
-    for _ in range(STATIC_EVENTS.rvs()):
+    for _ in range(static_events.rvs()):
         try:
             scene.add_event(
                 event_type="static",
-                augmentations=1 if augmentations else None,
+                augmentations=1 if use_augmentations else None,
                 ensure_direct_path=True,
                 max_place_attempts=100,
             )
         except ValueError as e:
             logger.warning(e)
 
-    for _ in range(MOVING_EVENTS.rvs()):
+    for _ in range(moving_events.rvs()):
         # Sample the shape to use for this moving event: one of random walk, semicircular, linear
         shape = random.choice(config.MOVING_EVENT_SHAPES)
         try:
             scene.add_event(
                 event_type="moving",
-                augmentations=1 if augmentations else None,
+                augmentations=1 if use_augmentations else None,
                 ensure_direct_path=True,
                 max_place_attempts=100,
                 shape=shape,
@@ -196,9 +220,9 @@ def generate(
     # Always add gaussian noise
     scene.add_ambience(noise="gaussian")
 
-    # If no events added successfully, try again
+    # If no events added successfully, try again by calling the function recursively
     if len(scene.get_events()) == 0:
-        generate(
+        return generate(
             mesh_name,
             split=split,
             scene_num=scene_num,
@@ -207,24 +231,45 @@ def generate(
             channel_layout=channel_layout,
             augmentations=augmentations,
             materials=materials,
+            max_overlap=max_overlap,
+            min_events_static=min_events_static,
+            min_events_moving=min_events_moving,
+            max_events_static=max_events_static,
+            max_events_moving=max_events_moving,
         )
 
     # Do the generation: create audio and DCASE metadata
-    scene.generate(
-        audio_fname=audio_path,
-        metadata_fname=metadata_path,
-        audio=True,
-        metadata_json=True,
-        metadata_dcase=True,
-    )
+    else:
+        scene.generate(
+            audio_fname=audio_path,
+            metadata_fname=metadata_path,
+            audio=True,
+            metadata_json=True,
+            metadata_dcase=True,
+        )
 
-    # Also dump an image of the state
-    fig = scene.state.create_plot()
-    fig.savefig(metadata_path.with_suffix(".png").as_posix())
+        # Also dump an image of the state
+        fig = scene.state.create_plot()
+        fig.savefig(metadata_path.with_suffix(".png").as_posix())
+
+        # Make sure to close the figure!
+        fig.clear()
+        plt.close(fig)
+
+        return None
 
 
 def main(
-    channel_layout: str, augmentations: bool, materials: bool, meshes: int, outdir: str
+    channel_layout: str,
+    augmentations: bool,
+    materials: bool,
+    meshes: str,
+    outdir: str,
+    max_overlap: int,
+    min_events_static,
+    max_events_static: int,
+    min_events_moving: int,
+    max_events_moving: int,
 ):
     # Parse the channel layout and microphone type
     if channel_layout not in ["mic", "foa"]:
@@ -269,6 +314,11 @@ def main(
                 channel_layout,
                 augmentations,
                 materials,
+                max_overlap,
+                min_events_static,
+                max_events_static,
+                min_events_moving,
+                max_events_moving,
             )
 
     logger.info("Generating testing scenes...")
@@ -286,6 +336,11 @@ def main(
                 channel_layout,
                 augmentations,
                 materials,
+                max_overlap,
+                min_events_static,
+                max_events_static,
+                min_events_moving,
+                max_events_moving,
             )
 
     # Log the time taken
@@ -305,17 +360,20 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--augmentations",
-        action="store_true",
-        help="Add this flag to use augmentations",
+        type=str,
+        nargs="+",
+        help=f"The name of augmentations to use: supported are {', '.join(AUGMENTATIONS.keys())}",
+        default=None,
     )
     parser.add_argument(
         "--materials", action="store_true", help="Add this flag to use materials"
     )
     parser.add_argument(
         "--meshes",
-        type=int,
-        default=9,
-        help="The number of meshes to use. Note that the total number of scapes to generate will remain fixed at 1200.",
+        type=str,
+        default="9A",
+        help="The split of meshes to use: see `dcase_selected_meshes.py`. "
+        "Note that the total number of scapes to generate will remain fixed at 1200.",
     )
     parser.add_argument(
         "--outdir",
@@ -323,6 +381,37 @@ if __name__ == "__main__":
         default=OUTPUT_DIR,
         help=f"Path to save generated outputs, defaults to {OUTPUT_DIR}",
     )
+    parser.add_argument(
+        "--max-overlap",
+        type=int,
+        default=config.MAX_OVERLAP,
+        help=f"Maximum number of overlapping events, defaults to {config.MAX_OVERLAP}",
+    )
+    parser.add_argument(
+        "--min-events-static",
+        type=int,
+        default=config.MIN_STATIC_EVENTS,
+        help=f"Minimum number of static events per scene, defaults to {config.MIN_STATIC_EVENTS}",
+    )
+    parser.add_argument(
+        "--max-events-static",
+        type=int,
+        default=config.MAX_STATIC_EVENTS,
+        help=f"Maximum number of static events per scene, defaults to {config.MAX_STATIC_EVENTS}",
+    )
+    parser.add_argument(
+        "--min-events-moving",
+        type=int,
+        default=config.MIN_MOVING_EVENTS,
+        help=f"Minimum number of moving events per scene, defaults to {config.MIN_MOVING_EVENTS}",
+    )
+    parser.add_argument(
+        "--max-events-moving",
+        type=int,
+        default=config.MAX_MOVING_EVENTS,
+        help=f"Maximum number of static events per scene, defaults to {config.MAX_MOVING_EVENTS}",
+    )
+
     args = vars(parser.parse_args())
     logger.info("Generating with args: {}".format(args))
 

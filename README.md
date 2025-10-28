@@ -39,38 +39,37 @@ In contrast to other projects (e.g., [`sonicsim`](https://github.com/JusperLee/S
 ### Prerequisites
 
 - `git`
-- `python3.10` or above (tested up to 3.12)
+- `python3.10` or above (tested up to `python3.12`)
 - `poetry`
+- `make`
 - A modern Linux distro: current versions of `Ubuntu` and `Red Hat` have been tested and confirmed to work.
   - Using another OS? Let us know so we can add it here!
 
 ### Install via the command line
 
 ```bash
-sudo apt update
-sudo apt install libsox-dev libsox-fmt-all freeglut3-dev
 git clone https://github.com/AudibleLight/AudibleLight.git
-poetry install
+cd AudibleLight
+make install
 ```
 
-### Install via `pypi`
+### Download datasets
 
-***Coming soon!***
-
-### Running `pre-commit` hooks
+We provide several helper scripts to download and prepare data (meshes, audio files) that may be useful in `AudibleLight`. To run these:
 
 ```bash
-poetry run pre-commit install
-pre-commit run --all-files
+make download
 ```
+
+For further information, see [scripts/download_data/README.md](scripts/download_data/README.md).
 
 ## Usage
 
 ### Script
 
-To generate a simple audio scene with a set number of moving and static sound sources, run:
+To generate a dataset, run:
 ```bash
-poetry run python scripts/generate_with_random_events.py
+poetry run python scripts/experiments/generate_dataset.py
 ```
 
 To see the available arguments that this script takes, add the `--help` argument
@@ -85,11 +84,11 @@ An example notebook showing placement of static and moving sound sources can be 
 
 ### Running the tests
 
-Before making a PR, ensure that you run the following commands:
+Before making a PR, ensure that you run the pre-commit hooks and tests:
 
 ```bash
-poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
-poetry poetry run pytest -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
+make fix
+make tests
 ```
 
 ## Roadmap

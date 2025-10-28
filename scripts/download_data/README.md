@@ -14,10 +14,10 @@ Note that, by running these scripts, you confirm that you agree to abide by thei
 First, ensure that you have installed `AudibleLight`. Then, from the command line:
 
 ```bash
-poetry run scripts/download_data/download_fma.py
+make download
 ```
 
-Additional arguments include:
+Additional arguments to the individual scripts called by this command include:
 - `--path`: the path to download the data to, defaults to `root/resources/meshes` or `root/resources/soundevents` depending on the script being run.
 - `--cleanup`: whether to remove additional files not needed by `AudibleLight` (e.g., `.zip`, `.navmesh` files).
 - `--remote`: remote datasets to download: e.g., for `fma`, this can be `--remote fma_small`,  `--remote fma_full`, etc.

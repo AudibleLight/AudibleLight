@@ -2,6 +2,7 @@
 /venv
 /.idea
 /notebooks/.ipynb_checkpoints
+/audiblelight/__pycache__
 
 # Ignore build
 /dist/
@@ -47,6 +48,7 @@ coverage.xml
 /docs/_build/
 /docs/_autosummary/
 /docs/_examples/
+/_build/
 
 .env
 wget-log
