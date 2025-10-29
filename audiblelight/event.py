@@ -533,15 +533,6 @@ class Event:
         """
         Returns metadata for this Event as a dictionary.
         """
-
-        def coerce(inp):
-            if isinstance(inp, dict):
-                return {k_: coerce(v_) for k_, v_ in inp.items()} if inp else None
-            elif isinstance(inp, np.ndarray):
-                return inp.tolist()
-            else:
-                return inp
-
         if not self.has_emitters:
             raise ValueError("Cannot dump metadata for an Event with no Emitters!")
 
@@ -550,9 +541,9 @@ class Event:
         for emitter in self.emitters:
             for k, v in emitter.coordinates_relative_polar.items():
                 if k in relative_positions.keys():
-                    relative_positions[k].append(coerce(v)[0])
+                    relative_positions[k].append(utils.coerce_nested_inputs(v)[0])
                 else:
-                    relative_positions[k] = [coerce(v)[0]]
+                    relative_positions[k] = [utils.coerce_nested_inputs(v)[0]]
 
         return dict(
             # Metadata
@@ -574,11 +565,14 @@ class Event:
             spatial_resolution=self.spatial_resolution if self.is_moving else None,
             spatial_velocity=self.spatial_velocity if self.is_moving else None,
             shape=self.shape,
-            # start_coordinates=coerce(self.start_coordinates_absolute),
-            # end_coordinates=coerce(self.end_coordinates_absolute),
+            # start_coordinates=utils.coerce_nested_inputs(self.start_coordinates_absolute),
+            # end_coordinates=utils.coerce_nested_inputs(self.end_coordinates_absolute),
             num_emitters=len(self.emitters),
             # Include the actual emitters as well, to enable unserialisation
-            emitters=[coerce(v.coordinates_absolute) for v in self.emitters],
+            emitters=[
+                utils.coerce_nested_inputs(v.coordinates_absolute)
+                for v in self.emitters
+            ],
             emitters_relative=relative_positions,
             # Include the augmentation objects
             augmentations=[aug.to_dict() for aug in self.augmentations],

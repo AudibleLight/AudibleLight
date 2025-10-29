@@ -742,3 +742,15 @@ def tiny(x: Union[float, np.ndarray]) -> Numeric:
         dtype = np.dtype(np.float32)
 
     return np.finfo(dtype).tiny
+
+
+def coerce_nested_inputs(inp: Any) -> Any:
+    """
+    Coerce nested dtypes for JSON serialisation
+    """
+    if isinstance(inp, dict):
+        return {k: coerce_nested_inputs(v) for k, v in inp.items()} if inp else None
+    elif isinstance(inp, np.ndarray):
+        return inp.tolist()
+    else:
+        return inp
