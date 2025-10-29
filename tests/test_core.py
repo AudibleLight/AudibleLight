@@ -1364,15 +1364,16 @@ def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
         ("sofa", dict(sofa=utils_tests.METU_SOFA_PATH)),
         # Test with initialised backends
         (
-            WorldStateSOFA(
+            WorldStateSOFA,
+            dict(
                 sofa=utils_tests.METU_SOFA_PATH,
                 sample_rate=44100,
             ),
-            dict(),
         ),
         (
-            WorldStateRLR(
-                utils_tests.OYENS_PATH,
+            WorldStateRLR,
+            dict(
+                mesh=utils_tests.OYENS_PATH,
                 sample_rate=44100,
                 add_to_context=True,  # update worldstate with every addition
                 empty_space_around_emitter=0.2,  # all in meters
@@ -1380,12 +1381,19 @@ def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
                 empty_space_around_surface=0.2,  # all in meters
                 waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
             ),
-            dict(),
         ),
     ],
 )
 def test_parse_backend(backend, kwargs):
-    sc = Scene(duration=60, backend=backend, backend_kwargs=kwargs)
+    if not isinstance(backend, str):
+        backend = backend(**kwargs)
+        sc = Scene(
+            duration=60,
+            backend=backend,
+        )
+    else:
+        sc = Scene(duration=60, backend=backend, backend_kwargs=kwargs)
+
     if isinstance(backend, str):
         expected_ws = get_worldstate_from_string(backend)
     else:

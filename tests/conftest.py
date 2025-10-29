@@ -141,6 +141,6 @@ def download_sofa_file():
     else:
         import gdown
 
-        print("Downloading SOFA file...")
+        print(f"Downloading SOFA file to {str(utils_tests.METU_SOFA_PATH)}...")
         gdown.download(utils_tests.METU_SOFA_URL, str(utils_tests.METU_SOFA_PATH))
         yield

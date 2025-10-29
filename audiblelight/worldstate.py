@@ -2445,6 +2445,20 @@ class WorldStateSOFA(WorldState):
         )
         self._add_dummy_microphone()
 
+    def clear_microphones(self) -> None:
+        raise NotImplementedError(
+            "It is not possible to clear microphones from a 'WorldStateSOFA' object. "
+            "This is because the microphones are set according to the SOFA file itself. "
+            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of microphones. "
+        )
+
+    def clear_microphone(self, alias: str) -> None:
+        raise NotImplementedError(
+            "It is not possible to clear a microphone from a 'WorldStateSOFA' object. "
+            "This is because the microphone is set according to the SOFA file itself. "
+            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of a microphone."
+        )
+
     def _add_dummy_microphone(self) -> None:
         """
         Add a dummy microphone in to the WorldState at [0.0, 0.0, 0.0]
