@@ -632,7 +632,7 @@ def test_path_between_points(
 @pytest.mark.parametrize(
     "cfg,expected",
     [
-        (dict(sample_rate=22050, global_volume=0.5), None),
+        (dict(sample_rate=44100, global_volume=0.5), None),
         (dict(will_raise="an_error", sample_rate=595959), AttributeError),
     ],
 )
@@ -762,6 +762,7 @@ def test_emitter_from_dict(input_dict):
     [
         {
             "backend": "rlr",
+            "sample_rate": 44100,
             "emitters": {
                 "tester_emitter": [
                     [

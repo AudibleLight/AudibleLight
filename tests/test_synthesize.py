@@ -199,8 +199,7 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
     channels, duration = oyens_scene_no_overlap.audio["mic000"].shape
     assert channels == oyens_scene_no_overlap.get_microphone("mic000").n_capsules
     expected = round(
-        oyens_scene_no_overlap.state.ctx.config.sample_rate
-        * oyens_scene_no_overlap.duration
+        oyens_scene_no_overlap.sample_rate * oyens_scene_no_overlap.duration
     )
     assert duration == expected
 

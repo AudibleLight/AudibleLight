@@ -22,7 +22,7 @@ from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
-from audiblelight.worldstate import Emitter, WorldStateRLR
+from audiblelight.worldstate import Emitter, WorldState, WorldStateRLR
 
 
 class Scene:
@@ -37,6 +37,7 @@ class Scene:
         self,
         duration: custom_types.Numeric,
         mesh_path: Union[str, Path],
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
@@ -105,13 +106,16 @@ class Scene:
         # Time overlaps (we could include a space overlaps parameter too)
         self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
 
+        # Set sample rate correctly
+        self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
+
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
         if state_kwargs is None:
             state_kwargs = {}
         utils.validate_kwargs(WorldStateRLR.__init__, **state_kwargs)
-        self.state = WorldStateRLR(mesh_path, **state_kwargs)
-
-        self.sample_rate = self.state.cfg.sample_rate
+        self.state = WorldStateRLR(
+            mesh_path, sample_rate=self.sample_rate, **state_kwargs
+        )
 
         # Grab some attributes from the WorldState to make them easier to access
         self.mesh = self.state.mesh
@@ -1548,6 +1552,7 @@ class Scene:
             rlr_audio_propagation_version=version("rlr_audio_propagation"),
             creation_time=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
             duration=self.duration,
+            sample_rate=self.sample_rate,
             ref_db=self.ref_db,
             max_overlap=self.max_overlap,
             fg_path=[str(fg.resolve()) for fg in self.fg_paths],
@@ -1584,6 +1589,7 @@ class Scene:
             "ambience",
             "events",
             "state",
+            "sample_rate",
         ]:
             if expected not in input_dict:
                 raise KeyError("Missing key: '{}'".format(expected))
@@ -1618,6 +1624,7 @@ class Scene:
         )
         instantiated_scene = cls(
             duration=input_dict["duration"],
+            sample_rate=input_dict["sample_rate"],
             mesh_path=input_dict["state"]["mesh"]["fpath"],
             fg_path=input_dict["fg_path"],
             bg_path=input_dict["bg_path"],
@@ -1626,7 +1633,7 @@ class Scene:
         )
 
         # Instantiate the state, which also creates all the emitters and microphones
-        instantiated_scene.state = WorldStateRLR.from_dict(input_dict["state"])
+        instantiated_scene.state = WorldState.from_dict(input_dict["state"])
 
         # Instantiate the events by iterating over the list
         instantiated_scene.events = OrderedDict(

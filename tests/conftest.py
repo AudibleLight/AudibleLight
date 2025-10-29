@@ -9,6 +9,7 @@ from typing import Callable
 import pytest
 from tqdm import tqdm
 
+from audiblelight import config
 from audiblelight.core import Scene
 from audiblelight.worldstate import WorldStateRLR, WorldStateSOFA
 from tests import utils_tests
@@ -21,6 +22,7 @@ def oyens_space() -> WorldStateRLR:
     """Returns a WorldState object with the Oyens mesh (Gibson)"""
     space = WorldStateRLR(
         utils_tests.OYENS_PATH,
+        sample_rate=config.SAMPLE_RATE,
         add_to_context=True,  # update worldstate with every addition
         empty_space_around_emitter=0.2,  # all in meters
         empty_space_around_mic=0.1,  # all in meters
@@ -35,6 +37,7 @@ def daga_space() -> WorldStateSOFA:
     """Returns a WorldStateSOFA with DAGA file"""
     return WorldStateSOFA(
         sofa=utils_tests.TEST_RESOURCES / "daga_foa.sofa",
+        sample_rate=config.SAMPLE_RATE,
     )
 
 
@@ -42,6 +45,7 @@ def daga_space() -> WorldStateSOFA:
 def metu_space() -> WorldStateSOFA:
     return WorldStateSOFA(
         sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa",
+        sample_rate=config.SAMPLE_RATE,
     )
 
 
@@ -51,6 +55,7 @@ def oyens_scene_no_overlap() -> Scene:
     # Create a dummy scene
     sc = Scene(
         duration=50,
+        sample_rate=config.SAMPLE_RATE,
         mesh_path=utils_tests.OYENS_PATH,
         # Use the default distribution for everything
         # event_start_dist=stats.uniform(0, 10),
@@ -72,6 +77,7 @@ def oyens_scene_factory() -> Callable:
     def _factory():
         sc = Scene(
             duration=50,
+            sample_rate=config.SAMPLE_RATE,
             mesh_path=utils_tests.OYENS_PATH,
             # event_start_dist=stats.uniform(0, 10),
             # event_duration_dist=stats.uniform(0, 10),

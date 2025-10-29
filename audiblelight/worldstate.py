@@ -511,6 +511,7 @@ class WorldStateRLR(WorldState):
     def __init__(
         self,
         mesh: Union[str, Path],
+        sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         empty_space_around_mic: Optional[
             custom_types.Numeric
         ] = config.EMPTY_SPACE_AROUND_MIC,
@@ -538,6 +539,7 @@ class WorldStateRLR(WorldState):
 
         Args:
             mesh (str|Path): The name of the mesh file. Units will be coerced to meters when loading
+            sample_rate (Numeric): the sample rate to use in the RLR engine
             empty_space_around_mic (float): minimum meters new emitters/mics will be placed from center of other mics
             empty_space_around_emitter (float): minimum meters new emitters/mics will be placed from other emitters
             empty_space_around_surface (float): minimum meters new emitters/mics will be placed from mesh emitters
@@ -555,12 +557,13 @@ class WorldStateRLR(WorldState):
                 If not provided, will attempt to infer from the filename and set to None if cannot be found.
             material (str): the name of a material to use, defaults to None (i.e., Default material)
             rlr_kwargs (dict, optional): additional keyword arguments to pass to the RLR audio propagation library.
-                For instance, sample rate can be set by passing `rlr_kwargs=dict(sample_rate=...)`
         """
         # This initialises microphones, emitters dictionaries
         super().__init__()
 
         self.add_to_state = add_to_context
+
+        self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
 
         # Distances from objects/mesh surfaces
         self.empty_space_around_mic = utils.sanitise_positive_number(
@@ -659,8 +662,7 @@ class WorldStateRLR(WorldState):
                             )
                         )
 
-    @staticmethod
-    def _parse_rlr_config(rlr_kwargs: dict) -> Config:
+    def _parse_rlr_config(self, rlr_kwargs: dict) -> Config:
         """
         Parses the configuration for the ray-tracing engine
         """
@@ -668,12 +670,27 @@ class WorldStateRLR(WorldState):
         cfg = Config()
         if rlr_kwargs is None:
             rlr_kwargs = {}
+
+        # Ensure sample rate always present  in config
+        if "sample_rate" not in rlr_kwargs.keys():
+            rlr_kwargs["sample_rate"] = self.sample_rate
+
         # Iterate over our passed parameters and update as required
         for rlr_kwarg, rlr_val in rlr_kwargs.items():
+
+            # Ensure sample rate matches the one passed in to the worldstate
+            if rlr_kwarg == "sample_rate":
+                if rlr_val != self.sample_rate:
+                    raise ValueError(
+                        f"Mismatching sample rate (expected {self.sample_rate}, got {rlr_val})"
+                    )
+
+            # Set attribute correctly in the ray tracing engine
             if hasattr(cfg, rlr_kwarg):
                 setattr(cfg, rlr_kwarg, rlr_val)
             else:
                 raise AttributeError(f"Ray-tracing engine has no attribute {rlr_kwarg}")
+
         return cfg
 
     def calculate_weighted_average_ray_length(
@@ -2188,6 +2205,7 @@ class WorldStateRLR(WorldState):
 
         return dict(
             backend=self.name,
+            sample_rate=self.sample_rate,
             emitters={
                 s_alias: [
                     utils.coerce_nested_inputs(s_.coordinates_absolute) for s_ in s
@@ -2230,13 +2248,14 @@ class WorldStateRLR(WorldState):
         """
 
         # Validate the input
-        for k in ["emitters", "microphones", "mesh", "rlr_config"]:
+        for k in ["emitters", "microphones", "mesh", "rlr_config", "sample_rate"]:
             if k not in input_dict:
                 raise KeyError(f"Missing key: '{k}'")
 
         # Instantiate the state
         state = cls(
             mesh=input_dict["mesh"]["fpath"],
+            sample_rate=input_dict["sample_rate"],
             empty_space_around_mic=input_dict["empty_space_around_mic"],
             empty_space_around_emitter=input_dict["empty_space_around_emitter"],
             empty_space_around_surface=input_dict["empty_space_around_surface"],
