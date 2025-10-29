@@ -51,7 +51,9 @@ def metu_space() -> WorldStateSOFA:
 
 @pytest.fixture(scope="function")
 def oyens_scene_no_overlap() -> Scene:
-    """Returns a scene object with the Oyens mesh (Gibson), that doesn't allow for overlapping Events"""
+    """
+    Returns a scene object with the Oyens mesh (Gibson), that doesn't allow for overlapping Events
+    """
     # Create a dummy scene
     sc = Scene(
         duration=50,
@@ -68,6 +70,26 @@ def oyens_scene_no_overlap() -> Scene:
     return sc
 
 
+@pytest.fixture(scope="function")
+def metu_scene_no_overlap() -> Scene:
+    """
+    Returns a scene object with the METU SOFA file, that doesn't allow for overlapping Events
+    """
+    backend = WorldStateSOFA(
+        sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa",
+        sample_rate=config.SAMPLE_RATE,
+    )
+
+    return Scene(
+        duration=50,
+        backend=backend,
+        sample_rate=config.SAMPLE_RATE,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        max_overlap=1,  # no overlapping sound events allowed
+    )
+
+
 @pytest.fixture
 def oyens_scene_factory() -> Callable:
     def _factory():
@@ -75,12 +97,6 @@ def oyens_scene_factory() -> Callable:
             duration=50,
             backend="rlr",
             sample_rate=config.SAMPLE_RATE,
-            mesh_path=utils_tests.OYENS_PATH,
-            # event_start_dist=stats.uniform(0, 10),
-            # event_duration_dist=stats.uniform(0, 10),
-            # event_velocity_dist=stats.uniform(0, 10),
-            # event_resolution_dist=stats.uniform(0, 10),
-            # snr_dist=stats.norm(5, 1),
             fg_path=utils_tests.SOUNDEVENT_DIR,
             max_overlap=1,
             state_kwargs=dict(
