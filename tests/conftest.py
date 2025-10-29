@@ -39,6 +39,13 @@ def daga_space() -> WorldStateSOFA:
 
 
 @pytest.fixture(scope="function")
+def metu_space() -> WorldStateSOFA:
+    return WorldStateSOFA(
+        sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa",
+    )
+
+
+@pytest.fixture(scope="function")
 def oyens_scene_no_overlap() -> Scene:
     """Returns a scene object with the Oyens mesh (Gibson), that doesn't allow for overlapping Events"""
     # Create a dummy scene
@@ -96,3 +103,22 @@ def pytest_runtest_makereport(item, call):
     # Remove exception info, since it causes excessive memory usage and workers crash
     if call.excinfo and isinstance(call.excinfo, pytest.ExceptionInfo):
         call.excinfo = None
+
+
+@pytest.fixture(scope="session", autouse=True)
+def download_sofa_file():
+    """
+    Downloads a rather large SOFA file, preventing the need to store it in the repo
+    """
+    # File already exists, just run tests
+    if utils_tests.METU_SOFA_PATH.exists():
+        print(f"Skipping download as {str(utils_tests.METU_SOFA_PATH)} exists!")
+        yield
+
+    # File doesn't exist, so download it
+    else:
+        import gdown
+
+        print("Downloading SOFA file...")
+        gdown.download(utils_tests.METU_SOFA_URL, str(utils_tests.METU_SOFA_PATH))
+        yield

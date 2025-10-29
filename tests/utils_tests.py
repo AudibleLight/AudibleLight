@@ -25,3 +25,6 @@ TEST_AUDIOS = sorted(
     ]
 )
 TEST_MUSICS = [i for i in TEST_AUDIOS if "music" in i]
+
+METU_SOFA_URL = "https://drive.google.com/uc?id=1zamCd6OR6Tr5M40RdDhswYbT1wbGo2ZO"
+METU_SOFA_PATH = TEST_RESOURCES / "metu_foa.sofa"
