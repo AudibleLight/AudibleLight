@@ -17,7 +17,7 @@ from audiblelight.micarrays import (
     MonoCapsule,
     sanitize_microphone_input,
 )
-from audiblelight.worldstate import Emitter, WorldStateRLR, load_mesh
+from audiblelight.worldstate import Emitter, WorldState, WorldStateRLR, load_mesh
 from tests import utils_tests
 
 
@@ -761,6 +761,7 @@ def test_emitter_from_dict(input_dict):
     "input_dict",
     [
         {
+            "backend": "rlr",
             "emitters": {
                 "tester_emitter": [
                     [
@@ -840,7 +841,7 @@ def test_emitter_from_dict(input_dict):
     ],
 )
 def test_worldstate_from_dict(input_dict: dict):
-    wstate = WorldStateRLR.from_dict(input_dict)
+    wstate = WorldState.from_dict(input_dict)
     assert isinstance(wstate, WorldStateRLR)
     # Should have the correct number of emitters and microphones
     assert (
