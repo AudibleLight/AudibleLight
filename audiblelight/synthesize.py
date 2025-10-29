@@ -585,12 +585,6 @@ def validate_scene(scene: Scene) -> None:
     if len(scene.state.microphones) == 0:
         raise ValueError("WorldState has no microphones!")
 
-    # Validate ray-tracing engine
-    if scene.state.ctx.get_listener_count() == 0:
-        raise ValueError("Ray-tracing engine has no listeners!")
-    if scene.state.ctx.get_source_count() == 0:
-        raise ValueError("Ray-tracing engine has no sources!")
-
     # Validate Events
     if len(scene.events) == 0:
         raise ValueError("Scene has no events!")
@@ -605,6 +599,16 @@ def validate_scene(scene: Scene) -> None:
             raise ValueError(
                 f"Event with alias '{alias}' has no emitters registered. Has it been orphaned?"
             )
+
+    # Remaining checks only apply to ray-tracing contexts
+    if not scene.state.name == "rlr":
+        return
+
+    # Validate ray-tracing engine
+    if scene.state.ctx.get_listener_count() == 0:
+        raise ValueError("Ray-tracing engine has no listeners!")
+    if scene.state.ctx.get_source_count() == 0:
+        raise ValueError("Ray-tracing engine has no sources!")
 
     # Validate across all parts of the library, e.g. WorldState, Scene, ray-tracing engine
     vals = (
