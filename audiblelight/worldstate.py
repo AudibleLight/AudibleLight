@@ -307,8 +307,10 @@ class WorldState:
         self._irs = None  # will be updated when calling `simulate`
 
         # These need to be defined for typehinting
+        #  They are overridden in the child classes
         self.mesh = None
         self.waypoints = None
+        self.ctx = None
 
     def _update(self) -> None:
         """
