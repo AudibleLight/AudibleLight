@@ -340,3 +340,21 @@ def test_from_dict(input_dict):
     # Should have the correct number of emitters and microphones
     assert wstate.num_emitters == 5
     assert len(wstate.microphones) == 1
+
+
+@pytest.mark.parametrize(
+    "input_dict",
+    [
+        {
+            "backend": "SOFA",
+            "sofa": str(utils_tests.TEST_RESOURCES / "metu_foa.sofa"),
+            "emitters": {},
+            "microphones": {},
+            "metadata": {},
+        }
+    ],
+)
+def test_from_invalid_dict(input_dict):
+    # Missing some input keys
+    with pytest.raises(KeyError):
+        _ = WorldState.from_dict(input_dict)

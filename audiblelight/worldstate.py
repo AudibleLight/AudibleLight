@@ -382,7 +382,7 @@ class WorldState:
         Returns a string representation of the WorldState
         """
         return (
-            f"'{type(self)}' with {len(self)} objects "
+            f"'{self.__class__.__name__}' with {len(self)} objects "
             f"({len(self.microphones)} microphones, {self.num_emitters} emitters)"
         )
 
@@ -2267,7 +2267,7 @@ class WorldStateRLR(WorldState):
         Returns a string representation of the WorldState
         """
         return (
-            f"'{type(self)}' with mesh '{self.mesh.metadata['fpath']}' and "
+            f"'{self.__class__.__name__}' with mesh '{self.mesh.metadata['fpath']}' and "
             f"{len(self)} objects ({len(self.microphones)} microphones, {self.num_emitters} emitters)"
         )
 
@@ -2877,6 +2877,15 @@ class WorldStateSOFA(WorldState):
         state._update()
 
         return state
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the WorldState
+        """
+        return (
+            f"'{self.__class__.__name__}' with SOFA file '{str(self.sofa_path)}' and "
+            f"{len(self)} objects ({len(self.microphones)} microphones, {self.num_emitters} emitters)"
+        )
 
 
 class WorldStateShoebox(WorldState):
