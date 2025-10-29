@@ -15,7 +15,12 @@ from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
-from audiblelight.worldstate import Emitter
+from audiblelight.worldstate import (
+    Emitter,
+    WorldStateRLR,
+    WorldStateSOFA,
+    get_worldstate_from_string,
+)
 from tests import utils_tests
 
 
@@ -1349,3 +1354,48 @@ def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
             if dist is not None:
                 sampled = [dist.rvs() for _ in range(1000)]
                 assert min(sampled) <= getattr(created, kw) <= max(sampled)
+
+
+@pytest.mark.parametrize(
+    "backend,kwargs",
+    [
+        # Test with strings
+        ("rlr", dict(mesh=utils_tests.OYENS_PATH)),
+        ("sofa", dict(sofa=utils_tests.METU_SOFA_PATH)),
+        # Test with initialised backends
+        (
+            WorldStateSOFA(
+                sofa=utils_tests.METU_SOFA_PATH,
+                sample_rate=44100,
+            ),
+            dict(),
+        ),
+        (
+            WorldStateRLR(
+                utils_tests.OYENS_PATH,
+                sample_rate=44100,
+                add_to_context=True,  # update worldstate with every addition
+                empty_space_around_emitter=0.2,  # all in meters
+                empty_space_around_mic=0.1,  # all in meters
+                empty_space_around_surface=0.2,  # all in meters
+                waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
+            ),
+            dict(),
+        ),
+    ],
+)
+def test_parse_backend(backend, kwargs):
+    sc = Scene(duration=60, backend=backend, state_kwargs=kwargs)
+    if isinstance(backend, str):
+        expected_ws = get_worldstate_from_string(backend)
+    else:
+        expected_ws = type(backend)
+
+    # Type should be identical
+    assert type(sc.state) is expected_ws
+    assert getattr(sc.state, "sample_rate") == 44100
+
+    if expected_ws is WorldStateRLR:
+        assert str(sc.state.mesh.metadata["fpath"]) == str(utils_tests.OYENS_PATH)
+    else:
+        assert str(getattr(sc.state, "sofa_path")) == str(utils_tests.METU_SOFA_PATH)
