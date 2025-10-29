@@ -458,14 +458,22 @@ class Scene:
                     "Cannot infer Ambience channels when no microphones have been added to the WorldState."
                 )
 
-            available_mics = [mic.n_capsules for mic in self.state.microphones.values()]
-            # Raise an error when added microphones have a different number of channels
-            if not all([a == available_mics[0] for a in available_mics]):
-                raise ValueError(
-                    "Cannot infer Ambience channels when available microphones have different number of capsules"
-                )
+            # Ray-tracing contexts: mic can have arbitrary channel count
+            if self.state.name == "rlr":
+                available_mics = [
+                    mic.n_capsules for mic in self.state.microphones.values()
+                ]
+                # Raise an error when added microphones have a different number of channels
+                if not all([a == available_mics[0] for a in available_mics]):
+                    raise ValueError(
+                        "Cannot infer Ambience channels when available microphones have different number of capsules"
+                    )
+                else:
+                    channels = available_mics[0]
+            # SOFA contexts: mic currently only has 4 channels
+            # TODO: check this: some SOFA files may have more than 4 channels, which will break downstream?
             else:
-                channels = available_mics[0]
+                channels = 4
 
         # Get the alias for this ambience event: either default or user-provided
         alias = (
