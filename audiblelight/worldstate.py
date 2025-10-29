@@ -233,20 +233,10 @@ class Emitter:
         Returns:
             dict
         """
-
-        def coerce(inp: Any) -> Any:
-            """Coerce dtypes for JSON serialisation"""
-            if isinstance(inp, dict):
-                return {k: coerce(v) for k, v in inp.items()} if inp else None
-            elif isinstance(inp, np.ndarray):
-                return inp.tolist()
-            else:
-                return inp
-
         # Create output dictionary
         out_dict = dict(
             alias=self.alias,
-            coordinates_absolute=coerce(self.coordinates_absolute),
+            coordinates_absolute=utils.coerce_nested_inputs(self.coordinates_absolute),
             has_direct_paths=self.has_direct_paths,
         )
         if self.sofa_idx:
@@ -346,7 +336,12 @@ class WorldState:
         """
         Instantiate a `WorldState` from a dictionary.
         """
-        raise NotImplementedError
+        if "backend" not in input_dict.keys():
+            raise KeyError("Must set 'backend' key to parse from dictionary")
+
+        # Get the desired backend and instantiate using the child class function
+        desired_backend = get_worldstate_from_string(input_dict["backend"])
+        return desired_backend.from_dict(input_dict)
 
     @property
     def irs(self) -> OrderedDict[str, np.ndarray]:
@@ -2186,23 +2181,17 @@ class WorldStateRLR(WorldState):
         """
         Returns metadata for this object as a dictionary
         """
-
-        def coerce(inp):
-            if isinstance(inp, dict):
-                return {k: coerce(v) for k, v in inp.items()} if inp else None
-            elif isinstance(inp, np.ndarray):
-                return inp.tolist()
-            else:
-                return inp
-
         # Fix bug where we haven't created the context yet
         if self.ctx is None:
             self._setup_audio_context()
             self._update()
 
         return dict(
+            backend=self.name,
             emitters={
-                s_alias: [coerce(s_.coordinates_absolute) for s_ in s]
+                s_alias: [
+                    utils.coerce_nested_inputs(s_.coordinates_absolute) for s_ in s
+                ]
                 for s_alias, s in self.emitters.items()
             },
             microphones={
@@ -2301,7 +2290,6 @@ class WorldStateSOFA(WorldState):
         sofa: Union[str, Path],
         sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         mic_alias: Optional[str] = None,
-        allow_multiple_emitters_at_one_position: Optional[bool] = True,
     ):
         super().__init__()
 
@@ -2319,11 +2307,6 @@ class WorldStateSOFA(WorldState):
             else mic_alias
         )
         self._add_dummy_microphone()
-
-        # If True, multiple emitters can be placed in the same location
-        self.allow_multiple_emitters_at_one_position = (
-            allow_multiple_emitters_at_one_position
-        )
 
     def _add_dummy_microphone(self) -> None:
         """
@@ -2385,17 +2368,31 @@ class WorldStateSOFA(WorldState):
         return all_xyz.min(axis=0), all_xyz.max(axis=0)
 
     def add_microphone(self, *_, **__) -> None:
-        raise ValueError(
-            "It is not possible to add a microphone to a WorldStateSOFA object. "
+        raise NotImplementedError(
+            "It is not possible to add a microphone to a 'WorldStateSOFA' object. "
             "This is because the location of a microphone is set by the SOFA file itself."
-            "Consider using `WorldStateRLR` to explicitly control the position of a microphone. "
+            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the position of a microphone. "
         )
 
     def add_microphones(self, *_, **__) -> None:
-        raise ValueError(
-            "It is not possible to add microphones to a WorldStateSOFA object. "
+        raise NotImplementedError(
+            "It is not possible to add microphones to a 'WorldStateSOFA' object. "
             "This is because the location of microphones are set by the SOFA file itself. "
-            "Consider using `WorldStateRLR` to explicitly control the positions of microphones. "
+            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of microphones. "
+        )
+
+    def clear_microphones(self) -> None:
+        raise NotImplementedError(
+            "It is not possible to clear microphones from a 'WorldStateSOFA' object. "
+            "This is because the microphones are set according to the SOFA file itself. "
+            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of microphones. "
+        )
+
+    def clear_microphone(self, alias: str) -> None:
+        raise NotImplementedError(
+            "It is not possible to clear a microphone from a 'WorldStateSOFA' object. "
+            "This is because the microphone is set according to the SOFA file itself. "
+            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of a microphone."
         )
 
     def get_random_valid_position_idx(self) -> np.ndarray:
@@ -2408,24 +2405,8 @@ class WorldStateSOFA(WorldState):
         # First, get all source positions
         all_positions = self.get_source_positions()
 
-        # If no current emitters, just choose one valid index at random
-        if self.num_emitters == 0 or self.allow_multiple_emitters_at_one_position:
-            random_idx = np.random.randint(0, all_positions.shape[0] + 1)
-            return np.array([random_idx])
-
-        # Otherwise, get positions that have already been used for an emitter
-        used_positions = np.vstack(
-            [i.coordinates_absolute for i in self.emitters.values()]
-        )
-
-        # Broadcast arr1 against arr2 by adding an extra dimension, then create a boolean mask
-        #  the mask has the shape all_positions.shape[0]
-        matches = np.isclose(all_positions[:, None, :], used_positions[None, :, :])
-        mask = np.any(np.all(matches, axis=2), axis=1)
-
-        # Subset all available positions and choose one at random
-        subsetted = all_positions[~mask]
-        random_idx = np.random.randint(0, subsetted.shape[0] + 1)
+        # Then, choose the index of a random position
+        random_idx = np.random.randint(0, all_positions.shape[0])
         return np.array([random_idx])
 
     def get_nearest_source_idx(self, candidate_position: np.ndarray) -> np.ndarray:
@@ -2450,38 +2431,30 @@ class WorldStateSOFA(WorldState):
         source_positions = self.get_source_positions()
         tree = KDTree(source_positions)
 
-        # Query the tree for candidate positions
         matches = []
-        matched_points = []
+
+        # Iterate over all points in the array
         for point in candidate_position:
 
-            # Iterate through nearest matches for this position
-            for k in range(source_positions.shape[0]):
-                distance, index = tree.query(point, k=k + 1)
-                matched_point = source_positions[index]
+            # Query the tree for candidate matches to this point
+            distance, index = tree.query(point, k=1)
 
-                # Raise a warning if the distance is further away than expected
-                if distance >= self.WARN_WHEN_DISTANCE_EXCEEDS:
-                    logger.warning(
-                        f"Could not find a match for point {point} within {self.WARN_WHEN_DISTANCE_EXCEEDS} metres. "
-                        f"Using nearest point ({matched_point}), which is {round(distance, 2)}m away."
-                    )
+            # Coerce out of a list dtype
+            if not isinstance(distance, custom_types.Numeric):
+                distance = distance[0]
+            if not isinstance(index, custom_types.Numeric):
+                index = index[0]
 
-                # Skip over if we don't want to allow multiple emitters in the same place
-                if (
-                    self.num_emitters > 0
-                    and not self.allow_multiple_emitters_at_one_position
-                ):
-                    used_positions = np.vstack(
-                        [i.coordinates_absolute for i in self.emitters.values()]
-                        + matched_points
-                    )
-                    if matched_point in used_positions:
-                        continue
+            matched_point = source_positions[index]
 
-                matches.append(index)
-                matched_points.append(matched_point)
-                break
+            # Raise a warning if the distance is further away than expected
+            if distance >= self.WARN_WHEN_DISTANCE_EXCEEDS:
+                logger.error(
+                    f"Could not find a match for point {point} within {self.WARN_WHEN_DISTANCE_EXCEEDS} metres. "
+                    f"Using nearest point ({matched_point}), which is {round(distance, 2)}m away."
+                )
+
+            matches.append(index)
 
         return np.array(matches)
 
@@ -2496,8 +2469,6 @@ class WorldStateSOFA(WorldState):
         """
         # First, get all source positions
         source_positions = self.get_source_positions()
-        if len(source_positions) == 0:
-            raise ValueError("No source positions in SOFA file!")
 
         # If no position provided, get the index of a random valid position
         if position is None:
@@ -2510,7 +2481,11 @@ class WorldStateSOFA(WorldState):
         for idx in position_idx:
 
             # Unpack the index
-            validated_position = source_positions[idx]
+            validated_position = source_positions[idx, :]
+
+            # Log if we're using the nearest neighbour to a user-defined position
+            if position is not None:
+                logger.info(f"Using nearest neighbour position ({validated_position})")
 
             # Successfully placed: add to the emitter dictionary and return True
             emitter = Emitter(
@@ -2534,9 +2509,7 @@ class WorldStateSOFA(WorldState):
         mic: Optional[str] = None,  # noqa: F841
         keep_existing: Optional[bool] = False,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,  # noqa: F841
-        max_place_attempts: Optional[
-            custom_types.Numeric
-        ] = config.MAX_PLACE_ATTEMPTS,  # noqa: F841
+        max_place_attempts: Optional = config.MAX_PLACE_ATTEMPTS,  # noqa: F841
     ) -> None:
         """
         Add an emitter to the state.
@@ -2564,6 +2537,170 @@ class WorldStateSOFA(WorldState):
 
         # Update the state with the new emitter
         self._update()
+
+    def get_valid_position_with_max_distance(
+        self, ref: np.ndarray, max_distance: float
+    ) -> np.ndarray:
+        """
+        Grab a valid position to reference that is less than `max_distance` away
+        """
+        # Grab all source positions
+        source_positions = self.get_source_positions()
+
+        # Compute distance WRT reference position
+        distances = np.linalg.norm(source_positions - ref, axis=1)
+
+        # Only keep those that are below the upper limit
+        mask = (distances != 0) & (distances <= max_distance)
+        valid_source_positions = source_positions[mask, :]
+
+        # Randomly sample a single valid source position
+        chosen_end_position_idx = np.random.randint(valid_source_positions.shape[0])
+        return valid_source_positions[chosen_end_position_idx, :]
+
+    @staticmethod
+    def _validate_trajectory(
+        trajectory: np.ndarray,
+        max_distance: custom_types.Numeric,
+        step_distance: custom_types.Numeric,
+        n_points: custom_types.Numeric,
+    ) -> bool:
+        """
+        Given a trajectory (created in `define_trajectory`), return True if valid, False otherwise
+
+        Returns:
+            bool: whether the trajectory is valid
+        """
+        # Early return if definitely invalid
+        if trajectory.shape[0] < 2:
+            return False
+        if trajectory.shape[0] != n_points:
+            return False
+
+        # Compute distances from start to all other points
+        start = trajectory[0]
+        differences = trajectory[1:] - start
+        distances = np.linalg.norm(differences, axis=1)
+
+        # Get the furthest point from the starting position
+        #  Note: for circular and linear trajectories, this should be the same as the last point.
+        max_idx = np.argmax(distances)
+
+        # Check max distance constraint
+        if distances[max_idx] > max_distance:
+            return False
+
+        # Check distance between every step
+        step_deltas = np.linalg.norm(np.diff(trajectory, axis=0), axis=1)
+        if np.any(step_deltas > step_distance + utils.SMALL):
+            return False
+
+        return True
+
+    def define_trajectory(
+        self,
+        duration: custom_types.Numeric,
+        starting_position: Optional[Union[np.ndarray, list]] = None,
+        velocity: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
+        resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        shape: Optional[str] = None,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,  # noqa: F841
+    ) -> np.ndarray:
+        """
+        Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
+
+        Returns:
+            np.ndarray: the sanitised trajectory, with shape (n_points, 3)
+        """
+        # Compute the number of samples based on duration and resolution
+        n_points = (
+            utils.sanitise_positive_number(duration * resolution, cast_to=round) + 1
+        )
+        # Clamp `n_points` to 2, so we will always be able to create a moving trajectory
+        if n_points < 2:
+            n_points = 2
+            logger.warning(
+                f"Number of points in trajectory ({n_points}) is smaller than 2, so it is being clamped to "
+                f"2 internally. If this is happening frequently, consider increasing `resolution` "
+                f"(currently {resolution:.3f})."
+            )
+
+        # Sample a random shape if not given
+        if shape is None:
+            shape = str(np.random.choice(["linear", "semicircular"]))
+
+        # Sanitise the maximum distance that we'll travel in the trajectory
+        max_distance = utils.sanitise_positive_number(velocity * duration)
+
+        # Compute the distance that we can travel in a single step
+        step_limit = velocity / resolution
+
+        # Grab all permissible IR positions
+        source_positions = self.get_source_positions()
+
+        # If we've provided a starting position, grab the nearest neighbour to it
+        starting_position_idx = None
+        if starting_position is not None:
+            starting_position_idx = self.get_nearest_source_idx(starting_position)
+
+        # Try and create the trajectory a specified number of times
+        for _ in tqdm(range(max_place_attempts), desc="Placing trajectory..."):
+
+            # If we've not provided a starting position, randomly sample one FOR THIS ATTEMPT
+            if starting_position is None:
+                starting_position_idx = self.get_random_valid_position_idx()
+
+            # Get the starting position we'll use for this attempt
+            start_attempt = source_positions[starting_position_idx, :]
+
+            # Try and grab a valid ending position for this attempt
+            try:
+                end_attempt = self.get_valid_position_with_max_distance(
+                    start_attempt, max_distance
+                )
+            except ValueError:
+                # Silently skip over errors in this case, so we retry with another starting position
+                if starting_position is None:
+                    continue
+                # Otherwise, we need to raise the error as this starting position is invalid
+                else:
+                    raise
+
+            # Compute the trajectory with the utility function
+            if shape == "linear":
+                trajectory = utils.generate_linear_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
+            elif shape == "semicircular":
+                trajectory = utils.generate_semicircular_trajectory(
+                    start_attempt, end_attempt, n_points
+                )
+            else:
+                raise ValueError(
+                    "Only 'linear' and 'semicircular' shapes are supported"
+                )
+
+            # For every point in the trajectory, compute the nearest neighbours
+            nearest_idxs = self.get_nearest_source_idx(trajectory)
+            trajectory_nearest = source_positions[nearest_idxs, :]
+
+            # Validate the trajectory
+            if self._validate_trajectory(
+                trajectory_nearest,
+                max_distance=max_distance,
+                step_distance=step_limit,
+                n_points=n_points,
+            ):
+                return trajectory_nearest
+
+        # If we reach here, we couldn't create the trajectory
+        raise ValueError(
+            f"Could not define a valid movement trajectory after {max_place_attempts} attempt(s). Consider:\n"
+            f"- Decreasing `temporal_resolution` (currently {resolution})\n"
+            f"- Increasing `max_place_attempts` (currently {max_place_attempts})\n"
+            f"- Decreasing `max_distance` (currently {max_distance:.3f})"
+        )
 
     def _update(self) -> None:
         """
@@ -2596,9 +2733,7 @@ class WorldStateSOFA(WorldState):
         assert (
             self.num_emitters > 0
         ), "Must have added valid emitters to the state before calling `.simulate`!"
-        assert (
-            len(self.microphones) > 0
-        ), "Must have added valid microphones to the state before calling `.simulate`!"
+        assert len(self.microphones) == 1, "Expected only one microphone!"
         assert not any(
             [
                 em.sofa_idx is None
@@ -2657,6 +2792,91 @@ class WorldStateSOFA(WorldState):
             final_irs[:, total_idx, :] = required_ir
 
         return OrderedDict({self.mic_alias: final_irs})
+
+    def to_dict(self) -> dict:
+        """
+        Returns metadata for this object as a dictionary
+        """
+        with self.sofa() as sofa:
+            sofa_metadata = sofa.getGlobalAttributesAsDict()
+
+        return dict(
+            backend=self.name,
+            sofa=str(self.sofa_path),
+            sample_rate=self.sample_rate,
+            emitters={
+                s_alias: [
+                    utils.coerce_nested_inputs(s_.coordinates_absolute) for s_ in s
+                ]
+                for s_alias, s in self.emitters.items()
+            },
+            emitter_sofa_idxs={
+                s_alias: [s_.sofa_idx for s_ in s]
+                for s_alias, s in self.emitters.items()
+            },
+            microphones={
+                m_alias: m.to_dict() for m_alias, m in self.microphones.items()
+            },
+            metadata={
+                "bounds": [
+                    utils.coerce_nested_inputs(i) for i in self.get_room_min_max()
+                ],
+                **sofa_metadata,
+            },
+        )
+
+    @classmethod
+    def from_dict(cls, input_dict: dict):
+        """
+        Instantiate a `WorldStateSOFA` from a dictionary.
+
+        Arguments:
+            input_dict: Dictionary that will be used to instantiate the `WorldStateSOFA`.
+
+        Returns:
+            WorldStateSOFA instance.
+        """
+
+        # Validate the input
+        for k in [
+            "emitters",
+            "microphones",
+            "sofa",
+            "metadata",
+            "sample_rate",
+            "emitter_sofa_idxs",
+        ]:
+            if k not in input_dict:
+                raise KeyError(f"Missing key: '{k}'")
+
+        # Instantiate the state
+        state = cls(
+            sofa=input_dict["sofa"],
+            mic_alias=None,
+            sample_rate=input_dict["sample_rate"],
+        )
+
+        # Instantiate the microphones and emitters from their dictionaries
+        state.microphones = OrderedDict(
+            {a: MicArray.from_dict(v) for a, v in input_dict["microphones"].items()}
+        )
+        state.emitters = OrderedDict(
+            {
+                a: [
+                    Emitter(alias=a, coordinates_absolute=v1_, sofa_idx=v2_)
+                    for (v1_, v2_) in zip(v1, v2)
+                ]
+                for (a, v1), v2 in zip(
+                    input_dict["emitters"].items(),
+                    input_dict["emitter_sofa_idxs"].values(),
+                )
+            }
+        )
+
+        # Update the state so we add everything in
+        state._update()
+
+        return state
 
 
 class WorldStateShoebox(WorldState):
