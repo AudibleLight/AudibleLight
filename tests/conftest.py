@@ -62,7 +62,7 @@ def oyens_scene_no_overlap() -> Scene:
         fg_path=utils_tests.SOUNDEVENT_DIR,
         bg_path=utils_tests.BACKGROUND_DIR,
         max_overlap=1,  # no overlapping sound events allowed
-        state_kwargs=dict(
+        backend_kwargs=dict(
             waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH
         ),
     )
@@ -99,7 +99,7 @@ def oyens_scene_factory() -> Callable:
             sample_rate=config.SAMPLE_RATE,
             fg_path=utils_tests.SOUNDEVENT_DIR,
             max_overlap=1,
-            state_kwargs=dict(
+            backend_kwargs=dict(
                 waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
                 mesh=utils_tests.OYENS_PATH,
             ),

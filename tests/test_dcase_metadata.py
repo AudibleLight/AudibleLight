@@ -21,7 +21,7 @@ def test_generate_dcase_2024_metadata_overlap(duration):
         duration=duration,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -69,7 +69,7 @@ def test_generate_dcase_metadata_static(duration: int):
         duration=duration,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -115,7 +115,7 @@ def test_generate_dcase_metadata_moving(duration: int):
         duration=duration,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -164,7 +164,7 @@ def test_generate_dcase_2024_metadata_static_and_moving(duration: int):
         duration=duration,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -226,7 +226,7 @@ def test_dcase_metadata_bad():
         duration=10,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -360,7 +360,7 @@ def test_generate_dcase_2024_metadata_vs_example(events, expected):
         duration=30,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
             empty_space_around_surface=0.0,
         ),
@@ -395,7 +395,7 @@ def test_source_ids(start_times):
     oyens_scene = Scene(
         duration=60,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
         sample_rate=44100,
@@ -444,7 +444,7 @@ def test_source_ids_same_source(start_times):
     oyens_scene = Scene(
         duration=60,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
         sample_rate=44100,

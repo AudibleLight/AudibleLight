@@ -1016,7 +1016,7 @@ def test_add_events_with_random_augmentations(aug_list, n_augs, params):
         event_augmentations=aug_list,
         fg_path=utils_tests.SOUNDEVENT_DIR,
         max_overlap=1,
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -1085,7 +1085,7 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
         fg_path=utils_tests.SOUNDEVENT_DIR,
         max_overlap=1,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -1158,7 +1158,7 @@ def test_parse_audio_paths(fg_path, bg_path):
         bg_path=bg_path,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -1185,7 +1185,7 @@ def test_add_duplicated_event_audio(bad_event_type):
         allow_duplicate_audios=False,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -1215,7 +1215,7 @@ def test_add_duplicated_ambience_audio():
         allow_duplicate_audios=False,
         sample_rate=44100,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
     )
@@ -1232,7 +1232,7 @@ def test_add_duplicated_ambience_audio():
 def test_get_random_audio_dupes(allow_dupes):
     sc = Scene(
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
         duration=50,
@@ -1385,7 +1385,7 @@ def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
     ],
 )
 def test_parse_backend(backend, kwargs):
-    sc = Scene(duration=60, backend=backend, state_kwargs=kwargs)
+    sc = Scene(duration=60, backend=backend, backend_kwargs=kwargs)
     if isinstance(backend, str):
         expected_ws = get_worldstate_from_string(backend)
     else:

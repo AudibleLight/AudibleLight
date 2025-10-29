@@ -194,7 +194,7 @@ def main(
     scene = Scene(
         duration=duration,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=mesh_path,
             add_to_context=False,
         ),

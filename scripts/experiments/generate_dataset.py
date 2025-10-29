@@ -179,7 +179,7 @@ def generate(
         fg_path=Path(FG_DIR),
         max_overlap=max_overlap,
         ref_db=scene_ref_db,
-        state_kwargs=dict(
+        backend_kwargs=dict(
             add_to_context=False,
             material=use_material,
             mesh=mesh_path,

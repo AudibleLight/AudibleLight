@@ -56,7 +56,7 @@ class Scene:
                 Type[EventAugmentation],
             ]
         ] = None,
-        state_kwargs: Optional[dict] = None,
+        backend_kwargs: Optional[dict] = None,
     ):
         """
         Initializes the Scene with a given duration and mesh.
@@ -89,7 +89,7 @@ class Scene:
                 objects. The number of augmentations sampled from this list can be controlled by setting the value of
                 `augmentations` when calling `Scene.add_event`, i.e. `Scene.add_event(augmentations=3)` will sample
                 3 random augmentations from `event_augmentations` and apply them to the Event.
-            state_kwargs: keyword arguments passed to `audiblelight.WorldState`.
+            backend_kwargs: keyword arguments passed to `audiblelight.WorldState`.
         """
 
         # Set attributes passed in by the user
@@ -110,14 +110,14 @@ class Scene:
         self.sample_rate = utils.sanitise_positive_number(sample_rate, cast_to=int)
 
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
-        if state_kwargs is None:
-            state_kwargs = {}
+        if backend_kwargs is None:
+            backend_kwargs = {}
 
         # Coercing backend from string
         if isinstance(backend, str):
             desired_state = get_worldstate_from_string(backend)
-            utils.validate_kwargs(desired_state.__init__, **state_kwargs)
-            self.state = desired_state(sample_rate=self.sample_rate, **state_kwargs)
+            utils.validate_kwargs(desired_state.__init__, **backend_kwargs)
+            self.state = desired_state(sample_rate=self.sample_rate, **backend_kwargs)
 
         # Otherwise, using backend directly
         elif issubclass(type(backend), WorldState):

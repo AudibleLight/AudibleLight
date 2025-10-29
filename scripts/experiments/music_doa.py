@@ -33,7 +33,7 @@ def create_scene(mesh_path: Path) -> Scene:
         duration=DURATION,
         sample_rate=config.SAMPLE_RATE,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=mesh_path,
             add_to_context=False,
         ),

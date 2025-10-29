@@ -52,7 +52,7 @@ def test_simulated_azimuth_with_music(microphone: list, events: list):
     test_scene = Scene(
         duration=5.1,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
         sample_rate=16000,
@@ -152,7 +152,7 @@ def test_simulated_sound_distance_vs_two_mics(
     test_scene = Scene(
         duration=5.1,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
         fg_path=utils_tests.SOUNDEVENT_DIR / "music",
@@ -212,7 +212,7 @@ def test_simulated_sound_distance_vs_two_events(
     test_scene = Scene(
         duration=5.1,
         backend="rlr",
-        state_kwargs=dict(
+        backend_kwargs=dict(
             mesh=utils_tests.OYENS_PATH,
         ),
         fg_path=utils_tests.SOUNDEVENT_DIR / "music",
