@@ -49,6 +49,7 @@ black = "24.4.2"
 isort = "5.13.2"
 flake8 = "7.0.0"
 pysofaconventions = "*"
+gdown = "*"
 
 [tool.poetry.group.datasets.dependencies]
 soundata = "*"
