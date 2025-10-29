@@ -136,7 +136,11 @@ class Emitter:
         )
 
         # Index of the IR/position within the SOFA file
-        self.sofa_idx = utils.sanitise_positive_number(sofa_idx, cast_to=int)
+        self.sofa_idx = (
+            utils.sanitise_positive_number(sofa_idx, cast_to=int)
+            if sofa_idx is not None
+            else None
+        )
 
         self.has_direct_paths: OrderedDict[str, bool] = OrderedDict()
 

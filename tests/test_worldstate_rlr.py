@@ -734,7 +734,16 @@ def test_add_microphone_and_emitter(
                 1.5014361786336288,
                 0.8912208770477812,
             ],
-        }
+        },
+        {
+            "alias": "emitter001",
+            "coordinates_absolute": [
+                3.1,
+                1.5,
+                0.9,
+            ],
+            "sofa_idx": 5,
+        },
     ],
 )
 def test_emitter_from_dict(input_dict):
