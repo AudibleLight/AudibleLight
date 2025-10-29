@@ -22,7 +22,7 @@ from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
-from audiblelight.worldstate import Emitter, WorldState, WorldStateRLR
+from audiblelight.worldstate import Emitter, WorldState, get_worldstate_from_string
 
 
 class Scene:
@@ -36,7 +36,7 @@ class Scene:
     def __init__(
         self,
         duration: custom_types.Numeric,
-        mesh_path: Union[str, Path],
+        backend: Union[str, "WorldState"],
         sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
@@ -63,7 +63,7 @@ class Scene:
 
         Arguments:
             duration: the length of time the scene audio should last for.
-            mesh_path: the name of the mesh file. Units will be coerced to meters when loading.
+            backend: the name of the backend to use. Either 'rlr', 'sofa', 'or 'shoebox' are supported.
             fg_path: a directory (or list of directories) pointing to foreground audio. Note that directories will be
                 introspected recursively, such that audio files within any subdirectories will be detected also.
             bg_path: a directory (or list of directories pointing to background audio. Note that directories will be
@@ -112,10 +112,27 @@ class Scene:
         # Instantiate the `WorldState` object, which loads the mesh and sets up the ray-tracing engine
         if state_kwargs is None:
             state_kwargs = {}
-        utils.validate_kwargs(WorldStateRLR.__init__, **state_kwargs)
-        self.state = WorldStateRLR(
-            mesh_path, sample_rate=self.sample_rate, **state_kwargs
-        )
+
+        # Coercing backend from string
+        if isinstance(backend, str):
+            desired_state = get_worldstate_from_string(backend)
+            utils.validate_kwargs(desired_state.__init__, **state_kwargs)
+            self.state = desired_state(sample_rate=self.sample_rate, **state_kwargs)
+
+        # Otherwise, using backend directly
+        elif issubclass(type(backend), WorldState):
+            be_sr = getattr(backend, "sample_rate", None)
+            if not be_sr or be_sr != self.sample_rate:
+                raise ValueError(
+                    f"Mismatching backend sample rate: expected {self.sample_rate}, got {be_sr}"
+                )
+            self.state = backend
+
+        else:
+            raise TypeError(
+                f"Expected 'backend' to be a string or an *instance* of WorldState subclass, "
+                f"but got {type(backend)} instead."
+            )
 
         # Grab some attributes from the WorldState to make them easier to access
         self.mesh = self.state.mesh
@@ -1552,6 +1569,7 @@ class Scene:
             rlr_audio_propagation_version=version("rlr_audio_propagation"),
             creation_time=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
             duration=self.duration,
+            backend=self.state.name,
             sample_rate=self.sample_rate,
             ref_db=self.ref_db,
             max_overlap=self.max_overlap,
@@ -1590,6 +1608,7 @@ class Scene:
             "events",
             "state",
             "sample_rate",
+            "backend",
         ]:
             if expected not in input_dict:
                 raise KeyError("Missing key: '{}'".format(expected))
@@ -1622,18 +1641,20 @@ class Scene:
             "redefine these using, for instance, setattr(scene, 'event_start_dist', ...), repeating this "
             "for every distribution."
         )
+
+        # Instantiate the state, which also creates all the emitters and microphones
+        state = WorldState.from_dict(input_dict["state"])
+
+        # Pass the backend directly in when creating the Scene
         instantiated_scene = cls(
             duration=input_dict["duration"],
+            backend=state,
             sample_rate=input_dict["sample_rate"],
-            mesh_path=input_dict["state"]["mesh"]["fpath"],
             fg_path=input_dict["fg_path"],
             bg_path=input_dict["bg_path"],
             ref_db=input_dict["ref_db"],
             max_overlap=input_dict["max_overlap"],
         )
-
-        # Instantiate the state, which also creates all the emitters and microphones
-        instantiated_scene.state = WorldState.from_dict(input_dict["state"])
 
         # Instantiate the events by iterating over the list
         instantiated_scene.events = OrderedDict(

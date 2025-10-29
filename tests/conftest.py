@@ -55,18 +55,14 @@ def oyens_scene_no_overlap() -> Scene:
     # Create a dummy scene
     sc = Scene(
         duration=50,
+        backend="rlr",
         sample_rate=config.SAMPLE_RATE,
-        mesh_path=utils_tests.OYENS_PATH,
-        # Use the default distribution for everything
-        # event_start_dist=stats.uniform(0, 10),
-        # event_duration_dist=stats.uniform(0, 10),
-        # event_velocity_dist=stats.uniform(0, 10),
-        # event_resolution_dist=stats.uniform(0, 10),
-        # snr_dist=stats.norm(5, 1),
         fg_path=utils_tests.SOUNDEVENT_DIR,
         bg_path=utils_tests.BACKGROUND_DIR,
         max_overlap=1,  # no overlapping sound events allowed
-        state_kwargs=dict(waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH),
+        state_kwargs=dict(
+            waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH
+        ),
     )
     sc.add_microphone(microphone_type="ambeovr")
     return sc
@@ -77,6 +73,7 @@ def oyens_scene_factory() -> Callable:
     def _factory():
         sc = Scene(
             duration=50,
+            backend="rlr",
             sample_rate=config.SAMPLE_RATE,
             mesh_path=utils_tests.OYENS_PATH,
             # event_start_dist=stats.uniform(0, 10),
@@ -86,7 +83,10 @@ def oyens_scene_factory() -> Callable:
             # snr_dist=stats.norm(5, 1),
             fg_path=utils_tests.SOUNDEVENT_DIR,
             max_overlap=1,
-            state_kwargs=dict(waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH),
+            state_kwargs=dict(
+                waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
+                mesh=utils_tests.OYENS_PATH,
+            ),
         )
         sc.add_microphone(microphone_type="ambeovr")
         return sc

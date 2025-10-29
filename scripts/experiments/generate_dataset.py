@@ -151,7 +151,7 @@ def generate(
     scene = Scene(
         duration=DURATION,
         sample_rate=SAMPLE_RATE,
-        mesh_path=Path(mesh_path),
+        backend="rlr",
         scene_start_dist=stats.uniform(0.0, DURATION - 1),
         # Audio files will always start from 0 seconds in
         event_start_dist=None,
@@ -182,6 +182,7 @@ def generate(
         state_kwargs=dict(
             add_to_context=False,
             material=use_material,
+            mesh=mesh_path,
         ),
         allow_duplicate_audios=False,
     )

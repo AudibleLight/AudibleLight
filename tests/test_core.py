@@ -791,6 +791,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
             "audiblelight_version": "0.1.0",
             "rlr_audio_propagation_version": "0.0.1",
             "creation_time": "2025-08-11_13:07:21",
+            "backend": "rlr",
             "duration": 50.0,
             "sample_rate": 44100.0,
             "ref_db": -50,
@@ -1005,11 +1006,14 @@ def test_add_events_with_random_augmentations(aug_list, n_augs, params):
     """
     sc = Scene(
         duration=50,
+        backend="rlr",
         sample_rate=44100,
-        mesh_path=utils_tests.OYENS_PATH,
         event_augmentations=aug_list,
         fg_path=utils_tests.SOUNDEVENT_DIR,
         max_overlap=1,
+        state_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
     ev = sc.add_event(
         augmentations=n_augs,
@@ -1072,10 +1076,13 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
     sc = Scene(
         duration=50,
         sample_rate=44100,
-        mesh_path=utils_tests.OYENS_PATH,
         event_augmentations=aug_list_of_tuples,
         fg_path=utils_tests.SOUNDEVENT_DIR,
         max_overlap=1,
+        backend="rlr",
+        state_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
     ev = sc.add_event(augmentations=n_augs, event_type="static")
     augs = ev.get_augmentations()
@@ -1142,10 +1149,13 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
 def test_parse_audio_paths(fg_path, bg_path):
     sc = Scene(
         duration=50,
-        mesh_path=utils_tests.OYENS_PATH,
         fg_path=fg_path,
         bg_path=bg_path,
         sample_rate=44100,
+        backend="rlr",
+        state_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
     assert isinstance(sc.fg_audios, list)
     assert isinstance(sc.bg_audios, list)
@@ -1167,9 +1177,12 @@ def test_parse_audio_paths(fg_path, bg_path):
 def test_add_duplicated_event_audio(bad_event_type):
     sc = Scene(
         duration=50,
-        mesh_path=utils_tests.OYENS_PATH,
         allow_duplicate_audios=False,
         sample_rate=44100,
+        backend="rlr",
+        state_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
 
     # Add the audio in the first time: should be fine
@@ -1194,9 +1207,12 @@ def test_add_duplicated_event_audio(bad_event_type):
 def test_add_duplicated_ambience_audio():
     sc = Scene(
         duration=50,
-        mesh_path=utils_tests.OYENS_PATH,
         allow_duplicate_audios=False,
         sample_rate=44100,
+        backend="rlr",
+        state_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
 
     # Add the audio in the first time should be fine
@@ -1210,7 +1226,10 @@ def test_add_duplicated_ambience_audio():
 @pytest.mark.parametrize("allow_dupes", [True, False])
 def test_get_random_audio_dupes(allow_dupes):
     sc = Scene(
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        state_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
         duration=50,
         allow_duplicate_audios=allow_dupes,
         sample_rate=44100,

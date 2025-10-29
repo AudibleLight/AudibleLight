@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 from types import MethodType
-from typing import Any, Optional, Type, Union
+from typing import Any, Optional, Type, TypeVar, Union
 
 import librosa
 import matplotlib.pyplot as plt
@@ -298,11 +298,17 @@ class WorldState:
     Should not be used directly: instead, a child class (e.g., `WorldStateRIR`, `WorldStateSOFA`) should be used.
     """
 
+    name = "_default"
+
     def __init__(self):
         # Store emitter and mic positions in here to access later; these should be in ABSOLUTE form
         self.emitters = OrderedDict()
         self.microphones = OrderedDict()
         self._irs = None  # will be updated when calling `simulate`
+
+        # These need to be defined for typehinting
+        self.mesh = None
+        self.waypoints = None
 
     def _update(self) -> None:
         """
@@ -438,6 +444,98 @@ class WorldState:
                 f"Could not get idx {emitter_idx} for a list of Emitters with length {len(emitter_list)}"
             )
 
+    def add_microphone(
+        self,
+        microphone_type: Optional[Union[str, Type["MicArray"]]] = None,
+        position: Optional[Union[list, np.ndarray]] = None,
+        alias: Optional[str] = None,
+        keep_existing: Optional[bool] = True,
+    ) -> None:
+        """
+        Add a microphone to the space.
+        """
+        raise NotImplementedError
+
+    def add_microphones(
+        self,
+        microphone_types: Optional[list[Union[str, Type["MicArray"]]]] = None,
+        positions: Optional[list[Union[list, np.ndarray]]] = None,
+        aliases: Optional[list[str]] = None,
+        keep_existing: Optional[bool] = True,
+        raise_on_error: Optional[bool] = True,
+    ) -> None:
+        """
+        Add multiple microphones to the state.
+        """
+        raise NotImplementedError
+
+    def add_emitter(
+        self,
+        position: Optional[Union[list, np.ndarray]] = None,
+        alias: Optional[str] = None,
+        mic: Optional[str] = None,
+        keep_existing: Optional[bool] = False,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+    ) -> None:
+        """
+        Add an emitter to the state.
+        """
+        raise NotImplementedError
+
+    def add_emitters(
+        self,
+        positions: Optional[Union[list, np.ndarray]] = None,
+        aliases: Optional[list[str]] = None,
+        mics: Optional[Union[list[str], str]] = None,
+        n_emitters: Optional[int] = None,
+        keep_existing: Optional[bool] = False,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+        raise_on_error: Optional[bool] = True,
+    ) -> None:
+        """
+        Add emitters to the state.
+        """
+        raise NotImplementedError
+
+    def add_microphone_and_emitter(
+        self,
+        position: Optional[Union[np.ndarray, float]] = None,
+        polar: Optional[bool] = True,
+        microphone_type: Optional[Union[str, Type["MicArray"]]] = None,
+        mic_alias: Optional[str] = None,
+        emitter_alias: Optional[str] = None,
+        keep_existing_mics: Optional[bool] = True,
+        keep_existing_emitters: Optional[bool] = True,
+        ensure_direct_path: Optional[bool] = True,
+        max_place_attempts: Optional[int] = config.MAX_PLACE_ATTEMPTS,
+    ) -> None:
+        """
+        Add both a microphone and emitter with specified relationship.
+        """
+        raise NotImplementedError
+
+    def _validate_position(self, pos_abs: np.ndarray) -> bool:
+        """
+        Validates a position or array of positions with respect to the state and objects inside it.
+        """
+        raise NotImplementedError
+
+    def define_trajectory(
+        self,
+        duration: custom_types.Numeric,
+        starting_position: Optional[Union[np.ndarray, list]] = None,
+        velocity: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_VELOCITY,
+        resolution: Optional[custom_types.Numeric] = config.DEFAULT_EVENT_RESOLUTION,
+        shape: Optional[str] = None,
+        max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        ensure_direct_path: Optional[Union[bool, list, str]] = False,
+    ) -> np.ndarray:
+        """
+        Defines a trajectory for a moving sound event with specified spatial bounds and event duration.
+        """
+        raise NotImplementedError
+
     def get_emitters(self, alias: str) -> list[Emitter]:
         """
         Given a valid alias, get a list of associated `Emitter` objects, as in `self.emitters[alias]`
@@ -493,6 +591,59 @@ class WorldState:
             self._update()
         else:
             raise KeyError("Emitter alias '{}' not found.".format(alias))
+
+    def _parse_valid_microphone_aliases(
+        self, aliases: Optional[Union[bool, list, str]]
+    ) -> list[str]:
+        """
+        Get valid microphone aliases from an input
+        """
+        # If True, we should get a list of all the microphones
+        if aliases is True:
+            return list(self.microphones.keys())
+
+        # If a single string, validate and convert to [string]
+        elif isinstance(aliases, str):
+            if aliases not in self.microphones.keys():
+                raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
+            return [aliases]
+
+        # If a list of strings, validate these
+        elif isinstance(aliases, list):
+            # Sanity check that all the provided aliases exist in our dictionary
+            not_in = [e for e in aliases if e not in self.microphones.keys()]
+            if len(not_in) > 0:
+                raise KeyError(
+                    f"Some provided microphone aliases were not found: {', '.join(not_in)}"
+                )
+            # Remove duplicates from the list
+            return list(set(aliases))
+
+        # If False or None, return an empty list (which we'll skip over later)
+        elif aliases is False or aliases is None:
+            return []
+
+        # Otherwise, we can't handle the input, so return an error
+        else:
+            raise TypeError(f"Cannot handle input with type {type(aliases)}")
+
+    def path_exists_between_points(
+        self, point_a: np.ndarray, point_b: np.ndarray
+    ) -> bool:
+        """
+        Returns True if a direct point exists between point_a and point_b in the mesh, False otherwise.
+        """
+        raise NotImplementedError
+
+    def _add_emitters_without_validating(
+        self,
+        emitters: Union[list, np.ndarray],
+        alias: Optional[str],
+    ) -> None:
+        """
+        Adds emitters from a list **without checking** that they are valid.
+        """
+        raise NotImplementedError
 
 
 class WorldStateRLR(WorldState):
@@ -1377,41 +1528,6 @@ class WorldStateRLR(WorldState):
                 return False
         # Direct line exists: either no blocking intersections, or no intersections at all
         return True
-
-    def _parse_valid_microphone_aliases(
-        self, aliases: Optional[Union[bool, list, str]]
-    ) -> list[str]:
-        """
-        Get valid microphone aliases from an input
-        """
-        # If True, we should get a list of all the microphones
-        if aliases is True:
-            return list(self.microphones.keys())
-
-        # If a single string, validate and convert to [string]
-        elif isinstance(aliases, str):
-            if aliases not in self.microphones.keys():
-                raise KeyError(f"Alias {aliases} is not a valid microphone alias!")
-            return [aliases]
-
-        # If a list of strings, validate these
-        elif isinstance(aliases, list):
-            # Sanity check that all the provided aliases exist in our dictionary
-            not_in = [e for e in aliases if e not in self.microphones.keys()]
-            if len(not_in) > 0:
-                raise KeyError(
-                    f"Some provided microphone aliases were not found: {', '.join(not_in)}"
-                )
-            # Remove duplicates from the list
-            return list(set(aliases))
-
-        # If False or None, return an empty list (which we'll skip over later)
-        elif aliases is False or aliases is None:
-            return []
-
-        # Otherwise, we can't handle the input, so return an error
-        else:
-            raise TypeError(f"Cannot handle input with type {type(aliases)}")
 
     def add_emitter(
         self,
@@ -2386,34 +2502,6 @@ class WorldStateSOFA(WorldState):
         )
         return all_xyz.min(axis=0), all_xyz.max(axis=0)
 
-    def add_microphone(self, *_, **__) -> None:
-        raise NotImplementedError(
-            "It is not possible to add a microphone to a 'WorldStateSOFA' object. "
-            "This is because the location of a microphone is set by the SOFA file itself."
-            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the position of a microphone. "
-        )
-
-    def add_microphones(self, *_, **__) -> None:
-        raise NotImplementedError(
-            "It is not possible to add microphones to a 'WorldStateSOFA' object. "
-            "This is because the location of microphones are set by the SOFA file itself. "
-            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of microphones. "
-        )
-
-    def clear_microphones(self) -> None:
-        raise NotImplementedError(
-            "It is not possible to clear microphones from a 'WorldStateSOFA' object. "
-            "This is because the microphones are set according to the SOFA file itself. "
-            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of microphones. "
-        )
-
-    def clear_microphone(self, alias: str) -> None:
-        raise NotImplementedError(
-            "It is not possible to clear a microphone from a 'WorldStateSOFA' object. "
-            "This is because the microphone is set according to the SOFA file itself. "
-            "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of a microphone."
-        )
-
     def get_random_valid_position_idx(self) -> np.ndarray:
         """
         Get the index of a random valid position to place an object inside the state.
@@ -2917,8 +3005,11 @@ class WorldStateShoebox(WorldState):
 
 WORLDSTATE_LIST = [WorldStateRLR, WorldStateSOFA, WorldStateShoebox]
 
+# Denotes a WorldState subclass
+TWorldState = TypeVar("TWorldState", bound="WorldState")
 
-def get_worldstate_from_string(worldstate_name: str) -> Type["WorldState"]:
+
+def get_worldstate_from_string(worldstate_name: str) -> Type[TWorldState]:
     """
     Given a string representation of a worldstate type (e.g., `rlr`), return the correct WorldState object
     """
