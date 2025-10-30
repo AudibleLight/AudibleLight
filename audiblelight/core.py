@@ -459,7 +459,7 @@ class Scene:
                 )
 
             # Ray-tracing contexts: mic can have arbitrary channel count
-            if self.state.name == "rlr":
+            if self.state.name.upper() == "RLR":
                 available_mics = [
                     mic.n_capsules for mic in self.state.microphones.values()
                 ]
