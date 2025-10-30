@@ -55,6 +55,7 @@ nbmake = "*"
 [tool.poetry.group.datasets.dependencies]
 soundata = "*"
 requests = "*"
+mat73 = "*"
 
 [tool.poetry.group.docs.dependencies]
 IPython = "*"
