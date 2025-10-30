@@ -51,6 +51,7 @@ jobs:
 
       - name: Style check + run tests
         run: |
+          poetry run jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace notebooks/*.ipynb
           make tests
 
       - name: Upload coverage to Codecov
