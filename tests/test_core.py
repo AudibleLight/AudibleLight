@@ -1471,12 +1471,11 @@ def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
         if kw in overrides:
             assert getattr(created, kw) == overrides[kw]
 
-        # Otherwise, sample N values from the Scene distribution: should be in range
+        # Otherwise, should be in range of min/max values of dist
         else:
             dist = getattr(oyens_scene_no_overlap, kw + "_dist", None)
             if dist is not None:
-                sampled = [dist.rvs() for _ in range(1000)]
-                assert min(sampled) <= getattr(created, kw) <= max(sampled)
+                assert dist.min <= getattr(created, kw) <= dist.max
 
 
 @pytest.mark.parametrize(

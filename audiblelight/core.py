@@ -518,6 +518,7 @@ class Scene:
             **kwargs,
         )
 
+    # noinspection PyProtectedMember
     def _try_add_event(self, **event_kwargs) -> bool:
         """
         Tries to add an Event with given kwargs.
@@ -533,10 +534,15 @@ class Scene:
             k is not None in event_kwargs
             for k in ("scene_start", "event_start", "duration")
         )
-        max_place_attempts = config.MAX_PLACE_ATTEMPTS if not has_overrides else 1
+        max_place_attempts = (
+            event_kwargs.get("max_place_attempts", config.MAX_PLACE_ATTEMPTS)
+            if not has_overrides
+            else 1
+        )
 
         # Pre-resolve all user-specified override values (only done once)
         overrides = {
+            "filepath": event_kwargs.get("filepath"),
             "scene_start": event_kwargs.get("scene_start"),
             "event_start": event_kwargs.get("event_start"),
             "duration": event_kwargs.get("duration"),
@@ -548,6 +554,10 @@ class Scene:
         for _ in range(max_place_attempts):
             # Copy once per attempt
             current_kws = event_kwargs.copy()
+
+            # Get a random audio file for this attempt
+            if overrides["filepath"] is None:
+                current_kws["filepath"] = self._get_random_audio(self.fg_audios)
 
             # If we haven't passed in a duration override OR a distribution, default to using the full audio duration
             if overrides["duration"] is None and self.event_duration_dist is None:
@@ -1016,22 +1026,20 @@ class Scene:
         alias = (
             utils.get_default_alias("event", self.events) if alias is None else alias
         )
-        filepath = (
-            self._get_random_audio(self.fg_audios)
-            if filepath is None
-            else utils.sanitise_filepath(filepath)
-        )
 
-        # If we don't want to allow for duplicate filepaths, check this now
-        if not self.allow_duplicate_audios:
-            seen_audios = self._get_used_audios()
-            if filepath in seen_audios:
-                raise ValueError(
-                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
-                    f"Either increase the number of `fg_paths` in Scene.__init__, "
-                    f"choose a different audio file, "
-                    f"or set `Scene.allow_duplicate_audios=False`."
-                )
+        # Check filepath over
+        if filepath is not None:
+            filepath = utils.sanitise_filepath(filepath)
+            # If we don't want to allow for duplicate filepaths, check this now
+            if not self.allow_duplicate_audios:
+                seen_audios = self._get_used_audios()
+                if filepath in seen_audios:
+                    raise ValueError(
+                        f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                        f"Either increase the number of `fg_paths` in Scene.__init__, "
+                        f"choose a different audio file, "
+                        f"or set `Scene.allow_duplicate_audios=False`."
+                    )
 
         # Convert polar positions to cartesian here
         if polar:
@@ -1083,7 +1091,6 @@ class Scene:
         # Return the event with emitters already registered
         return self.get_event(alias)
 
-    # noinspection PyProtectedMember
     def add_event_moving(
         self,
         filepath: Optional[Union[str, Path]] = None,
@@ -1159,22 +1166,20 @@ class Scene:
         alias = (
             utils.get_default_alias("event", self.events) if alias is None else alias
         )
-        filepath = (
-            self._get_random_audio(self.fg_audios)
-            if filepath is None
-            else utils.sanitise_filepath(filepath)
-        )
 
-        # If we don't want to allow for duplicate filepaths, check this now
-        if not self.allow_duplicate_audios:
-            seen_audios = self._get_used_audios()
-            if filepath in seen_audios:
-                raise ValueError(
-                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
-                    f"Either increase the number of `fg_paths` in Scene.__init__, "
-                    f"choose a different audio file, "
-                    f"or set `Scene.allow_duplicate_audios=False`."
-                )
+        # Check filepath over
+        if filepath is not None:
+            filepath = utils.sanitise_filepath(filepath)
+            # If we don't want to allow for duplicate filepaths, check this now
+            if not self.allow_duplicate_audios:
+                seen_audios = self._get_used_audios()
+                if filepath in seen_audios:
+                    raise ValueError(
+                        f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
+                        f"Either increase the number of `fg_paths` in Scene.__init__, "
+                        f"choose a different audio file, "
+                        f"or set `Scene.allow_duplicate_audios=False`."
+                    )
 
         # Sample N random augmentations from our list, if required
         if isinstance(augmentations, custom_types.Numeric):
