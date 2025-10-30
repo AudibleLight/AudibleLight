@@ -204,7 +204,7 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
     assert duration == expected
 
 
-@pytest.skip("needs fixing")
+@pytest.mark.skip("needs fixing")
 def test_validate_scene(oyens_scene_factory):
     # Test with no emitters
     scn = oyens_scene_factory()
