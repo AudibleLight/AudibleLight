@@ -147,6 +147,8 @@ def test_micarray_from_dict(input_dict):
         # will be `pop`d and removed
         if k == "micarray_type":
             continue
+        if k in ["coordinates_cartesian", "coordinates_polar"]:
+            continue
 
         if isinstance(input_dict[k], (np.ndarray, list)) and not isinstance(
             input_dict[k][0], str

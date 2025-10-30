@@ -188,9 +188,12 @@ class MicArray:
         d2 = other.to_dict()
 
         # Compute the deepdiff between both dictionaries
+        #  Ignore micarray_type incase we've dynamically reconstructed the array
+        #  This will be set to the name of the class
         diff = DeepDiff(
             d1,
             d2,
+            exclude_paths="micarray_type",
             ignore_order=True,
             significant_digits=4,
             ignore_numeric_type_changes=True,
@@ -207,10 +210,9 @@ class MicArray:
         coords = [
             "coordinates_absolute",
             "coordinates_center",
+            "coordinates_polar",
+            "coordinates_cartesian",
         ]
-        # Dynamic micarrays need these properties to be instantiated from a dictionary
-        if self.__class__.__name__ == "_DynamicMicArray":
-            coords.extend(["coordinates_polar", "coordinates_cartesian"])
 
         coord_dict = OrderedDict()
         for coord_type in coords:
@@ -234,30 +236,6 @@ class MicArray:
             capsule_names=self.capsule_names,
             **coord_dict,
         )
-
-    @staticmethod
-    def _get_mic_class(input_dict: dict[str, Any]) -> str:
-        """
-        Given a dictionary, get the name of the desired MicArray class.
-
-        Arguments:
-            input_dict (dict[str, Any]): dictionary to instantiate MicArray class
-
-        Returns:
-            str: name of the MicArray class
-        """
-        # Get the class type of the desired microphone
-        desired_mic = input_dict.pop("micarray_type", "mic")
-        if (
-            desired_mic not in MICARRAY_CLASS_MAPPING
-            and desired_mic != "_DynamicMicArray"
-        ):
-            raise ValueError(
-                f"{desired_mic} is not a valid microphone array type! "
-                f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}"
-            )
-        # Return the name of the desired microphone
-        return desired_mic
 
     def _set_attribute(self, attr_name: str, value: Any) -> None:
         """
@@ -322,13 +300,20 @@ class MicArray:
         Returns:
             MicArray instance.
         """
-        mic_class_str = cls._get_mic_class(input_dict)
+        if "micarray_type" not in input_dict:
+            raise KeyError("'micarray_type' key not found in input dict")
 
-        if mic_class_str == "_DynamicMicArray":
-            mic_class = dynamically_define_micarray(**input_dict)()
+        mic_class_str = input_dict.pop("micarray_type", "mic")
+
+        # If it is one of our inbuilt micarrays, just load from the list
+        if mic_class_str in MICARRAY_CLASS_MAPPING:
+            mic_class = MICARRAY_CLASS_MAPPING[mic_class_str]
+        # Otherwise, try and dynamically reconstruct the microphone given the available parameters
         else:
-            mic_class = MICARRAY_CLASS_MAPPING[mic_class_str]()
+            mic_class = dynamically_define_micarray(**input_dict)
 
+        # Instantiate the class and set its coordinates
+        mic_class = mic_class()
         mic_class.set_absolute_coordinates(input_dict["coordinates_center"])
 
         # Set any other valid parameters for the microphone as well
@@ -686,5 +671,8 @@ def dynamically_define_micarray(**kwargs) -> Type["MicArray"]:
                 return kwargs["capsule_names"]
             else:
                 raise NotImplementedError
+
+    if "micarray_type" in kwargs:
+        _DynamicMicArray.__name__ = kwargs["micarray_type"]
 
     return _DynamicMicArray
