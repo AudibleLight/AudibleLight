@@ -23,6 +23,8 @@ __all__ = [
     "AmbeoVR",
     "MICARRAY_LIST",
     "FOAListener",
+    "dynamically_define_micarray",
+    "CHANNEL_LAYOUT_TYPES",
 ]
 
 CHANNEL_LAYOUT_TYPES = ["mic", "foa", "binaural"]
