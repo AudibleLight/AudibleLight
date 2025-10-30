@@ -475,6 +475,46 @@ def sample_distribution(
             )
 
 
+def get_valid_kwargs(func: Callable) -> set[str]:
+    """
+    Gets the names of all valid keyword arguments for the provided function.
+
+    Note that this function assumes that `func` takes in an arbitrary number of keyword arguments. It is not designed
+    to be used in cases where (for instance) `func` accepts only positional arguments or `*args`.
+
+    Arguments:
+        func: a function to call
+
+    Raises:
+        TypeError: if `func` is not callable.
+        ValueError: if `func` has no keyword arguments.
+        AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func`.
+
+    Returns:
+        set[str]: the names of all valid keyword arguments for the provided function.
+    """
+
+    if not callable(func):
+        raise TypeError("`func` must be a callable")
+
+    sig = inspect.signature(func)
+    params = sig.parameters
+
+    # If function accepts arbitrary kwargs, return empty set
+    if any(p.kind == p.VAR_KEYWORD for p in params.values()):
+        return {}
+
+    valid_kwargs = {
+        name
+        for name, param in params.items()
+        if param.kind in (param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD)
+    }
+
+    if not valid_kwargs:
+        raise ValueError("`func` must have at least one named keyword argument")
+    return valid_kwargs
+
+
 # noinspection PyUnreachableCode
 def validate_kwargs(func: Callable, **kwargs) -> None:
     """
@@ -492,24 +532,7 @@ def validate_kwargs(func: Callable, **kwargs) -> None:
         ValueError: if `func` has no keyword arguments.
         AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func`.
     """
-    if not callable(func):
-        raise TypeError("`func` must be a callable")
-
-    sig = inspect.signature(func)
-    params = sig.parameters
-
-    # If function accepts arbitrary kwargs, no need to validate
-    if any(p.kind == p.VAR_KEYWORD for p in params.values()):
-        return
-
-    valid_kwargs = {
-        name
-        for name, param in params.items()
-        if param.kind in (param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD)
-    }
-
-    if not valid_kwargs:
-        raise ValueError("`func` must have at least one named keyword argument")
+    valid_kwargs = get_valid_kwargs(func)
 
     for kwarg in kwargs:
         if kwarg not in valid_kwargs:
