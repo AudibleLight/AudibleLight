@@ -668,8 +668,6 @@ def dynamically_define_micarray(**kwargs) -> Type["MicArray"]:
         def coordinates_cartesian(self) -> np.ndarray:
             if "coordinates_cartesian" in kwargs.keys():
                 return kwargs["coordinates_cartesian"]
-            elif "coordinates_polar" in kwargs.keys():
-                return utils.polar_to_cartesian(kwargs["coordinates_polar"])
             else:
                 raise NotImplementedError
 
@@ -677,8 +675,6 @@ def dynamically_define_micarray(**kwargs) -> Type["MicArray"]:
         def coordinates_polar(self) -> np.ndarray:
             if "coordinates_polar" in kwargs.keys():
                 return kwargs["coordinates_polar"]
-            elif "coordinates_cartesian" in kwargs.keys():
-                return utils.cartesian_to_polar(kwargs["coordinates_cartesian"])
             else:
                 raise NotImplementedError
 

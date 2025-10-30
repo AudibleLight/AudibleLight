@@ -194,7 +194,7 @@ def test_channel_layout(mictype):
             dict(
                 name="array2",
                 channel_layout_type="foa",
-                coordinates_polar=[[-90, 45, 0.5]],
+                coordinates_cartesian=[[1.0, 1.0, 0.5]],
                 capsule_names=["right"],
             ),
             dict(
