@@ -1,4 +1,4 @@
-.PHONY: install tests docs fix download
+.PHONY: install tests docs fix download notebooks
 
 install:
 	sudo apt update
@@ -7,8 +7,11 @@ install:
 
 tests:
 	poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
-	poetry run pytest --nbmake --ignore-glob='*.py' -n0 notebooks
 	poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
+
+notebooks:
+	poetry run jupyter nbconvert --clear-output --inplace notebooks/*.ipynb
+	poetry run pytest --nbmake --ignore-glob='*.py' --nbmake-kernel=python3 --overwrite notebooks
 
 fix:
 	poetry run pre-commit install
