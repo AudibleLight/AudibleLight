@@ -25,6 +25,8 @@ __all__ = [
     "FOAListener",
 ]
 
+CHANNEL_LAYOUT_TYPES = ["mic", "foa", "binaural"]
+
 
 @dataclass(eq=False)
 class MicArray:
@@ -74,7 +76,7 @@ class MicArray:
             return ChannelLayout(layout_type, 2)
         else:
             raise ValueError(
-                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"Expected 'channel_layout_type' to be one of {', '.join(CHANNEL_LAYOUT_TYPES)} "
                 f"but got '{self.channel_layout_type}'"
             )
         # return ChannelLayout(layout_type, self.n_capsules)
@@ -95,7 +97,7 @@ class MicArray:
             return 1
         else:
             raise ValueError(
-                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"Expected `channel_layout_type` to be one of {', '.join(CHANNEL_LAYOUT_TYPES)}, "
                 f"but got '{self.channel_layout_type}'"
             )
 
@@ -202,10 +204,12 @@ class MicArray:
         # Try and get all coordinate types for this microphone array
         coords = [
             "coordinates_absolute",
-            # "coordinates_polar",
             "coordinates_center",
-            # "coordinates_cartesian",
         ]
+        # Dynamic micarrays need these properties to be instantiated from a dictionary
+        if self.__class__.__name__ == "_DynamicMicArray":
+            coords.extend(["coordinates_polar", "coordinates_cartesian"])
+
         coord_dict = OrderedDict()
         for coord_type in coords:
             try:
@@ -218,6 +222,7 @@ class MicArray:
                 if isinstance(coord_val, np.ndarray):
                     coord_val = coord_val.tolist()
             coord_dict[coord_type] = coord_val
+
         return dict(
             name=self.name,
             micarray_type=self.__class__.__name__,
@@ -229,25 +234,28 @@ class MicArray:
         )
 
     @staticmethod
-    def _get_mic_class(input_dict: dict[str, Any]) -> Type["MicArray"]:
+    def _get_mic_class(input_dict: dict[str, Any]) -> str:
         """
-        Given a dictionary, get the desired MicArray class.
+        Given a dictionary, get the name of the desired MicArray class.
 
         Arguments:
             input_dict (dict[str, Any]): dictionary to instantiate MicArray class
 
         Returns:
-            MicArray object
+            str: name of the MicArray class
         """
         # Get the class type of the desired microphone
         desired_mic = input_dict.pop("micarray_type", "mic")
-        if desired_mic not in MICARRAY_CLASS_MAPPING:
+        if (
+            desired_mic not in MICARRAY_CLASS_MAPPING
+            and desired_mic != "_DynamicMicArray"
+        ):
             raise ValueError(
                 f"{desired_mic} is not a valid microphone array type! "
                 f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}"
             )
-        # Instantiate the microphone and set its coordinates
-        return MICARRAY_CLASS_MAPPING[desired_mic]
+        # Return the name of the desired microphone
+        return desired_mic
 
     def _set_attribute(self, attr_name: str, value: Any) -> None:
         """
@@ -312,7 +320,13 @@ class MicArray:
         Returns:
             MicArray instance.
         """
-        mic_class = cls._get_mic_class(input_dict)()
+        mic_class_str = cls._get_mic_class(input_dict)
+
+        if mic_class_str == "_DynamicMicArray":
+            mic_class = dynamically_define_micarray(**input_dict)()
+        else:
+            mic_class = MICARRAY_CLASS_MAPPING[mic_class_str]()
+
         mic_class.set_absolute_coordinates(input_dict["coordinates_center"])
 
         # Set any other valid parameters for the microphone as well
@@ -611,3 +625,68 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
     else:
         # Using `next` avoids having to build the whole list
         return next(ma for ma in MICARRAY_LIST if ma.name == micarray_name)
+
+
+def dynamically_define_micarray(**kwargs) -> Type["MicArray"]:
+    """
+    Dynamically define a new MicArray class with given attributes.
+
+    This enables a MicArray class to be dynamically defined at runtime. May be helpful when (for instance) the
+    name or channel layout type may not be known in advance (e.g., when these are passed from a SOFA file). The
+    returned MicArray class should have all the properties and attributes of a 'normal' MicArray class.
+
+    Arguments:
+        kwargs: passed to MicArray constructor
+
+    Returns:
+        Type['MicArray']: the dynamically defined MicArray class
+
+    Usage:
+    >>> marray = dynamically_define_micarray(
+    >>>     name="tester",
+    >>>     channel_layout_type="foa",
+    >>>     coordinates_cartesian=[[0.0, 0.0, 1.0]]
+    >>> )
+    >>> issubclass(type(marray), MicArray)
+    True
+    """
+
+    @dataclass(repr=False, eq=False)
+    class _DynamicMicArray(MicArray):
+
+        def __init__(self):
+            super().__init__()  # initialize MicArray defaults
+            self.name = kwargs.get("name", getattr(self, "name", ""))
+            self.channel_layout_type = kwargs.get(
+                "channel_layout_type", getattr(self, "channel_layout_type", "unknown")
+            )
+            self.is_spherical = kwargs.get(
+                "is_spherical", getattr(self, "is_spherical", False)
+            )
+
+        @property
+        def coordinates_cartesian(self) -> np.ndarray:
+            if "coordinates_cartesian" in kwargs.keys():
+                return kwargs["coordinates_cartesian"]
+            elif "coordinates_polar" in kwargs.keys():
+                return utils.polar_to_cartesian(kwargs["coordinates_polar"])
+            else:
+                raise NotImplementedError
+
+        @property
+        def coordinates_polar(self) -> np.ndarray:
+            if "coordinates_polar" in kwargs.keys():
+                return kwargs["coordinates_polar"]
+            elif "coordinates_cartesian" in kwargs.keys():
+                return utils.cartesian_to_polar(kwargs["coordinates_cartesian"])
+            else:
+                raise NotImplementedError
+
+        @property
+        def capsule_names(self) -> list[str]:
+            if "capsule_names" in kwargs.keys():
+                return kwargs["capsule_names"]
+            else:
+                raise NotImplementedError
+
+    return _DynamicMicArray

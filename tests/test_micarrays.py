@@ -4,6 +4,7 @@
 """Tests microphone arrays in audiblelight.micarrays"""
 
 import json
+from itertools import combinations
 
 import numpy as np
 import pytest
@@ -16,6 +17,7 @@ from audiblelight.micarrays import (
     Eigenmike32,
     MicArray,
     MonoCapsule,
+    dynamically_define_micarray,
     sanitize_microphone_input,
 )
 
@@ -177,3 +179,61 @@ def test_channel_layout(mictype):
     assert hasattr(micarray, "channel_layout_type")
     assert isinstance(micarray.channel_layout, ChannelLayout)
     # assert micarray.channel_layout.channel_count == micarray.n_capsules
+
+
+@pytest.mark.parametrize(
+    "array_kwargs",
+    [
+        [
+            dict(
+                name="array1",
+                channel_layout_type="mic",
+                coordinates_cartesian=[[0.0, 1.0, 0.5]],
+                capsule_names=["left"],
+            ),
+            dict(
+                name="array2",
+                channel_layout_type="foa",
+                coordinates_polar=[[-90, 45, 0.5]],
+                capsule_names=["right"],
+            ),
+            dict(
+                name="array3",
+                channel_layout_type="binaural",
+                coordinates_cartesian=[[0.0, -1.0, 0.5], [0.0, 1.0, 0.5]],
+                capsule_names=["lower", "upper"],
+            ),
+        ]
+    ],
+)
+def test_dynamically_define_micarrays(array_kwargs):
+    all_arrays = []
+
+    # Dynamically define every array in the list
+    for array in array_kwargs:
+        defined = dynamically_define_micarray(**array)()
+        defined.set_absolute_coordinates([0.0, 0.0, 0.0])
+
+        # Should be a subclass of the MicArray object
+        assert issubclass(type(defined), MicArray)
+
+        # Must serialise to a dictionary and unserialise correctly
+        assert isinstance(defined.to_dict(), dict)
+        assert MicArray.from_dict(defined.to_dict()) == defined
+
+        # Check attributes set correctly
+        if "name" in array.keys():
+            assert defined.name == array["name"]
+        if "channel_layout_type" in array.keys():
+            assert defined.channel_layout_type == array["channel_layout_type"]
+        if "coordinates_cartesian" in array.keys():
+            assert np.array_equal(
+                defined.coordinates_cartesian, array["coordinates_cartesian"]
+            )
+
+        all_arrays.append(defined)
+
+    # Test that arrays are different
+    combined_arrays = combinations(all_arrays, 2)
+    for a1, a2 in combined_arrays:
+        assert a1 != a2
