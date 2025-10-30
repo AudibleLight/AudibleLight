@@ -510,8 +510,6 @@ def get_valid_kwargs(func: Callable) -> set[str]:
         if param.kind in (param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD)
     }
 
-    if not valid_kwargs:
-        raise ValueError("`func` must have at least one named keyword argument")
     return valid_kwargs
 
 
@@ -533,6 +531,9 @@ def validate_kwargs(func: Callable, **kwargs) -> None:
         AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func`.
     """
     valid_kwargs = get_valid_kwargs(func)
+
+    if not valid_kwargs:
+        raise ValueError("`func` must have at least one named keyword argument")
 
     for kwarg in kwargs:
         if kwarg not in valid_kwargs:

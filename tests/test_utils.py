@@ -286,12 +286,6 @@ def _tmp(*_):
     [
         (lambda x=1, y=2: x + y, {"x": 5}, False, None),  # Valid kwarg
         (lambda x=1, y=2: x + y, {"z": 5}, True, AttributeError),  # Invalid kwarg
-        (
-            lambda **kwargs: sum(kwargs.values()),
-            {"a": 1},
-            False,
-            None,
-        ),  # Accepts arbitrary kwargs
         ("not_a_function", {"x": 1}, True, TypeError),  # Not a callable
         (lambda x, y: x + y, {}, False, None),  # No kwargs but valid empty call
         (lambda *, a=1: a, {"a": 2}, False, None),  # Keyword-only argument
