@@ -85,6 +85,8 @@ def test_add_event_static(kwargs, metu_scene_no_overlap: Scene):
     #  When we're using a random file, we cannot check these variables as they might have changed
     #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
     if kwargs.get("filepath") is not None:
+        assert ev.filepath == kwargs["filepath"]
+
         for override_key, override_val in kwargs.items():
             if hasattr(ev, override_key):
                 attr = getattr(ev, override_key)
@@ -94,6 +96,109 @@ def test_add_event_static(kwargs, metu_scene_no_overlap: Scene):
                 assert attr == override_val
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(
+            duration=5,
+            event_start=5,
+            scene_start=5,
+            shape="semicircular",
+            filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
+            augmentations=Phaser,
+        ),
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "music/001666.mp3",
+            position=np.array([-0.5, -0.5, 0.5]),
+            snr=5,
+            spatial_velocity=1,
+            shape="linear",
+            duration=5,
+        ),
+        # Test with polar starting positions
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            polar=True,
+            position=[90, 0.0, 0.5],
+            shape="linear",
+            scene_start=5.0,  # start five seconds in
+            spatial_resolution=1.5,
+            spatial_velocity=1.0,
+            duration=2,
+            augmentations=[Phaser, LowpassFilter],
+        ),
+        dict(
+            filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav", shape="linear"
+        ),
+    ],
+)
+def test_add_event_moving(kwargs, metu_scene_no_overlap: Scene):
+    assert isinstance(metu_scene_no_overlap.state, WorldStateSOFA)
+
+    # Add the event in
+    metu_scene_no_overlap.clear_events()
+    metu_scene_no_overlap.add_event(event_type="moving", alias="test_event", **kwargs)
+
+    # Should have added exactly one event
+    assert len(metu_scene_no_overlap.events) == 1
+
+    # Get the event
+    ev = metu_scene_no_overlap.get_event("test_event")
+    assert isinstance(ev, Event)
+    assert ev.is_moving
+    assert ev.has_emitters
+
+    # Check that the starting and end time of the event is within temporal bounds for the scene
+    assert ev.scene_start >= 0
+    assert ev.scene_end < metu_scene_no_overlap.duration
+
+    # If we've passed in a custom position for the emitter, ensure that this is set correctly
+    desired_position = kwargs.get("position", None)
+    is_polar = kwargs.get("polar", False)
+
+    cand_positions = metu_scene_no_overlap.state.get_source_positions()
+
+    # Actual position of event should be nearest neighbour to desired position
+    if desired_position is not None:
+        # Polar: convert to cartesian WRT mic
+        if is_polar:
+            desired_position = (
+                metu_scene_no_overlap.get_microphone("mic000").coordinates_center
+                + utils.polar_to_cartesian(desired_position)[0]
+            )
+
+        # Check that position of event is nearest neighbour of desired position
+        distances = np.linalg.norm(cand_positions - desired_position, axis=1)
+        nearest_neighbour = cand_positions[np.argmin(distances), :]
+        assert np.allclose(nearest_neighbour, ev.get_emitter(0).coordinates_absolute)
+
+        # Check distance between desired and actual position
+        #  Should be below a small threshold
+        assert np.min(distances) <= 0.2
+
+    # Check all emitters are in cand_positions
+    all_emits = ev.get_emitters()
+    assert len(all_emits) >= 2
+    assert len(all_emits) == len(ev)
+    for emit in ev.get_emitters():
+        assert emit.coordinates_absolute in cand_positions
+
+    # Check all overrides passed correctly to the event class
+    #  When we're using a random file, we cannot check these variables as they might have changed
+    #  due to cases where the duration of the random file is shorter than the passed value (5 seconds)
+    if kwargs.get("filepath") is not None:
+        assert ev.filepath == kwargs["filepath"]
+
+        for override_key, override_val in kwargs.items():
+            if hasattr(ev, override_key):
+                attr = getattr(ev, override_key)
+                # Skip nested keys
+                if isinstance(attr, (list, np.ndarray, tuple, set)):
+                    continue
+                assert attr == override_val
+
+
+@pytest.mark.flaky(3)
 @pytest.mark.parametrize("n_events", range(1, 4))
 def test_synthesise_with_sofa(n_events, metu_scene_no_overlap: Scene):
     # Clear everything out

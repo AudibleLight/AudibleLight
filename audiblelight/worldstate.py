@@ -2667,6 +2667,46 @@ class WorldStateSOFA(WorldState):
         # TODO: under what conditions might we want to return False?
         return True
 
+    def _add_emitters_without_validating(
+        self,
+        emitters: Union[list, np.ndarray],
+        alias: Optional[str],
+    ) -> None:
+        """
+        Adds emitters from a list **without checking** that they are valid.
+
+        These emitters are assumed to be *pre-validated* (i.e., from a call to `_validate_position`), and thus no
+        additional checks are performed on them here to ensure (for instance) that they are located in the mesh,
+        that they are an acceptable distance away from each other, etc.
+
+        This function is useful when adding emitters for every step in a trajectory created using `define_trajectory`:
+        these individual steps may be very close to each other, and would thus be rejected when calling
+        `_try_add_emitter`.
+        """
+        alias = (
+            utils.get_default_alias("src", self.emitters) if alias is None else alias
+        )
+
+        for coord in emitters:
+            coord = utils.sanitise_coordinates(coord)
+
+            # Get sofa idx
+            sofa_idx = self.get_nearest_source_idx(coord)[0]
+
+            # Create emitter and add to state (appending to list if needed)
+            emitter = Emitter(
+                alias=alias,
+                coordinates_absolute=utils.sanitise_coordinates(coord),
+                sofa_idx=sofa_idx,
+            )
+            if alias in self.emitters:
+                self.emitters[alias].append(emitter)
+            else:
+                self.emitters[alias] = [emitter]
+
+        # Update the state after placing everything
+        self._update()
+
     def add_emitter(
         self,
         position: Optional[Union[list, np.ndarray]] = None,
