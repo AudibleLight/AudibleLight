@@ -7,6 +7,7 @@ install:
 
 tests:
 	poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
+	poetry run pytest --nbmake -n=1 -v --ignore-glob='*.py' --reruns 3 --reruns-delay 5 notebooks
 	poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
 
 fix:
