@@ -284,30 +284,42 @@ def test_to_dict(sofa_name):
     [
         {
             "backend": "SOFA",
-            "sofa": str(utils_tests.TEST_RESOURCES / "metu_foa.sofa"),
+            "sofa": "/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/metu_foa.sofa",
             "sample_rate": 22050,
             "emitters": {
-                "src000": [[1.5, 1.5, -0.5], [-1.5, 0.5, 0.5]],
-                "src001": [[1.0, 0.5, 0.0]],
-                "src002": [[1.0, 1.5, 0.5]],
-                "src003": [[1.5, -0.5, 0.0]],
+                "src000": [[0.5, 1.5, 0.5], [-1.5, 0.5, -1.0]],
+                "src001": [[-1.0, 1.0, 0.0]],
+                "src002": [[-1.5, -1.5, 0.5]],
+                "src003": [[0.5, 0.5, -1.0]],
             },
             "emitter_sofa_idxs": {
-                "src000": [181, 203],
-                "src001": [4],
-                "src002": [243],
-                "src003": [202],
+                "src000": [194, 67],
+                "src001": [136],
+                "src002": [88],
+                "src003": [102],
             },
             "microphones": {
                 "tester": {
-                    "name": "monocapsule",
-                    "micarray_type": "MonoCapsule",
+                    "name": "em32",
+                    "micarray_type": "_DynamicMicArray",
                     "is_spherical": False,
-                    "channel_layout_type": "mic",
-                    "n_capsules": 1,
-                    "capsule_names": ["mono"],
-                    "coordinates_absolute": [[0.0, 0.0, 0.0]],
+                    "channel_layout_type": "foa",
+                    "n_capsules": 4,
+                    "capsule_names": ["1", "2", "3", "4"],
+                    "coordinates_absolute": [
+                        [0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0],
+                    ],
                     "coordinates_center": [0.0, 0.0, 0.0],
+                    "coordinates_polar": None,
+                    "coordinates_cartesian": [
+                        [0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0],
+                    ],
                 }
             },
             "metadata": {

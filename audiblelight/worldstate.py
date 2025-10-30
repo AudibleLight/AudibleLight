@@ -23,7 +23,13 @@ from scipy.spatial import KDTree
 from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
-from audiblelight.micarrays import MICARRAY_LIST, MicArray, sanitize_microphone_input
+from audiblelight.micarrays import (
+    CHANNEL_LAYOUT_TYPES,
+    MICARRAY_LIST,
+    MicArray,
+    dynamically_define_micarray,
+    sanitize_microphone_input,
+)
 
 FACE_FILL_COLOR = [255, 0, 0, 255]
 MATERIALS_JSON = str(
@@ -2459,14 +2465,50 @@ class WorldStateSOFA(WorldState):
             "Consider using 'WorldStateRLR' or 'WorldStateShoebox' to explicitly control the positions of a microphone."
         )
 
+    def _infer_channel_layout_name(self, listener_short_name: str) -> str:
+        """
+        Try and infer the name of a channel layout ('foa', 'mic') from either the name of the listener given in
+        the SOFA file, or the filepath.
+
+        Returns:
+            str: the name of the channel layout, or 'unknown' if can't be inferred.
+        """
+        # E.g., "foa", "mic", "binaural"...
+        for candidate_channel_layout in CHANNEL_LAYOUT_TYPES:
+            if listener_short_name == candidate_channel_layout:
+                return candidate_channel_layout
+            elif candidate_channel_layout in str(self.sofa_path):
+                return candidate_channel_layout
+        return "unknown"
+
     def _add_dummy_microphone(self) -> None:
         """
         Add a dummy microphone in to the WorldState at [0.0, 0.0, 0.0]
         """
-        # TODO: is this OK?
-        marray = sanitize_microphone_input("monocapsule")()
-        marray.set_absolute_coordinates([0.0, 0.0, 0.0])
-        self.microphones[self.mic_alias] = marray
+        # Grab attributes from the SOFA file
+        with self.sofa() as sofa:
+            attrs = sofa.getGlobalAttributesAsDict()
+            caps_positions = sofa.getReceiverPositionValues().data
+
+        # Try and grab the microphone name from the listener short name and use to infer channel layout
+        mic_name = attrs.get("ListenerShortName", "unknown").lower()
+        clt = self._infer_channel_layout_name(mic_name)
+
+        # Reshape the capsule positions and define the name
+        # TODO: check reshaping works ok
+        caps_positions = caps_positions.reshape(caps_positions.shape[:2])
+        capsule_names = [str(i) for i in range(1, caps_positions.shape[0] + 1)]
+
+        # Dynamically define a micarray class with given parameters
+        marray = dynamically_define_micarray(
+            name=mic_name,
+            channel_layout_type=clt,
+            coordinates_cartesian=caps_positions,
+            capsule_names=capsule_names,
+        )
+        marray_init = marray()
+        marray_init.set_absolute_coordinates([0.0, 0.0, 0.0])
+        self.microphones[self.mic_alias] = marray_init
 
     @contextmanager
     def sofa(self) -> SOFAFile:
@@ -2975,14 +3017,14 @@ class WorldStateSOFA(WorldState):
         # Instantiate the state
         state = cls(
             sofa=input_dict["sofa"],
-            mic_alias=None,
+            mic_alias=str(list(input_dict["microphones"].keys())[0]),
             sample_rate=input_dict["sample_rate"],
         )
 
         # Instantiate the microphones and emitters from their dictionaries
-        state.microphones = OrderedDict(
-            {a: MicArray.from_dict(v) for a, v in input_dict["microphones"].items()}
-        )
+        # state.microphones = OrderedDict(
+        #     {a: MicArray.from_dict(v) for a, v in input_dict["microphones"].items()}
+        # )
         state.emitters = OrderedDict(
             {
                 a: [
