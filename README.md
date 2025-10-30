@@ -4,7 +4,7 @@
 <a href="https://github.com/AudibleLight/AudibleLight"><img alt="AudibleLight logo" src="icon.png"></a>
 </p>
 
-<h2 align="center">Spatial soundscape synthesis using ray-tracing</h2>
+<h2 align="center">A Controllable, End-to-End API for Soundscape Synthesis Across Ray-Traced & Real-World Measured Acoustics</h2>
 
 <p align="center">
 <a href="https://github.com/AudibleLight/AudibleLight/actions"><img alt="Docs Status" src="https://github.com/AudibleLight/AudibleLight/actions/workflows/docs.yml/badge.svg"></a>
@@ -28,9 +28,7 @@
 
 ## What is `AudibleLight`?
 
-This project provides a platform for generating synthetic soundscapes by simulating arbitrary microphone configurations and dynamic sources in both parameterized and 3D-scanned rooms. Under the hood, `AudibleLight` uses Meta’s [open-source acoustic ray-tracing engine](https://github.com/beasteers/rlr-audio-propagation) to simulate spatial room impulse responses and convolve them with recorded events to emulate array recordings of moving sources. The resulting soundscapes can prove useful in training models for a variety of downstream tasks, including acoustic imaging, sound event localisation and detection, direction of arrival estimation, etc.
-
-In contrast to other projects (e.g., [`sonicsim`](https://github.com/JusperLee/SonicSim/tree/main/SonicSim-SonicSet), [`spatialscaper`](https://github.com/marl/SpatialScaper)), `AudibleLight` provides a straightforward API without restricting the user to any specific dataset. You can bring your own mesh and your own audio files, and `AudibleLight` will handle all the spatial logic, validation, and synthesis necessary to ensure that the resulting soundscapes are valid for use in training machine learning models and algorithms.
+`AudibleLight` is a unified API for soundscape synthesis supporting ray-traced, real-world, and parametric RIR generation. It enables flexible microphone array modeling and dynamic, fully annotated source trajectories within a single workflow. It is built upon [`SpatialScaper`](https://github.com/marl/SpatialScaper), [`SoundSpaces`](https://github.com/facebookresearch/sound-spaces) and [`Pyroomacoustics`](https://github.com/LCAV/pyroomacoustics) for scalable soundscape generation with unprecedented acoustic diversity.
 
 `AudibleLight` is developed by researchers at the [Centre for Digital Music, Queen Mary University of London](https://www.c4dm.eecs.qmul.ac.uk/) in collaboration with [Meta Reality Labs](https://www.meta.com/en-gb/emerging-tech).
 
@@ -55,7 +53,7 @@ make install
 
 ### Download datasets
 
-We provide several helper scripts to download and prepare data (meshes, audio files) that may be useful in `AudibleLight`. To run these:
+We provide several helper scripts to download and prepare data (3D meshes, sofa files, audio files) that may be useful in `AudibleLight`. To run these:
 
 ```bash
 make download
@@ -74,9 +72,7 @@ poetry run python scripts/experiments/generate_dataset.py
 
 To see the available arguments that this script takes, add the `--help` argument
 
-### Notebook
-
-An example notebook showing placement of static and moving sound sources can be found inside `notebooks/example_generation.py`.
+For further information, please see the [quickstart](https://audiblelight.github.io/AudibleLight/_examples/quickstart.html), [tutorials](https://audiblelight.github.io/AudibleLight/_examples/1.0.0_make_scene.html), and [API documentation](https://audiblelight.github.io/AudibleLight/core.html).
 
 ## Contributions
 
@@ -93,7 +89,6 @@ make tests
 
 ## Roadmap
 
-- Feature parity with `spatialscaper`
 - Spatial audio augmentations (from https://arxiv.org/abs/2101.02919)
 - Add to `pypi` (i.e., allowing `pip install audiblelight`)
 - HRTF support
