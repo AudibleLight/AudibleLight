@@ -284,7 +284,7 @@ def test_to_dict(sofa_name):
     [
         {
             "backend": "SOFA",
-            "sofa": "/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/metu_foa.sofa",
+            "sofa": utils_tests.METU_SOFA_PATH,
             "sample_rate": 22050,
             "emitters": {
                 "src000": [[0.5, 1.5, 0.5], [-1.5, 0.5, -1.0]],
@@ -359,7 +359,7 @@ def test_from_dict(input_dict):
     [
         {
             "backend": "SOFA",
-            "sofa": str(utils_tests.TEST_RESOURCES / "metu_foa.sofa"),
+            "sofa": utils_tests.METU_SOFA_PATH,
             "emitters": {},
             "microphones": {},
             "metadata": {},
