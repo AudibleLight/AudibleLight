@@ -100,6 +100,8 @@ def test_synthesise_with_sofa(n_events, metu_scene_no_overlap: Scene):
     metu_scene_no_overlap.clear_events()
     metu_scene_no_overlap.clear_ambience()
 
+    assert metu_scene_no_overlap.state.name == "SOFA"
+
     # Add some events
     for _ in range(n_events):
         metu_scene_no_overlap.add_event_static()
