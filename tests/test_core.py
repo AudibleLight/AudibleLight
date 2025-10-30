@@ -934,19 +934,142 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                 "empty_space_around_capsule": 0.05,
                 "repair_threshold": None,
             },
-        }
+        },
+        {
+            "audiblelight_version": "0.1.0",
+            "rlr_audio_propagation_version": "0.0.1",
+            "creation_time": "2025-10-30_11:18:02",
+            "duration": 50.0,
+            "backend": "SOFA",
+            "sample_rate": 44100,
+            "ref_db": -65,
+            "max_overlap": 1,
+            "fg_path": [str(utils_tests.SOUNDEVENT_DIR)],
+            "bg_path": [str(utils_tests.BACKGROUND_DIR)],
+            "ambience": {
+                "ambience000": {
+                    "alias": "ambience000",
+                    "beta": 0,
+                    "filepath": None,
+                    "channels": 4,
+                    "sample_rate": 44100,
+                    "duration": 50.0,
+                    "ref_db": -65,
+                    "noise_kwargs": {},
+                }
+            },
+            "events": {
+                "event000": {
+                    "alias": "event000",
+                    "filename": "70345.wav",
+                    "filepath": str(
+                        utils_tests.SOUNDEVENT_DIR / "doorCupboard/70345.wav"
+                    ),
+                    "class_id": 7,
+                    "class_label": "doorCupboard",
+                    "is_moving": False,
+                    "scene_start": 11.008224860918492,
+                    "scene_end": 12.320447083140714,
+                    "event_start": 0.0,
+                    "event_end": 1.3122222222222222,
+                    "duration": 1.3122222222222222,
+                    "snr": 25.595045335730944,
+                    "sample_rate": 44100.0,
+                    "spatial_resolution": None,
+                    "spatial_velocity": None,
+                    "shape": "static",
+                    "num_emitters": 1,
+                    "emitters": [[-1.5, -1.5, 1.0]],
+                    "emitters_relative": {
+                        "mic000": [[-135.0, 25.23940182067891, 2.345207879911715]]
+                    },
+                    "augmentations": [
+                        {
+                            "name": "Phaser",
+                            "sample_rate": 44100,
+                            "rate_hz": 9.480337646552867,
+                            "depth": 0.4725113710968438,
+                            "centre_frequency_hz": 2348.1728842622597,
+                            "feedback": 0.0810976870856293,
+                            "mix": 0.4228090059318278,
+                        }
+                    ],
+                }
+            },
+            "state": {
+                "backend": "SOFA",
+                "sofa": str(utils_tests.METU_SOFA_PATH),
+                "sample_rate": 44100,
+                "emitters": {"event000": [[-1.5, -1.5, 1.0]]},
+                "emitter_sofa_idxs": {"event000": [132]},
+                "microphones": {
+                    "mic000": {
+                        "name": "em32",
+                        "micarray_type": "_DynamicMicArray",
+                        "is_spherical": False,
+                        "channel_layout_type": "foa",
+                        "n_capsules": 4,
+                        "capsule_names": ["1", "2", "3", "4"],
+                        "coordinates_absolute": [
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                        ],
+                        "coordinates_center": [0.0, 0.0, 0.0],
+                        "coordinates_polar": None,
+                        "coordinates_cartesian": [
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                        ],
+                    }
+                },
+                "metadata": {
+                    "bounds": [[-1.5, -1.5, -1.0], [1.5, 1.5, 1.0]],
+                    "Conventions": "SOFA",
+                    "Version": "2.1",
+                    "SOFAConventions": "SingleRoomSRIR",
+                    "SOFAConventionsVersion": "1.0",
+                    "APIName": "pysofaconventions",
+                    "APIVersion": "0.1.5",
+                    "AuthorContact": "chris.ick@nyu.edu",
+                    "Organization": "Music and Audio Research Lab - NYU",
+                    "License": "Use whatever you want",
+                    "DataType": "FIR",
+                    "DateCreated": "Thu Apr 11 19:39:03 2024",
+                    "DateModified": "Thu Apr 11 19:39:03 2024",
+                    "Title": "METU-SPARG - classroom",
+                    "RoomType": "shoebox",
+                    "DatabaseName": "METU-SPARG",
+                    "ListenerShortName": "em32",
+                    "RoomShortName": "classroom",
+                    "Comment": "N/A",
+                },
+            },
+        },
     ],
 )
 def test_scene_from_dict(input_dict: dict):
     ev = Scene.from_dict(input_dict)
     assert isinstance(ev, Scene)
+
+    # Check number of events, ambiences, emitters, microphones
     assert len(ev.events) == len(input_dict["events"])
-    assert (
-        ev.state.num_emitters
-        == sum(len(em) for em in input_dict["state"]["emitters"].values())
-        == ev.state.ctx.get_source_count()
-    )
     assert len(ev.ambience.keys()) == len(input_dict["ambience"])
+    assert ev.state.num_emitters == sum(
+        len(em) for em in input_dict["state"]["emitters"].values()
+    )
+    assert len(ev.state.microphones) == len(input_dict["state"]["microphones"])
+
+    # Check serialising back and forth to dictionary
+    out_dict = ev.to_dict()
+    assert Scene.from_dict(out_dict) == ev
+
+    # Check source count in ray-tracing engine
+    if ev.state.name == "RLR":
+        assert ev.state.num_emitters == ev.state.ctx.get_source_count()
 
 
 @pytest.mark.parametrize(
