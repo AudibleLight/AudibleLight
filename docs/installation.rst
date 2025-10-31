@@ -5,8 +5,9 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 - ``git``
-- ``python3.10`` or above (tested up to 3.12)
+- ``python3.10`` or above (tested up to ``python3.12``)
 - ``poetry``
+- ``make``
 - A modern Linux distro: current versions of ``Ubuntu`` and ``Red Hat`` have been tested and confirmed to work.
 
   - Using another OS? Let us know so we can add it here!
@@ -16,20 +17,36 @@ Install via the command line
 
 .. code-block:: bash
 
-   sudo apt update
-   sudo apt install libsox-dev libsox-fmt-all freeglut3-dev
    git clone https://github.com/AudibleLight/AudibleLight.git
-   poetry install
+   cd AudibleLight
+   make install
 
-Install via PyPI
-^^^^^^^^^^^^^^^^
+Download datasets
+^^^^^^^^^^^^^^^^^
 
-*Coming soon!*
-
-Running ``pre-commit`` hooks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+We provide several helper scripts to download and prepare data (meshes, audio files) that may be useful in `AudibleLight`. To run these:
 
 .. code-block:: bash
 
-   poetry run pre-commit install
-   pre-commit run --all-files
+   make download
+
+Generate a dataset
+^^^^^^^^^^^^^^^^^^
+
+To generate an example dataset, run:
+
+.. code-block:: bash
+
+   poetry run python scripts/experiments/generate_dataset.py
+
+To see the available arguments that this script takes, add the ``--help`` argument
+
+Running the tests
+^^^^^^^^^^^^^^^^^
+
+Before making a PR, ensure that you run the pre-commit hooks and tests:
+
+.. code-block:: bash
+
+   make fix
+   make tests

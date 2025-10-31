@@ -31,7 +31,12 @@ DURATION = 10
 def create_scene(mesh_path: Path) -> Scene:
     return Scene(
         duration=DURATION,
-        mesh_path=Path(mesh_path),
+        sample_rate=config.SAMPLE_RATE,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=mesh_path,
+            add_to_context=False,
+        ),
         scene_start_dist=stats.uniform(0.0, DURATION - 1),
         event_start_dist=None,
         event_duration_dist=stats.uniform(
@@ -44,9 +49,6 @@ def create_scene(mesh_path: Path) -> Scene:
         fg_path=Path(FG_DIR),
         max_overlap=1,
         ref_db=config.DEFAULT_REF_DB,
-        state_kwargs=dict(
-            add_to_context=False, rlr_kwargs=dict(sample_rate=config.SAMPLE_RATE)
-        ),
         allow_duplicate_audios=False,
     )
 

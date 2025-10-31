@@ -2,6 +2,7 @@
 /venv
 /.idea
 /notebooks/.ipynb_checkpoints
+/audiblelight/__pycache__
 
 # Ignore build
 /dist/
@@ -38,14 +39,19 @@ coverage.xml
 *.json
 *.csv
 
+# Ignore partial gdown downloads
+*.part
+
 !/resources/mp3d_material_config.json
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
+!/tests/test_resources/daga_foa.sofa
 
 # Sphinx documentation
 /docs/_build/
 /docs/_autosummary/
 /docs/_examples/
+/_build/
 
 .env
 wget-log

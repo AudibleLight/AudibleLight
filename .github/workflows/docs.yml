@@ -31,23 +31,16 @@ jobs:
       - name: Add Poetry to PATH
         run: echo "$HOME/.poetry/bin" >> $GITHUB_PATH
 
-      - name: Install system dependencies
+      - name: Install system dependencies + build
         run: |
-          sudo apt update
-          sudo apt install libsox-dev libsox-fmt-all freeglut3-dev pandoc
-
-      - name: Install Python dependencies with Poetry
-        run: |
-          poetry install --no-interaction --no-root
-
-      - name: Sphinx build
-        run: |
-          poetry run sphinx-build docs _build
+          make install
+          make docs
 
       - name: Deploy to GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: _build/
+          publish_dir: docs/_build/
           force_orphan: true
