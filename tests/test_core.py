@@ -1529,3 +1529,30 @@ def test_parse_backend(backend, kwargs):
         assert str(sc.state.mesh.metadata["fpath"]) == str(utils_tests.OYENS_PATH)
     else:
         assert str(getattr(sc.state, "sofa_path")) == str(utils_tests.METU_SOFA_PATH)
+
+
+@pytest.mark.parametrize(
+    "backend,expected",
+    [
+        (12345, TypeError),
+        (
+            WorldStateRLR(
+                mesh=utils_tests.OYENS_PATH,
+                sample_rate=123456,
+                add_to_context=True,  # update worldstate with every addition
+                empty_space_around_emitter=0.2,  # all in meters
+                empty_space_around_mic=0.1,  # all in meters
+                empty_space_around_surface=0.2,  # all in meters
+                waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
+            ),
+            ValueError,
+        ),
+    ],
+)
+def test_parse_backend_failure(backend, expected):
+    with pytest.raises(expected):
+        _ = Scene(
+            duration=60,
+            sample_rate=44100,
+            backend=backend,
+        )

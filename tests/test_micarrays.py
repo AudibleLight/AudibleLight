@@ -196,6 +196,7 @@ def test_channel_layout(mictype):
             dict(
                 name="array2",
                 channel_layout_type="foa",
+                micarray_type="Tester",
                 coordinates_cartesian=[[1.0, 1.0, 0.5]],
                 capsule_names=["right"],
             ),
@@ -232,6 +233,8 @@ def test_dynamically_define_micarrays(array_kwargs):
             assert np.array_equal(
                 defined.coordinates_cartesian, array["coordinates_cartesian"]
             )
+        if "micarray_type" in array.keys():
+            assert defined.__class__.__name__ == array["micarray_type"]
 
         all_arrays.append(defined)
 

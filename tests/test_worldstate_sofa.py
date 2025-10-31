@@ -370,3 +370,11 @@ def test_from_invalid_dict(input_dict):
     # Missing some input keys
     with pytest.raises(KeyError):
         _ = WorldState.from_dict(input_dict)
+
+
+def test_worldstate_magic_methods(daga_space):
+    for method in ["__len__", "__str__", "__getitem__", "__repr__"]:
+        assert hasattr(daga_space, method)
+        _ = getattr(daga_space, method)
+    # Compare equality
+    assert daga_space == WorldStateSOFA.from_dict(daga_space.to_dict())

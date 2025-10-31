@@ -618,3 +618,50 @@ def test_tiny(x):
     assert not np.isnan(tiny_out)
     assert not np.isinf(tiny_out)
     assert np.isclose(tiny_out, 0, atol=utils.SMALL)
+
+
+@pytest.mark.parametrize(
+    "inp, expected",
+    [
+        ({}, None),
+        ({"a": 1, "b": 2}, {"a": 1, "b": 2}),
+        (
+            {"a": np.array([1, 2, 3]), "b": {"c": np.array([4, 5])}},
+            {"a": [1, 2, 3], "b": {"c": [4, 5]}},
+        ),
+        (np.array([10, 20]), [10, 20]),
+        ("hello", "hello"),
+        (42, 42),
+    ],
+)
+def test_coerce_nested_inputs(inp, expected):
+    assert utils.coerce_nested_inputs(inp) == expected
+
+
+def func_no_kwargs(a, b):
+    return a + b
+
+
+def func_with_kwargs(a, b=1, *, c=2):
+    return a + b + c
+
+
+def func_with_var_kwargs(**kwargs):
+    return sum(kwargs.values())
+
+
+@pytest.mark.parametrize(
+    "inp, expected, exc",
+    [
+        (func_no_kwargs, {"a", "b"}, None),
+        (func_with_kwargs, {"a", "b", "c"}, None),
+        (func_with_var_kwargs, {}, None),
+        ("not_callable", None, TypeError),
+    ],
+)
+def test_get_valid_kwargs(inp, expected, exc):
+    if exc:
+        with pytest.raises(exc):
+            utils.get_valid_kwargs(inp)
+    else:
+        assert utils.get_valid_kwargs(inp) == expected
