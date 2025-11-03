@@ -20,6 +20,11 @@ from scipy import stats
 from audiblelight import __version__, config, custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
+from audiblelight.class_mappings import (
+    ClassMapping,
+    TClassMapping,
+    sanitize_class_mapping,
+)
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
 from audiblelight.worldstate import Emitter, WorldState, get_worldstate_from_string
@@ -57,6 +62,7 @@ class Scene:
             ]
         ] = None,
         backend_kwargs: Optional[dict] = None,
+        class_mapping: Optional[Union[TClassMapping, dict, str]] = "DCASE2023Task3",
     ):
         """
         Initializes the Scene with a given duration and mesh.
@@ -90,6 +96,8 @@ class Scene:
                 `augmentations` when calling `Scene.add_event`, i.e. `Scene.add_event(augmentations=3)` will sample
                 3 random augmentations from `event_augmentations` and apply them to the Event.
             backend_kwargs: keyword arguments passed to `audiblelight.WorldState`.
+            class_mapping: a mapping used to map class names to indices, and vice versa. Can be a subclass of
+                `audiblelight.class_mapping.ClassMapping`, `dict`, or `str`. Defaults to DCASE 2023, task 3 mapping
         """
 
         # Set attributes passed in by the user
@@ -202,6 +210,9 @@ class Scene:
         # Spatialized audio
         #  Note that this is a dictionary to support multiple microphones
         self.audio = OrderedDict()
+
+        # Parse class mapping
+        self.class_mapping = sanitize_class_mapping(class_mapping)
 
     @staticmethod
     def _parse_audio_directories(
@@ -1075,6 +1086,7 @@ class Scene:
             ensure_direct_path=ensure_direct_path,
             keep_existing=True,
             max_place_attempts=max_place_attempts,
+            class_mapping=self.class_mapping,
         )
 
         # Try and create the event: returns True if placed, False if not
@@ -1208,6 +1220,7 @@ class Scene:
             starting_position=position,
             ensure_direct_path=ensure_direct_path,
             max_place_attempts=max_place_attempts,
+            class_mapping=self.class_mapping,
         )
 
         # Create the event with required arguments
@@ -1457,6 +1470,7 @@ class Scene:
             class_id=class_id,
             class_label=class_label,
             augmentations=augmentations,
+            class_mapping=self.class_mapping,
         )
         # Pre-initialise the event with required arguments + register the emitters
         utils.validate_kwargs(Event.__init__, **event_kwargs)
@@ -1592,6 +1606,9 @@ class Scene:
             ambience={k: a.to_dict() for k, a in self.ambience.items()},
             events={k: e.to_dict() for k, e in self.events.items()},
             state=self.state.to_dict(),
+            class_mapping=(
+                self.class_mapping.to_dict() if self.class_mapping is not None else None
+            ),
         )
 
     @classmethod
@@ -1623,6 +1640,7 @@ class Scene:
             "state",
             "sample_rate",
             "backend",
+            "class_mapping",
         ]:
             if expected not in input_dict:
                 raise KeyError("Missing key: '{}'".format(expected))
@@ -1659,6 +1677,9 @@ class Scene:
         # Instantiate the state, which also creates all the emitters and microphones
         state = WorldState.from_dict(input_dict["state"])
 
+        # Instantiate the class ampping
+        class_mapping = ClassMapping.from_dict(input_dict["class_mapping"])
+
         # Pass the backend directly in when creating the Scene
         instantiated_scene = cls(
             duration=input_dict["duration"],
@@ -1668,6 +1689,7 @@ class Scene:
             bg_path=input_dict["bg_path"],
             ref_db=input_dict["ref_db"],
             max_overlap=input_dict["max_overlap"],
+            class_mapping=class_mapping,
         )
 
         # Instantiate the events by iterating over the list

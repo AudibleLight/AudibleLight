@@ -12,6 +12,7 @@ import pytest
 from audiblelight import custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
+from audiblelight.class_mappings import ClassMapping
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
@@ -934,6 +935,21 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                 "empty_space_around_capsule": 0.05,
                 "repair_threshold": None,
             },
+            "class_mapping": {
+                "femaleSpeech": 0,
+                "maleSpeech": 1,
+                "clapping": 2,
+                "telephone": 3,
+                "laughter": 4,
+                "domesticSounds": 5,
+                "footsteps": 6,
+                "doorCupboard": 7,
+                "music": 8,
+                "musicInstrument": 9,
+                "waterTap": 10,
+                "bell": 11,
+                "knock": 12,
+            },
         },
         {
             "audiblelight_version": "0.1.0",
@@ -1047,6 +1063,21 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     "RoomShortName": "classroom",
                     "Comment": "N/A",
                 },
+            },
+            "class_mapping": {
+                "femaleSpeech": 0,
+                "maleSpeech": 1,
+                "clapping": 2,
+                "telephone": 3,
+                "laughter": 4,
+                "domesticSounds": 5,
+                "footsteps": 6,
+                "doorCupboard": 7,
+                "music": 8,
+                "musicInstrument": 9,
+                "waterTap": 10,
+                "bell": 11,
+                "knock": 12,
             },
         },
     ],
@@ -1556,3 +1587,47 @@ def test_parse_backend_failure(backend, expected):
             sample_rate=44100,
             backend=backend,
         )
+
+
+@pytest.mark.parametrize(
+    "filepath,mapping,expected",
+    [
+        (utils_tests.TEST_MUSICS[0], "dcase2023task3", 8),
+        (
+            utils_tests.TEST_RESOURCES / "soundevents/waterTap/95709.wav",
+            dict(
+                music=1,
+                musicInstrument=2,
+                waterTap=3,
+                anotherClass=4,
+                anotherClassAgain=5,
+            ),
+            3,
+        ),
+    ],
+)
+@pytest.mark.parametrize("event_type", ["static", "moving"])
+def test_parse_class_mapping(filepath, mapping, expected, event_type):
+    sc = Scene(
+        backend="rlr",
+        duration=50,
+        sample_rate=22050,
+        class_mapping=mapping,
+        backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+    )
+
+    # Add in the event
+    sc.add_event(
+        event_type=event_type, filepath=filepath, alias="class_mapping", duration=1
+    )
+
+    # Grab the event
+    ev = sc.get_event("class_mapping")
+
+    # ID should have been passed correctly
+    assert ev.class_id == expected
+    if isinstance(mapping, dict):
+        assert expected == mapping[ev.class_label]
+
+    # Should be a ClassMapping child
+    assert issubclass(type(sc.class_mapping), ClassMapping)
