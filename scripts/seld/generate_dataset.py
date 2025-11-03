@@ -153,8 +153,9 @@ def generate(
         )
 
     elif backend == "sofa":
+        # SOFA name also includes channel layout
         backend_kwargs = dict(
-            sofa=SOFA_DIR / asset_name,
+            sofa=SOFA_DIR / (asset_name + f"_{channel_layout}.sofa"),
         )
     else:
         raise ValueError("Unknown backend: '{}'".format(backend))
