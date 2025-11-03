@@ -74,9 +74,9 @@ DAGA_REMOTES = {
 GDRIVE_REMOTES = {
     "database_name": "gdrive",
     "remotes": {
-        "daga/daga_foa.sofa": "https://drive.google.com/uc?id=1Wa4XD9I_Xa7F2v_DitQtU4Zcru93Gnlf",
-        "metu/metu_foa.sofa": "https://drive.google.com/uc?id=1zamCd6OR6Tr5M40RdDhswYbT1wbGo2ZO",
-        "rsoanu/rsoanu_foa.sofa": "https://drive.google.com/uc?id=1_EzzntIc_ypJ8MoLKreWGEhouWUKOCDY",
+        "daga_foa.sofa": "https://drive.google.com/uc?id=1Wa4XD9I_Xa7F2v_DitQtU4Zcru93Gnlf",
+        "metu_foa.sofa": "https://drive.google.com/uc?id=1zamCd6OR6Tr5M40RdDhswYbT1wbGo2ZO",
+        "rsoanu_foa.sofa": "https://drive.google.com/uc?id=1_EzzntIc_ypJ8MoLKreWGEhouWUKOCDY",
     },
 }
 
@@ -788,12 +788,6 @@ def main(path: Path, cleanup: bool):
     )
     for p in (source_path, sofa_path):
         os.makedirs(p, exist_ok=True)
-
-    for p in [METU_REMOTES, RSOANU_REMOTES, DAGA_REMOTES]:
-        for t in [source_path, sofa_path]:
-            new_path = t / p["database_name"]
-            if not os.path.exists(new_path):
-                os.makedirs(new_path, exist_ok=True)
 
     # Google Drive (hosts a few FOA files not converted here)
     for fname, rem in GDRIVE_REMOTES["remotes"].items():
