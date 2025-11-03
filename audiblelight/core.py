@@ -1790,6 +1790,15 @@ class Scene:
         """
         return list(self.ambience.values())
 
+    def get_class_mapping(self) -> Type[TClassMapping]:
+        """
+        Alias for `ClassMapping.mapping`
+        """
+        if self.class_mapping is not None:
+            return self.class_mapping.to_dict()
+        else:
+            return None
+
     # noinspection PyProtectedMember
     def clear_events(self) -> None:
         """

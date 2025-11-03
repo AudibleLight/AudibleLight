@@ -1626,8 +1626,10 @@ def test_parse_class_mapping(filepath, mapping, expected, event_type):
 
     # ID should have been passed correctly
     assert ev.class_id == expected
-    if isinstance(mapping, dict):
-        assert expected == mapping[ev.class_label]
+
+    current_mapping = sc.get_class_mapping()
+    assert ev.class_label in current_mapping
+    assert expected == current_mapping[ev.class_label]
 
     # Should be a ClassMapping child
     assert issubclass(type(sc.class_mapping), ClassMapping)
