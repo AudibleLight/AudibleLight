@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-This file contains the selected meshes used for generating datasets of different sizes.
+This file contains the selected meshes + SOFA files used for generating datasets of different sizes.
 
 Note the following:
-- The total number of scapes to generate is fixed at 1200. Only the number of **meshes** changes per dataset.
+- The total number of Scapes to generate is fixed at 1200. Only the number of **meshes** changes per dataset.
 - Larger datasets include the same meshes as smaller ones
     - e.g. split 36, train is a superset of split 18, train, is a superset of split 9, train...
 - Running this file directly will perform some sanity checks, e.g. that there are no duplicate meshes.
@@ -895,6 +895,14 @@ glb_files = [
     "Shellsburg.glb",
     "Touhy.glb",
 ]
+
+
+SOFAS = {
+    "9A": {
+        "scapes_per_train_mesh": 150,
+        "scapes_per_test_mesh": 100,
+    }
+}
 
 
 if __name__ == "__main__":

@@ -2,22 +2,26 @@
 # -*- coding: utf-8 -*-
 
 """
-Generates similar training data to that contained in [this repo](https://zenodo.org/records/6406873):
+Generates an example dataset for SELD, similar to DCASE 2023 Task 3 and [this repo](https://zenodo.org/records/6406873):
 
+By default, this script can generate:
 - 1200 1-minute long spatial recordings
 - Sampling rate of 24kHz
 - Two 4-channel recording formats, first-order Ambisonics (FOA) and tetrahedral microphone array (MIC)
-- Spatial events spatialized in N unique rooms, using measured RIRs for the two formats
+- Spatial events spatialized in N unique spaces, using measured or ray-traced RIRs for the two formats
 - Maximum polyphony of 2 (with possible same-class events overlapping)
 
-Augmentations can be added to every audio file and are sampled from:
+A single augmentation can be to every audio file, sampled randomly from:
 - Pitch shifting (+/- up to half an octave)
 - Time stretching (between 0.9 and 1.1x)
 - Distortion (up to +10 dB gain)
 - Reverse
 - Phase inversion
 
-Materials can also be added to the simulation and are randomly sampled from those available in the backend.
+The backend can be controlled using the "--backend" flag, and defaults to RLR (ray-tracing). When using this backend,
+materials can also be added to the simulation.
+
+Many other parameters can be controlled using flags passed in to the script.
 """
 
 import argparse
@@ -27,7 +31,6 @@ import random
 from pathlib import Path
 from time import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 from scipy import stats
@@ -37,7 +40,7 @@ from audiblelight import config, utils
 from audiblelight.augmentation import Distortion, Invert, PitchShift, Reverse, SpeedUp
 from audiblelight.core import Scene
 from audiblelight.worldstate import MATERIALS_JSON
-from scripts.experiments.dcase_selected_meshes import MESHES
+from scripts.seld.seld_dataset_assets import MESHES, SOFAS
 
 # For reproducible randomisation
 utils.seed_everything(utils.SEED)
@@ -45,6 +48,7 @@ utils.seed_everything(utils.SEED)
 # Filepaths, directories, etc.
 FG_DIR = utils.get_project_root() / "resources/soundevents"
 MESH_DIR = utils.get_project_root() / "resources/meshes/gibson"
+SOFA_DIR = utils.get_project_root() / "resources/sofa/rirs"
 OUTPUT_DIR = utils.get_project_root() / "spatial_scenes_dcase_synthetic"
 
 # Parameters taken from DCASE data
@@ -90,7 +94,8 @@ def get_augmentations(augmentation_names: list[str]) -> list:
 
 
 def generate(
-    mesh_name: str,
+    backend: str,
+    asset_name: str,
     split: str,
     scene_num: int,
     scape_num: int,
@@ -107,9 +112,6 @@ def generate(
     """
     Make a single generation with required arguments
     """
-    # Resolve full mesh_path
-    mesh_path = MESH_DIR / mesh_name
-
     # Output filepaths
     fold = 1 if split == "train" else 2
     common = f"dev-{split}-alight/fold{fold}_scene{scene_num}_{str(scape_num).zfill(3)}"
@@ -124,12 +126,6 @@ def generate(
         ).exists()
     ):
         return None
-
-    # Choose a material to use
-    if materials:
-        use_material = random.choice(VALID_MATERIALS)
-    else:
-        use_material = "Default"
 
     # Choose a noise floor for the scene
     scene_ref_db = np.random.uniform(config.MIN_REF_DB, config.MAX_REF_DB)
@@ -148,10 +144,26 @@ def generate(
         lambda: random.choice(range(min_events_moving, max_events_moving + 1)),
     )
 
+    # Resolve full kwargs for backend
+    if backend == "rlr":
+        backend_kwargs = dict(
+            add_to_context=False,
+            material=random.choice(VALID_MATERIALS) if materials else "Default",
+            mesh=MESH_DIR / asset_name,
+        )
+
+    elif backend == "sofa":
+        backend_kwargs = dict(
+            sofa=SOFA_DIR / asset_name,
+        )
+    else:
+        raise ValueError("Unknown backend: '{}'".format(backend))
+
+    # Initialise the Scene with all arguments
     scene = Scene(
         duration=DURATION,
         sample_rate=SAMPLE_RATE,
-        backend="rlr",
+        backend=backend,
         scene_start_dist=stats.uniform(0.0, DURATION - 1),
         # Audio files will always start from 0 seconds in
         event_start_dist=None,
@@ -179,20 +191,19 @@ def generate(
         fg_path=Path(FG_DIR),
         max_overlap=max_overlap,
         ref_db=scene_ref_db,
-        backend_kwargs=dict(
-            add_to_context=False,
-            material=use_material,
-            mesh=mesh_path,
-        ),
+        backend_kwargs=backend_kwargs,
         allow_duplicate_audios=False,
     )
 
-    # Add the microphone, static + moving events (one augmentation sampled randomly from above list)
-    #  skip over any errors when adding the event and just continue to the next one
-    scene.add_microphone(
-        microphone_type="ambeovr" if channel_layout == "mic" else "foalistener",
-        alias=channel_layout,
-    )
+    # Add the microphone to ray-tracing/parameterized backends
+    if backend != "sofa":
+        scene.add_microphone(
+            microphone_type="ambeovr" if channel_layout == "mic" else "foalistener",
+            alias=channel_layout,
+        )
+
+    # Add static + moving events (one augmentation sampled randomly from above list)
+    # skip over any errors when adding the event and just continue to the next one
     for _ in range(static_events.rvs()):
         try:
             scene.add_event(
@@ -224,7 +235,8 @@ def generate(
     # If no events added successfully, try again by calling the function recursively
     if len(scene.get_events()) == 0:
         return generate(
-            mesh_name,
+            backend=backend,
+            asset_name=asset_name,
             split=split,
             scene_num=scene_num,
             scape_num=scape_num,
@@ -249,22 +261,37 @@ def generate(
             metadata_dcase=True,
         )
 
-        # Also dump an image of the state
-        fig = scene.state.create_plot()
-        fig.savefig(metadata_path.with_suffix(".png").as_posix())
-
-        # Make sure to close the figure!
-        fig.clear()
-        plt.close(fig)
-
         return None
 
 
+def get_assets(backend: str, asset_split: str) -> dict:
+    """
+    Get the train + test meshes for this backend and split
+    """
+    if backend == "rlr":
+        if str(asset_split) not in MESHES.keys():
+            raise ValueError(
+                f"Expected meshes in {list(MESHES.keys())} but got {asset_split}"
+            )
+        return MESHES[str(asset_split)]
+
+    elif backend == "sofa":
+        if str(asset_split) not in SOFAS.keys():
+            raise ValueError(
+                f"Expected .sofa files in {list(SOFAS.keys())} but got {asset_split}"
+            )
+        return SOFAS[str(asset_split)]
+
+    else:
+        raise ValueError(f"Unknown backend {backend}")
+
+
 def main(
+    backend: str,
     channel_layout: str,
     augmentations: bool,
     materials: bool,
-    meshes: str,
+    assets: str,
     outdir: str,
     max_overlap: int,
     min_events_static,
@@ -272,6 +299,9 @@ def main(
     min_events_moving: int,
     max_events_moving: int,
 ):
+    """
+    Runs the generation across all training + test rooms
+    """
     # Parse the channel layout and microphone type
     if channel_layout not in ["mic", "foa"]:
         raise ValueError(
@@ -290,9 +320,7 @@ def main(
             os.makedirs(fp)
 
     # Get the train + test meshes for this run
-    if str(meshes) not in MESHES.keys():
-        raise ValueError(f"Expected meshes in {list(MESHES.keys())} but got {meshes}")
-    chosen = MESHES[str(meshes)]
+    chosen = get_assets(backend, assets)
     train_rooms = chosen["train"]
     test_rooms = chosen["test"]
     train_recordings_per_room = chosen["scapes_per_train_mesh"]
@@ -307,6 +335,7 @@ def main(
             desc=f"Generating for train room {train_room_idx + 1}/{len(train_rooms)}, name {train_room}...",
         ):
             generate(
+                backend,
                 train_room,
                 "train",
                 train_room_idx,
@@ -329,6 +358,7 @@ def main(
             desc=f"Generating for test room {test_room_idx + 1}/{len(test_rooms)}, name {test_room}...",
         ):
             generate(
+                backend,
                 test_room,
                 "test",
                 test_room_idx,
@@ -350,8 +380,15 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generates similar synthetic data to https://zenodo.org/records/6406873 using AudibleLight"
+    # Use module docstring for the help text
+    parser = argparse.ArgumentParser(description=__doc__)
+
+    # Here come the user parameters
+    parser.add_argument(
+        "--backend",
+        type=str,
+        default=config.DEFAULT_BACKEND,
+        help="The backend to use, defaults to 'rlr'.",
     )
     parser.add_argument(
         "--channel-layout",
@@ -367,13 +404,15 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
-        "--materials", action="store_true", help="Add this flag to use materials"
+        "--materials",
+        action="store_true",
+        help="Add this flag to use materials with 'backend=rlr'",
     )
     parser.add_argument(
-        "--meshes",
+        "--assets",
         type=str,
         default="9A",
-        help="The split of meshes to use: see `dcase_selected_meshes.py`. "
+        help="The data files (.glb meshes or .sofa) to use: see `seld_dataset_assets.py`. "
         "Note that the total number of scapes to generate will remain fixed at 1200.",
     )
     parser.add_argument(
@@ -413,6 +452,7 @@ if __name__ == "__main__":
         help=f"Maximum number of static events per scene, defaults to {config.MAX_MOVING_EVENTS}",
     )
 
+    # Parse args and start generating
     args = vars(parser.parse_args())
     logger.info("Generating with args: {}".format(args))
 
