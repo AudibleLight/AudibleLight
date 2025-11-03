@@ -65,14 +65,16 @@ For further information, see [scripts/download_data/README.md](scripts/download_
 
 ### Script
 
-To generate a dataset, run:
+We include scripts to generate large datasets for common tasks relating to spatial soundscape synthesis.
+
+To generate a dataset for sound event localization and detection (**SELD**) that conforms with the [DCASE2023 task 3](https://dcase.community/challenge2023/task-sound-event-localization-and-detection-evaluated-in-real-spatial-sound-scenes) format, run:
 ```bash
-poetry run python scripts/experiments/generate_dataset.py
+poetry run python scripts/seld/generate_dataset.py
 ```
 
 To see the available arguments that this script takes, add the `--help` argument
 
-For further information, please see the [quickstart](https://audiblelight.github.io/AudibleLight/_examples/quickstart.html), [tutorials](https://audiblelight.github.io/AudibleLight/_examples/1.0.0_make_scene.html), and [API documentation](https://audiblelight.github.io/AudibleLight/core.html).
+If you want to generate custom datasets (or want to implement `AudibleLight` in a larger pipeline), please see the [quickstart](https://audiblelight.github.io/AudibleLight/_examples/quickstart.html), [tutorials](https://audiblelight.github.io/AudibleLight/_examples/1.0.0_make_scene.html), and [API documentation](https://audiblelight.github.io/AudibleLight/core.html).
 
 ## Contributions
 
