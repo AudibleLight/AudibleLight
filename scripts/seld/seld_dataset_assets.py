@@ -899,6 +899,15 @@ glb_files = [
 
 SOFAS = {
     "9A": {
+        "train": [
+            "pb132",
+            "pc226",
+            "sa203",
+            "sc203",
+            "se203",
+            "tb103",
+        ],
+        "test": ["tc352", "bomb_shelter", "gym"],
         "scapes_per_train_mesh": 150,
         "scapes_per_test_mesh": 100,
     }
