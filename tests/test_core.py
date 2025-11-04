@@ -854,6 +854,8 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                             "mix": 0.4228090059318278,
                         }
                     ],
+                    "ref_ir_channel": 0,
+                    "direct_path_time_ms": [6, 30],
                 }
             },
             "state": {
@@ -1010,6 +1012,8 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                             "mix": 0.4228090059318278,
                         }
                     ],
+                    "ref_ir_channel": 0,
+                    "direct_path_time_ms": [6, 30],
                 }
             },
             "state": {

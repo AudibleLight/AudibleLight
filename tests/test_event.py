@@ -151,6 +151,8 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
                 "mic000": [[-156.0890612441748, -5.976352087676762, 3.3744825372046803]]
             },
             "augmentations": [],
+            "ref_ir_channel": 0,
+            "direct_path_time_ms": [6, 30],
         },
         {
             "alias": "test_event",
@@ -230,6 +232,8 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
                     "cutoff_frequency_hz": 7561.425049192692,
                 },
             ],
+            "ref_ir_channel": None,
+            "direct_path_time_ms": None,
         },
     ],
 )
@@ -372,3 +376,22 @@ def test_prevent_divide_by_zero():
     assert isinstance(out, np.ndarray)
     assert not np.any(np.isnan(out))
     # if we don't add a small value, we divide by zero which silently causes NaN values in the array
+
+
+@pytest.mark.parametrize(
+    "direct_path_time_ms,expected",
+    [([5, 10, 15], ValueError), (1, TypeError), ([6, 50], [6, 50])],
+)
+def test_parse_direct_path_time_ms(direct_path_time_ms, expected):
+    kwargs = dict(
+        filepath=utils_tests.TEST_MUSICS[0],
+        alias="asdf",
+        direct_path_time_ms=direct_path_time_ms,
+        ref_ir_channel=0,
+    )
+    if isinstance(expected, list):
+        ev = Event(**kwargs)
+        assert ev.direct_path_time_ms == expected
+    else:
+        with pytest.raises(expected):
+            _ = Event(**kwargs)
