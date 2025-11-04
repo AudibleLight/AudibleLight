@@ -1411,6 +1411,75 @@ def test_get_random_audio_dupes(allow_dupes):
         assert chosen_audio not in randoms
 
 
+@pytest.mark.parametrize("allow_same_class", [True, False])
+def test_get_random_audio_no_same_class_events(allow_same_class):
+    sc = Scene(
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+        duration=50,
+        allow_duplicate_audios=True,
+        allow_same_class_events=allow_same_class,
+        sample_rate=44100,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        class_mapping="dcase2023task3",
+    )
+
+    # Add a set audio file with music class
+    chosen_audio = utils.sanitise_filepath(utils_tests.TEST_MUSICS[0])
+    sc.add_event(duration=1, event_type="static", filepath=chosen_audio)
+
+    # Get more audio files
+    randoms = [sc._get_random_audio() for _ in range(50)]
+
+    # Map the chosen audio files to labels with the scene's mapping object
+    mapped = set(
+        [sc.class_mapping.infer_label_idx_from_filepath(ap)[1] for ap in randoms]
+    )
+
+    # If not allowing same classes, we shouldn't get any music audio files
+    if not allow_same_class:
+        assert "music" not in mapped
+    else:
+        assert "music" in mapped
+
+
+@pytest.mark.parametrize(
+    "audio1, audio2, raises",
+    [
+        ("waterTap/95709.wav", "waterTap/205695.wav", True),
+        ("music/000010.mp3", "music/001666.mp3", True),
+        ("music/000010.mp3", "musicInstrument/3471.wav", False),
+        ("maleSpeech/93853.wav", "femaleSpeech/236385.wav", False),
+    ],
+)
+def test_add_duplicated_class_event(audio1, audio2, raises):
+    sc = Scene(
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+        duration=50,
+        allow_same_class_events=False,
+        sample_rate=44100,
+        class_mapping="dcase2023task3",
+    )
+
+    # Add first audio path, should be OK
+    sc.add_event(event_type="static", filepath=utils_tests.SOUNDEVENT_DIR / audio1)
+
+    # Trying to add second audio path should raise an error
+    if raises:
+        with pytest.raises(ValueError):
+            sc.add_event(
+                event_type="static", filepath=utils_tests.SOUNDEVENT_DIR / audio2
+            )
+    else:
+        sc.add_event(event_type="static", filepath=utils_tests.SOUNDEVENT_DIR / audio2)
+        assert len(sc.get_events()) == 2
+
+
 @pytest.mark.parametrize("n_events", [1, 2, 3])
 def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
     oyens_scene_no_overlap.clear_events()
