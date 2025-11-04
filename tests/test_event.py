@@ -21,7 +21,7 @@ from audiblelight.augmentation import (
     PitchShift,
     SpeedUp,
 )
-from audiblelight.event import Event, infer_dcase_label_idx_from_filepath
+from audiblelight.event import Event
 from tests import utils_tests
 
 
@@ -353,43 +353,6 @@ def test_add_bad_augmentation():
     # Should not be able to clear augmentation
     with pytest.raises(IndexError, match="No augmentation found at index 1000"):
         ev.clear_augmentation(1000)
-
-
-@pytest.mark.parametrize(
-    "filepath,expected_class,expected_idx,raises",
-    [
-        (
-            "/AudibleLight/resources/soundevents/music/train/Pop/001649.mp3",
-            "music",
-            8,
-            False,
-        ),
-        (
-            "/AudibleLight/resources/soundevents/femaleSpeech/train/Female_speech_and_woman_speaking/109902.wav",
-            "femaleSpeech",
-            0,
-            False,
-        ),
-        (
-            "i/will/never/get/a/match/butitsok.wav",
-            None,
-            None,
-            False,
-        ),
-        ("i/will/match/both/music/and/femaleSpeech/sowillfail.wav", None, None, True),
-    ],
-)
-def test_infer_dcase_from_filepath(
-    filepath, expected_class: str, expected_idx: int, raises: bool
-):
-    if raises:
-        with pytest.raises(ValueError):
-            _, __ = infer_dcase_label_idx_from_filepath(filepath)
-
-    else:
-        actual_idx, actual_cls = infer_dcase_label_idx_from_filepath(filepath)
-        assert actual_cls == expected_class
-        assert actual_idx == expected_idx
 
 
 def test_prevent_divide_by_zero():

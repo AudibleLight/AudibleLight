@@ -14,89 +14,8 @@ from loguru import logger
 
 from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
+from audiblelight.class_mappings import TClassMapping, sanitize_class_mapping
 from audiblelight.worldstate import Emitter
-
-# Mapping from sound events to labels used in DCASE challenge
-DCASE_SOUND_EVENT_CLASSES = {
-    "femaleSpeech": 0,
-    "maleSpeech": 1,
-    "clapping": 2,
-    "telephone": 3,
-    "laughter": 4,
-    "domesticSounds": 5,
-    "footsteps": 6,
-    "doorCupboard": 7,
-    "music": 8,
-    "musicInstrument": 9,
-    "waterTap": 10,
-    "bell": 11,
-    "knock": 12,
-}
-_DCASE_SOUND_EVENT_CLASSES_INV = {v: k for v, k in DCASE_SOUND_EVENT_CLASSES.items()}
-
-# If no duration override passed in, this will be the maximum duration for an event
-
-
-def infer_dcase_label_idx_from_filepath(
-    filepath: Union[Path, str]
-) -> Union[tuple[int, str], tuple[None, None]]:
-    """
-    Given a filepath, infer the DCASE class label and index from this.
-
-    Returns a tuple of None, None if the DCASE class label cannot be inferred.
-
-    Arguments:
-        filepath: the path to infer the class label from
-
-    Examples:
-        >>> fpath = "/AudibleLight/resources/soundevents/maleSpeech/train/Male_speech_and_man_speaking/67669.wav"
-        >>> cls, idx = infer_dcase_label_idx_from_filepath(fpath)
-        >>> print(cls, idx)
-        tuple("maleSpeech", 1)
-    """
-    # Coerce paths
-    if not isinstance(filepath, Path):
-        filepath = Path(filepath)
-
-    cls, idx = None, None
-    # Search for the label key in the path
-    for part in filepath.parts:
-        if part in DCASE_SOUND_EVENT_CLASSES.keys():
-
-            # Update the variables, only if we haven't already done so
-            if not cls and not idx:
-                cls = part
-                idx = DCASE_SOUND_EVENT_CLASSES[cls]
-
-            # Raise if we have multiple possible matches
-            else:
-                raise ValueError(
-                    f"Found multiple possible DCASE classes for filepath {str(filepath)}. "
-                    f"This filepath matches both classes {cls} and {part}. "
-                    f"Please adjust your filepaths as necessary so that they only contain one DCASE class."
-                )
-
-    # This will just return None, None if no matches
-    return idx, cls
-
-
-def _infer_missing_dcase_values(
-    class_id: Optional[int], class_label: Optional[str]
-) -> tuple[Optional[int], Optional[str]]:
-    """
-    Infers missing DCASE class ID or label if only one is provided.
-
-    - If only class_label is provided, class_id is inferred.
-    - If only class_id is provided, class_label is inferred.
-    - If both are provided or both are None, returns them as-is.
-    """
-    if class_id is None and class_label is not None:
-        class_id = DCASE_SOUND_EVENT_CLASSES.get(class_label)
-
-    elif class_id is not None and class_label is None:
-        class_label = _DCASE_SOUND_EVENT_CLASSES_INV.get(class_id)
-
-    return class_id, class_label
 
 
 class Event:
@@ -122,6 +41,7 @@ class Event:
         spatial_resolution: Optional[Union[int, float]] = None,
         spatial_velocity: Optional[Union[int, float]] = None,
         shape: Optional[str] = None,
+        class_mapping: Optional[Union[TClassMapping, dict, str]] = None,
     ):
         """
         Initializes the Event object, representing a single audio event taking place inside a Scene.
@@ -146,6 +66,8 @@ class Event:
             class_id: Optional ID to use for sound event class.
                 If not provided, the ID will attempt to be inferred from the label using the DCASE sound event classes.
             shape: the shape of the trajectory defined by `emitters`. Can be any string, only used in metadata.
+            class_mapping: a mapping used to map class names to indices, and vice versa. Can be a subclass of
+                `audiblelight.class_mapping.ClassMapping`, `dict`, or `str`.
         """
         # Setting attributes for audio
         self.filepath = utils.sanitise_filepath(
@@ -173,16 +95,22 @@ class Event:
         # Metadata attributes
         self.filename = self.filepath.name
 
+        # Class mapping: infer from input
+        self.class_mapping = sanitize_class_mapping(class_mapping)
+
         #  Attempt to infer class ID and labels in cases where only one is provided
         if class_id or class_label:
-            self.class_id, self.class_label = _infer_missing_dcase_values(
-                class_id, class_label
-            )
+            if self.class_mapping:
+                class_id, class_label = self.class_mapping.infer_missing_values(
+                    class_id, class_label
+                )
         # Otherwise, try and infer both the ID and the label from the filepath
         else:
-            self.class_id, self.class_label = infer_dcase_label_idx_from_filepath(
-                self.filepath
-            )
+            if self.class_mapping:
+                class_id, class_label = (
+                    self.class_mapping.infer_label_idx_from_filepath(self.filepath)
+                )
+        self.class_id, self.class_label = class_id, class_label
 
         # Get the full duration of the audio file
         self.audio_full_duration = utils.sanitise_positive_number(
