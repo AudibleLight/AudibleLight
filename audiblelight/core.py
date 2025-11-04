@@ -818,6 +818,7 @@ class Scene:
         spatial_resolution: Optional[custom_types.Numeric] = None,
         spatial_velocity: Optional[custom_types.Numeric] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        **event_kwargs,
     ) -> Event:
         """
         Add an event to the foreground, either "static", "moving", or "predefined".
@@ -863,6 +864,7 @@ class Scene:
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; one of "linear", "semicircular", "random", "sine", "sawtooth", "predefined"
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
+            event_kwargs: additional keyword arguments passed to Event.__init__
 
         Returns:
             the Event object added to the Scene
@@ -920,6 +922,7 @@ class Scene:
                 class_label=class_label,
                 augmentations=augmentations,
                 max_place_attempts=max_place_attempts,
+                **event_kwargs,
             )
 
         elif event_type == "moving":
@@ -941,6 +944,7 @@ class Scene:
                 augmentations=augmentations,
                 ensure_direct_path=ensure_direct_path,
                 max_place_attempts=max_place_attempts,
+                **event_kwargs,
             )
 
         elif event_type == "predefined":
@@ -994,6 +998,7 @@ class Scene:
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        **event_kwargs,
     ) -> Event:
         """
         Add a static event to the foreground with optional overrides.
@@ -1064,7 +1069,7 @@ class Scene:
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Construct kwargs dictionary for emitter and event
-        event_kwargs = dict(
+        event_kwargs_full = dict(
             filepath=filepath,
             alias=alias,
             scene_start=scene_start,
@@ -1087,10 +1092,11 @@ class Scene:
             keep_existing=True,
             max_place_attempts=max_place_attempts,
             class_mapping=self.class_mapping,
+            **event_kwargs,
         )
 
         # Try and create the event: returns True if placed, False if not
-        placed = self._try_add_event(**event_kwargs)
+        placed = self._try_add_event(**event_kwargs_full)
 
         # Raise an error if we can't place the event correctly
         if not placed:
@@ -1128,6 +1134,7 @@ class Scene:
         spatial_velocity: Optional[custom_types.Numeric] = None,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        **event_kwargs,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
@@ -1166,6 +1173,7 @@ class Scene:
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
+            event_kwargs: additional keyword arguments passed to Event.__init__
 
         Returns:
             the Event object added to the Scene
@@ -1202,7 +1210,7 @@ class Scene:
             shape = random.choice(config.MOVING_EVENT_SHAPES)
 
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
-        event_kwargs = dict(
+        event_kwargs_full = dict(
             filepath=filepath,
             alias=alias,
             scene_start=scene_start,
@@ -1221,10 +1229,11 @@ class Scene:
             ensure_direct_path=ensure_direct_path,
             max_place_attempts=max_place_attempts,
             class_mapping=self.class_mapping,
+            **event_kwargs,
         )
 
         # Create the event with required arguments
-        placed = self._try_add_event(**event_kwargs)
+        placed = self._try_add_event(**event_kwargs_full)
 
         # Raise an error if we can't place the event correctly
         if not placed:
