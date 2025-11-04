@@ -736,7 +736,7 @@ class Scene:
             raise FileNotFoundError(
                 "No audio files found to sample from! "
                 "Make sure you pass a value to `fg_path` in Scene.__init__`. "
-                "You can also try setting `allow_duplicate_audios=True`, or"
+                "You can also try setting `allow_duplicate_audios=True`, or "
                 "setting `allow_same_class_events=True`."
             )
 
@@ -1014,7 +1014,7 @@ class Scene:
                     f"Audio file {str(user_filepath.resolve())} has already been added to the Scene. "
                     f"Either increase the number of `fg_paths` in Scene.__init__, "
                     f"choose a different audio file, "
-                    f"or set `Scene.allow_duplicate_audios=False`."
+                    f"or set `Scene.allow_duplicate_audios=True`."
                 )
 
         # If we don't want to allow for duplicate class IDs, check this too
@@ -1031,7 +1031,7 @@ class Scene:
                     f"Audio file {str(user_filepath.resolve())} uses a class that has"
                     f" already been added to the Scene ({resolved_id}). "
                     f"Either choose a different audio file, "
-                    f"or set `Scene.allow_duplicate_audios=False`."
+                    f"or set `Scene.allow_same_class_events=True`."
                 )
 
     def add_event_static(
