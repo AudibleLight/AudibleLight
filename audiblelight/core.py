@@ -112,7 +112,7 @@ class Scene:
                 f"duration of the Scene. It is recommended to increase the duration to at least "
                 f"{config.WARN_WHEN_SCENE_DURATION_BELOW} seconds."
             )
-        self.ref_db = utils.sanitise_ref_db(ref_db)
+        self.ref_db = self._sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
         self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
 
@@ -218,6 +218,19 @@ class Scene:
 
         # Parse class mapping
         self.class_mapping = sanitize_class_mapping(class_mapping)
+
+    @staticmethod
+    def _sanitise_ref_db(ref_db: Any) -> int:
+        """
+        Validate noise floor, in dB, and raise warnings when non-negative.
+        """
+        if not isinstance(ref_db, custom_types.Numeric):
+            raise TypeError(f"Expected `ref_db` to be numeric, but got {type(ref_db)}")
+        elif ref_db > 0:
+            logger.error(
+                f"Provided noise floor is positive; expect clipping to occur (ref_db={ref_db:.2f})"
+            )
+        return int(ref_db)
 
     @staticmethod
     def _parse_audio_directories(
