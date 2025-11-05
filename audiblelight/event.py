@@ -256,8 +256,7 @@ class Event:
         # Whenever we register augmentations, we should also invalidate any cached audio
         #  This will force us to reload the audio and apply the augmentations again
         #  when we call `self.load_audio`.
-        self.audio = None
-        self.spatial_audio = OrderedDict()
+        self._clear_audio()
 
     def register_emitters(
         self,
@@ -393,7 +392,13 @@ class Event:
         if isinstance(emitters, Emitter):
             return [emitters]  # pad to a list
 
+        # Single dictionary
+        elif isinstance(emitters, dict):
+            return [Emitter.from_dict(emitters)]
+
+        # List of emitters
         elif isinstance(emitters, list):
+            # Must have at least one emitter in the list
             if len(emitters) < 1:
                 raise ValueError("At least one emitter must be provided")
 
@@ -681,9 +686,7 @@ class Event:
         except IndexError:
             raise IndexError("No augmentation found at index {idx}".format(idx=idx))
         else:
-            # Invalidate any cached audio
-            self.audio = None
-            self.spatial_audio = OrderedDict()
+            self._clear_audio()
 
     def clear_augmentations(self) -> None:
         """
@@ -691,6 +694,39 @@ class Event:
         """
         if len(self.augmentations) > 0:
             self.augmentations = []
-            # Invalidate any cached audio
-            self.audio = None
-            self.spatial_audio = OrderedDict()
+            self._clear_audio()
+
+    def clear_emitters(self) -> None:
+        """
+        Removes all current emitters.
+        """
+        self.emitters = None
+        # Also invalidate any cached audio
+        self._clear_audio()
+
+    def clear_emitter(self, idx: int) -> None:
+        """
+        Tries to remove an Emitter by its integer index
+        """
+        try:
+            del self.emitters[idx]
+        except (IndexError, TypeError):
+            raise IndexError("No emitter with index {}".format(idx))
+        else:
+            # Reset to empty list if required
+            if len(self.emitters) == 0:
+                self.emitters = None
+            # Also invalidate any cached audio
+            self._clear_audio()
+
+    def _clear_audio(self):
+        """
+        Resets all audio back to empty dictionaries.
+
+        Useful when e.g., clearing Emitters, clearing augmentations.
+        """
+        self.audio = None
+        self.spatial_audio = OrderedDict()
+        self._spatial_audio_dry_padded = OrderedDict()
+        self._spatial_audio_dry = OrderedDict()
+        self._spatial_audio_padded = OrderedDict()
