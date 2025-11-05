@@ -20,6 +20,7 @@ from audiblelight.micarrays import (
     dynamically_define_micarray,
     sanitize_microphone_input,
 )
+from tests import utils_tests
 
 
 @pytest.mark.parametrize("micarray", MICARRAY_LIST)
@@ -98,18 +99,25 @@ def test_absolute_coordinates(micarray, center: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "array_name,expected",
+    "array_name,expected,matches",
     [
-        ("eigenmike32", Eigenmike32),
-        ("ambeovr", AmbeoVR),
-        ("asdf", ValueError),
-        (None, MonoCapsule),
-        (123, TypeError),
+        ("eigenmike32", Eigenmike32, None),
+        ("ambeovr", AmbeoVR, None),
+        ("asdf", ValueError, "Cannot find array asdf: expected one of"),
+        (None, MonoCapsule, None),
+        (123, TypeError, "Could not parse microphone type"),
+        (Eigenmike32, Eigenmike32, None),
+        (AmbeoVR(), AmbeoVR, None),
+        # Test with custom defined MicArrays: represents a user defining their own array
+        (utils_tests.CubeMic(), utils_tests.CubeMic, None),
+        (utils_tests.CubeMic, utils_tests.CubeMic, None),
     ],
 )
-def test_sanitize_microphone_input(array_name: str, expected: object):
+def test_sanitize_microphone_input(
+    array_name: str, expected: object, matches: str | None
+) -> None:
     if issubclass(expected, Exception):
-        with pytest.raises(expected):
+        with pytest.raises(expected, match=matches):
             _ = sanitize_microphone_input(array_name)
     else:
         assert type(expected) is type(sanitize_microphone_input(array_name))
@@ -157,21 +165,33 @@ def test_micarray_from_dict(input_dict):
         else:
             assert input_dict[k] == out_dict[k]
 
+    # Test removing necessary key: will break
+    input_dict.pop("micarray_type")
+    with pytest.raises(KeyError, match="'micarray_type' key not found in input dict"):
+        _ = MicArray.from_dict(input_dict)
 
-@pytest.mark.parametrize("mictype", MICARRAY_LIST)
+
+@pytest.mark.parametrize("mictype", MICARRAY_LIST + [MicArray])
 def test_magic_methods(mictype):
     instant = mictype()
-    instant.set_absolute_coordinates([-0.5, -0.5, 0.5])
-    for at in [
-        "__len__",
-        "__repr__",
-        "__str__",
-    ]:
-        assert hasattr(instant, at)
-        _ = getattr(instant, at)
+
+    # Set coordinates: should raise an error for base class
+    if instant.name != "":
+        instant.set_absolute_coordinates([-0.5, -0.5, 0.5])
+    else:
+        with pytest.raises(NotImplementedError):
+            instant.set_absolute_coordinates([-0.5, -0.5, 0.5])
+
+    # Actually check the magic methods
+    assert isinstance(instant.__repr__(), str)
+    assert isinstance(instant.__str__(), str)
+    assert isinstance(instant.__len__(), int)
+    assert isinstance(instant.capsule_names, list)
+
     # Compare equality
-    instant2 = mictype.from_dict(instant.to_dict())
-    assert instant == instant2
+    if instant.name != "":
+        instant2 = mictype.from_dict(instant.to_dict())
+        assert instant == instant2
 
 
 @pytest.mark.parametrize("mictype", MICARRAY_LIST)
@@ -242,3 +262,63 @@ def test_dynamically_define_micarrays(array_kwargs):
     combined_arrays = combinations(all_arrays, 2)
     for a1, a2 in combined_arrays:
         assert a1 != a2
+
+
+@pytest.mark.parametrize(
+    "array_kwargs,missing_attr",
+    [
+        (
+            dict(
+                name="array1",
+                channel_layout_type="mic",
+            ),
+            ["coordinates_cartesian", "coordinates_polar", "capsule_names"],
+        )
+    ],
+)
+def test_dynamically_define_micarray_bad(array_kwargs, missing_attr):
+    array_out = dynamically_define_micarray(**array_kwargs)()
+    for attr_ in missing_attr:
+        with pytest.raises(NotImplementedError):
+            _ = getattr(array_out, attr_)
+
+
+@pytest.mark.parametrize(
+    "mictype,expected,expected_channels,expected_listeners",
+    [
+        (
+            dynamically_define_micarray(
+                name="tester",
+                channel_layout_type="binaural",
+                coordinates_cartesian=[[0.0, 0.0, 1.0], [0.5, 0.0, 1.0]],
+                capsule_names=["left", "right"],
+            )(),
+            "binaural",
+            2,
+            1,
+        ),
+        (AmbeoVR(), "mic", 1, 4),
+        (sanitize_microphone_input("foalistener")(), "foa", 4, 1),
+        (
+            dynamically_define_micarray(
+                name="tester",
+                channel_layout_type="willbreak",
+                coordinates_cartesian=[[0.0, 0.0, 1.0], [0.5, 0.0, 1.0]],
+                capsule_names=["left", "right"],
+            )(),
+            ValueError,
+            "Expected 'channel_layout_type' to be one of",
+            None,
+        ),
+    ],
+)
+def test_parse_channel_layout(mictype, expected, expected_channels, expected_listeners):
+    if expected is not ValueError:
+        assert mictype.channel_layout_type == expected
+        assert mictype.channel_layout.channel_count == expected_channels
+        assert mictype.n_listeners == expected_listeners
+    else:
+        with pytest.raises(expected, match=expected_channels):
+            _ = mictype.channel_layout
+        with pytest.raises(expected, match=expected_channels):
+            _ = mictype.n_listeners
