@@ -5,6 +5,7 @@
 
 
 from time import time
+from unittest.mock import PropertyMock, patch
 
 import librosa.util
 import numpy as np
@@ -220,8 +221,29 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
             assert len(getattr(ev, attr_)) == 0
 
 
-@pytest.mark.skip("needs fixing")
 def test_validate_scene(oyens_scene_factory):
+    # Test with mismatching number of emitters/events/sources: need to mock
+    scn = oyens_scene_factory()
+    scn.add_event(event_type="static")
+    with patch.object(
+        type(scn.state), "num_emitters", new_callable=PropertyMock
+    ) as mock_emitters:
+        mock_emitters.return_value = 5
+        with pytest.raises(ValueError, match="Mismatching number of emitters"):
+            syn.validate_scene(scn)
+
+    # Test with no ray-tracing engine sources
+    scn = oyens_scene_factory()
+    scn.add_event(event_type="static")
+    scn.state.ctx.clear_sources()
+    with pytest.raises(ValueError, match="Ray-tracing engine has no sources!"):
+        syn.validate_scene(scn)
+
+    # Test with no ray-tracing engine listeners
+    scn.state.ctx.clear_listeners()
+    with pytest.raises(ValueError, match="Ray-tracing engine has no listeners!"):
+        syn.validate_scene(scn)
+
     # Test with no emitters
     scn = oyens_scene_factory()
     scn.clear_emitters()  # 1 microphone, 0 emitters, 0 events
@@ -239,22 +261,6 @@ def test_validate_scene(oyens_scene_factory):
     scn = oyens_scene_factory()
     scn.state.add_emitter()  # 1 emitter, 1 mic, 0 events
     with pytest.raises(ValueError, match="Scene has no events!"):
-        syn.validate_scene(scn)
-
-    # Test with no ray-tracing listeners
-    scn = oyens_scene_factory()
-    scn.state.add_emitter()
-    scn.state.ctx.clear_listeners()
-    with pytest.raises(
-        ValueError,
-    ):
-        syn.validate_scene(scn)
-
-    # Test with no ray-tracing sources
-    scn = oyens_scene_factory()
-    scn.state.add_emitter()
-    scn.state.ctx.clear_sources()
-    with pytest.raises(ValueError):
         syn.validate_scene(scn)
 
     # Do the same for the capsules
@@ -275,6 +281,22 @@ def test_validate_scene(oyens_scene_factory):
     out.emitters = None
     with pytest.raises(ValueError, match="Event with alias"):
         syn.validate_scene(scn)
+
+
+def test_validate_sofa_scene(metu_scene_factory):
+    # Test invalid
+    scn = metu_scene_factory()
+    scn.state.add_emitter()  # 1 emitter, 1 mic, 0 events
+    with pytest.raises(ValueError, match="Scene has no events!"):
+        syn.validate_scene(scn)
+
+    # Test valid
+    scn = metu_scene_factory()
+    scn.add_event(alias="temp")
+    try:
+        syn.validate_scene(scn)
+    except ValueError:
+        pytest.fail()
 
 
 @pytest.mark.parametrize(

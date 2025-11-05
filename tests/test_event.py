@@ -22,6 +22,7 @@ from audiblelight.augmentation import (
     SpeedUp,
 )
 from audiblelight.event import Event
+from audiblelight.worldstate import Emitter
 from tests import utils_tests
 
 
@@ -256,6 +257,9 @@ def test_event_from_dict(input_dict: dict):
     with pytest.raises(KeyError):
         _ = Event.from_dict(input_dict)
 
+    # Clear augmentations: should reset everything
+    ev.clear_augmentations()
+
 
 @pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:5])
 def test_magic_methods(audio_fpath: str, oyens_space):
@@ -395,3 +399,154 @@ def test_parse_direct_path_time_ms(direct_path_time_ms, expected):
     else:
         with pytest.raises(expected):
             _ = Event(**kwargs)
+
+
+def test_get_emitters(oyens_scene_no_overlap):
+    oyens_scene_no_overlap.add_event(event_type="static", alias="checker")
+    ev = oyens_scene_no_overlap.get_event("checker")
+
+    # Should have one emitter: is static
+    em = ev.get_emitter(0)
+    assert isinstance(em, Emitter)
+
+    # Shouldn't have an emitter at this index!
+    with pytest.raises(IndexError, match="No emitter with index 100"):
+        _ = ev.get_emitter(100)
+
+    # Get emitters should return a list of Emitter objects
+    ems = ev.get_emitters()
+    assert isinstance(ems, list)
+    for em in ems:
+        assert isinstance(em, Emitter)
+
+    # Remove emitters, should raise an error
+    ev.clear_emitter(0)
+    assert ev.emitters is None
+    assert ev.get_emitters() == []
+    with pytest.raises(
+        ValueError, match="Cannot get length of an Event object without"
+    ):
+        _ = len(ev)
+    with pytest.raises(IndexError, match="No emitter with index 1000"):
+        ev.clear_emitter(1000)
+
+    # Should be None
+    ev.clear_emitters()
+    assert ev.emitters is None
+    assert ev.get_emitters() == []
+
+
+@pytest.mark.parametrize(
+    "emitters,expected,match",
+    [
+        # Parse single dictionary
+        (
+            {
+                "alias": "checker",
+                "coordinates_absolute": [
+                    -0.7545545990237592,
+                    -6.5214271383126015,
+                    0.3468620059694474,
+                ],
+                "has_direct_paths": {"mic000": False},
+            },
+            True,
+            1,
+        ),
+        # Parse list of dictionaries
+        (
+            [
+                {
+                    "alias": "checker",
+                    "coordinates_absolute": [
+                        -0.7545545990237592,
+                        -6.5214271383126015,
+                        0.3468620059694474,
+                    ],
+                    "has_direct_paths": {"mic000": False},
+                },
+            ],
+            True,
+            1,
+        ),
+        # Parse single Emitter
+        (
+            Emitter(
+                alias="checker",
+                coordinates_absolute=[
+                    -0.7545545990237592,
+                    -6.5214271383126015,
+                    0.3468620059694474,
+                ],
+            ),
+            True,
+            1,
+        ),
+        # Parse list of Emitters
+        (
+            [
+                Emitter(
+                    alias="checker",
+                    coordinates_absolute=[
+                        -0.7545545990237592,
+                        -6.5214271383126015,
+                        0.3468620059694474,
+                    ],
+                )
+            ],
+            True,
+            1,
+        ),
+        # Parse list of coordinates
+        ([[-0.7545545990237592, -6.5214271383126015, 0.3468620059694474]], True, 1),
+        # Bad parsing, need at least one element
+        ([], ValueError, "At least one emitter must be provided"),
+        # Bad parsing, not an emitter/array/dict
+        ([123], TypeError, "Cannot parse emitter with type"),
+        # Bad parsing, not a list
+        ("asdf", TypeError, "Cannot parse emitters with type"),
+    ],
+)
+def test_parse_emitters(emitters, expected, match):
+    kwargs = dict(
+        emitters=emitters, alias="testers", filepath=utils_tests.TEST_MUSICS[0]
+    )
+
+    # Hit if shouldn't error
+    if expected is True:
+        parsed = Event(**kwargs)
+        assert len(parsed) == match
+
+    # Hit if an error is expected
+    else:
+        with pytest.raises(expected, match=match):
+            _ = Event(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "audio_start,expected", [(None, 0.0), (10000, 0.0), (1.0, 1.0)]
+)
+def test_parse_audio_start(audio_start, expected):
+    parsed = Event(
+        alias="testers",
+        # Long audio file
+        filepath=utils_tests.TEST_MUSICS[0],
+    )
+    returned = parsed._parse_audio_start(audio_start)
+    assert returned == expected
+
+
+@pytest.mark.parametrize(
+    "class_id,class_label",
+    [(0, None), (None, "femaleSpeech"), (0, "femaleSpeech"), (None, None)],
+)
+def test_infer_class_id_labels(class_id, class_label):
+    parsed = Event(
+        alias="testers",
+        filepath=utils_tests.SOUNDEVENT_DIR / "femaleSpeech/236385.wav",
+        class_mapping="dcase2023task3",
+        class_id=class_id,
+        class_label=class_label,
+    )
+    assert parsed.class_id == 0
+    assert parsed.class_label == "femaleSpeech"

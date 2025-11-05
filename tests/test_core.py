@@ -287,11 +287,13 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
             duration=5,
             trajectory=None,
             ensure_direct_path=True,
+            spatial_velocity=0.5,
         ),
         dict(
             filepath=utils_tests.TEST_MUSICS[0],
             duration=0.3,
             trajectory=np.array([[2.0, -0.3, 0.5], [2.0, -0.4, 0.5], [2.0, -0.5, 0.5]]),
+            spatial_resolution=0.5,
         ),
     ],
 )
@@ -1706,3 +1708,84 @@ def test_parse_class_mapping(filepath, mapping, expected, event_type):
 
     # Should be a ClassMapping child
     assert issubclass(type(sc.class_mapping), ClassMapping)
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        dict(
+            music=1,
+            musicInstrument=2,
+            waterTap=3,
+            anotherClass=4,
+            anotherClassAgain=5,
+        ),
+        None,
+    ],
+)
+def test_get_class_mapping(mapping):
+    sc = Scene(
+        backend="rlr",
+        duration=50,
+        sample_rate=22050,
+        class_mapping=mapping,
+        backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+    )
+    returned = sc.get_class_mapping()
+    assert returned == mapping
+
+
+def test_coerce_polar_position(oyens_scene_factory):
+    # Create scene with a single mic
+    scene = oyens_scene_factory()
+
+    # Coerce position
+    #  Don't need to provide a mic as there is one in the scene already
+    outp = scene._coerce_polar_position(mic=None, position=[90, 0, 0.5])
+    assert isinstance(outp, np.ndarray)
+
+    # Try without position
+    with pytest.raises(ValueError, match="Must pass a position when `polar` is True"):
+        _ = scene._coerce_polar_position(mic="mic000", position=None)
+
+    # Add another mic
+    #  Will raise an error if we don't explicitly provide an alias
+    scene.add_microphone(microphone_type="ambeovr", alias="tester")
+    with pytest.raises(
+        ValueError, match="Must pass a microphone alias when `polar` is True"
+    ):
+        _ = scene._coerce_polar_position(mic=None, position=[90, 0, 0.5])
+
+    # Remove all mics
+    #  Will raise an error as no microphones added to the scene
+    scene.clear_microphones()
+    with pytest.raises(
+        ValueError,
+        match="Cannot set `polar=True` when adding an Event when no microphone",
+    ):
+        _ = scene._coerce_polar_position(mic=None, position=[90, 0, 0.5])
+
+
+def test_add_functions(oyens_scene_no_overlap):
+    # Test add emitter
+    oyens_scene_no_overlap.add_emitter()
+    assert len(oyens_scene_no_overlap.state.emitters) == 1
+    oyens_scene_no_overlap.clear_emitters()
+
+    # Test add emitters
+    oyens_scene_no_overlap.add_emitters(aliases=["asdf", "fdsa"])
+    assert len(oyens_scene_no_overlap.state.emitters) == 2
+    oyens_scene_no_overlap.clear_emitters()
+
+    # Test add microphones
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphones(microphone_types=["ambeovr", "ambeovr"])
+    assert len(oyens_scene_no_overlap.state.microphones) == 2
+    oyens_scene_no_overlap.clear_microphones()
+
+    # Test add microphone and emitter
+    oyens_scene_no_overlap.add_microphone_and_emitter(position=[90.0, 0.0, 0.5])
+    assert len(oyens_scene_no_overlap.state.microphones) == 1
+    assert len(oyens_scene_no_overlap.state.emitters) == 1
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.clear_emitters()
