@@ -110,6 +110,24 @@ def oyens_scene_factory() -> Callable:
     return _factory
 
 
+@pytest.fixture
+def metu_scene_factory() -> Callable:
+    def _factory():
+        return Scene(
+            duration=50,
+            backend="sofa",
+            backend_kwargs=dict(
+                sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa",
+            ),
+            sample_rate=config.SAMPLE_RATE,
+            fg_path=utils_tests.SOUNDEVENT_DIR,
+            bg_path=utils_tests.BACKGROUND_DIR,
+            max_overlap=1,  # no overlapping sound events allowed
+        )
+
+    return _factory
+
+
 @pytest.fixture(autouse=True)
 def run_gc_after_test():
     yield
