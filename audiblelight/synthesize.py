@@ -699,7 +699,7 @@ def validate_scene(scene: Scene) -> None:
             )
 
     # Remaining checks only apply to ray-tracing contexts
-    if not scene.state.name == "rlr":
+    if not scene.state.name.upper() == "RLR":
         return
 
     # Validate ray-tracing engine
@@ -729,9 +729,6 @@ def validate_scene(scene: Scene) -> None:
             f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners. "
             f"Have any been orphaned?"
         )
-
-    # if any(not ev.has_emitters for ev in scene.events.values()):
-    #     raise ValueError("Some events have no emitters registered to them!")
 
 
 def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
