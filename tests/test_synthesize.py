@@ -205,7 +205,7 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
 
     # Also, check the "unpadded" Event audio
     for ev in oyens_scene_no_overlap.get_events():
-        assert hasattr(ev, "spatial_audio_padded")
+        assert hasattr(ev, "_spatial_audio_padded")
         assert isinstance(ev._spatial_audio_padded, dict)
         assert isinstance(ev._spatial_audio_padded["mic000"], np.ndarray)
 
@@ -213,6 +213,11 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
         channels1, duration1 = ev._spatial_audio_padded["mic000"].shape
         assert channels1 == channels
         assert duration1 == duration
+
+        # Shouldn't have dry + dry/padded audio
+        for attr_ in ["_spatial_audio_dry", "_spatial_audio_dry_padded"]:
+            assert hasattr(ev, attr_)
+            assert len(getattr(ev, attr_)) == 0
 
 
 @pytest.mark.skip("needs fixing")
