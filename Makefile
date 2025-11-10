@@ -1,7 +1,5 @@
 .PHONY: install tests docs fix download notebooks build publish
 
-include .env
-
 build: install
 	rm -rf dist/ build/ *.egg-info
 	poetry run python -m build
