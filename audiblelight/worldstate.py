@@ -2222,21 +2222,21 @@ class WorldStateRLR(WorldState):
                             zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
                 listener_counter += mic.n_listeners
 
-            elif mic.channel_layout_type == "foa":
+            elif mic.channel_layout_type == "foa" or mic.channel_layout_type == "binaural":
                 # Iterate over emitters
                 for j in range(self.ctx.get_source_count()):
-                    # Iterate over channels (FOA always has four)
+                    # Iterate over channels (FOA=4, Binaural=2)
                     for k in range(mic.n_capsules):
                         ir_ijk = self.ctx.get_listener_source_channel_audio(
                             listener_counter, j, k
                         )
                         zero_arr[k, j, : len(ir_ijk)] = ir_ijk
-                # Only one listener for FOA
+                # Only one listener for FOA/Binaural
                 listener_counter += 1
 
             else:
                 raise NotImplementedError(
-                    "Simulation currently only supported with 'foa' or 'mic' channel layouts"
+                    "Simulation currently only supported with 'foa', 'binaural', or 'mic' channel layouts"
                 )
 
             # Set the IRs as a property of the MicArray object

@@ -345,6 +345,28 @@ class MonoCapsule(MicArray):
 
 
 @dataclass(repr=False, eq=False)
+class Binaural(MicArray):
+    """
+    Binaural microphone "capsule"
+
+    This implementation uses a single listener with 2 channels (Left, Right)
+    following the binaural recording technique.
+    """
+
+    name: str = "binaural"
+    is_spherical: bool = False
+    channel_layout_type: str = "binaural"
+
+    @property
+    def coordinates_cartesian(self) -> np.ndarray:
+        return np.array([[0.0, 0.0, 0.0]])
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return ["left", "right"]
+
+
+@dataclass(repr=False, eq=False)
 class FOAListener(MicArray):
     """
     First Order Ambisonics (FOA) microphone "capsule"
@@ -558,7 +580,7 @@ class Eigenmike64(MicArray):
 
 
 # A list of all mic array objects
-MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, FOAListener]
+MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, Binaural, FOAListener]
 MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 
