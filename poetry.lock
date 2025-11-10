@@ -5065,14 +5065,15 @@ lark = ">=1.2.2"
 testing = ["pytest (>=8.3.5)"]
 
 [[package]]
-name = "rlr_audio_propagation"
+name = "rlr-audio-propagation"
 version = "0.0.1"
 description = "Python bindings for RLRAudioPropagation"
 optional = false
 python-versions = "*"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "rlr_audio_propagation-0.0.1.tar.gz", hash = "sha256:ab30868303e5fb9f93f0673f68d6862733b3459babd6d7639b452b3c9c4724f2"},
+]
 
 [package.dependencies]
 numpy = "*"
@@ -5081,10 +5082,9 @@ numpy = "*"
 test = ["pytest", "trimesh"]
 
 [package.source]
-type = "git"
-url = "https://github.com/AudibleLight/rlr-audio-propagation"
-reference = "main"
-resolved_reference = "f510714ffe3a968555754d49edc1bfdcee8d4f5f"
+type = "legacy"
+url = "https://test.pypi.org/simple"
+reference = "test-pypi"
 
 [[package]]
 name = "rpds-py"
@@ -6310,4 +6310,4 @@ dev = ["black (>=19.3b0) ; python_version >= \"3.6\"", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "91dedaf8ac01ae8976781618f33803f20ff482d780d4de4259d96a5a62ea9c4a"
+content-hash = "c56881840c1df4aa176d755c85c60a12b476e0cbaea15d1ac9533cb1c6b98a3d"

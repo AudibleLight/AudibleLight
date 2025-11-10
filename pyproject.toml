@@ -34,7 +34,7 @@ torch = "*"
 loguru = "*"
 pyroomacoustics = "*"
 deepdiff = "*"
-rlr-audio-propagation = { git = "https://github.com/AudibleLight/rlr-audio-propagation", branch = "main" }
+rlr-audio-propagation = { version = "0.0.1", source = "test-pypi" }
 pedalboard = "0.9.17"
 
 [tool.poetry.group.dev.dependencies]
@@ -68,3 +68,8 @@ myst-parser = "*"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[[tool.poetry.source]]
+name = "test-pypi"
+url = "https://test.pypi.org/simple/"
+priority = "explicit"
