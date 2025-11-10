@@ -965,9 +965,10 @@ def test_get_valid_position_with_max_distance(ref, r, n, raises, oyens_space):
             _ = oyens_space.get_valid_position_with_max_distance(ref, r, n)
 
 
+# noinspection PyUnresolvedReferences
 def test_multiple_microphone_types(oyens_space):
     # Add many different types of microphone in
-    #  FOA, mono, ambeoVR
+    #  FOA, mono, ambeoVR, binaural
     oyens_space.add_microphone(
         microphone_type="foalistener",
         position=[-0.5, -0.5, 0.5],
@@ -980,6 +981,12 @@ def test_multiple_microphone_types(oyens_space):
     oyens_space.add_microphone(
         microphone_type="ambeovr", keep_existing=True, alias="ambeo_tester"
     )
+    oyens_space.add_microphone(
+        microphone_type="binaural", keep_existing=True, alias="binaural_tester"
+    )
+
+    # Check total number of microphones
+    assert len(oyens_space.microphones) == 4
 
     # Add two emitters in
     oyens_space.add_emitter(alias="tester")
@@ -991,6 +998,12 @@ def test_multiple_microphone_types(oyens_space):
     # Grab FOA microphone
     mic = oyens_space.get_microphone("foa_tester")
     assert mic.channel_layout_type == "foa"
+    assert mic.channel_layout.channel_count == 4
+
+    # Grab binaural microphone
+    micb = oyens_space.get_microphone("binaural_tester")
+    assert micb.channel_layout_type == "binaural"
+    assert micb.channel_layout.channel_count == 2
 
     # Test all microphones IRs as expected
     for mic in oyens_space.microphones.values():
