@@ -6,20 +6,37 @@ Prerequisites
 
 - ``git``
 - ``python3.10`` or above (tested up to ``python3.12``)
-- ``poetry``
-- ``make``
 - A modern Linux distro: current versions of ``Ubuntu`` and ``Red Hat`` have been tested and confirmed to work.
 
   - Using another OS? Let us know so we can add it here!
 
+If you're looking to develop `AudibleLight`, you'll also need:
+- ``poetry``
+- ``make``
+
+Install via pypi
+^^^^^^^^^^^^^^^^
+
+For non-development installs, the simplest way to install `AudibleLight` is via pypi:
+
+.. code-block:: bash
+
+   pip install audiblelight
+
+
 Install via the command line
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you wish to develop `AudibleLight`, you'll likely want to clone the repository and install it directly:
 
 .. code-block:: bash
 
    git clone https://github.com/AudibleLight/AudibleLight.git
    cd AudibleLight
    make install
+
+Note that `make install` runs the following:
+
 
 Download datasets
 ^^^^^^^^^^^^^^^^^

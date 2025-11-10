@@ -1,9 +1,5 @@
 <h1 align="center">AudibleLight</h1>
 
-<p align="center">
-<a href="https://github.com/AudibleLight/AudibleLight"><img alt="AudibleLight logo" src="icon.png"></a>
-</p>
-
 <h2 align="center">A Controllable, End-to-End API for Soundscape Synthesis Across Ray-Traced & Real-World Measured Acoustics</h2>
 
 <p align="center">
@@ -17,7 +13,7 @@
 <a href="https://creativecommons.org/licenses/by/4.0/"><img alt="CC BY 4.0" src="https://img.shields.io/badge/License-CC%20BY%204.0-red.svg"></a>
 </p>
 
-> [!WARNING]
+> ⚠️ WARNING:
 > *This project is currently under heavy development*. We have done our due diligence to ensure that it works as expected. However, if you encounter any errors, please [open an issue](https://github.com/AudibleLight/AudibleLight/issues) and let us know.
 
 **Contents**
@@ -96,7 +92,3 @@ make tests
 - HRTF support
 - Directional microphone capsules support
 - Increased visualisation options
-
-### API Sketch
-
-<img width="3748" height="1454" alt="Screenshot from 2025-07-21 10-52-03" src="https://github.com/user-attachments/assets/52d3df17-126b-43c6-8e57-0a724e74e6ef" />
