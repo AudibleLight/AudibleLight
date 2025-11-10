@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "audiblelight"
-version = "0.1.0.post4"
+version = "0.1.1"
 description = "A library for soundscape synthesis using spatial impulse responses derived from ray-traced room scans"
 authors = ["Huw Cheston <h.cheston@qmul.ac.uk>", "Iran Roman <i.roman@qmul.ac.uk>"]
 license = "CC-BY-4.0"
