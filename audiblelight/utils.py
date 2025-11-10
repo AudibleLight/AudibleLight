@@ -89,20 +89,6 @@ def seed_everything(seed: int = SEED) -> None:  # pragma: no cover
 def get_project_root() -> Path:  # pragma: no cover
     """Returns the root directory of the project."""
     return resources.files("audiblelight").parent
-    # # Possibly the root directory, but doesn't always work when running from the CLI for some reason
-    # poss_path = Path(__file__).parent.parent
-    # # The root directory should always have these files (this is pretty hacky)
-    # expected_files = [
-    #     "audiblelight",
-    #     "notebooks",
-    #     "resources",
-    #     "tests",
-    #     "pyproject.toml",
-    # ]
-    # if all((poss_path / fp).exists() for fp in expected_files):
-    #     return poss_path
-    # else:
-    #     return Path.cwd()
 
 
 def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
