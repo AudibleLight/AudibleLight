@@ -8,7 +8,7 @@ build: install
 	poetry run twine check dist/*
 
 publish: build
-	poetry run twine upload testpypi dist/* --non-interactive --verbose
+	poetry run twine upload --repository pypi dist/* --non-interactive --verbose
 
 install:
 	sudo apt update
