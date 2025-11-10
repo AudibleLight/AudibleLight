@@ -8,6 +8,7 @@ import json
 import os
 import random
 from contextlib import contextmanager
+from importlib import resources
 from pathlib import Path
 from time import time
 from typing import Any, Callable, Generator, Optional, Union
@@ -84,22 +85,24 @@ def seed_everything(seed: int = SEED) -> None:  # pragma: no cover
     np.random.seed(seed)
 
 
+# noinspection PyUnresolvedReferences
 def get_project_root() -> Path:  # pragma: no cover
     """Returns the root directory of the project."""
-    # Possibly the root directory, but doesn't always work when running from the CLI for some reason
-    poss_path = Path(__file__).parent.parent
-    # The root directory should always have these files (this is pretty hacky)
-    expected_files = [
-        "audiblelight",
-        "notebooks",
-        "resources",
-        "tests",
-        "pyproject.toml",
-    ]
-    if all((poss_path / fp).exists() for fp in expected_files):
-        return poss_path
-    else:
-        return Path.cwd()
+    return resources.files("audiblelight").parent
+    # # Possibly the root directory, but doesn't always work when running from the CLI for some reason
+    # poss_path = Path(__file__).parent.parent
+    # # The root directory should always have these files (this is pretty hacky)
+    # expected_files = [
+    #     "audiblelight",
+    #     "notebooks",
+    #     "resources",
+    #     "tests",
+    #     "pyproject.toml",
+    # ]
+    # if all((poss_path / fp).exists() for fp in expected_files):
+    #     return poss_path
+    # else:
+    #     return Path.cwd()
 
 
 def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
