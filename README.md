@@ -32,12 +32,23 @@
 
 ### Prerequisites
 
-- `git`
 - `python3.10` or above (tested up to `python3.12`)
-- `poetry`
-- `make`
 - A modern Linux distro: current versions of `Ubuntu` and `Red Hat` have been tested and confirmed to work.
   - Using another OS? Let us know so we can add it here!
+
+If you're looking to develop `AudibleLight`, you'll also need:
+- `git`
+- `poetry`
+- `make`
+
+### Install via pypi
+
+For non-development installs, the simplest way to install `AudibleLight` is via pypi:
+
+```bash
+sudo apt install -y libsox-dev libsox-fmt-all freeglut3-dev pandoc
+pip install audiblelight
+```
 
 ### Install via the command line
 
@@ -58,6 +69,8 @@ make download
 For further information, see [scripts/download_data/README.md](scripts/download_data/README.md).
 
 ## Usage
+
+See the [quickstart guide](https://audiblelight.github.io/AudibleLight/_examples/quickstart.html) for help getting started with dataset generation in `AudibleLight`
 
 ### Script
 
@@ -88,7 +101,6 @@ make tests
 ## Roadmap
 
 - Spatial audio augmentations (from https://arxiv.org/abs/2101.02919)
-- Add to `pypi` (i.e., allowing `pip install audiblelight`)
 - HRTF support
 - Directional microphone capsules support
 - Increased visualisation options

@@ -8,8 +8,7 @@ build: install
 	poetry run twine check dist/*
 
 publish: build
-	TWINE_USERNAME="__token__" TWINE_PASSWORD=$(TEST_PYPI_TOKEN) \
-	poetry run twine upload --repository-url https://test.pypi.org/legacy/ dist/* --non-interactive --verbose
+	poetry run twine upload testpypi dist/* --non-interactive --verbose
 
 install:
 	sudo apt update
