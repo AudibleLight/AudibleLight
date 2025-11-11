@@ -36,7 +36,7 @@
 - A modern Linux distro: current versions of `Ubuntu` and `Red Hat` have been tested and confirmed to work.
   - Using another OS? Let us know so we can add it here!
 
-If you're looking to develop `AudibleLight`, you'll also need:
+If you're looking to develop `AudibleLight`, you'll also need to install:
 - `git`
 - `poetry`
 - `make`
