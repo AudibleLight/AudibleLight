@@ -2222,7 +2222,10 @@ class WorldStateRLR(WorldState):
                             zero_arr[i_mic, j, : len(ir_ijk)] = ir_ijk
                 listener_counter += mic.n_listeners
 
-            elif mic.channel_layout_type == "foa" or mic.channel_layout_type == "binaural":
+            elif (
+                mic.channel_layout_type == "foa"
+                or mic.channel_layout_type == "binaural"
+            ):
                 # Iterate over emitters
                 for j in range(self.ctx.get_source_count()):
                     # Iterate over channels (FOA=4, Binaural=2)
