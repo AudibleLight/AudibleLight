@@ -8,9 +8,8 @@ import os
 import shutil
 from pathlib import Path
 
-from utils import download_file, extract_tar
-
 from audiblelight import utils
+from scripts.download_data.utils import download_file, extract_tar
 
 # Download paths
 WAYPOINTS_ZIP = (

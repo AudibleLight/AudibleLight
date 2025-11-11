@@ -11,15 +11,22 @@ import time
 from pathlib import Path
 
 import librosa
-import mat73
 import netCDF4
 import numpy as np
 import pysofaconventions as pysofa
 import soundfile as sf
 from scipy.io import loadmat
-from utils import combine_multizip, download_file, extract_zip
 
 from audiblelight import utils
+from scripts.download_data.utils import combine_multizip, download_file, extract_zip
+
+try:
+    import mat73
+except ImportError:
+    raise ImportError(
+        "'mat73' is required to download RIRs; install it with 'pip install mat73'"
+    )
+
 
 SAMPLE_RATE = 24000
 

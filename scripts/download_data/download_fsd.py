@@ -8,16 +8,15 @@ import os
 import shutil
 import subprocess
 
-from utils import BaseDataSetup, download_txt
-
 from audiblelight.utils import get_project_root
+from scripts.download_data.utils import BaseDataSetup, download_txt
 
 try:
     import soundata
     import soundata.download_utils
 except ImportError:
     raise ImportError(
-        "'soundata' is required to download FSD50K; install it with 'poetry run pip install soundata'"
+        "'soundata' is required to download FSD50K; install it with 'pip install soundata'"
     )
 
 

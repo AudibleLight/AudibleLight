@@ -11,9 +11,8 @@ import os
 import sys
 from pathlib import Path
 
-from utils import download_file, extract_zip
-
 from audiblelight import utils
+from scripts.download_data.utils import download_file, extract_zip
 
 USER_AGREEMENT = "https://docs.google.com/forms/d/e/1FAIpQLScWlx5Z1DM1M-wTSXaa6zV8lTFkPmTHW1LqMsoCBDWsTDjBkQ/viewform"
 # Download paths: the former contains 4 scenes

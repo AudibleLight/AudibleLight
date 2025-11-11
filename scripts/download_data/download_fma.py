@@ -9,9 +9,9 @@ import shutil
 
 import numpy as np
 import pandas as pd
-from utils import BaseDataSetup, download_file, extract_zip
 
 from audiblelight.utils import get_project_root, sanitise_positive_number
+from scripts.download_data.utils import BaseDataSetup, download_file, extract_zip
 
 BASE_URL = "https://os.unil.cloud.switch.ch/fma/"
 METADATA_URL = "https://os.unil.cloud.switch.ch/fma/fma_metadata.zip"
