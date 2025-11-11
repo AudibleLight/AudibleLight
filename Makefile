@@ -1,4 +1,4 @@
-.PHONY: install tests docs fix download notebooks build publish
+.PHONY: install tests docs fix download notebooks build publish publish-test
 
 build: install
 	rm -rf dist/ build/ *.egg-info
@@ -7,6 +7,9 @@ build: install
 
 publish: build
 	poetry run twine upload --repository pypi dist/* --non-interactive --verbose
+
+publish-test: build
+	poetry run twine upload --repository testpypi dist/* --non-interactive --verbose
 
 install:
 	sudo apt update

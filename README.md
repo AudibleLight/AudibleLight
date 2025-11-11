@@ -58,9 +58,25 @@ cd AudibleLight
 make install
 ```
 
-### Download datasets
+### Download data
 
-We provide several helper scripts to download and prepare data (3D meshes, sofa files, audio files) that may be useful in `AudibleLight`. To run these:
+We provide several helper scripts to download and prepare data (3D meshes, sofa files, audio files) that may be useful in `AudibleLight`. 
+
+You can run these scripts directly from the Python interpreter:
+
+```python
+from audiblelight.download_data import download_fsd
+
+download_fsd(path="path/to/save/fsd", cleanup=True)
+```
+
+Alternatively, for a _development install_, you can run them from the command line:
+
+```bash
+poetry run python scripts/download_data/download_fsd.py --path path/to/save/fsd --cleanup
+```
+
+From a development install, you can also run all download scripts at once using the `Makefile`:
 
 ```bash
 make download

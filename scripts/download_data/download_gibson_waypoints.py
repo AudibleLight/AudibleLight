@@ -8,9 +8,8 @@ import os
 import shutil
 from pathlib import Path
 
-from utils import download_file, extract_tar
-
 from audiblelight import utils
+from scripts.download_data.utils import download_file, extract_tar
 
 # Download paths
 WAYPOINTS_ZIP = (
@@ -24,7 +23,17 @@ if not os.path.exists(DEFAULT_PATH):
 DEFAULT_CLEANUP = True
 
 
-def main(path: str, cleanup: bool) -> None:
+def main(
+    path: str = DEFAULT_PATH,
+    cleanup: bool = DEFAULT_CLEANUP,
+) -> None:
+    f"""
+    Downloads and prepares the waypoints for the Gibson Environment dataset. NOTE: by running this script, we assume that you have completed the user agreement form (https://docs.google.com/forms/d/e/1FAIpQLScWlx5Z1DM1M-wTSXaa6zV8lTFkPmTHW1LqMsoCBDWsTDjBkQ/viewform).
+
+    Arguments:
+        path: Path to store and process the dataset, defaults to {DEFAULT_PATH}.
+        cleanup: Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}.
+    """
     print("---- Gibson Environment Database waypoints download script ----")
     print(f"Waypoints will be downloaded to: {path}")
     path = Path(path)
@@ -55,9 +64,7 @@ def main(path: str, cleanup: bool) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Download and prepare waypoints for Gibson Environment database."
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,

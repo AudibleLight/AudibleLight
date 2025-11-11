@@ -11,19 +11,27 @@ import time
 from pathlib import Path
 
 import librosa
-import mat73
 import netCDF4
 import numpy as np
 import pysofaconventions as pysofa
 import soundfile as sf
 from scipy.io import loadmat
-from utils import combine_multizip, download_file, extract_zip
 
 from audiblelight import utils
+from scripts.download_data.utils import combine_multizip, download_file, extract_zip
+
+try:
+    import mat73
+except ImportError:
+    raise ImportError(
+        "'mat73' is required to download RIRs; install it with 'pip install mat73'"
+    )
+
 
 SAMPLE_RATE = 24000
 
 DEFAULT_PATH = str(utils.get_project_root() / "resources/sofa")
+DEFAULT_CLEANUP = True
 
 METU_REMOTES = {
     "database_name": "metu",
@@ -778,7 +786,14 @@ def download_gdrive(source_path, remote_path):
     gdown.download(remote_path, str(source_path))
 
 
-def main(path: Path, cleanup: bool):
+def main(path: Path = DEFAULT_PATH, cleanup: bool = DEFAULT_CLEANUP):
+    f"""
+    Downloads and prepares room impulse responses as .SOFA files. Modified from `SpatialScaper`.
+
+    Arguments:
+        path: Path to store and process the dataset, defaults to {DEFAULT_PATH}.
+        cleanup: Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}.
+    """
     print("---- RIR download script ----")
     print(f"RIRs will be downloaded to: {path}")
 
@@ -826,16 +841,16 @@ def main(path: Path, cleanup: bool):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Prepare RIR datasets.")
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,
-        help="Path to store and process the dataset.",
+        help=f"Path to store and process the dataset. Defaults to {DEFAULT_PATH}",
     )
     parser.add_argument(
         "--cleanup",
         action="store_true",
-        help="Whether to cleanup after download",
+        help=f"Whether to cleanup after download. Defaults to {DEFAULT_CLEANUP}",
     )
     args = parser.parse_args()
 
