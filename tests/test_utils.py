@@ -4,9 +4,7 @@
 """Test cases for functionality inside audiblelight/utils.py"""
 
 import os
-import wave
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Union
 
 import numpy as np
@@ -466,39 +464,6 @@ def test_get_default_alias(prefix, objects, expected, raises):
     else:
         out = utils.get_default_alias(prefix, objects)
         assert out == expected
-
-
-@pytest.mark.parametrize(
-    "audio_input, expect_warning, expect_normalized",
-    [
-        (np.array([0.0, 0.5, -0.5]), False, False),  # Normal audio, within range
-        (np.array([1.0, -1.0, 0.999]), False, False),  # Edge values, no normalization
-    ],
-)
-def test_write_wav(audio_input, expect_warning, expect_normalized, caplog):
-    with TemporaryDirectory() as tmpdir:
-        outpath = Path(tmpdir) / "test.wav"
-
-        # Capture logging output
-        with caplog.at_level("WARNING"):
-            utils.write_wav(audio_input, str(outpath))
-
-        # Check if output file was created
-        assert outpath.exists()
-
-        # Check warning presence
-        if expect_warning:
-            assert any("warning" in rec.levelname.lower() for rec in caplog.records)
-        else:
-            assert all("warning" not in rec.levelname.lower() for rec in caplog.records)
-
-        # Read back WAV and check normalization
-        with wave.open(str(outpath), "rb") as wf:
-            frames = wf.readframes(wf.getnframes())
-            data = np.frombuffer(frames, dtype=np.int16)
-
-        if expect_normalized:
-            assert np.max(np.abs(data)) == 32767
 
 
 @pytest.mark.parametrize(

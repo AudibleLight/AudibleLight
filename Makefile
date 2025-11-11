@@ -1,8 +1,17 @@
-.PHONY: install tests docs fix download notebooks
+.PHONY: install tests docs fix download notebooks build publish
+
+build: install
+	rm -rf dist/ build/ *.egg-info
+	poetry run python -m build
+	poetry run twine check dist/*
+
+publish: build
+	poetry run twine upload --repository pypi dist/* --non-interactive --verbose
 
 install:
 	sudo apt update
 	sudo apt install -y libsox-dev libsox-fmt-all freeglut3-dev pandoc
+	poetry lock
 	poetry install --no-interaction
 
 tests:

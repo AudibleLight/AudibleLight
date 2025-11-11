@@ -42,6 +42,8 @@ class Event:
         spatial_velocity: Optional[Union[int, float]] = None,
         shape: Optional[str] = None,
         class_mapping: Optional[Union[TClassMapping, dict, str]] = None,
+        ref_ir_channel: Optional[int] = None,
+        direct_path_time_ms: Optional[Iterable] = None,
     ):
         """
         Initializes the Event object, representing a single audio event taking place inside a Scene.
@@ -68,6 +70,11 @@ class Event:
             shape: the shape of the trajectory defined by `emitters`. Can be any string, only used in metadata.
             class_mapping: a mapping used to map class names to indices, and vice versa. Can be a subclass of
                 `audiblelight.class_mapping.ClassMapping`, `dict`, or `str`.
+            ref_ir_channel: reference IR channel to use when computing "dry" source, incorporating direct path &
+                early reflections. If None, "dry" source will not be computed (default behaviour).
+            direct_path_time_ms: minimum and maximum time (in milliseconds) used to compute direct path for "dry"
+                source. If None, "dry" source will not be computed (default behaviour).
+
         """
         # Setting attributes for audio
         self.filepath = utils.sanitise_filepath(
@@ -86,6 +93,7 @@ class Event:
         # Spatial audio attributes, set in the synthesizer
         #  This is a dictionary where every key is the alias of a microphone
         #  and the value is the spatialised audio FOR that microphone
+        #  the duration of the spatial audio is "trimmed" i.e., len(audio) == len(spatial_audio)
         self.spatial_audio = OrderedDict()
 
         # Spatial attributes
@@ -155,6 +163,56 @@ class Event:
         #  This can be useful in cases where we need the duration of an event before creating emitters
         #  such as when defining the trajectory of a moving event
 
+        # This dictionary stores "untrimmed" spatial audio, padded to match the duration of the scene
+        #  i.e., len(spatial_audio) == len(scene)
+        self._spatial_audio_padded = OrderedDict()
+
+        # This dictionary stores "dry" spatial audio, incorporating direct path and early reflection at ref_channel
+        #  and direct_path_ms. Note that "dry" audio will only be calculated if BOTH ref_ir_channel and direct_path_time
+        #  are passed.
+        self._spatial_audio_dry = OrderedDict()
+        self._spatial_audio_dry_padded = OrderedDict()
+        self.ref_ir_channel = (
+            utils.sanitise_positive_number(ref_ir_channel, cast_to=int)
+            if ref_ir_channel is not None
+            else None
+        )
+        self.direct_path_time_ms = (
+            self._parse_direct_path_time_ms(direct_path_time_ms)
+            if direct_path_time_ms is not None
+            else None
+        )
+
+    @staticmethod
+    def _parse_direct_path_time_ms(
+        direct_path_time_ms: Optional[Iterable],
+    ) -> tuple[int, int]:
+        """
+        Parse direct_path_time_ms variable.
+
+        This should be an iterable of two values, corresponding to the upper and lower bound (in ms) to use
+        when computing direct path.
+
+        Returns:
+            tuple: the lower and upper bound (in milliseconds) to use when computing "dry" sources
+        """
+        try:
+            if len(direct_path_time_ms) != 2:
+                raise ValueError(
+                    f"Expected two values for `direct_path_time_ms` (upper and lower bound),"
+                    f" but got {len(direct_path_time_ms)} values."
+                )
+        except TypeError:
+            raise TypeError(
+                f"Expected `direct_path_time_ms` to be an iterable of two values, "
+                f"but got type {type(direct_path_time_ms)}."
+            )
+        else:
+            return [
+                utils.sanitise_positive_number(i, cast_to=int)
+                for i in direct_path_time_ms
+            ]
+
     def register_augmentations(
         self,
         augmentations: Union[
@@ -198,8 +256,7 @@ class Event:
         # Whenever we register augmentations, we should also invalidate any cached audio
         #  This will force us to reload the audio and apply the augmentations again
         #  when we call `self.load_audio`.
-        self.audio = None
-        self.spatial_audio = OrderedDict()
+        self._clear_audio()
 
     def register_emitters(
         self,
@@ -335,7 +392,13 @@ class Event:
         if isinstance(emitters, Emitter):
             return [emitters]  # pad to a list
 
+        # Single dictionary
+        elif isinstance(emitters, dict):
+            return [Emitter.from_dict(emitters)]
+
+        # List of emitters
         elif isinstance(emitters, list):
+            # Must have at least one emitter in the list
             if len(emitters) < 1:
                 raise ValueError("At least one emitter must be provided")
 
@@ -504,6 +567,8 @@ class Event:
             emitters_relative=relative_positions,
             # Include the augmentation objects
             augmentations=[aug.to_dict() for aug in self.augmentations],
+            ref_ir_channel=self.ref_ir_channel,
+            direct_path_time_ms=self.direct_path_time_ms,
         )
 
     @classmethod
@@ -558,6 +623,10 @@ class Event:
             for aug in input_dict["augmentations"]:
                 augs.append(EventAugmentation.from_dict(aug))
 
+        # Dry source stuff
+        ref_ir_channel = input_dict.get("ref_ir_channel", None)
+        direct_path_time_ms = input_dict.get("direct_path_time_ms", None)
+
         # Instantiate the event and return
         return cls(
             alias=input_dict["alias"],
@@ -574,6 +643,8 @@ class Event:
             class_label=input_dict["class_label"],
             spatial_resolution=input_dict["spatial_resolution"],
             spatial_velocity=input_dict["spatial_velocity"],
+            ref_ir_channel=ref_ir_channel,
+            direct_path_time_ms=direct_path_time_ms,
         )
 
     def get_augmentation(self, idx: int) -> Type[EventAugmentation]:
@@ -615,9 +686,7 @@ class Event:
         except IndexError:
             raise IndexError("No augmentation found at index {idx}".format(idx=idx))
         else:
-            # Invalidate any cached audio
-            self.audio = None
-            self.spatial_audio = OrderedDict()
+            self._clear_audio()
 
     def clear_augmentations(self) -> None:
         """
@@ -625,6 +694,39 @@ class Event:
         """
         if len(self.augmentations) > 0:
             self.augmentations = []
-            # Invalidate any cached audio
-            self.audio = None
-            self.spatial_audio = OrderedDict()
+            self._clear_audio()
+
+    def clear_emitters(self) -> None:
+        """
+        Removes all current emitters.
+        """
+        self.emitters = None
+        # Also invalidate any cached audio
+        self._clear_audio()
+
+    def clear_emitter(self, idx: int) -> None:
+        """
+        Tries to remove an Emitter by its integer index
+        """
+        try:
+            del self.emitters[idx]
+        except (IndexError, TypeError):
+            raise IndexError("No emitter with index {}".format(idx))
+        else:
+            # Reset to empty list if required
+            if len(self.emitters) == 0:
+                self.emitters = None
+            # Also invalidate any cached audio
+            self._clear_audio()
+
+    def _clear_audio(self):
+        """
+        Resets all audio back to empty dictionaries.
+
+        Useful when e.g., clearing Emitters, clearing augmentations.
+        """
+        self.audio = None
+        self.spatial_audio = OrderedDict()
+        self._spatial_audio_dry_padded = OrderedDict()
+        self._spatial_audio_dry = OrderedDict()
+        self._spatial_audio_padded = OrderedDict()

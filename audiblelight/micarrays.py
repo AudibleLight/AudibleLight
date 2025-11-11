@@ -4,6 +4,7 @@
 """Implements dataclasses for working with common microphone array types"""
 
 from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Type
 
@@ -17,6 +18,7 @@ from audiblelight import utils
 __all__ = [
     "sanitize_microphone_input",
     "MicArray",
+    "Binaural",
     "Eigenmike32",
     "Eigenmike64",
     "MonoCapsule",
@@ -99,7 +101,7 @@ class MicArray:
             return 1
         else:
             raise ValueError(
-                f"Expected `channel_layout_type` to be one of {', '.join(CHANNEL_LAYOUT_TYPES)}, "
+                f"Expected 'channel_layout_type' to be one of {', '.join(CHANNEL_LAYOUT_TYPES)}, "
                 f"but got '{self.channel_layout_type}'"
             )
 
@@ -303,21 +305,22 @@ class MicArray:
         if "micarray_type" not in input_dict:
             raise KeyError("'micarray_type' key not found in input dict")
 
-        mic_class_str = input_dict.pop("micarray_type", "mic")
+        input_dict_copy = deepcopy(input_dict)
+        mic_class_str = input_dict_copy.pop("micarray_type", "mic")
 
         # If it is one of our inbuilt micarrays, just load from the list
         if mic_class_str in MICARRAY_CLASS_MAPPING:
             mic_class = MICARRAY_CLASS_MAPPING[mic_class_str]
         # Otherwise, try and dynamically reconstruct the microphone given the available parameters
         else:
-            mic_class = dynamically_define_micarray(**input_dict)
+            mic_class = dynamically_define_micarray(**input_dict_copy)
 
         # Instantiate the class and set its coordinates
         mic_class = mic_class()
-        mic_class.set_absolute_coordinates(input_dict["coordinates_center"])
+        mic_class.set_absolute_coordinates(input_dict_copy["coordinates_center"])
 
         # Set any other valid parameters for the microphone as well
-        for k, v in input_dict.items():
+        for k, v in input_dict_copy.items():
             mic_class._set_attribute(k, v)
 
         return mic_class
@@ -340,6 +343,28 @@ class MonoCapsule(MicArray):
     @property
     def capsule_names(self) -> list[str]:
         return ["mono"]
+
+
+@dataclass(repr=False, eq=False)
+class Binaural(MicArray):
+    """
+    Binaural microphone "capsule"
+
+    This implementation uses a single listener with 2 channels (Left, Right)
+    following the binaural recording technique.
+    """
+
+    name: str = "binaural"
+    is_spherical: bool = False
+    channel_layout_type: str = "binaural"
+
+    @property
+    def coordinates_cartesian(self) -> np.ndarray:
+        return np.array([[0.0, 0.0, 0.0]])
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return ["left", "right"]
 
 
 @dataclass(repr=False, eq=False)
@@ -556,7 +581,7 @@ class Eigenmike64(MicArray):
 
 
 # A list of all mic array objects
-MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, FOAListener]
+MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, Binaural, FOAListener]
 MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 
@@ -589,8 +614,11 @@ def sanitize_microphone_input(microphone_type: Any) -> Type["MicArray"]:
     elif type(microphone_type) in MICARRAY_LIST:
         sanitized_microphone = type(microphone_type)
 
-    elif issubclass(microphone_type, MicArray):
+    elif isinstance(microphone_type, type) and issubclass(microphone_type, MicArray):
         sanitized_microphone = microphone_type
+
+    elif issubclass(type(microphone_type), MicArray):
+        sanitized_microphone = type(microphone_type)
 
     # Otherwise, we don't know what the microphone is
     else:

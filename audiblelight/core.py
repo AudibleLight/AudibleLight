@@ -17,7 +17,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
-from audiblelight import __version__, config, custom_types, utils
+from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.class_mappings import (
@@ -46,6 +46,7 @@ class Scene:
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
+        allow_same_class_events: bool = True,
         ref_db: Optional[custom_types.Numeric] = config.DEFAULT_REF_DB,
         scene_start_dist: Optional[custom_types.DistributionLike] = None,
         event_start_dist: Optional[custom_types.DistributionLike] = None,
@@ -75,6 +76,7 @@ class Scene:
             bg_path: a directory (or list of directories pointing to background audio. Note that directories will be
                 introspected recursively, such that audio files within any subdirectories will be detected also.
             allow_duplicate_audios: if True (default), the same audio file can appear multiple times in the Scene.
+            allow_same_class_events: if True (default), multiple Events from the same class may be added to the Scene.
             ref_db: reference decibel level for scene noise floor, defaults to -65 dB
             scene_start_dist: distribution-like object or callable used to sample starting times for any Event objects
                 applied to the scene. If not provided, will be a uniform distribution between 0 and `duration`
@@ -110,7 +112,7 @@ class Scene:
                 f"duration of the Scene. It is recommended to increase the duration to at least "
                 f"{config.WARN_WHEN_SCENE_DURATION_BELOW} seconds."
             )
-        self.ref_db = utils.sanitise_ref_db(ref_db)
+        self.ref_db = self._sanitise_ref_db(ref_db)
         # Time overlaps (we could include a space overlaps parameter too)
         self.max_overlap = utils.sanitise_positive_number(max_overlap, cast_to=int)
 
@@ -193,6 +195,9 @@ class Scene:
         # If False, we'll ensure that all randomly sampled event/ambience audio is unique when sampling
         self.allow_duplicate_audios = allow_duplicate_audios
 
+        # If False, we'll ensure that all randomly sampled event audio is from a unique class
+        self.allow_same_class_events = allow_same_class_events
+
         # Events will be stored within here
         self.events = OrderedDict()
 
@@ -213,6 +218,19 @@ class Scene:
 
         # Parse class mapping
         self.class_mapping = sanitize_class_mapping(class_mapping)
+
+    @staticmethod
+    def _sanitise_ref_db(ref_db: Any) -> int:
+        """
+        Validate noise floor, in dB, and raise warnings when non-negative.
+        """
+        if not isinstance(ref_db, custom_types.Numeric):
+            raise TypeError(f"Expected `ref_db` to be numeric, but got {type(ref_db)}")
+        elif ref_db > 0:
+            logger.error(
+                f"Provided noise floor is positive; expect clipping to occur (ref_db={ref_db:.2f})"
+            )
+        return int(ref_db)
 
     @staticmethod
     def _parse_audio_directories(
@@ -690,6 +708,13 @@ class Scene:
         # Get audio files: note that `filepath` can be None for ambience objects using noise types instead
         return [ev.filepath for ev in events_ambs if ev.filepath is not None]
 
+    def _get_used_class_ids(self) -> list[int]:
+        """
+        Gets a list of class IDs used in all Event objects currently added to the scene
+        """
+        # Just use all Events, Ambience objects do not have class IDs
+        return list(set(i.class_id for i in self.get_events()))
+
     def _get_random_audio(self, audio_paths: Optional[list[Path]] = None) -> Path:
         """
         Gets a path to a random audio file from the provided list of directories
@@ -709,11 +734,23 @@ class Scene:
             seen_audios = self._get_used_audios()
             audio_paths = [i for i in audio_paths if i not in seen_audios]
 
+        # If we want to ensure that a single class cannot appear more than once
+        if not self.allow_same_class_events:
+            used_class_ids = self._get_used_class_ids()
+            audio_paths = [
+                ap
+                for ap in audio_paths
+                if self.class_mapping.infer_label_idx_from_filepath(ap)[0]
+                not in used_class_ids
+            ]
+
         # Raise an error when no audio files available
         if len(audio_paths) == 0:
             raise FileNotFoundError(
                 "No audio files found to sample from! "
-                "Make sure you pass a value to `fg_path` in Scene.__init__`."
+                "Make sure you pass a value to `fg_path` in Scene.__init__`. "
+                "You can also try setting `allow_duplicate_audios=True`, or "
+                "setting `allow_same_class_events=True`."
             )
 
         # Choose a random filepath: no need to sanitise, we did this already
@@ -818,6 +855,7 @@ class Scene:
         spatial_resolution: Optional[custom_types.Numeric] = None,
         spatial_velocity: Optional[custom_types.Numeric] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        **event_kwargs,
     ) -> Event:
         """
         Add an event to the foreground, either "static", "moving", or "predefined".
@@ -863,6 +901,7 @@ class Scene:
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; one of "linear", "semicircular", "random", "sine", "sawtooth", "predefined"
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
+            event_kwargs: additional keyword arguments passed to Event.__init__
 
         Returns:
             the Event object added to the Scene
@@ -920,6 +959,7 @@ class Scene:
                 class_label=class_label,
                 augmentations=augmentations,
                 max_place_attempts=max_place_attempts,
+                **event_kwargs,
             )
 
         elif event_type == "moving":
@@ -941,6 +981,7 @@ class Scene:
                 augmentations=augmentations,
                 ensure_direct_path=ensure_direct_path,
                 max_place_attempts=max_place_attempts,
+                **event_kwargs,
             )
 
         elif event_type == "predefined":
@@ -972,6 +1013,40 @@ class Scene:
         logger.info(f"Event added successfully: {event}")
         return event
 
+    def _validate_user_defined_audio_filepath(
+        self, user_filepath: Path, user_class_id: int
+    ) -> None:
+        """
+        Validates the user defined audio filepath parameter.
+        """
+        # If we don't want to allow for duplicate filepaths, check this now
+        if not self.allow_duplicate_audios:
+            seen_audios = self._get_used_audios()
+            if user_filepath in seen_audios:
+                raise ValueError(
+                    f"Audio file {str(user_filepath.resolve())} has already been added to the Scene. "
+                    f"Either increase the number of `fg_paths` in Scene.__init__, "
+                    f"choose a different audio file, "
+                    f"or set `Scene.allow_duplicate_audios=True`."
+                )
+
+        # If we don't want to allow for duplicate class IDs, check this too
+        if not self.allow_same_class_events:
+            seen_classes = self._get_used_class_ids()
+            # Try and resolve the class ID
+            resolved_id = (
+                self.class_mapping.infer_label_idx_from_filepath(user_filepath)[0]
+                if user_class_id is None
+                else user_class_id
+            )
+            if resolved_id in seen_classes:
+                raise ValueError(
+                    f"Audio file {str(user_filepath.resolve())} uses a class that has"
+                    f" already been added to the Scene ({resolved_id}). "
+                    f"Either choose a different audio file, "
+                    f"or set `Scene.allow_same_class_events=True`."
+                )
+
     def add_event_static(
         self,
         filepath: Optional[Union[str, Path]] = None,
@@ -994,6 +1069,7 @@ class Scene:
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        **event_kwargs,
     ) -> Event:
         """
         Add a static event to the foreground with optional overrides.
@@ -1040,17 +1116,11 @@ class Scene:
 
         # Check filepath over
         if filepath is not None:
+            # Sanitise the filepath (check it exists on disk, etc.)
             filepath = utils.sanitise_filepath(filepath)
-            # If we don't want to allow for duplicate filepaths, check this now
-            if not self.allow_duplicate_audios:
-                seen_audios = self._get_used_audios()
-                if filepath in seen_audios:
-                    raise ValueError(
-                        f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
-                        f"Either increase the number of `fg_paths` in Scene.__init__, "
-                        f"choose a different audio file, "
-                        f"or set `Scene.allow_duplicate_audios=False`."
-                    )
+
+            # Run validation checks on the filepath
+            self._validate_user_defined_audio_filepath(filepath, class_id)
 
         # Convert polar positions to cartesian here
         if polar:
@@ -1064,7 +1134,7 @@ class Scene:
             augmentations = self._get_n_random_event_augmentations(augmentations)
 
         # Construct kwargs dictionary for emitter and event
-        event_kwargs = dict(
+        event_kwargs_full = dict(
             filepath=filepath,
             alias=alias,
             scene_start=scene_start,
@@ -1087,10 +1157,11 @@ class Scene:
             keep_existing=True,
             max_place_attempts=max_place_attempts,
             class_mapping=self.class_mapping,
+            **event_kwargs,
         )
 
         # Try and create the event: returns True if placed, False if not
-        placed = self._try_add_event(**event_kwargs)
+        placed = self._try_add_event(**event_kwargs_full)
 
         # Raise an error if we can't place the event correctly
         if not placed:
@@ -1128,6 +1199,7 @@ class Scene:
         spatial_velocity: Optional[custom_types.Numeric] = None,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        **event_kwargs,
     ) -> Event:
         """
         Add a moving event to the foreground with optional overrides.
@@ -1166,6 +1238,7 @@ class Scene:
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
+            event_kwargs: additional keyword arguments passed to Event.__init__
 
         Returns:
             the Event object added to the Scene
@@ -1181,17 +1254,11 @@ class Scene:
 
         # Check filepath over
         if filepath is not None:
+            # Sanitise the filepath (check it exists on disk, etc.)
             filepath = utils.sanitise_filepath(filepath)
-            # If we don't want to allow for duplicate filepaths, check this now
-            if not self.allow_duplicate_audios:
-                seen_audios = self._get_used_audios()
-                if filepath in seen_audios:
-                    raise ValueError(
-                        f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
-                        f"Either increase the number of `fg_paths` in Scene.__init__, "
-                        f"choose a different audio file, "
-                        f"or set `Scene.allow_duplicate_audios=False`."
-                    )
+
+            # Run validation checks on the filepath
+            self._validate_user_defined_audio_filepath(filepath, class_id)
 
         # Sample N random augmentations from our list, if required
         if isinstance(augmentations, custom_types.Numeric):
@@ -1202,7 +1269,7 @@ class Scene:
             shape = random.choice(config.MOVING_EVENT_SHAPES)
 
         # Set up the kwargs dictionaries for the `define_trajectory` and `Event.__init__` funcs
-        event_kwargs = dict(
+        event_kwargs_full = dict(
             filepath=filepath,
             alias=alias,
             scene_start=scene_start,
@@ -1221,10 +1288,11 @@ class Scene:
             ensure_direct_path=ensure_direct_path,
             max_place_attempts=max_place_attempts,
             class_mapping=self.class_mapping,
+            **event_kwargs,
         )
 
         # Create the event with required arguments
-        placed = self._try_add_event(**event_kwargs)
+        placed = self._try_add_event(**event_kwargs_full)
 
         # Raise an error if we can't place the event correctly
         if not placed:
@@ -1438,16 +1506,13 @@ class Scene:
             else utils.sanitise_filepath(filepath)
         )
 
-        # If we don't want to allow for duplicate filepaths, check this now
-        if not self.allow_duplicate_audios:
-            seen_audios = self._get_used_audios()
-            if filepath in seen_audios:
-                raise ValueError(
-                    f"Audio file {str(filepath.resolve())} has already been added to the Scene. "
-                    f"Either increase the number of `fg_paths` in Scene.__init__, "
-                    f"choose a different audio file, "
-                    f"or set `Scene.allow_duplicate_audios=False`."
-                )
+        # Check filepath over
+        if filepath is not None:
+            # Sanitise the filepath (check it exists on disk, etc.)
+            filepath = utils.sanitise_filepath(filepath)
+
+            # Run validation checks on the filepath
+            self._validate_user_defined_audio_filepath(filepath, class_id)
 
         # Sample N random augmentations from our list, if required
         if isinstance(augmentations, custom_types.Numeric):
@@ -1593,7 +1658,7 @@ class Scene:
         Returns metadata for this object as a dictionary
         """
         return dict(
-            audiblelight_version=__version__,
+            audiblelight_version=version("audiblelight"),
             rlr_audio_propagation_version=version("rlr_audio_propagation"),
             creation_time=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
             duration=self.duration,
@@ -1647,12 +1712,13 @@ class Scene:
 
         # Raise a warning on a version mismatch for both audiblelight and rlr_audio_propagation
         loaded_version = input_dict["audiblelight_version"]
-        if loaded_version != __version__:
+        act_version = version("audiblelight")
+        if loaded_version != act_version:
             logger.error(
                 f"This Scene appears to have been created using a different version of `AudibleLight`. "
-                f"The currently installed version is v.{__version__}, but the Scene was created "
+                f"The currently installed version is v.{act_version}, but the Scene was created "
                 f"with v.{loaded_version}. AudibleLight will attempt to load the Scene; but if you encounter "
-                f"errors, you should try running `pip install audiblelight=={__version__}`"
+                f"errors, you should try running `pip install audiblelight=={act_version}`"
             )
 
         loaded_rlr = input_dict["rlr_audio_propagation_version"]

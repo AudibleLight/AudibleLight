@@ -5,6 +5,7 @@
 
 
 from time import time
+from unittest.mock import PropertyMock, patch
 
 import librosa.util
 import numpy as np
@@ -203,9 +204,46 @@ def test_generate_scene_audio_from_events(n_events: int, oyens_scene_no_overlap)
     )
     assert duration == expected
 
+    # Also, check the "unpadded" Event audio
+    for ev in oyens_scene_no_overlap.get_events():
+        assert hasattr(ev, "_spatial_audio_padded")
+        assert isinstance(ev._spatial_audio_padded, dict)
+        assert isinstance(ev._spatial_audio_padded["mic000"], np.ndarray)
 
-@pytest.mark.skip("needs fixing")
+        # Should be identical to the Scene itself
+        channels1, duration1 = ev._spatial_audio_padded["mic000"].shape
+        assert channels1 == channels
+        assert duration1 == duration
+
+        # Shouldn't have dry + dry/padded audio
+        for attr_ in ["_spatial_audio_dry", "_spatial_audio_dry_padded"]:
+            assert hasattr(ev, attr_)
+            assert len(getattr(ev, attr_)) == 0
+
+
 def test_validate_scene(oyens_scene_factory):
+    # Test with mismatching number of emitters/events/sources: need to mock
+    scn = oyens_scene_factory()
+    scn.add_event(event_type="static")
+    with patch.object(
+        type(scn.state), "num_emitters", new_callable=PropertyMock
+    ) as mock_emitters:
+        mock_emitters.return_value = 5
+        with pytest.raises(ValueError, match="Mismatching number of emitters"):
+            syn.validate_scene(scn)
+
+    # Test with no ray-tracing engine sources
+    scn = oyens_scene_factory()
+    scn.add_event(event_type="static")
+    scn.state.ctx.clear_sources()
+    with pytest.raises(ValueError, match="Ray-tracing engine has no sources!"):
+        syn.validate_scene(scn)
+
+    # Test with no ray-tracing engine listeners
+    scn.state.ctx.clear_listeners()
+    with pytest.raises(ValueError, match="Ray-tracing engine has no listeners!"):
+        syn.validate_scene(scn)
+
     # Test with no emitters
     scn = oyens_scene_factory()
     scn.clear_emitters()  # 1 microphone, 0 emitters, 0 events
@@ -223,22 +261,6 @@ def test_validate_scene(oyens_scene_factory):
     scn = oyens_scene_factory()
     scn.state.add_emitter()  # 1 emitter, 1 mic, 0 events
     with pytest.raises(ValueError, match="Scene has no events!"):
-        syn.validate_scene(scn)
-
-    # Test with no ray-tracing listeners
-    scn = oyens_scene_factory()
-    scn.state.add_emitter()
-    scn.state.ctx.clear_listeners()
-    with pytest.raises(
-        ValueError,
-    ):
-        syn.validate_scene(scn)
-
-    # Test with no ray-tracing sources
-    scn = oyens_scene_factory()
-    scn.state.add_emitter()
-    scn.state.ctx.clear_sources()
-    with pytest.raises(ValueError):
         syn.validate_scene(scn)
 
     # Do the same for the capsules
@@ -259,6 +281,22 @@ def test_validate_scene(oyens_scene_factory):
     out.emitters = None
     with pytest.raises(ValueError, match="Event with alias"):
         syn.validate_scene(scn)
+
+
+def test_validate_sofa_scene(metu_scene_factory):
+    # Test invalid
+    scn = metu_scene_factory()
+    scn.state.add_emitter()  # 1 emitter, 1 mic, 0 events
+    with pytest.raises(ValueError, match="Scene has no events!"):
+        syn.validate_scene(scn)
+
+    # Test valid
+    scn = metu_scene_factory()
+    scn.add_event(alias="temp")
+    try:
+        syn.validate_scene(scn)
+    except ValueError:
+        pytest.fail()
 
 
 @pytest.mark.parametrize(
@@ -333,3 +371,56 @@ def test_normalize_irs(n_moving, n_static, oyens_scene_no_overlap):
 
         # Update the counter
         emitter_counter += len(event)
+
+
+@pytest.mark.parametrize(
+    "event_kwargs",
+    [
+        dict(ref_ir_channel=None, direct_path_time_ms=None),
+        dict(ref_ir_channel=0, direct_path_time_ms=[5, 60]),
+        dict(ref_ir_channel=0, direct_path_time_ms=None),
+    ],
+)
+def test_compute_dry_audio(event_kwargs, oyens_scene_no_overlap):
+    # Add static event with set kwargs
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
+        event_type="static",
+        duration=5,
+        event_start=5,
+        scene_start=5,
+        filepath=utils_tests.SOUNDEVENT_DIR / "music/000010.mp3",
+        alias="dry",
+        **event_kwargs,
+    )
+
+    # Do the synthesis
+    syn.validate_scene(oyens_scene_no_overlap)
+    syn.render_audio_for_all_scene_events(oyens_scene_no_overlap, ignore_cache=False)
+    syn.generate_scene_audio_from_events(oyens_scene_no_overlap)
+
+    # Grab the event
+    event = oyens_scene_no_overlap.get_event("dry")
+    assert event.is_audio_loaded
+
+    # Check dry audio if required
+    if event.ref_ir_channel is not None and event.direct_path_time_ms is not None:
+        assert hasattr(event, "_spatial_audio_dry")
+        assert event._spatial_audio_dry is not None
+
+        # Audio should be 1D
+        audio = event._spatial_audio_dry["mic000"]
+        assert isinstance(audio, np.ndarray)
+        assert audio.ndim == 1
+
+        # Padded audio should also be 1D
+        padded_audio = event._spatial_audio_dry_padded["mic000"]
+        assert isinstance(padded_audio, np.ndarray)
+        assert padded_audio.ndim == 1
+
+        # However, we expect more samples (it is padded)
+        assert len(padded_audio) >= len(audio)
+
+        # Min/max of the audio should be the same, however
+        assert pytest.approx(padded_audio.min()) == audio.min()
+        assert pytest.approx(padded_audio.max()) == audio.max()

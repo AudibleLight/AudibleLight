@@ -302,6 +302,7 @@ def time_variant_convolution(
     return istft_overlap_synthesis(spatial_stft, fft_size, win_size, hop_size).T
 
 
+# noinspection PyProtectedMember
 def generate_scene_audio_from_events(scene: Scene) -> None:
     """
     Generate complete audio from a scene, including all events and any background noise
@@ -368,6 +369,23 @@ def generate_scene_audio_from_events(scene: Scene) -> None:
             # Additive synthesis
             scene_audio[:, scene_start:scene_end] += spatial_audio
 
+            # Additionally, set the "padded" audio in the Event
+            event_padded_audio = np.zeros_like(scene_audio)
+            event_padded_audio[:, scene_start:scene_end] += spatial_audio
+            event._spatial_audio_padded[mic_alias] = event_padded_audio
+
+            # Additionally, set pad "dry" audio if required
+            if event._spatial_audio_dry.get(mic_alias) is not None:
+                event_dry_padded = np.zeros(
+                    scene_audio.shape[1], dtype=scene_audio.dtype
+                )
+                # Little hack with the indexing: audio goes mono -> stereo -> mono
+                dry_audio_padded = utils.pad_or_truncate_audio(
+                    event._spatial_audio_dry[mic_alias][None, :], num_samples
+                )[0]
+                event_dry_padded[scene_start:scene_end] += dry_audio_padded
+                event._spatial_audio_dry_padded[mic_alias] = event_dry_padded
+
         # Sanity check everything
         librosa.util.valid_audio(scene_audio)
         utils.validate_shape(scene_audio.shape, (channels, duration))
@@ -400,6 +418,82 @@ def normalize_irs(irs: np.ndarray) -> np.ndarray:
     # Prevents divide by zero
     e += utils.tiny(e)
     return irs / np.mean(e, axis=-2, keepdims=True)
+
+
+# noinspection PyProtectedMember
+def compute_dry_audio(
+    event: Event, irs: np.ndarray, event_scale: float, mic_alias: str
+) -> None:
+    """
+    Computes and stores the dry (direct-path) audio for an Event.
+
+    The dry audio represents only the direct path and early reflections of the event’s sound as captured by a specific
+    reference channel in the provided impulse responses (IRs). It is obtained by truncating the IR around its peak
+    (the direct path) using a specified time window (`direct_path_time_ms`) and then convolving the dry event audio with
+    this truncated IR. The resulting signal is scaled by `event_scale` and stored as a spatialized channel for the
+    given `mic_alias`.
+
+    If neither `ref_ir_channel` nor `direct_path_time_ms` are provided in the Event, dry audio is not computed (default
+    behavior). If only one of these parameters is provided, a warning is logged and computation is skipped.
+
+    See https://github.com/nttcslab/dcase2025_task4_baseline/blob/12063c5219cab094826e839be9a9bd095a6b441c/src/modules/spatialscaper2/semseg_spatialscaper.py#L73
+
+    Arguments:
+        event (Event): The Event instance containing metadata and access to the raw audio signal.
+        irs (np.ndarray): Array of impulse responses with shape `(n_channels, n_irs, n_ir_samples)`.
+        event_scale (float): Scaling factor (derived from target reference dB and SNR) applied to the dry audio.
+        mic_alias (str): Key or alias under which to store the computed dry audio in `event._spatial_audio_dry`.
+
+    Raises:
+        ValueError: If the specified `ref_ir_channel` index is out of range for the given IRs.
+
+    Returns:
+        None: The computed and scaled dry audio is stored internally in `event._spatial_audio_dry[mic_alias]`.
+    """
+
+    # We don't want to compute dry audio (default behaviour)
+    if event.ref_ir_channel is None and event.direct_path_time_ms is None:
+        return
+
+    # We want to compute dry audio
+    elif event.ref_ir_channel is not None and event.direct_path_time_ms is not None:
+        # Get reference channel for the IR and raise an error if invalid
+        ref_channel = event.ref_ir_channel
+        if ref_channel > irs.shape[0]:
+            raise ValueError(
+                f"Reference channel index out of range for IRs with {irs.shape[0]} channels"
+            )
+
+        # See https://github.com/nttcslab/dcase2025_task4_baseline/blob/12063c5219cab094826e839be9a9bd095a6b441c/src/modules/spatialscaper2/semseg_spatialscaper.py#L73
+        # Get direct path time, convert to samples, and raise an error if invalid
+        low, high = event.direct_path_time_ms
+        low_sp = int(low * event.sample_rate / 1000)
+        high_sp = int(high * event.sample_rate / 1000)
+
+        # Find peak of IR
+        peak = np.argmax(irs[ref_channel, 0, :], axis=0)
+        ir_direct_path = irs[ref_channel, 0, :].copy()
+        if peak + high_sp < ir_direct_path.shape[0]:
+            ir_direct_path[peak + high_sp :] = 0
+        if peak - low_sp > 0:
+            ir_direct_path[: peak - low_sp] = 0
+
+        # Do the convolution
+        dry = signal.fftconvolve(
+            event.load_audio(ignore_cache=False), ir_direct_path, mode="full", axes=0
+        )
+        dry_scaled = dry * event_scale
+
+        # Store as an attribute of the Event
+        event._spatial_audio_dry[mic_alias] = dry_scaled
+
+    # We've made a mistake and not provided both arguments, so log and return
+    else:
+        logger.warning(
+            "Only one of `ref_ir_channel` or `direct_path_time` were specified when creating the Event. "
+            "Dry audio will not be computed for this Event. Pass both variables to compute dry audio."
+        )
+        return
 
 
 def render_event_audio(
@@ -500,8 +594,12 @@ def render_event_audio(
     utils.validate_shape(spatial.shape, (n_ch, n_audio_samples))
     librosa.util.valid_audio(spatial)
 
-    # Cast the audio as an attribute of the event, function has no direct return
+    # Cast the audio as an attribute of the event
     event.spatial_audio[mic_alias] = spatial
+
+    compute_dry_audio(event, irs_copy, event_scale, mic_alias)
+
+    # Function has no direct return
 
 
 def render_audio_for_all_scene_events(
@@ -601,7 +699,7 @@ def validate_scene(scene: Scene) -> None:
             )
 
     # Remaining checks only apply to ray-tracing contexts
-    if not scene.state.name == "rlr":
+    if not scene.state.name.upper() == "RLR":
         return
 
     # Validate ray-tracing engine
@@ -631,9 +729,6 @@ def validate_scene(scene: Scene) -> None:
             f"Got {capsules} capsules, {scene.state.ctx.get_listener_count()} listeners. "
             f"Have any been orphaned?"
         )
-
-    # if any(not ev.has_emitters for ev in scene.events.values()):
-    #     raise ValueError("Some events have no emitters registered to them!")
 
 
 def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
