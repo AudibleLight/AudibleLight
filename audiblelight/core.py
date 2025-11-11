@@ -17,7 +17,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 from scipy import stats
 
-from audiblelight import __version__, config, custom_types, utils
+from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.class_mappings import (
@@ -1658,7 +1658,7 @@ class Scene:
         Returns metadata for this object as a dictionary
         """
         return dict(
-            audiblelight_version=__version__,
+            audiblelight_version=version("audiblelight"),
             rlr_audio_propagation_version=version("rlr_audio_propagation"),
             creation_time=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
             duration=self.duration,
@@ -1712,12 +1712,13 @@ class Scene:
 
         # Raise a warning on a version mismatch for both audiblelight and rlr_audio_propagation
         loaded_version = input_dict["audiblelight_version"]
-        if loaded_version != __version__:
+        act_version = version("audiblelight")
+        if loaded_version != act_version:
             logger.error(
                 f"This Scene appears to have been created using a different version of `AudibleLight`. "
-                f"The currently installed version is v.{__version__}, but the Scene was created "
+                f"The currently installed version is v.{act_version}, but the Scene was created "
                 f"with v.{loaded_version}. AudibleLight will attempt to load the Scene; but if you encounter "
-                f"errors, you should try running `pip install audiblelight=={__version__}`"
+                f"errors, you should try running `pip install audiblelight=={act_version}`"
             )
 
         loaded_rlr = input_dict["rlr_audio_propagation_version"]

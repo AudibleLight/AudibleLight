@@ -18,6 +18,7 @@ from audiblelight import utils
 __all__ = [
     "sanitize_microphone_input",
     "MicArray",
+    "Binaural",
     "Eigenmike32",
     "Eigenmike64",
     "MonoCapsule",
