@@ -105,9 +105,16 @@ class FSD50KDataSetup(BaseDataSetup):
 
 
 def main(
-    path: str,
-    cleanup: bool,
+    path: str = DEFAULT_PATH,
+    cleanup: bool = DEFAULT_CLEANUP,
 ):
+    f"""
+    Downloads and prepares the FSD50K dataset.
+
+    Arguments:
+        path: Path to store and process the dataset, defaults to {DEFAULT_PATH}.
+        cleanup: Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}.
+    """
     print("---- FSD50K download script ----")
     print(f"Datasets will be downloaded to: {path}")
 
@@ -138,9 +145,7 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Download and prepare FSD50K database."
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,
