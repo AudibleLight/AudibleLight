@@ -4,6 +4,7 @@
 """Implements dataclasses for working with common microphone array types"""
 
 from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Type
 
@@ -17,13 +18,18 @@ from audiblelight import utils
 __all__ = [
     "sanitize_microphone_input",
     "MicArray",
+    "Binaural",
     "Eigenmike32",
     "Eigenmike64",
     "MonoCapsule",
     "AmbeoVR",
     "MICARRAY_LIST",
     "FOAListener",
+    "dynamically_define_micarray",
+    "CHANNEL_LAYOUT_TYPES",
 ]
+
+CHANNEL_LAYOUT_TYPES = ["mic", "foa", "binaural"]
 
 
 @dataclass(eq=False)
@@ -74,7 +80,7 @@ class MicArray:
             return ChannelLayout(layout_type, 2)
         else:
             raise ValueError(
-                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"Expected 'channel_layout_type' to be one of {', '.join(CHANNEL_LAYOUT_TYPES)} "
                 f"but got '{self.channel_layout_type}'"
             )
         # return ChannelLayout(layout_type, self.n_capsules)
@@ -95,7 +101,7 @@ class MicArray:
             return 1
         else:
             raise ValueError(
-                f"Expected `channel_layout_type` to be one of 'mono', 'foa', 'binaural' "
+                f"Expected 'channel_layout_type' to be one of {', '.join(CHANNEL_LAYOUT_TYPES)}, "
                 f"but got '{self.channel_layout_type}'"
             )
 
@@ -184,9 +190,12 @@ class MicArray:
         d2 = other.to_dict()
 
         # Compute the deepdiff between both dictionaries
+        #  Ignore micarray_type incase we've dynamically reconstructed the array
+        #  This will be set to the name of the class
         diff = DeepDiff(
             d1,
             d2,
+            exclude_paths="micarray_type",
             ignore_order=True,
             significant_digits=4,
             ignore_numeric_type_changes=True,
@@ -202,10 +211,11 @@ class MicArray:
         # Try and get all coordinate types for this microphone array
         coords = [
             "coordinates_absolute",
-            # "coordinates_polar",
             "coordinates_center",
-            # "coordinates_cartesian",
+            "coordinates_polar",
+            "coordinates_cartesian",
         ]
+
         coord_dict = OrderedDict()
         for coord_type in coords:
             try:
@@ -218,6 +228,7 @@ class MicArray:
                 if isinstance(coord_val, np.ndarray):
                     coord_val = coord_val.tolist()
             coord_dict[coord_type] = coord_val
+
         return dict(
             name=self.name,
             micarray_type=self.__class__.__name__,
@@ -227,27 +238,6 @@ class MicArray:
             capsule_names=self.capsule_names,
             **coord_dict,
         )
-
-    @staticmethod
-    def _get_mic_class(input_dict: dict[str, Any]) -> Type["MicArray"]:
-        """
-        Given a dictionary, get the desired MicArray class.
-
-        Arguments:
-            input_dict (dict[str, Any]): dictionary to instantiate MicArray class
-
-        Returns:
-            MicArray object
-        """
-        # Get the class type of the desired microphone
-        desired_mic = input_dict.pop("micarray_type", "mic")
-        if desired_mic not in MICARRAY_CLASS_MAPPING:
-            raise ValueError(
-                f"{desired_mic} is not a valid microphone array type! "
-                f"Expected one of {', '.join(MICARRAY_CLASS_MAPPING.keys())}"
-            )
-        # Instantiate the microphone and set its coordinates
-        return MICARRAY_CLASS_MAPPING[desired_mic]
 
     def _set_attribute(self, attr_name: str, value: Any) -> None:
         """
@@ -312,11 +302,25 @@ class MicArray:
         Returns:
             MicArray instance.
         """
-        mic_class = cls._get_mic_class(input_dict)()
-        mic_class.set_absolute_coordinates(input_dict["coordinates_center"])
+        if "micarray_type" not in input_dict:
+            raise KeyError("'micarray_type' key not found in input dict")
+
+        input_dict_copy = deepcopy(input_dict)
+        mic_class_str = input_dict_copy.pop("micarray_type", "mic")
+
+        # If it is one of our inbuilt micarrays, just load from the list
+        if mic_class_str in MICARRAY_CLASS_MAPPING:
+            mic_class = MICARRAY_CLASS_MAPPING[mic_class_str]
+        # Otherwise, try and dynamically reconstruct the microphone given the available parameters
+        else:
+            mic_class = dynamically_define_micarray(**input_dict_copy)
+
+        # Instantiate the class and set its coordinates
+        mic_class = mic_class()
+        mic_class.set_absolute_coordinates(input_dict_copy["coordinates_center"])
 
         # Set any other valid parameters for the microphone as well
-        for k, v in input_dict.items():
+        for k, v in input_dict_copy.items():
             mic_class._set_attribute(k, v)
 
         return mic_class
@@ -339,6 +343,28 @@ class MonoCapsule(MicArray):
     @property
     def capsule_names(self) -> list[str]:
         return ["mono"]
+
+
+@dataclass(repr=False, eq=False)
+class Binaural(MicArray):
+    """
+    Binaural microphone "capsule"
+
+    This implementation uses a single listener with 2 channels (Left, Right)
+    following the binaural recording technique.
+    """
+
+    name: str = "binaural"
+    is_spherical: bool = False
+    channel_layout_type: str = "binaural"
+
+    @property
+    def coordinates_cartesian(self) -> np.ndarray:
+        return np.array([[0.0, 0.0, 0.0]])
+
+    @property
+    def capsule_names(self) -> list[str]:
+        return ["left", "right"]
 
 
 @dataclass(repr=False, eq=False)
@@ -477,70 +503,70 @@ class Eigenmike64(MicArray):
         # We assume a radius of 4.2 cm given the stated diameter of 8.4 cm
         return np.array(
             [
-                [-163.0, 73.0, 0.042],
-                [116.0, 68.0, 0.042],
-                [82.0, 48.0, 0.042],
-                [-47.0, 77.0, 0.042],
-                [43.0, 67.0, 0.042],
-                [47.0, 37.0, 0.042],
-                [-24.0, 52.0, 0.042],
-                [15.0, 47.0, 0.042],
-                [-156.0, 44.0, 0.042],
-                [-153.0, 20.0, 0.042],
-                [-113.0, 57.0, 0.042],
-                [-126.0, 30.0, 0.042],
-                [-95.0, 34.0, 0.042],
-                [100.0, 23.0, 0.042],
-                [105.0, -3.0, 0.042],
-                [121.0, 42.0, 0.042],
-                [127.0, 12.0, 0.042],
-                [148.0, 28.0, 0.042],
-                [163.0, 52.0, 0.042],
-                [179.0, 26.0, 0.042],
-                [21.0, 20.0, 0.042],
-                [26.0, -6.0, 0.042],
-                [48.0, 9.0, 0.042],
-                [56.0, -16.0, 0.042],
-                [71.0, 22.0, 0.042],
-                [78.0, -2.0, 0.042],
-                [-67.0, 50.0, 0.042],
-                [-69.0, 49.0, 0.042],
-                [-42.0, 31.0, 0.042],
-                [-26.0, 8.0, 0.042],
-                [-8.0, 27.0, 0.042],
-                [0.0, 0.0, 0.042],
-                [174.0, -48.0, 0.042],
-                [-147.0, -50.0, 0.042],
-                [-108.0, -45.0, 0.042],
-                [151.0, -19.0, 0.042],
-                [-119.0, -18.0, 0.042],
-                [-67.0, -52.0, 0.042],
-                [-29.0, -21.0, 0.042],
-                [61.0, -19.0, 0.042],
-                [-133.0, -25.0, 0.042],
-                [-126.0, 4.0, 0.042],
-                [-166.0, -26.0, 0.042],
-                [-150.0, -5.0, 0.042],
-                [-177.0, 0.0, 0.042],
-                [164.0, -21.0, 0.042],
-                [157.0, 15.0, 0.042],
-                [139.0, 10.0, 0.042],
-                [136.0, -12.0, 0.042],
-                [102.0, 37.0, 0.042],
-                [113.0, 62.0, 0.042],
-                [83.0, 63.0, 0.042],
-                [-52.0, 35.0, 0.042],
-                [-51.0, 90.0, 0.042],
-                [-82.0, 66.0, 0.042],
-                [-77.0, 41.0, 0.042],
-                [-107.0, 54.0, 0.042],
-                [-100.0, 29.0, 0.042],
-                [60.0, 44.0, 0.042],
-                [14.0, 36.0, 0.042],
-                [32.0, 55.0, 0.042],
-                [-26.0, 44.0, 0.042],
-                [2.0, 64.0, 0.042],
-                [-25.0, 55.0, 0.042],
+                [-162.544, 73.234, 0.042],
+                [115.734, 68.032, 0.042],
+                [81.911, 47.606, 0.042],
+                [-46.641, 76.718, 0.042],
+                [43.179, 67.327, 0.042],
+                [46.732, 37.308, 0.042],
+                [-24.004, 52.194, 0.042],
+                [14.54, 46.606, 0.042],
+                [-155.545, 46.061, 0.042],
+                [-153.458, 19.687, 0.042],
+                [-112.678, 56.777, 0.042],
+                [-126.183, 29.974, 0.042],
+                [-95.456, 33.524, 0.042],
+                [99.667, 22.506, 0.042],
+                [104.684, -3.274, 0.042],
+                [120.923, 41.577, 0.042],
+                [126.513, 11.921, 0.042],
+                [148.237, 27.931, 0.042],
+                [162.638, 51.283, 0.042],
+                [178.55, 26.2, 0.042],
+                [21.271, 19.805, 0.042],
+                [25.783, -6.246, 0.042],
+                [47.861, 8.901, 0.042],
+                [55.907, -16.094, 0.042],
+                [71.429, 22.247, 0.042],
+                [78.492, -1.706, 0.042],
+                [-66.779, 50.002, 0.042],
+                [-69.432, 21.227, 0.042],
+                [-41.865, 29.113, 0.042],
+                [-25.996, 7.717, 0.042],
+                [-7.977, 26.975, 0.042],
+                [0.0, 0.206, 0.042],
+                [174.033, -47.517, 0.042],
+                [-147.28, -49.76, 0.042],
+                [-108.082, -45.213, 0.042],
+                [150.647, -70.363, 0.042],
+                [-119.173, -72.577, 0.042],
+                [-66.938, -52.069, 0.042],
+                [-28.99, -71.199, 0.042],
+                [60.827, -72.577, 0.042],
+                [-133.087, -25.536, 0.042],
+                [-126.074, 3.741, 0.042],
+                [-166.362, -26.016, 0.042],
+                [-150.33, -5.331, 0.042],
+                [-176.831, -0.064, 0.042],
+                [163.71, -21.455, 0.042],
+                [156.952, 4.133, 0.042],
+                [139.432, -40.84, 0.042],
+                [135.973, -12.578, 0.042],
+                [102.327, -52.637, 0.042],
+                [112.551, -27.032, 0.042],
+                [83.146, -27.563, 0.042],
+                [-52.292, -25.888, 0.042],
+                [-50.861, 0.31, 0.042],
+                [-81.748, -28.448, 0.042],
+                [-77.026, -3.934, 0.042],
+                [-106.853, -16.387, 0.042],
+                [-99.931, 8.949, 0.042],
+                [59.739, -45.976, 0.042],
+                [14.224, -52.677, 0.042],
+                [32.49, -30.656, 0.042],
+                [-25.925, -43.883, 0.042],
+                [2.084, -26.359, 0.042],
+                [-24.932, -17.464, 0.042],
             ]
         )
 
@@ -555,7 +581,7 @@ class Eigenmike64(MicArray):
 
 
 # A list of all mic array objects
-MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, FOAListener]
+MICARRAY_LIST = [Eigenmike32, Eigenmike64, AmbeoVR, MonoCapsule, Binaural, FOAListener]
 MICARRAY_CLASS_MAPPING = {cls.__name__: cls for cls in MICARRAY_LIST}
 
 
@@ -588,8 +614,11 @@ def sanitize_microphone_input(microphone_type: Any) -> Type["MicArray"]:
     elif type(microphone_type) in MICARRAY_LIST:
         sanitized_microphone = type(microphone_type)
 
-    elif issubclass(microphone_type, MicArray):
+    elif isinstance(microphone_type, type) and issubclass(microphone_type, MicArray):
         sanitized_microphone = microphone_type
+
+    elif issubclass(type(microphone_type), MicArray):
+        sanitized_microphone = type(microphone_type)
 
     # Otherwise, we don't know what the microphone is
     else:
@@ -611,3 +640,67 @@ def get_micarray_from_string(micarray_name: str) -> Type["MicArray"]:
     else:
         # Using `next` avoids having to build the whole list
         return next(ma for ma in MICARRAY_LIST if ma.name == micarray_name)
+
+
+def dynamically_define_micarray(**kwargs) -> Type["MicArray"]:
+    """
+    Dynamically define a new MicArray class with given attributes.
+
+    This enables a MicArray class to be dynamically defined at runtime. May be helpful when (for instance) the
+    name or channel layout type may not be known in advance (e.g., when these are passed from a SOFA file). The
+    returned MicArray class should have all the properties and attributes of a 'normal' MicArray class.
+
+    Arguments:
+        kwargs: passed to MicArray constructor
+
+    Returns:
+        Type['MicArray']: the dynamically defined MicArray class
+
+    Usage:
+    >>> marray = dynamically_define_micarray(
+    >>>     name="tester",
+    >>>     channel_layout_type="foa",
+    >>>     coordinates_cartesian=[[0.0, 0.0, 1.0]]
+    >>> )
+    >>> issubclass(type(marray), MicArray)
+    True
+    """
+
+    @dataclass(repr=False, eq=False)
+    class _DynamicMicArray(MicArray):
+
+        def __init__(self):
+            super().__init__()  # initialize MicArray defaults
+            self.name = kwargs.get("name", getattr(self, "name", ""))
+            self.channel_layout_type = kwargs.get(
+                "channel_layout_type", getattr(self, "channel_layout_type", "unknown")
+            )
+            self.is_spherical = kwargs.get(
+                "is_spherical", getattr(self, "is_spherical", False)
+            )
+
+        @property
+        def coordinates_cartesian(self) -> np.ndarray:
+            if "coordinates_cartesian" in kwargs.keys():
+                return kwargs["coordinates_cartesian"]
+            else:
+                raise NotImplementedError
+
+        @property
+        def coordinates_polar(self) -> np.ndarray:
+            if "coordinates_polar" in kwargs.keys():
+                return kwargs["coordinates_polar"]
+            else:
+                raise NotImplementedError
+
+        @property
+        def capsule_names(self) -> list[str]:
+            if "capsule_names" in kwargs.keys():
+                return kwargs["capsule_names"]
+            else:
+                raise NotImplementedError
+
+    if "micarray_type" in kwargs:
+        _DynamicMicArray.__name__ = kwargs["micarray_type"]
+
+    return _DynamicMicArray

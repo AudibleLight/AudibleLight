@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "audiblelight"
-version = "0.1.0"
+version = "0.1.1"
 description = "A library for soundscape synthesis using spatial impulse responses derived from ray-traced room scans"
 authors = ["Huw Cheston <h.cheston@qmul.ac.uk>", "Iran Roman <i.roman@qmul.ac.uk>"]
 license = "CC-BY-4.0"
@@ -16,33 +16,36 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis"
 ]
 readme = "README.md"
+packages = [
+    { include = "scripts/**/*.py", format=["sdist", "wheel"] },
+    { include = "resources/mp3d_material_config.json", format=["sdist", "wheel"] },
+    { include = "audiblelight/*", format=["sdist", "wheel"]}
+]
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
 librosa = "0.11.0"
+soundfile = "*"
 matplotlib = "*"
 numpy = "2.0.2"
 pandas = "2.2.2"
 pillow = "11.2.1"
 plotly = "5.24.1"
-rtree = "1.4.0"
 scipy = "*"
+rtree = "1.4.0"
 tqdm = "4.67.1"
 trimesh = "4.6.11"
-scaper = "*"
 torch = "*"
-pyglet = "<2"
 loguru = "*"
-pre-commit = "*"
-netCDF4 = "*"
 pyroomacoustics = "*"
-h5py = "*"
 deepdiff = "*"
-rlr-audio-propagation = { git = "https://github.com/beasteers/rlr-audio-propagation.git", branch = "main" }
+rlr-audio-propagation = "0.0.1"
 pedalboard = "0.9.17"
+pysofaconventions = "*"
+gdown = "*"
 
 [tool.poetry.group.dev.dependencies]
-notebook = "^7.4.5"
 pytest = "*"
 coverage = "*"
 pytest-cov = "*"
@@ -53,11 +56,17 @@ pre-commit = "*"
 black = "24.4.2"
 isort = "5.13.2"
 flake8 = "7.0.0"
+nbmake = "*"
+twine = "*"
+build = "*"
 
 [tool.poetry.group.datasets.dependencies]
 soundata = "*"
+requests = "*"
+mat73 = "*"
 
 [tool.poetry.group.docs.dependencies]
+IPython = "*"
 notebook = "^7.4.5"
 sphinx = "*"
 sphinx-book-theme = "*"

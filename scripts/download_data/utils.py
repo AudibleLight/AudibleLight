@@ -5,11 +5,22 @@
 
 import os
 import shutil
+import subprocess
 import tarfile
 import zipfile
 
 import requests
 from tqdm import tqdm
+
+
+def combine_multizip(filename: str, destination: str, shell: bool = True) -> None:
+    """
+    Combine multiple zip files into one
+    """
+    subprocess.run(
+        f"zip -s 0 {filename} --out {destination}",
+        shell=shell,
+    )
 
 
 def extract_tar(tar_path: str, destination: str) -> None:

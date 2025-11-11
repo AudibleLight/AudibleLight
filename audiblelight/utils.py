@@ -7,8 +7,8 @@ import inspect
 import json
 import os
 import random
-import wave
 from contextlib import contextmanager
+from importlib import resources
 from pathlib import Path
 from time import time
 from typing import Any, Callable, Generator, Optional, Union
@@ -17,7 +17,6 @@ import numpy as np
 import torch
 from loguru import logger
 
-from audiblelight.config import SAMPLE_RATE
 from audiblelight.custom_types import (
     NUMERIC_DTYPES,
     DistributionLike,
@@ -39,7 +38,7 @@ SMALL = 1e-4
 
 
 @contextmanager
-def timer(name: str) -> Generator[None, Any, None]:
+def timer(name: str) -> Generator[None, Any, None]:  # pragma: no cover
     """
     Log how long it takes to execute the provided block.
 
@@ -63,42 +62,6 @@ def timer(name: str) -> Generator[None, Any, None]:
         logger.debug(f"Took {end - start:.2f} seconds to {name}.")
 
 
-def write_wav(audio: np.ndarray, outpath: str, sample_rate: int = SAMPLE_RATE) -> None:
-    """
-    Writes a mono audio array to a WAV file in 16-bit PCM format.
-
-    The input must be a 1D float array. Values are expected in [-1, 1], and will
-    be normalized if they exceed this range.
-    """
-    # Cast array to float64
-    audio = np.asarray(audio, dtype=np.float64)
-    # Sanity checking
-    assert len(audio.shape) == 1, "Only mono audio supported"
-    assert Path(outpath).parent.exists(), "Output directory must exist"
-    # Check if normalization is needed
-    max_val = np.max(np.abs(audio))
-    if max_val > 1.0:
-        logger.warning(
-            f"Audio file absolute max exceeds 1.0 ({round(max_val, 3)}), normalizing..."
-        )
-        audio = audio / max_val
-    # Catch cases where silent audio would lead to dividing by zero
-    elif max_val == 0.0:
-        logger.warning("Audio is completely silent.")
-    # Convert to 16-bit PCM
-    audio_int16 = (audio * 32767).astype(np.int16)
-    # Coerce to 2D array
-    audio_fmt = coerce2d(audio_int16).T
-    # Write to WAV using wave module
-    #  We use wave for dumping wav files, not scipy, as scipy depends on audioread which is no longer maintained
-    #  See https://github.com/beetbox/audioread/issues/144
-    with wave.open(outpath, "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)  # 2 bytes = 16-bit
-        wf.setframerate(sample_rate)
-        wf.writeframes(audio_fmt.tobytes())
-
-
 def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndarray:
     """Coerces an input type to a 2D array"""
     # Coerce list types to arrays
@@ -114,7 +77,7 @@ def coerce2d(array: Union[list[float], list[np.ndarray], np.ndarray]) -> np.ndar
     return array
 
 
-def seed_everything(seed: int = SEED) -> None:
+def seed_everything(seed: int = SEED) -> None:  # pragma: no cover
     """Set the random seeds for libraries used by AudibleLight."""
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  # safe to call even if cuda is not available
@@ -122,22 +85,10 @@ def seed_everything(seed: int = SEED) -> None:
     np.random.seed(seed)
 
 
-def get_project_root() -> Path:
+# noinspection PyUnresolvedReferences
+def get_project_root() -> Path:  # pragma: no cover
     """Returns the root directory of the project."""
-    # Possibly the root directory, but doesn't always work when running from the CLI for some reason
-    poss_path = Path(__file__).parent.parent
-    # The root directory should always have these files (this is pretty hacky)
-    expected_files = [
-        "audiblelight",
-        "notebooks",
-        "resources",
-        "tests",
-        "pyproject.toml",
-    ]
-    if all((poss_path / fp).exists() for fp in expected_files):
-        return poss_path
-    else:
-        return Path.cwd()
+    return resources.files("audiblelight").parent
 
 
 def polar_to_cartesian(spherical_array: np.ndarray) -> np.ndarray:
@@ -212,19 +163,6 @@ def check_all_lens_equal(*iterables) -> bool:
     Returns True if all iterables have the same length, False otherwise
     """
     return len({len(i) for i in iterables}) == 1
-
-
-def sanitise_ref_db(ref_db: Any) -> int:
-    """
-    Validate noise floor, in dB, and raise warnings when non-negative.
-    """
-    if not isinstance(ref_db, Numeric):
-        raise TypeError(f"Expected `ref_db` to be numeric, but got {type(ref_db)}")
-    elif ref_db > 0:
-        logger.error(
-            f"Provided noise floor is positive; expect clipping to occur (ref_db={ref_db:.2f})"
-        )
-    return int(ref_db)
 
 
 def sanitise_filepath(filepath: Any) -> Path:
@@ -475,6 +413,44 @@ def sample_distribution(
             )
 
 
+def get_valid_kwargs(func: Callable) -> set[str]:
+    """
+    Gets the names of all valid keyword arguments for the provided function.
+
+    Note that this function assumes that `func` takes in an arbitrary number of keyword arguments. It is not designed
+    to be used in cases where (for instance) `func` accepts only positional arguments or `*args`.
+
+    Arguments:
+        func: a function to call
+
+    Raises:
+        TypeError: if `func` is not callable.
+        ValueError: if `func` has no keyword arguments.
+        AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func`.
+
+    Returns:
+        set[str]: the names of all valid keyword arguments for the provided function.
+    """
+
+    if not callable(func):
+        raise TypeError("`func` must be a callable")
+
+    sig = inspect.signature(func)
+    params = sig.parameters
+
+    # If function accepts arbitrary kwargs, return empty set
+    if any(p.kind == p.VAR_KEYWORD for p in params.values()):
+        return {}
+
+    valid_kwargs = {
+        name
+        for name, param in params.items()
+        if param.kind in (param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD)
+    }
+
+    return valid_kwargs
+
+
 # noinspection PyUnreachableCode
 def validate_kwargs(func: Callable, **kwargs) -> None:
     """
@@ -492,21 +468,7 @@ def validate_kwargs(func: Callable, **kwargs) -> None:
         ValueError: if `func` has no keyword arguments.
         AttributeError: if a kwarg in `kwargs` is an invalid kwarg for `func`.
     """
-    if not callable(func):
-        raise TypeError("`func` must be a callable")
-
-    sig = inspect.signature(func)
-    params = sig.parameters
-
-    # If function accepts arbitrary kwargs, no need to validate
-    if any(p.kind == p.VAR_KEYWORD for p in params.values()):
-        return
-
-    valid_kwargs = {
-        name
-        for name, param in params.items()
-        if param.kind in (param.KEYWORD_ONLY, param.POSITIONAL_OR_KEYWORD)
-    }
+    valid_kwargs = get_valid_kwargs(func)
 
     if not valid_kwargs:
         raise ValueError("`func` must have at least one named keyword argument")
@@ -742,3 +704,15 @@ def tiny(x: Union[float, np.ndarray]) -> Numeric:
         dtype = np.dtype(np.float32)
 
     return np.finfo(dtype).tiny
+
+
+def coerce_nested_inputs(inp: Any) -> Any:
+    """
+    Coerce nested dtypes for JSON serialisation
+    """
+    if isinstance(inp, dict):
+        return {k: coerce_nested_inputs(v) for k, v in inp.items()} if inp else None
+    elif isinstance(inp, np.ndarray):
+        return inp.tolist()
+    else:
+        return inp

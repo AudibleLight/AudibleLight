@@ -51,11 +51,14 @@ def test_simulated_azimuth_with_music(microphone: list, events: list):
     # Create a simulated scene
     test_scene = Scene(
         duration=5.1,
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+        sample_rate=16000,
         fg_path=utils_tests.SOUNDEVENT_DIR / "music",
         allow_duplicate_audios=False,
         max_overlap=3,
-        state_kwargs=dict(rlr_kwargs=dict(sample_rate=16000)),
     )
 
     # Add the microphone and events
@@ -148,10 +151,13 @@ def test_simulated_sound_distance_vs_two_mics(
     # Create a simulated scene
     test_scene = Scene(
         duration=5.1,
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
         fg_path=utils_tests.SOUNDEVENT_DIR / "music",
         max_overlap=3,
-        state_kwargs=dict(rlr_kwargs=dict(sample_rate=16000)),
+        sample_rate=16000,
     )
 
     # Add the microphone and events
@@ -205,10 +211,13 @@ def test_simulated_sound_distance_vs_two_events(
     # Create a simulated scene
     test_scene = Scene(
         duration=5.1,
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
         fg_path=utils_tests.SOUNDEVENT_DIR / "music",
         max_overlap=3,
-        state_kwargs=dict(rlr_kwargs=dict(sample_rate=16000)),
+        sample_rate=16000,
     )
 
     # Add the microphone and events

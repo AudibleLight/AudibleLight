@@ -4,9 +4,7 @@
 """Test cases for functionality inside audiblelight/utils.py"""
 
 import os
-import wave
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Union
 
 import numpy as np
@@ -286,12 +284,6 @@ def _tmp(*_):
     [
         (lambda x=1, y=2: x + y, {"x": 5}, False, None),  # Valid kwarg
         (lambda x=1, y=2: x + y, {"z": 5}, True, AttributeError),  # Invalid kwarg
-        (
-            lambda **kwargs: sum(kwargs.values()),
-            {"a": 1},
-            False,
-            None,
-        ),  # Accepts arbitrary kwargs
         ("not_a_function", {"x": 1}, True, TypeError),  # Not a callable
         (lambda x, y: x + y, {}, False, None),  # No kwargs but valid empty call
         (lambda *, a=1: a, {"a": 2}, False, None),  # Keyword-only argument
@@ -475,39 +467,6 @@ def test_get_default_alias(prefix, objects, expected, raises):
 
 
 @pytest.mark.parametrize(
-    "audio_input, expect_warning, expect_normalized",
-    [
-        (np.array([0.0, 0.5, -0.5]), False, False),  # Normal audio, within range
-        (np.array([1.0, -1.0, 0.999]), False, False),  # Edge values, no normalization
-    ],
-)
-def test_write_wav(audio_input, expect_warning, expect_normalized, caplog):
-    with TemporaryDirectory() as tmpdir:
-        outpath = Path(tmpdir) / "test.wav"
-
-        # Capture logging output
-        with caplog.at_level("WARNING"):
-            utils.write_wav(audio_input, str(outpath))
-
-        # Check if output file was created
-        assert outpath.exists()
-
-        # Check warning presence
-        if expect_warning:
-            assert any("warning" in rec.levelname.lower() for rec in caplog.records)
-        else:
-            assert all("warning" not in rec.levelname.lower() for rec in caplog.records)
-
-        # Read back WAV and check normalization
-        with wave.open(str(outpath), "rb") as wf:
-            frames = wf.readframes(wf.getnframes())
-            data = np.frombuffer(frames, dtype=np.int16)
-
-        if expect_normalized:
-            assert np.max(np.abs(data)) == 32767
-
-
-@pytest.mark.parametrize(
     "xyz_start, xyz_end, n_points",
     [
         (np.array([0.0, 0.0, 0.0]), np.array([1.0, 1.0, 1.0]), 5),
@@ -624,3 +583,50 @@ def test_tiny(x):
     assert not np.isnan(tiny_out)
     assert not np.isinf(tiny_out)
     assert np.isclose(tiny_out, 0, atol=utils.SMALL)
+
+
+@pytest.mark.parametrize(
+    "inp, expected",
+    [
+        ({}, None),
+        ({"a": 1, "b": 2}, {"a": 1, "b": 2}),
+        (
+            {"a": np.array([1, 2, 3]), "b": {"c": np.array([4, 5])}},
+            {"a": [1, 2, 3], "b": {"c": [4, 5]}},
+        ),
+        (np.array([10, 20]), [10, 20]),
+        ("hello", "hello"),
+        (42, 42),
+    ],
+)
+def test_coerce_nested_inputs(inp, expected):
+    assert utils.coerce_nested_inputs(inp) == expected
+
+
+def func_no_kwargs(a, b):
+    return a + b
+
+
+def func_with_kwargs(a, b=1, *, c=2):
+    return a + b + c
+
+
+def func_with_var_kwargs(**kwargs):
+    return sum(kwargs.values())
+
+
+@pytest.mark.parametrize(
+    "inp, expected, exc",
+    [
+        (func_no_kwargs, {"a", "b"}, None),
+        (func_with_kwargs, {"a", "b", "c"}, None),
+        (func_with_var_kwargs, {}, None),
+        ("not_callable", None, TypeError),
+    ],
+)
+def test_get_valid_kwargs(inp, expected, exc):
+    if exc:
+        with pytest.raises(exc):
+            utils.get_valid_kwargs(inp)
+    else:
+        assert utils.get_valid_kwargs(inp) == expected

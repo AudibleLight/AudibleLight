@@ -1,8 +1,8 @@
 AudibleLight 🔈💡
-================
+=================
 
-Spatial soundscape synthesis using ray-tracing
-----------------------------------------------
+A Controllable, End-to-End API for Soundscape Synthesis Across Ray-Traced & Real-World Measured Acoustics
+---------------------------------------------------------------------------------------------------------
 
 .. warning::
 
@@ -12,9 +12,7 @@ Spatial soundscape synthesis using ray-tracing
 What is ``AudibleLight``?
 -------------------------
 
-This project provides a platform for generating synthetic soundscapes by simulating arbitrary microphone configurations and dynamic sources in both parameterized and 3D-scanned rooms. Under the hood, ``AudibleLight`` uses Meta’s `open-source acoustic ray-tracing engine <https://github.com/beasteers/rlr-audio-propagation>`_ to simulate spatial room impulse responses and convolve them with recorded events to emulate array recordings of moving sources. The resulting soundscapes can prove useful in training models for a variety of downstream tasks, including acoustic imaging, sound event localisation and detection, direction of arrival estimation, etc.
-
-In contrast to other projects (e.g., `sonicsim <https://github.com/JusperLee/SonicSim/tree/main/SonicSim-SonicSet>`_, `spatialscaper <https://github.com/marl/SpatialScaper>`_), ``AudibleLight`` provides a straightforward API without restricting the user to any specific dataset. You can bring your own mesh and your own audio files, and ``AudibleLight`` will handle all the spatial logic, validation, and synthesis necessary to ensure that the resulting soundscapes are valid for use in training machine learning models and algorithms.
+``AudibleLight`` is a unified API for soundscape synthesis supporting ray-traced, real-world, and parametric RIR generation. It enables flexible microphone array modeling and dynamic, fully annotated source trajectories within a single workflow. It is built upon `SpatialScaper <https://github.com/marl/SpatialScaper>`_, `SoundSpaces <https://github.com/facebookresearch/sound-spaces>`_ and `Pyroomacoustics <https://github.com/LCAV/pyroomacoustics>`_ for scalable soundscape generation with unprecedented acoustic diversity.
 
 ``AudibleLight`` is developed by researchers at the `Centre for Digital Music, Queen Mary University of London <https://www.c4dm.eecs.qmul.ac.uk/>`_ in collaboration with `Meta Reality Labs <https://www.meta.com/en-gb/emerging-tech>`_.
 

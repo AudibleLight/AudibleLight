@@ -17,7 +17,14 @@ def test_generate_dcase_2024_metadata_overlap(duration):
     Test DCASE metadata creation with overlapping events
     """
     # Create a scene, add two music objects that overlap
-    scene = Scene(duration=duration, mesh_path=utils_tests.OYENS_PATH)
+    scene = Scene(
+        duration=duration,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+    )
     scene.add_microphone(microphone_type="ambeovr")
     scene.add_event(
         event_type="static",
@@ -58,7 +65,14 @@ def test_generate_dcase_metadata_static(duration: int):
     Test DCASE metadata creation with a single static event
     """
     # Create a scene, add single music object
-    scene = Scene(duration=duration, mesh_path=utils_tests.OYENS_PATH)
+    scene = Scene(
+        duration=duration,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+    )
     scene.add_microphone(microphone_type="ambeovr")
     scene.add_event(
         event_type="static",
@@ -97,7 +111,14 @@ def test_generate_dcase_metadata_moving(duration: int):
     Test DCASE metadata creation with a single moving event
     """
     # Create a scene, add two music objects (one static, one moving)
-    scene = Scene(duration=duration, mesh_path=utils_tests.OYENS_PATH)
+    scene = Scene(
+        duration=duration,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+    )
     scene.add_microphone(microphone_type="ambeovr")
     scene.add_event(
         event_type="moving",
@@ -139,7 +160,14 @@ def test_generate_dcase_2024_metadata_static_and_moving(duration: int):
     Test DCASE metadata creation with both static and moving events
     """
     # Create a scene, add two music objects (one static, one moving)
-    scene = Scene(duration=duration, mesh_path=utils_tests.OYENS_PATH)
+    scene = Scene(
+        duration=duration,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+    )
     scene.add_microphone(microphone_type="ambeovr")
     scene.add_event(
         event_type="static",
@@ -194,7 +222,14 @@ def test_generate_dcase_2024_metadata_static_and_moving(duration: int):
 
 def test_dcase_metadata_bad():
     # Create a scene, add mic and event
-    scene = Scene(duration=10, mesh_path=utils_tests.OYENS_PATH)
+    scene = Scene(
+        duration=10,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+    )
     scene.add_microphone(microphone_type="ambeovr")
     scene.add_event(
         event_type="static",
@@ -323,8 +358,10 @@ def test_generate_dcase_2024_metadata_vs_example(events, expected):
     # Create a Scene: can be any mesh here, we don't care
     example_scene = Scene(
         duration=30,
-        mesh_path=utils_tests.OYENS_PATH,
-        state_kwargs=dict(
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
             empty_space_around_surface=0.0,
         ),
     )
@@ -357,7 +394,11 @@ def test_generate_dcase_2024_metadata_vs_example(events, expected):
 def test_source_ids(start_times):
     oyens_scene = Scene(
         duration=60,
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+        sample_rate=44100,
         allow_duplicate_audios=False,
         max_overlap=4,
     )
@@ -402,7 +443,11 @@ def test_source_ids_same_source(start_times):
     """
     oyens_scene = Scene(
         duration=60,
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+        sample_rate=44100,
         allow_duplicate_audios=True,
         max_overlap=4,
     )
