@@ -1,0 +1,583 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Microphones &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=eba8b062" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'microphones';</script>
+    <link rel="icon" href="_static/favicon.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="audiblelight.micarrays.Eigenmike32" href="_autosummary/audiblelight.micarrays.Eigenmike32.html" />
+    <link rel="prev" title="audiblelight.worldstate.Emitter" href="_autosummary/audiblelight.worldstate.Emitter.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_examples/quickstart.html">Quickstart</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="_examples/1.0.0_make_scene.html">1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_examples/1.1.0_add_listeners.html">1.1.0: Add microphones and listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_examples/1.2.0_add_events.html">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_examples/1.2.1_add_augmentations.html">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_examples/1.3.0_add_ambience.html">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="_examples/2.0.0_synthesis.html">2.0.0: Synthesis</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="core.html">Core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.core.Scene.html">audiblelight.core.Scene</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="backend.html">Backend</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.worldstate.WorldStateRLR.html">audiblelight.worldstate.WorldStateRLR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.worldstate.WorldStateSOFA.html">audiblelight.worldstate.WorldStateSOFA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.worldstate.WorldStateShoebox.html">audiblelight.worldstate.WorldStateShoebox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Microphones</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.Eigenmike64.html">audiblelight.micarrays.Eigenmike64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.FOAListener.html">audiblelight.micarrays.FOAListener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.Binaural.html">audiblelight.micarrays.Binaural</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.micarrays.dynamically_define_micarray.html">audiblelight.micarrays.dynamically_define_micarray</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="events.html">Sound Events</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="class_mappings.html">Class Mappings</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.class_mappings.DCASE2023Task3.html">audiblelight.class_mappings.DCASE2023Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.class_mappings.DCASE2021Task3.html">audiblelight.class_mappings.DCASE2021Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.class_mappings.DCASE2020Task3.html">audiblelight.class_mappings.DCASE2020Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.class_mappings.DCASE2025Task4.html">audiblelight.class_mappings.DCASE2025Task4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.class_mappings.ClassMapping.html">audiblelight.class_mappings.ClassMapping</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="augmentation.html">Augmentations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Bitcrush.html">audiblelight.augmentation.Bitcrush</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Chorus.html">audiblelight.augmentation.Chorus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Clipping.html">audiblelight.augmentation.Clipping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Compressor.html">audiblelight.augmentation.Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Deemphasis.html">audiblelight.augmentation.Deemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Delay.html">audiblelight.augmentation.Delay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Distortion.html">audiblelight.augmentation.Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Fade.html">audiblelight.augmentation.Fade</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.GSMFullRateCompressor.html">audiblelight.augmentation.GSMFullRateCompressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Gain.html">audiblelight.augmentation.Gain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.HighShelfFilter.html">audiblelight.augmentation.HighShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.HighpassFilter.html">audiblelight.augmentation.HighpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Invert.html">audiblelight.augmentation.Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Limiter.html">audiblelight.augmentation.Limiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.LowShelfFilter.html">audiblelight.augmentation.LowShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.LowpassFilter.html">audiblelight.augmentation.LowpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.MP3Compressor.html">audiblelight.augmentation.MP3Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.MultibandEqualizer.html">audiblelight.augmentation.MultibandEqualizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Phaser.html">audiblelight.augmentation.Phaser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.PitchShift.html">audiblelight.augmentation.PitchShift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Preemphasis.html">audiblelight.augmentation.Preemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Reverse.html">audiblelight.augmentation.Reverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.SpeedUp.html">audiblelight.augmentation.SpeedUp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.TimeWarpDuplicate.html">audiblelight.augmentation.TimeWarpDuplicate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.TimeWarpRemove.html">audiblelight.augmentation.TimeWarpRemove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.TimeWarpReverse.html">audiblelight.augmentation.TimeWarpReverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.TimeWarpSilence.html">audiblelight.augmentation.TimeWarpSilence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.Augmentation.html">audiblelight.augmentation.Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.EventAugmentation.html">audiblelight.augmentation.EventAugmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.augmentation.SceneAugmentation.html">audiblelight.augmentation.SceneAugmentation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="synthesis.html">Synthesis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.synthesize.generate_dcase2024_metadata.html">audiblelight.synthesize.generate_dcase2024_metadata</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="download_data.html">Downloading Data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.download_data.download_fma.html">audiblelight.download_data.download_fma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.download_data.download_fsd.html">audiblelight.download_data.download_fsd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.download_data.download_gibson.html">audiblelight.download_data.download_gibson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.download_data.download_gibson_waypoints.html">audiblelight.download_data.download_gibson_waypoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/audiblelight.download_data.download_rirs.html">audiblelight.download_data.download_rirs</a></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/microphones.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Microphones</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mic-format-output">“Mic” Format Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ambisonics-output">Ambisonics Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#binaural-output">Binaural Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#base-classes-utilities">Base Classes &amp; Utilities</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="microphones">
+<h1>Microphones<a class="headerlink" href="#microphones" title="Link to this heading">#</a></h1>
+<p>These classes define microphones that can be added to a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. They are separated based on the output format they provide:</p>
+<section id="mic-format-output">
+<h2>“Mic” Format Output<a class="headerlink" href="#mic-format-output" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.Eigenmike32.html#audiblelight.micarrays.Eigenmike32" title="audiblelight.micarrays.Eigenmike32"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.Eigenmike32</span></code></a>([name, ...])</p></td>
+<td><p>Eigenmike 32 microphone.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.Eigenmike64.html#audiblelight.micarrays.Eigenmike64" title="audiblelight.micarrays.Eigenmike64"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.Eigenmike64</span></code></a>([name, ...])</p></td>
+<td><p>Eigenmike 64 microphone.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.AmbeoVR.html#audiblelight.micarrays.AmbeoVR" title="audiblelight.micarrays.AmbeoVR"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.AmbeoVR</span></code></a>([name, ...])</p></td>
+<td><p>Sennheiser AmbeoVR microphone.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.MonoCapsule.html#audiblelight.micarrays.MonoCapsule" title="audiblelight.micarrays.MonoCapsule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.MonoCapsule</span></code></a>([name, ...])</p></td>
+<td><p>A single mono microphone capsule</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ambisonics-output">
+<h2>Ambisonics Output<a class="headerlink" href="#ambisonics-output" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.FOAListener.html#audiblelight.micarrays.FOAListener" title="audiblelight.micarrays.FOAListener"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.FOAListener</span></code></a>([name, ...])</p></td>
+<td><p>First Order Ambisonics (FOA) microphone &quot;capsule&quot;</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="binaural-output">
+<h2>Binaural Output<a class="headerlink" href="#binaural-output" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.Binaural.html#audiblelight.micarrays.Binaural" title="audiblelight.micarrays.Binaural"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.Binaural</span></code></a>([name, ...])</p></td>
+<td><p>Binaural microphone &quot;capsule&quot;</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="base-classes-utilities">
+<h2>Base Classes &amp; Utilities<a class="headerlink" href="#base-classes-utilities" title="Link to this heading">#</a></h2>
+<p>New microphones can be defined by inheriting from the parent <code class="docutils literal notranslate"><span class="pre">MicArray</span></code> class.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.MicArray.html#audiblelight.micarrays.MicArray" title="audiblelight.micarrays.MicArray"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.MicArray</span></code></a>([name, ...])</p></td>
+<td><p>This is the base class for all microphone array types.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/audiblelight.micarrays.dynamically_define_micarray.html#audiblelight.micarrays.dynamically_define_micarray" title="audiblelight.micarrays.dynamically_define_micarray"><code class="xref py py-obj docutils literal notranslate"><span class="pre">audiblelight.micarrays.dynamically_define_micarray</span></code></a>(...)</p></td>
+<td><p>Dynamically define a new MicArray class with given attributes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="_autosummary/audiblelight.worldstate.Emitter.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">audiblelight.worldstate.Emitter</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="_autosummary/audiblelight.micarrays.Eigenmike32.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">audiblelight.micarrays.Eigenmike32</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mic-format-output">“Mic” Format Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ambisonics-output">Ambisonics Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#binaural-output">Binaural Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#base-classes-utilities">Base Classes &amp; Utilities</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Centre for Digital Music, Queen Mary University of London
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Centre for Digital Music, Queen Mary University of London.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,727 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>audiblelight.augmentation.MultibandEqualizer &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_autosummary/audiblelight.augmentation.MultibandEqualizer';</script>
+    <link rel="icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="audiblelight.augmentation.Phaser" href="audiblelight.augmentation.Phaser.html" />
+    <link rel="prev" title="audiblelight.augmentation.MP3Compressor" href="audiblelight.augmentation.MP3Compressor.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/quickstart.html">Quickstart</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.0.0_make_scene.html">1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.1.0_add_listeners.html">1.1.0: Add microphones and listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.2.0_add_events.html">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.2.1_add_augmentations.html">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.3.0_add_ambience.html">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/2.0.0_synthesis.html">2.0.0: Synthesis</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../core.html">Core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.core.Scene.html">audiblelight.core.Scene</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../backend.html">Backend</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.WorldStateRLR.html">audiblelight.worldstate.WorldStateRLR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.WorldStateSOFA.html">audiblelight.worldstate.WorldStateSOFA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.WorldStateShoebox.html">audiblelight.worldstate.WorldStateShoebox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../microphones.html">Microphones</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.Eigenmike64.html">audiblelight.micarrays.Eigenmike64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.FOAListener.html">audiblelight.micarrays.FOAListener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.Binaural.html">audiblelight.micarrays.Binaural</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.dynamically_define_micarray.html">audiblelight.micarrays.dynamically_define_micarray</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../events.html">Sound Events</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../class_mappings.html">Class Mappings</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2023Task3.html">audiblelight.class_mappings.DCASE2023Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2021Task3.html">audiblelight.class_mappings.DCASE2021Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2020Task3.html">audiblelight.class_mappings.DCASE2020Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2025Task4.html">audiblelight.class_mappings.DCASE2025Task4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.ClassMapping.html">audiblelight.class_mappings.ClassMapping</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../augmentation.html">Augmentations</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Bitcrush.html">audiblelight.augmentation.Bitcrush</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Chorus.html">audiblelight.augmentation.Chorus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Clipping.html">audiblelight.augmentation.Clipping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Compressor.html">audiblelight.augmentation.Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Deemphasis.html">audiblelight.augmentation.Deemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Delay.html">audiblelight.augmentation.Delay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Distortion.html">audiblelight.augmentation.Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Fade.html">audiblelight.augmentation.Fade</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.GSMFullRateCompressor.html">audiblelight.augmentation.GSMFullRateCompressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Gain.html">audiblelight.augmentation.Gain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.HighShelfFilter.html">audiblelight.augmentation.HighShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.HighpassFilter.html">audiblelight.augmentation.HighpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Invert.html">audiblelight.augmentation.Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Limiter.html">audiblelight.augmentation.Limiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.LowShelfFilter.html">audiblelight.augmentation.LowShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.LowpassFilter.html">audiblelight.augmentation.LowpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.MP3Compressor.html">audiblelight.augmentation.MP3Compressor</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">audiblelight.augmentation.MultibandEqualizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Phaser.html">audiblelight.augmentation.Phaser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.PitchShift.html">audiblelight.augmentation.PitchShift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Preemphasis.html">audiblelight.augmentation.Preemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Reverse.html">audiblelight.augmentation.Reverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.SpeedUp.html">audiblelight.augmentation.SpeedUp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpDuplicate.html">audiblelight.augmentation.TimeWarpDuplicate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpRemove.html">audiblelight.augmentation.TimeWarpRemove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpReverse.html">audiblelight.augmentation.TimeWarpReverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpSilence.html">audiblelight.augmentation.TimeWarpSilence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Augmentation.html">audiblelight.augmentation.Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.EventAugmentation.html">audiblelight.augmentation.EventAugmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.SceneAugmentation.html">audiblelight.augmentation.SceneAugmentation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../synthesis.html">Synthesis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.generate_dcase2024_metadata.html">audiblelight.synthesize.generate_dcase2024_metadata</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../download_data.html">Downloading Data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_fma.html">audiblelight.download_data.download_fma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_fsd.html">audiblelight.download_data.download_fsd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_gibson.html">audiblelight.download_data.download_gibson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_gibson_waypoints.html">audiblelight.download_data.download_gibson_waypoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_rirs.html">audiblelight.download_data.download_rirs</a></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/_autosummary/audiblelight.augmentation.MultibandEqualizer.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>audiblelight.augmentation.MultibandEqualizer</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.__init__"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_BANDS"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_BANDS</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_FREQ"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_FREQ</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_GAIN"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_GAIN</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_Q"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_Q</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_BANDS"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_BANDS</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_FREQ"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_FREQ</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_GAIN"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_GAIN</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_Q"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_Q</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.create_filters"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.create_filters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.sample_peak_filter_params"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.sample_peak_filter_params()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="audiblelight-augmentation-multibandequalizer">
+<h1>audiblelight.augmentation.MultibandEqualizer<a class="headerlink" href="#audiblelight-augmentation-multibandequalizer" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiblelight.augmentation.</span></span><span class="sig-name descname"><span class="pre">MultibandEqualizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">44100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bands</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gain_db</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff_frequency_hz</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="audiblelight.augmentation.EventAugmentation.html#audiblelight.augmentation.EventAugmentation" title="audiblelight.augmentation.EventAugmentation"><code class="xref py py-class docutils literal notranslate"><span class="pre">EventAugmentation</span></code></a></p>
+<p>Applies equalization to the audio.</p>
+<p>The Equalizer applies N peak filter objects to the audio. The gain, frequency, and Q of each filter can be
+set independently, or randomised from within an acceptable range. By default, between 1 and 8 individual peak
+filters are applied, with randomly selected gain, frequency, and Q of each filter.</p>
+<p>Using this class, it is possible to create a multiband equalizer similar to the “parametric EQ” plugins often
+featured in digital audio workstations. For additional flexibility, consider combining with both <cite>HighpassFilter</cite>
+and <cite>LowpassFilter</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample_rate</strong> (<em>custom_types.Numeric</em>) – the sample rate for the effect to use.</p></li>
+<li><p><strong>n_bands</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>) – the number of peak filters to use in the equalizer. Defaults to a random integer between 1 and 8.</p></li>
+<li><p><strong>gain_db</strong> (<em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em>] </em><em>| </em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>) – the gain values for each peak. Can be either a single value, a list of N values, or a distribution.
+If a single value, will be repeated N times. If a distribution, will be sampled from N times.</p></li>
+<li><p><strong>cutoff_frequency_hz</strong> (<em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em>] </em><em>| </em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>) – the frequency for each peak filter. Same rules as <cite>gain_db</cite> apply.</p></li>
+<li><p><strong>q</strong> (<em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em>] </em><em>| </em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>) – the “sharpness” of each filter. Same rules as <cite>gain_db</cite> apply.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">44100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bands</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gain_db</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff_frequency_hz</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.__init__" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample_rate</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>n_bands</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>gain_db</strong> (<em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em>] </em><em>| </em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>cutoff_frequency_hz</strong> (<em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em>] </em><em>| </em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>q</strong> (<em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em>] </em><em>| </em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>DistributionLike</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.__init__" title="audiblelight.augmentation.MultibandEqualizer.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>([sample_rate, n_bands, gain_db, ...])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.create_filters" title="audiblelight.augmentation.MultibandEqualizer.create_filters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_filters</span></code></a>()</p></td>
+<td><p>Creates multiple <cite>PeakFilter</cite> effects with given gain, frequency and q values</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code>(input_dict)</p></td>
+<td><p>Initialise an augmentation from a dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">process</span></code>(input_array)</p></td>
+<td><p>Calls the underlying FX (or a list of FX)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.sample_peak_filter_params" title="audiblelight.augmentation.MultibandEqualizer.sample_peak_filter_params"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sample_peak_filter_params</span></code></a>(override, default_dist)</p></td>
+<td><p>Samples all values (e.g., all Q values, all frequencies) for all N peak filters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">sample_value</span></code>(override, default_dist)</p></td>
+<td><p>Samples a value according to the following method:</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
+<td><p>Returns the parameters used by this augmentation</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Attributes</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">AUGMENTATION_TYPE</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MAX_BANDS" title="audiblelight.augmentation.MultibandEqualizer.MAX_BANDS"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MAX_BANDS</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MAX_FREQ" title="audiblelight.augmentation.MultibandEqualizer.MAX_FREQ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MAX_FREQ</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MAX_GAIN" title="audiblelight.augmentation.MultibandEqualizer.MAX_GAIN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MAX_GAIN</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MAX_Q" title="audiblelight.augmentation.MultibandEqualizer.MAX_Q"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MAX_Q</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MIN_BANDS" title="audiblelight.augmentation.MultibandEqualizer.MIN_BANDS"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MIN_BANDS</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MIN_FREQ" title="audiblelight.augmentation.MultibandEqualizer.MIN_FREQ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MIN_FREQ</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MIN_GAIN" title="audiblelight.augmentation.MultibandEqualizer.MIN_GAIN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MIN_GAIN</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.augmentation.MultibandEqualizer.MIN_Q" title="audiblelight.augmentation.MultibandEqualizer.MIN_Q"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MIN_Q</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">name</span></code></p></td>
+<td><p>Returns the name of this augmentation</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MAX_BANDS">
+<span class="sig-name descname"><span class="pre">MAX_BANDS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MAX_BANDS" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MAX_FREQ">
+<span class="sig-name descname"><span class="pre">MAX_FREQ</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">22050</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MAX_FREQ" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MAX_GAIN">
+<span class="sig-name descname"><span class="pre">MAX_GAIN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">10</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MAX_GAIN" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MAX_Q">
+<span class="sig-name descname"><span class="pre">MAX_Q</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1.0</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MAX_Q" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MIN_BANDS">
+<span class="sig-name descname"><span class="pre">MIN_BANDS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MIN_BANDS" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MIN_FREQ">
+<span class="sig-name descname"><span class="pre">MIN_FREQ</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1024</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MIN_FREQ" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MIN_GAIN">
+<span class="sig-name descname"><span class="pre">MIN_GAIN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-20</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MIN_GAIN" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.MIN_Q">
+<span class="sig-name descname"><span class="pre">MIN_Q</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.1</span></em><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.MIN_Q" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.create_filters">
+<span class="sig-name descname"><span class="pre">create_filters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.create_filters" title="Link to this definition">#</a></dt>
+<dd><p>Creates multiple <cite>PeakFilter</cite> effects with given gain, frequency and q values</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<em>Callable</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.augmentation.MultibandEqualizer.sample_peak_filter_params">
+<span class="sig-name descname"><span class="pre">sample_peak_filter_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">override</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_dist</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.augmentation.MultibandEqualizer.sample_peak_filter_params" title="Link to this definition">#</a></dt>
+<dd><p>Samples all values (e.g., all Q values, all frequencies) for all N peak filters.</p>
+<dl class="simple">
+<dt>Uses the following method:</dt><dd><ul class="simple">
+<li><p>If override not provided, sample from default_dist N times</p></li>
+<li><p>If override provided and is a list or iterable, use this</p></li>
+<li><p>If override provided and is numeric, use this N times (repeated)</p></li>
+<li><p>If override provided and is a distribution, sample from this N times</p></li>
+<li><p>Otherwise, raise an error</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>override</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em>] </em><em>| </em><em>DistributionLike</em>)</p></li>
+<li><p><strong>default_dist</strong> (<em>DistributionLike</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[int | float | complex | <em>integer</em> | <em>floating</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="audiblelight.augmentation.MP3Compressor.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">audiblelight.augmentation.MP3Compressor</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="audiblelight.augmentation.Phaser.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">audiblelight.augmentation.Phaser</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.__init__"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_BANDS"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_BANDS</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_FREQ"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_FREQ</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_GAIN"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_GAIN</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MAX_Q"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MAX_Q</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_BANDS"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_BANDS</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_FREQ"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_FREQ</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_GAIN"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_GAIN</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.MIN_Q"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.MIN_Q</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.create_filters"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.create_filters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.augmentation.MultibandEqualizer.sample_peak_filter_params"><code class="docutils literal notranslate"><span class="pre">MultibandEqualizer.sample_peak_filter_params()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Centre for Digital Music, Queen Mary University of London
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Centre for Digital Music, Queen Mary University of London.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

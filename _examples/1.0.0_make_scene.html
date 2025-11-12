@@ -1,0 +1,1037 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>1.0.0: Make a Scene! &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_examples/1.0.0_make_scene';</script>
+    <link rel="icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="1.1.0: Add microphones and listeners" href="1.1.0_add_listeners.html" />
+    <link rel="prev" title="Quickstart" href="quickstart.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.1.0_add_listeners.html">1.1.0: Add microphones and listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.2.0_add_events.html">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.2.1_add_augmentations.html">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.3.0_add_ambience.html">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="2.0.0_synthesis.html">2.0.0: Synthesis</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../core.html">Core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.core.Scene.html">audiblelight.core.Scene</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../backend.html">Backend</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateRLR.html">audiblelight.worldstate.WorldStateRLR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateSOFA.html">audiblelight.worldstate.WorldStateSOFA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateShoebox.html">audiblelight.worldstate.WorldStateShoebox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../microphones.html">Microphones</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike64.html">audiblelight.micarrays.Eigenmike64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.FOAListener.html">audiblelight.micarrays.FOAListener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Binaural.html">audiblelight.micarrays.Binaural</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.dynamically_define_micarray.html">audiblelight.micarrays.dynamically_define_micarray</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../events.html">Sound Events</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../class_mappings.html">Class Mappings</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2023Task3.html">audiblelight.class_mappings.DCASE2023Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2021Task3.html">audiblelight.class_mappings.DCASE2021Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2020Task3.html">audiblelight.class_mappings.DCASE2020Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2025Task4.html">audiblelight.class_mappings.DCASE2025Task4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.ClassMapping.html">audiblelight.class_mappings.ClassMapping</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../augmentation.html">Augmentations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Bitcrush.html">audiblelight.augmentation.Bitcrush</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Chorus.html">audiblelight.augmentation.Chorus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Clipping.html">audiblelight.augmentation.Clipping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Compressor.html">audiblelight.augmentation.Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Deemphasis.html">audiblelight.augmentation.Deemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Delay.html">audiblelight.augmentation.Delay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Distortion.html">audiblelight.augmentation.Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Fade.html">audiblelight.augmentation.Fade</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.GSMFullRateCompressor.html">audiblelight.augmentation.GSMFullRateCompressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Gain.html">audiblelight.augmentation.Gain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighShelfFilter.html">audiblelight.augmentation.HighShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighpassFilter.html">audiblelight.augmentation.HighpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Invert.html">audiblelight.augmentation.Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Limiter.html">audiblelight.augmentation.Limiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowShelfFilter.html">audiblelight.augmentation.LowShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowpassFilter.html">audiblelight.augmentation.LowpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MP3Compressor.html">audiblelight.augmentation.MP3Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MultibandEqualizer.html">audiblelight.augmentation.MultibandEqualizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Phaser.html">audiblelight.augmentation.Phaser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.PitchShift.html">audiblelight.augmentation.PitchShift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Preemphasis.html">audiblelight.augmentation.Preemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Reverse.html">audiblelight.augmentation.Reverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SpeedUp.html">audiblelight.augmentation.SpeedUp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpDuplicate.html">audiblelight.augmentation.TimeWarpDuplicate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpRemove.html">audiblelight.augmentation.TimeWarpRemove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpReverse.html">audiblelight.augmentation.TimeWarpReverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpSilence.html">audiblelight.augmentation.TimeWarpSilence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Augmentation.html">audiblelight.augmentation.Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.EventAugmentation.html">audiblelight.augmentation.EventAugmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SceneAugmentation.html">audiblelight.augmentation.SceneAugmentation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../synthesis.html">Synthesis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_dcase2024_metadata.html">audiblelight.synthesize.generate_dcase2024_metadata</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../download_data.html">Downloading Data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fma.html">audiblelight.download_data.download_fma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fsd.html">audiblelight.download_data.download_fsd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson.html">audiblelight.download_data.download_gibson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson_waypoints.html">audiblelight.download_data.download_gibson_waypoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_rirs.html">audiblelight.download_data.download_rirs</a></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/_examples/1.0.0_make_scene.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>1.0.0: Make a Scene!</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#The-Scene-object">The <code class="docutils literal notranslate"><span class="pre">Scene</span></code> object</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Using-distributions">Using distributions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Passing-audio-directories">Passing audio directories</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Controlling-duplicate-audio-files">Controlling duplicate audio files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Serialising-Scene-objects">Serialising <code class="docutils literal notranslate"><span class="pre">Scene</span></code> objects</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#A-note-on-backends">A note on backends</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="1.0.0:-Make-a-Scene!">
+<h1>1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!<a class="headerlink" href="#1.0.0:-Make-a-Scene!" title="Link to this heading">#</a></h1>
+<section id="The-Scene-object">
+<h2>The <code class="docutils literal notranslate"><span class="pre">Scene</span></code> object<a class="headerlink" href="#The-Scene-object" title="Link to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">Scene</span></code> object is the primary object we’ll be dealing with when working with <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code>. Our <code class="docutils literal notranslate"><span class="pre">Scene</span></code> object is comparable to <code class="docutils literal notranslate"><span class="pre">scaper.core.Scaper</span></code> or <code class="docutils literal notranslate"><span class="pre">spatialscaper.core.Scaper</span></code>, but with numerous adjustments that make data generation more straightforward and scalable.</p>
+<p>A basic <code class="docutils literal notranslate"><span class="pre">Scene</span></code> object can be initialised as follows:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scene</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Scene.__init__</span></code> takes many optional arguments, which are described in more detail within the documentation.</p>
+</section>
+<section id="Using-distributions">
+<h2>Using distributions<a class="headerlink" href="#Using-distributions" title="Link to this heading">#</a></h2>
+<p>When a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> is initialised, various distributions can be passed to allow for randomly sampling parameters such as event start times and durations.</p>
+<p>These durations must satisfy the following conditions:</p>
+<ul class="simple">
+<li><p>Must be callable without arguments</p></li>
+<li><p>OR define an <code class="docutils literal notranslate"><span class="pre">rvs</span></code> method that is callable without arguments</p></li>
+<li><p>Must return a floating point value when called</p></li>
+</ul>
+<p>This means that (for example), we can use <code class="docutils literal notranslate"><span class="pre">scipy</span></code> distributions, custom functions, etc.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">stats</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">truncated_gaussian</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">5.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">),</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+
+
+<span class="c1"># All of these are valid distributions</span>
+<span class="n">scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">scene_start_dist</span><span class="o">=</span><span class="n">truncated_gaussian</span><span class="p">,</span>
+    <span class="n">event_start_dist</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+    <span class="n">event_velocity_dist</span><span class="o">=</span><span class="n">stats</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>When an <code class="docutils literal notranslate"><span class="pre">Event</span></code> is added with <code class="docutils literal notranslate"><span class="pre">Scene.add_event</span></code>, the following logic is used to decide whether the distributions passed to <code class="docutils literal notranslate"><span class="pre">Scene.__init__</span></code> should be sampled from:</p>
+<ul class="simple">
+<li><p>If overrides are passed directly to <code class="docutils literal notranslate"><span class="pre">add_event</span></code>, these will <strong>always</strong> be used</p></li>
+<li><p>If overrides are not passed but a valid distribution has been, this will be sampled</p></li>
+<li><p>If neither overrides nor a distribution has been passed, the value will be sampled from a sensible default distribution.</p></li>
+</ul>
+</section>
+<section id="Passing-audio-directories">
+<h2>Passing audio directories<a class="headerlink" href="#Passing-audio-directories" title="Link to this heading">#</a></h2>
+<p>We can pass <code class="docutils literal notranslate"><span class="pre">fg_path</span></code> to <code class="docutils literal notranslate"><span class="pre">Scene.__init__</span></code>. This allows us to define a directory (or list of directories) containing foreground audio. When we add an event with <code class="docutils literal notranslate"><span class="pre">Scene.add_event</span></code> <strong>without also specifying</strong> <code class="docutils literal notranslate"><span class="pre">filepath=...</span></code>, we’ll pull in from this directory.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/music&quot;</span>
+<span class="p">)</span>
+<span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;will_be_music&quot;</span><span class="p">)</span>
+<span class="n">music_event</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">get_event</span><span class="p">(</span><span class="s2">&quot;will_be_music&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">music_event</span><span class="o">.</span><span class="n">filepath</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-10-30 14:48:32.400</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">load_mesh_navigation_waypoints</span>:<span class="ansi-cyan-fg">1878</span> - <span class="ansi-yellow-intense-fg ansi-bold">Cannot find waypoints for mesh Oyens inside default location (/home/huw-cheston/Documents/python_projects/AudibleLight/resources/waypoints/gibson). No navigation waypoints will be loaded.</span>
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2025-10-30 14:48:34.420</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">961</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;will_be_music&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/001666.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/001666.mp3
+</pre></div></div>
+</div>
+<p>In this example, we pass in a directory containing music objects. When we add an <code class="docutils literal notranslate"><span class="pre">Event</span></code> to the <code class="docutils literal notranslate"><span class="pre">Scene</span></code>, we’ll draw from this dictionary.</p>
+<section id="Controlling-duplicate-audio-files">
+<h3>Controlling duplicate audio files<a class="headerlink" href="#Controlling-duplicate-audio-files" title="Link to this heading">#</a></h3>
+<p>By default, we allow a single unique audio file to appear numerous times in a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. In practice, this is usually not a problem as we would expect <code class="docutils literal notranslate"><span class="pre">fg_dir</span></code> to contain many audio files, and therefore duplicates (especially overlapping duplicates) are in reality very rare.</p>
+<p>If this behaviour is undesirable, the argument <code class="docutils literal notranslate"><span class="pre">allow_duplicate_audios=False</span></code> can be passed when initialising a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">no_dupes_allowed</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/music&quot;</span><span class="p">,</span>
+    <span class="n">allow_duplicate_audios</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+
+<span class="c1"># Add in some music files</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">no_dupes_allowed</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">)</span>
+
+<span class="c1"># Print the filepaths</span>
+<span class="n">events</span> <span class="o">=</span> <span class="n">no_dupes_allowed</span><span class="o">.</span><span class="n">get_events</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">ev</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">ev</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2025-10-07 15:27:57.924</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">830</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/007527.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2025-10-07 15:27:58.251</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">830</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event001&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/001666.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+007527.mp3
+001666.mp3
+</pre></div></div>
+</div>
+</section>
+<section id="Serialising-Scene-objects">
+<h3>Serialising <code class="docutils literal notranslate"><span class="pre">Scene</span></code> objects<a class="headerlink" href="#Serialising-Scene-objects" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Scene</span></code> objects can be serialised to a Python dictionary or JSON object using the <code class="docutils literal notranslate"><span class="pre">to_dict</span></code> method.</p>
+<p>This makes it easy to inspect the object and its parameters:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">out_dict</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+<span class="n">out_dict</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;audiblelight_version&#39;: &#39;0.1.0&#39;,
+ &#39;rlr_audio_propagation_version&#39;: &#39;0.0.1&#39;,
+ &#39;creation_time&#39;: &#39;2025-10-30_14:48:49&#39;,
+ &#39;duration&#39;: 60.0,
+ &#39;backend&#39;: &#39;RLR&#39;,
+ &#39;sample_rate&#39;: 44100,
+ &#39;ref_db&#39;: -65,
+ &#39;max_overlap&#39;: 2,
+ &#39;fg_path&#39;: [&#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music&#39;],
+ &#39;bg_path&#39;: [],
+ &#39;ambience&#39;: {},
+ &#39;events&#39;: {&#39;will_be_music&#39;: {&#39;alias&#39;: &#39;will_be_music&#39;,
+   &#39;filename&#39;: &#39;001666.mp3&#39;,
+   &#39;filepath&#39;: &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/001666.mp3&#39;,
+   &#39;class_id&#39;: 8,
+   &#39;class_label&#39;: &#39;music&#39;,
+   &#39;is_moving&#39;: False,
+   &#39;scene_start&#39;: 3.6278842385833543,
+   &#39;scene_end&#39;: 33.60446020230218,
+   &#39;event_start&#39;: 0.0,
+   &#39;event_end&#39;: 29.976575963718822,
+   &#39;duration&#39;: 29.976575963718822,
+   &#39;snr&#39;: np.float64(21.866501465167776),
+   &#39;sample_rate&#39;: 44100.0,
+   &#39;spatial_resolution&#39;: None,
+   &#39;spatial_velocity&#39;: None,
+   &#39;shape&#39;: &#39;static&#39;,
+   &#39;num_emitters&#39;: 1,
+   &#39;emitters&#39;: [[3.9456078535606425, -0.2135563826678748, 0.5030086457338951]],
+   &#39;emitters_relative&#39;: {},
+   &#39;augmentations&#39;: []}},
+ &#39;state&#39;: {&#39;backend&#39;: &#39;RLR&#39;,
+  &#39;sample_rate&#39;: 44100,
+  &#39;emitters&#39;: {&#39;will_be_music&#39;: [[3.9456078535606425,
+     -0.2135563826678748,
+     0.5030086457338951]]},
+  &#39;microphones&#39;: {},
+  &#39;mesh&#39;: {&#39;fname&#39;: &#39;Oyens&#39;,
+   &#39;ftype&#39;: &#39;.glb&#39;,
+   &#39;fpath&#39;: &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/meshes/Oyens.glb&#39;,
+   &#39;units&#39;: &#39;meters&#39;,
+   &#39;from_gltf_primitive&#39;: False,
+   &#39;name&#39;: &#39;defaultobject&#39;,
+   &#39;node&#39;: &#39;defaultobject&#39;,
+   &#39;bounds&#39;: [[-3.0433080196380615, -10.448445320129395, -1.1850370168685913],
+    [5.973234176635742, 2.101027011871338, 2.4577369689941406]],
+   &#39;centroid&#39;: [1.527919030159762, -4.550817438070386, 1.162934397641578]},
+  &#39;rlr_config&#39;: {&#39;diffraction&#39;: 1,
+   &#39;direct&#39;: 1,
+   &#39;direct_ray_count&#39;: 500,
+   &#39;direct_sh_order&#39;: 3,
+   &#39;frequency_bands&#39;: 4,
+   &#39;global_volume&#39;: 1.0,
+   &#39;hrtf_back&#39;: [0.0, 0.0, 1.0],
+   &#39;hrtf_right&#39;: [1.0, 0.0, 0.0],
+   &#39;hrtf_up&#39;: [0.0, 1.0, 0.0],
+   &#39;indirect&#39;: 1,
+   &#39;indirect_ray_count&#39;: 5000,
+   &#39;indirect_ray_depth&#39;: 200,
+   &#39;indirect_sh_order&#39;: 1,
+   &#39;max_diffraction_order&#39;: 10,
+   &#39;max_ir_length&#39;: 4.0,
+   &#39;mesh_simplification&#39;: 0,
+   &#39;sample_rate&#39;: 44100.0,
+   &#39;size&#39;: 146,
+   &#39;source_ray_count&#39;: 200,
+   &#39;source_ray_depth&#39;: 10,
+   &#39;temporal_coherence&#39;: 0,
+   &#39;thread_count&#39;: 1,
+   &#39;transmission&#39;: 1,
+   &#39;unit_scale&#39;: 1.0},
+  &#39;empty_space_around_mic&#39;: 0.1,
+  &#39;empty_space_around_emitter&#39;: 0.2,
+  &#39;empty_space_around_surface&#39;: 0.2,
+  &#39;empty_space_around_capsule&#39;: 0.05,
+  &#39;repair_threshold&#39;: None,
+  &#39;material&#39;: &#39;Default&#39;}}
+</pre></div></div>
+</div>
+<p>Serialising to a dictionary of JSON also makes it easy to load the object back up again. To do this, we can instantiate the class using the <code class="docutils literal notranslate"><span class="pre">from_dict</span></code> class method:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">recreated</span> <span class="o">=</span> <span class="n">Scene</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">out_dict</span><span class="p">)</span>
+<span class="c1"># Alternatively, `Scene.from_json(...)` to load from a JSON object on the disk</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-10-30 14:48:51.377</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">from_dict</span>:<span class="ansi-cyan-fg">1653</span> - <span class="ansi-yellow-intense-fg ansi-bold">Currently, distributions cannot be loaded with `Scene.from_dict`. You will need to manually redefine these using, for instance, setattr(scene, &#39;event_start_dist&#39;, ...), repeating this for every distribution.</span>
+<span class="ansi-green-fg">2025-10-30 14:48:51.466</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">load_mesh_navigation_waypoints</span>:<span class="ansi-cyan-fg">1878</span> - <span class="ansi-yellow-intense-fg ansi-bold">Cannot find waypoints for mesh Oyens inside default location (/home/huw-cheston/Documents/python_projects/AudibleLight/resources/waypoints/gibson). No navigation waypoints will be loaded.</span>
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<p>We can use the built in Python <code class="docutils literal notranslate"><span class="pre">__eq__</span></code> method to check that our original and recreated <code class="docutils literal notranslate"><span class="pre">Scene</span></code> are identical:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">scene</span> <span class="o">==</span> <span class="n">recreated</span>
+</pre></div>
+</div>
+</div>
+<p>Nearly every object in <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> defines the <code class="docutils literal notranslate"><span class="pre">to_dict</span></code> and <code class="docutils literal notranslate"><span class="pre">from_dict</span></code> method, making it easy to load and unload objects using built-in Python datatypes.</p>
+<p>Note that loading a higher level object (e.g., <code class="docutils literal notranslate"><span class="pre">Scene</span></code>) will automatically load in any lower level objects (e.g., <code class="docutils literal notranslate"><span class="pre">Event</span></code>, <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>) too. So, there’s no need to call <code class="docutils literal notranslate"><span class="pre">Event.from_dict</span></code> when all you want is <code class="docutils literal notranslate"><span class="pre">Scene.from_dict</span></code>: this will be handled automatically!</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">event_as_dict</span> <span class="o">=</span> <span class="n">recreated</span><span class="o">.</span><span class="n">get_event</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+<span class="n">event_as_dict</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;alias&#39;: &#39;will_be_music&#39;,
+ &#39;filename&#39;: &#39;001666.mp3&#39;,
+ &#39;filepath&#39;: &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/001666.mp3&#39;,
+ &#39;class_id&#39;: 8,
+ &#39;class_label&#39;: &#39;music&#39;,
+ &#39;is_moving&#39;: False,
+ &#39;scene_start&#39;: 3.6278842385833543,
+ &#39;scene_end&#39;: 33.60446020230218,
+ &#39;event_start&#39;: 0.0,
+ &#39;event_end&#39;: 29.976575963718822,
+ &#39;duration&#39;: 29.976575963718822,
+ &#39;snr&#39;: np.float64(21.866501465167776),
+ &#39;sample_rate&#39;: 44100.0,
+ &#39;spatial_resolution&#39;: None,
+ &#39;spatial_velocity&#39;: None,
+ &#39;shape&#39;: &#39;static&#39;,
+ &#39;num_emitters&#39;: 1,
+ &#39;emitters&#39;: [[3.9456078535606425, -0.2135563826678748, 0.5030086457338951]],
+ &#39;emitters_relative&#39;: {},
+ &#39;augmentations&#39;: []}
+</pre></div></div>
+</div>
+<p>And we can, of course, check that the <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects are equivalent…</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span><span class="o">.</span><span class="n">get_event</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">recreated</span><span class="o">.</span><span class="n">get_event</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+True
+</pre></div></div>
+</div>
+</section>
+<section id="A-note-on-backends">
+<h3>A note on backends<a class="headerlink" href="#A-note-on-backends" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Scene</span></code> supports multiple backend types (which inherit from <code class="docutils literal notranslate"><span class="pre">audiblelight.state.WorldState</span></code>):</p>
+<ul class="simple">
+<li><p>Ray-traced RIRs, using <code class="docutils literal notranslate"><span class="pre">rlr-audio-propagation</span></code> (<code class="docutils literal notranslate"><span class="pre">backend=&quot;rlr&quot;</span></code>)</p></li>
+<li><p>Measured RIRs, reading from <code class="docutils literal notranslate"><span class="pre">.sofa</span></code> files in a manner similar to <code class="docutils literal notranslate"><span class="pre">spatialscaper</span></code> (<code class="docutils literal notranslate"><span class="pre">backend=&quot;sofa&quot;</span></code>)</p></li>
+<li><p>Parametric (shoebox) RIRs, defined in a similar manner to <code class="docutils literal notranslate"><span class="pre">pyroomacoustics</span></code></p></li>
+</ul>
+<p>The underlying API is the same regardless of backend, however, making it easy to create complex datasets that work with different types of room impulse responses.</p>
+<p>The examples given above all use the “rlr” backend, but the same principles apply to other backends too.</p>
+<p>Let’s try creating a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> with the “sofa” backend. We’ll need to pass in a SOFA file, just as we had to pass a mesh file into our RLR backend.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">sofa_scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;sofa&quot;</span><span class="p">,</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/music&quot;</span><span class="p">,</span>
+    <span class="n">allow_duplicate_audios</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">sofa</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/daga_foa.sofa&quot;</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+
+<span class="c1"># Add in some music files</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">sofa_scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">)</span>
+
+<span class="c1"># Print the first event</span>
+<span class="n">sofa_events</span> <span class="o">=</span> <span class="n">sofa_scene</span><span class="o">.</span><span class="n">get_event</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">sofa_events</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-10-30 14:35:23.309</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">961</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/000010.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+<span class="ansi-green-fg">2025-10-30 14:35:23.338</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">961</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event001&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/007527.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;alias&#39;: &#39;event000&#39;,
+ &#39;filename&#39;: &#39;000010.mp3&#39;,
+ &#39;filepath&#39;: &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/000010.mp3&#39;,
+ &#39;class_id&#39;: 8,
+ &#39;class_label&#39;: &#39;music&#39;,
+ &#39;is_moving&#39;: False,
+ &#39;scene_start&#39;: 1.4424073409576228,
+ &#39;scene_end&#39;: 31.418983304676445,
+ &#39;event_start&#39;: 0.0,
+ &#39;event_end&#39;: 29.976575963718822,
+ &#39;duration&#39;: 29.976575963718822,
+ &#39;snr&#39;: np.float64(27.744524358272837),
+ &#39;sample_rate&#39;: 44100.0,
+ &#39;spatial_resolution&#39;: None,
+ &#39;spatial_velocity&#39;: None,
+ &#39;shape&#39;: &#39;static&#39;,
+ &#39;num_emitters&#39;: 1,
+ &#39;emitters&#39;: [[2.4995571849510796,
+   -0.0004428150489204461,
+   -0.0004428150489204461]],
+ &#39;emitters_relative&#39;: {&#39;mic000&#39;: [[-0.010150371151877405,
+    -0.010150370992594011,
+    2.4995572633990406]]},
+ &#39;augmentations&#39;: []}
+</pre></div></div>
+</div>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="quickstart.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Quickstart</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="1.1.0_add_listeners.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">1.1.0: Add microphones and listeners</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#The-Scene-object">The <code class="docutils literal notranslate"><span class="pre">Scene</span></code> object</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Using-distributions">Using distributions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Passing-audio-directories">Passing audio directories</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Controlling-duplicate-audio-files">Controlling duplicate audio files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Serialising-Scene-objects">Serialising <code class="docutils literal notranslate"><span class="pre">Scene</span></code> objects</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#A-note-on-backends">A note on backends</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Centre for Digital Music, Queen Mary University of London
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Centre for Digital Music, Queen Mary University of London.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

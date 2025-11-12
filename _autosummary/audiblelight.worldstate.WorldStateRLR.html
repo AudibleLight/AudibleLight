@@ -1,0 +1,1212 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>audiblelight.worldstate.WorldStateRLR &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_autosummary/audiblelight.worldstate.WorldStateRLR';</script>
+    <link rel="icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="audiblelight.worldstate.WorldStateSOFA" href="audiblelight.worldstate.WorldStateSOFA.html" />
+    <link rel="prev" title="Backend" href="../backend.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/quickstart.html">Quickstart</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.0.0_make_scene.html">1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.1.0_add_listeners.html">1.1.0: Add microphones and listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.2.0_add_events.html">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.2.1_add_augmentations.html">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/1.3.0_add_ambience.html">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_examples/2.0.0_synthesis.html">2.0.0: Synthesis</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../core.html">Core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.core.Scene.html">audiblelight.core.Scene</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../backend.html">Backend</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">audiblelight.worldstate.WorldStateRLR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.WorldStateSOFA.html">audiblelight.worldstate.WorldStateSOFA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.WorldStateShoebox.html">audiblelight.worldstate.WorldStateShoebox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../microphones.html">Microphones</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.Eigenmike64.html">audiblelight.micarrays.Eigenmike64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.FOAListener.html">audiblelight.micarrays.FOAListener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.Binaural.html">audiblelight.micarrays.Binaural</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.micarrays.dynamically_define_micarray.html">audiblelight.micarrays.dynamically_define_micarray</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../events.html">Sound Events</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../class_mappings.html">Class Mappings</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2023Task3.html">audiblelight.class_mappings.DCASE2023Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2021Task3.html">audiblelight.class_mappings.DCASE2021Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2020Task3.html">audiblelight.class_mappings.DCASE2020Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.DCASE2025Task4.html">audiblelight.class_mappings.DCASE2025Task4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.class_mappings.ClassMapping.html">audiblelight.class_mappings.ClassMapping</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../augmentation.html">Augmentations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Bitcrush.html">audiblelight.augmentation.Bitcrush</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Chorus.html">audiblelight.augmentation.Chorus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Clipping.html">audiblelight.augmentation.Clipping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Compressor.html">audiblelight.augmentation.Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Deemphasis.html">audiblelight.augmentation.Deemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Delay.html">audiblelight.augmentation.Delay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Distortion.html">audiblelight.augmentation.Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Fade.html">audiblelight.augmentation.Fade</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.GSMFullRateCompressor.html">audiblelight.augmentation.GSMFullRateCompressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Gain.html">audiblelight.augmentation.Gain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.HighShelfFilter.html">audiblelight.augmentation.HighShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.HighpassFilter.html">audiblelight.augmentation.HighpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Invert.html">audiblelight.augmentation.Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Limiter.html">audiblelight.augmentation.Limiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.LowShelfFilter.html">audiblelight.augmentation.LowShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.LowpassFilter.html">audiblelight.augmentation.LowpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.MP3Compressor.html">audiblelight.augmentation.MP3Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.MultibandEqualizer.html">audiblelight.augmentation.MultibandEqualizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Phaser.html">audiblelight.augmentation.Phaser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.PitchShift.html">audiblelight.augmentation.PitchShift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Preemphasis.html">audiblelight.augmentation.Preemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Reverse.html">audiblelight.augmentation.Reverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.SpeedUp.html">audiblelight.augmentation.SpeedUp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpDuplicate.html">audiblelight.augmentation.TimeWarpDuplicate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpRemove.html">audiblelight.augmentation.TimeWarpRemove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpReverse.html">audiblelight.augmentation.TimeWarpReverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.TimeWarpSilence.html">audiblelight.augmentation.TimeWarpSilence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.Augmentation.html">audiblelight.augmentation.Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.EventAugmentation.html">audiblelight.augmentation.EventAugmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.augmentation.SceneAugmentation.html">audiblelight.augmentation.SceneAugmentation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../synthesis.html">Synthesis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.synthesize.generate_dcase2024_metadata.html">audiblelight.synthesize.generate_dcase2024_metadata</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../download_data.html">Downloading Data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_fma.html">audiblelight.download_data.download_fma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_fsd.html">audiblelight.download_data.download_fsd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_gibson.html">audiblelight.download_data.download_gibson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_gibson_waypoints.html">audiblelight.download_data.download_gibson_waypoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="audiblelight.download_data.download_rirs.html">audiblelight.download_data.download_rirs</a></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/_autosummary/audiblelight.worldstate.WorldStateRLR.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>audiblelight.worldstate.WorldStateRLR</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.mesh"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.mesh</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.microphones"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.microphones</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.ctx"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.ctx</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.emitters"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.emitters</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.__init__"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.__str__"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.__str__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_emitter"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_emitters"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_microphone"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_microphone_and_emitter"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_microphone_and_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_microphones"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_microphones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.calculate_weighted_average_ray_length"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.calculate_weighted_average_ray_length()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.create_plot"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.create_plot()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.create_scene"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.create_scene()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.define_trajectory"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.define_trajectory()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.from_dict"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.from_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_irs"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_irs()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_random_point_inside_mesh"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_random_point_inside_mesh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_valid_position()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position_with_max_distance"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_valid_position_with_max_distance()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.load_mesh_navigation_waypoints"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.load_mesh_navigation_waypoints()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.name"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.name</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.path_exists_between_points"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.path_exists_between_points()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.simulate"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.simulate()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.to_dict"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.to_dict()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="audiblelight-worldstate-worldstaterlr">
+<h1>audiblelight.worldstate.WorldStateRLR<a class="headerlink" href="#audiblelight-worldstate-worldstaterlr" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">audiblelight.worldstate.</span></span><span class="sig-name descname"><span class="pre">WorldStateRLR</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">44100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_mic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_emitter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_surface</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_capsule</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_to_context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_minimum_weighted_average_ray_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minimum_weighted_average_ray_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">repair_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">waypoints_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">material</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rlr_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="audiblelight.worldstate.WorldState.html#audiblelight.worldstate.WorldState" title="audiblelight.worldstate.WorldState"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorldState</span></code></a></p>
+<p>A WorldState where audio propagation is simulated inside a 3D-scanned mesh using acoustic ray-tracing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mesh</strong> (<em>str</em><em> | </em><em>Path</em>)</p></li>
+<li><p><strong>sample_rate</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>empty_space_around_mic</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>empty_space_around_emitter</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>empty_space_around_surface</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>empty_space_around_capsule</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>add_to_context</strong> (<em>bool</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>ensure_minimum_weighted_average_ray_length</strong> (<em>bool</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>minimum_weighted_average_ray_length</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>repair_threshold</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>waypoints_json</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>material</strong> (<em>str</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>rlr_kwargs</strong> (<em>dict</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.mesh">
+<span class="sig-name descname"><span class="pre">mesh</span></span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.mesh" title="Link to this definition">#</a></dt>
+<dd><p>The path to the mesh on the disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str, Path</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.microphones">
+<span class="sig-name descname"><span class="pre">microphones</span></span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.microphones" title="Link to this definition">#</a></dt>
+<dd><p>Position of the microphone in the mesh.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.ctx">
+<span class="sig-name descname"><span class="pre">ctx</span></span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.ctx" title="Link to this definition">#</a></dt>
+<dd><p>The context for audio propagation simulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>rlr_audio_propagation.Context</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.emitters">
+<span class="sig-name descname"><span class="pre">emitters</span></span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.emitters" title="Link to this definition">#</a></dt>
+<dd><p>relative positions of sound emitter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">44100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_mic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_emitter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_surface</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empty_space_around_capsule</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_to_context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_minimum_weighted_average_ray_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minimum_weighted_average_ray_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">repair_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">waypoints_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">material</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rlr_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.__init__" title="Link to this definition">#</a></dt>
+<dd><p>Initializes the WorldState with a mesh and sets up the audio context.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mesh</strong> (<em>str</em><em>|</em><em>Path</em>) – The name of the mesh file. Units will be coerced to meters when loading</p></li>
+<li><p><strong>sample_rate</strong> (<em>Numeric</em>) – the sample rate to use in the RLR engine</p></li>
+<li><p><strong>empty_space_around_mic</strong> (<em>float</em>) – minimum meters new emitters/mics will be placed from center of other mics</p></li>
+<li><p><strong>empty_space_around_emitter</strong> (<em>float</em>) – minimum meters new emitters/mics will be placed from other emitters</p></li>
+<li><p><strong>empty_space_around_surface</strong> (<em>float</em>) – minimum meters new emitters/mics will be placed from mesh emitters</p></li>
+<li><p><strong>empty_space_around_capsule</strong> (<em>float</em>) – minimum meters new emitters/mics will be placed from mic capsules</p></li>
+<li><p><strong>add_to_context</strong> (<em>bool</em>) – if False, the ray-tracing context will ONLY be updated when running
+<cite>WorldState.simulate</cite>. This is ideal in large-scale data generation pipelines. If True, the state
+will be updated every time a new Microphone or Emitter is added. This is ideal for interactive use.</p></li>
+<li><p><strong>ensure_minimum_weighted_average_ray_length</strong> (<em>bool</em>) – if True, random points can only be sampled from within
+the mesh when they have a weighted average ray length of at least <cite>minimum_weighted_average_ray_length</cite></p></li>
+<li><p><strong>minimum_weighted_average_ray_length</strong> (<em>float</em>) – value to consider when locating points in the mesh; only
+evaluated when <cite>ensure_minimum_weighted_average_ray_length</cite> is True</p></li>
+<li><p><strong>repair_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – when the proportion of broken faces on the mesh is below this value,
+repair the mesh and fill holes. If None, will never repair the mesh.</p></li>
+<li><p><strong>waypoints_json</strong> (<em>str</em><em>|</em><em>Path</em><em>, </em><em>optional</em>) – path pointing towards a JSON list containing waypoints for this mesh.
+If not provided, will attempt to infer from the filename and set to None if cannot be found.</p></li>
+<li><p><strong>material</strong> (<em>str</em>) – the name of a material to use, defaults to None (i.e., Default material)</p></li>
+<li><p><strong>rlr_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – additional keyword arguments to pass to the RLR audio propagation library.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.__init__" title="audiblelight.worldstate.WorldStateRLR.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(mesh[, sample_rate, ...])</p></td>
+<td><p>Initializes the WorldState with a mesh and sets up the audio context.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.add_emitter" title="audiblelight.worldstate.WorldStateRLR.add_emitter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_emitter</span></code></a>([position, alias, mic, ...])</p></td>
+<td><p>Add an emitter to the state.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.add_emitters" title="audiblelight.worldstate.WorldStateRLR.add_emitters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_emitters</span></code></a>([positions, aliases, mics, ...])</p></td>
+<td><p>Add emitters to the mesh.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.add_microphone" title="audiblelight.worldstate.WorldStateRLR.add_microphone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_microphone</span></code></a>([microphone_type, position, ...])</p></td>
+<td><p>Add a microphone to the space.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.add_microphone_and_emitter" title="audiblelight.worldstate.WorldStateRLR.add_microphone_and_emitter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_microphone_and_emitter</span></code></a>([position, ...])</p></td>
+<td><p>Add both a microphone and emitter with specified relationship.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.add_microphones" title="audiblelight.worldstate.WorldStateRLR.add_microphones"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_microphones</span></code></a>([microphone_types, ...])</p></td>
+<td><p>Add multiple microphones to the mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.calculate_weighted_average_ray_length" title="audiblelight.worldstate.WorldStateRLR.calculate_weighted_average_ray_length"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_weighted_average_ray_length</span></code></a>(point)</p></td>
+<td><p>Estimate how spatially &quot;open&quot; a point is by computing the weighted average length of rays cast from that point.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_emitter</span></code>(alias)</p></td>
+<td><p>Given an alias for an emitter, clear that emitter and update the state.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_emitters</span></code>()</p></td>
+<td><p>Removes all current emitters.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_microphone</span></code>(alias)</p></td>
+<td><p>Given an alias for a microphone, clear that microphone if it exists and update the state.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_microphones</span></code>()</p></td>
+<td><p>Removes all current microphones.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.create_plot" title="audiblelight.worldstate.WorldStateRLR.create_plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_plot</span></code></a>()</p></td>
+<td><p>Creates a matplotlib.Figure object corresponding to top-down and side-views of the scene</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.create_scene" title="audiblelight.worldstate.WorldStateRLR.create_scene"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_scene</span></code></a>([mic_radius, emitter_radius])</p></td>
+<td><p>Creates a trimesh.Scene with the Space's mesh, microphone position, and emitters all added</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.define_trajectory" title="audiblelight.worldstate.WorldStateRLR.define_trajectory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">define_trajectory</span></code></a>(duration[, ...])</p></td>
+<td><p>Defines a trajectory for a moving sound event with specified spatial bounds and event duration.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.from_dict" title="audiblelight.worldstate.WorldStateRLR.from_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code></a>(input_dict)</p></td>
+<td><p>Instantiate a <cite>WorldStateRLR</cite> from a dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_emitter</span></code>(alias[, emitter_idx])</p></td>
+<td><p>Given a valid alias and index, get a single <cite>Emitter</cite> object, as in <cite>self.emitters[alias][emitter_idx]</cite></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_emitters</span></code>(alias)</p></td>
+<td><p>Given a valid alias, get a list of associated <cite>Emitter</cite> objects, as in <cite>self.emitters[alias]</cite></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.get_irs" title="audiblelight.worldstate.WorldStateRLR.get_irs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_irs</span></code></a>()</p></td>
+<td><p>Get the IRs from the ray-tracing context</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_microphone</span></code>(alias)</p></td>
+<td><p>Given a valid alias, get an associated <cite>Microphone</cite> object, as in <cite>self.microphones[alias]</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.get_random_point_inside_mesh" title="audiblelight.worldstate.WorldStateRLR.get_random_point_inside_mesh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_random_point_inside_mesh</span></code></a>([batch_size])</p></td>
+<td><p>Generates a random valid point inside the mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position" title="audiblelight.worldstate.WorldStateRLR.get_valid_position"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_valid_position</span></code></a>()</p></td>
+<td><p>Get a valid position to place an object inside the state</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position_with_max_distance" title="audiblelight.worldstate.WorldStateRLR.get_valid_position_with_max_distance"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_valid_position_with_max_distance</span></code></a>(ref, r)</p></td>
+<td><p>Generate a sphere with origin <cite>ref</cite> and radius <cite>r</cite> and sample a valid position from within its volume.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.load_mesh_navigation_waypoints" title="audiblelight.worldstate.WorldStateRLR.load_mesh_navigation_waypoints"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_mesh_navigation_waypoints</span></code></a>([waypoints_json])</p></td>
+<td><p>Load the navigation waypoints for this mesh from a JSON file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.path_exists_between_points" title="audiblelight.worldstate.WorldStateRLR.path_exists_between_points"><code class="xref py py-obj docutils literal notranslate"><span class="pre">path_exists_between_points</span></code></a>(point_a, point_b)</p></td>
+<td><p>Returns True if a direct point exists between point_a and point_b in the mesh, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.simulate" title="audiblelight.worldstate.WorldStateRLR.simulate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">simulate</span></code></a>()</p></td>
+<td><p>Simulates audio propagation in the state with the current listener and sound emitter positions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.to_dict" title="audiblelight.worldstate.WorldStateRLR.to_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code></a>()</p></td>
+<td><p>Returns metadata for this object as a dictionary</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Attributes</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">irs</span></code></p></td>
+<td><p>(N_capsules, N_emitters, N_samples), mic001: (...)}</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#audiblelight.worldstate.WorldStateRLR.name" title="audiblelight.worldstate.WorldStateRLR.name"><code class="xref py py-obj docutils literal notranslate"><span class="pre">name</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_emitters</span></code></p></td>
+<td><p>Returns the number of emitters in the state.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.__str__">
+<span class="sig-name descname"><span class="pre">__str__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.__str__" title="Link to this definition">#</a></dt>
+<dd><p>Returns a string representation of the WorldState</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.add_emitter">
+<span class="sig-name descname"><span class="pre">add_emitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_existing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_direct_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_place_attempts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.add_emitter" title="Link to this definition">#</a></dt>
+<dd><p>Add an emitter to the state.</p>
+<p>If <cite>position</cite> is provided, it must be in absolute (cartesian) terms.
+If <cite>mic</cite> is a key inside <cite>microphones</cite>, <cite>position</cite> is assumed to be relative to that microphone.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>position</strong> (<em>list</em><em> | </em><em>ndarray</em><em> | </em><em>None</em>) – Location to add the emitter, defaults to a random, valid location.</p></li>
+<li><p><strong>alias</strong> (<em>str</em><em> | </em><em>None</em>) – String reference to access the emitter inside the <cite>self.emitters</cite> dictionary.</p></li>
+<li><p><strong>mic</strong> (<em>str</em><em> | </em><em>None</em>) – String reference to a microphone inside <cite>self.microphones</cite>;
+when provided, <cite>position</cite> is interpreted as RELATIVE to the center of this microphone</p></li>
+<li><p><strong>keep_existing</strong> (<em>optional</em>) – Whether to keep existing emitters from the mesh or remove, defaults to keep</p></li>
+<li><p><strong>ensure_direct_path</strong> (<em>bool</em><em> | </em><em>list</em><em> | </em><em>str</em><em> | </em><em>None</em>) – Whether to ensure a direct line exists between the emitter and given microphone(s).
+If True, will ensure a direct line exists between the emitter and ALL <cite>microphone</cite> objects. If a list of
+strings, these should correspond to microphone aliases inside <cite>microphones</cite>; a direct line will be
+ensured with all of these microphones. If False, no direct line is required for an emitter.</p></li>
+<li><p><strong>max_place_attempts</strong> (<em>Numeric</em>) – the number of times to try and create the trajectory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Create a state with a given mesh and add a microphone
+&gt;&gt;&gt; spa = WorldStateRLR(mesh=…)
+&gt;&gt;&gt; spa.add_microphone(alias=”tester”)</p>
+<p>Add a single emitter with a random position
+&gt;&gt;&gt; spa.add_emitter()
+&gt;&gt;&gt; spa.get_emitter(“src000”)    # access with default alias</p>
+<p>Add emitter with given position and alias
+&gt;&gt;&gt; spa.add_emitter(position=[0.5, 0.5, 0.5], alias=”custom”)
+&gt;&gt;&gt; spa.get_emitter(“custom”)    # access using given alias</p>
+<p>Add emitter relative to microphone
+&gt;&gt;&gt; spa.add_emitter(position=[0.1, 0.1, 0.1], alias=”custom”, mic=”tester”)
+&gt;&gt;&gt; spa.get_emitter(“custom”)</p>
+<p>Add emitter with a random position that is in a direct line with the microphone we placed above
+&gt;&gt;&gt; spa.add_emitter(ensure_direct_path=”tester”)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.add_emitters">
+<span class="sig-name descname"><span class="pre">add_emitters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">positions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aliases</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_emitters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_existing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_direct_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_on_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.add_emitters" title="Link to this definition">#</a></dt>
+<dd><p>Add emitters to the mesh.</p>
+<p>This function essentially takes in lists of the arguments expected by <cite>add_emitters</cite>. The <cite>raise_on_error</cite>
+command will skip over microphones that cannot be placed in the mesh and raise a warning in the console.</p>
+<p>Additionally, <cite>n_emitters</cite> can be provided instead of <cite>positions</cite> to choose a number of emitters to add randomly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>positions</strong> (<em>list</em><em> | </em><em>ndarray</em><em> | </em><em>None</em>) – Locations to add the emitters, defaults to a single random location.</p></li>
+<li><p><strong>aliases</strong> (<em>list</em><em>[</em><em>str</em><em>] </em><em>| </em><em>None</em>) – String references to assign the emitters inside the <cite>emitters</cite> dictionary.</p></li>
+<li><p><strong>mics</strong> (<em>list</em><em>[</em><em>str</em><em>] </em><em>| </em><em>str</em><em> | </em><em>None</em>) – String references to microphones inside the <cite>microphones</cite> dictionary.</p></li>
+<li><p><strong>keep_existing</strong> (<em>optional</em>) – whether to keep existing emitters from the mesh or remove, defaults to keep.</p></li>
+<li><p><strong>raise_on_error</strong> (<em>optional</em>) – if True, raises an error when unable to place emitter, otherwise skips to next.</p></li>
+<li><p><strong>n_emitters</strong> (<em>int</em><em> | </em><em>None</em>) – Number of emitters to add with random positions</p></li>
+<li><p><strong>ensure_direct_path</strong> (<em>bool</em><em> | </em><em>list</em><em> | </em><em>str</em><em> | </em><em>None</em>) – Whether to ensure a direct line exists between the emitter and given microphone(s).
+If True, will ensure a direct line exists between the emitter and ALL <cite>microphone</cite> objects. If a list of
+strings, these should correspond to microphone aliases inside <cite>microphones</cite>; a direct line will be
+ensured with all of these microphones. If False, no direct line is required for a emitter.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.add_microphone">
+<span class="sig-name descname"><span class="pre">add_microphone</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">microphone_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_existing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.add_microphone" title="Link to this definition">#</a></dt>
+<dd><p>Add a microphone to the space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>microphone_type</strong> (<em>str</em><em> | </em><em>Type</em><em>[</em><a class="reference internal" href="audiblelight.micarrays.MicArray.html#audiblelight.micarrays.MicArray" title="audiblelight.micarrays.MicArray"><em>MicArray</em></a><em>] </em><em>| </em><em>None</em>) – Type of microphone to add, defaults to a mono capsule.</p></li>
+<li><p><strong>position</strong> (<em>list</em><em> | </em><em>ndarray</em><em> | </em><em>None</em>) – Location to add the microphone in absolute cartesian units, defaults to a random, valid location.</p></li>
+<li><p><strong>alias</strong> (<em>str</em><em> | </em><em>None</em>) – String reference to access the microphone inside the <cite>self.microphones</cite> dictionary.</p></li>
+<li><p><strong>keep_existing</strong> (<em>optional</em>) – whether to keep existing microphones from the mesh or remove, defaults to keep</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Create a state from a given mesh
+&gt;&gt;&gt; spa = WorldStateRLR(mesh=…)</p>
+<p>Add a AmbeoVR microphone with a random position and default alias
+&gt;&gt;&gt; spa.add_microphone(“ambeovr”)
+&gt;&gt;&gt; spa.microphones[“mic000”]    # access with default alias</p>
+<p>Alternative, using <cite>MicArray</cite> objects
+&gt;&gt;&gt; from audiblelight.micarrays import AmbeoVR
+&gt;&gt;&gt; spa.add_microphone(AmbeoVR)</p>
+<p>Add AmbeoVR with given position and alias
+&gt;&gt;&gt; spa.add_microphone(microphone_type=”ambeovr”, position=[0.5, 0.5, 0.5], alias=”ambeo”)
+&gt;&gt;&gt; spa.microphones[“ambeo”]    # access using given alias</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.add_microphone_and_emitter">
+<span class="sig-name descname"><span class="pre">add_microphone_and_emitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">microphone_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mic_alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">emitter_alias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_existing_mics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_existing_emitters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_direct_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_place_attempts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.add_microphone_and_emitter" title="Link to this definition">#</a></dt>
+<dd><p>Add both a microphone and emitter with specified relationship.</p>
+<p>The microphone will be placed in a random, valid position. The emitter will then be placed relative to the
+microphone, either in Cartesian or spherical coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>position</strong> (<em>np.ndarray</em>) – Array of form [X, Y, Z]</p></li>
+<li><p><strong>polar</strong> (<em>bool</em><em> | </em><em>None</em>) – whether the coordinates are provided in spherical form. If True:
+- Azimuth (X) must be between 0 and 360
+- Elevation (Y) must be between -90 and 90
+- Radius (Z) must be a positive value, measured in the same units given by the mesh.</p></li>
+<li><p><strong>microphone_type</strong> (<em>str</em><em> | </em><em>Type</em><em>[</em><a class="reference internal" href="audiblelight.micarrays.MicArray.html#audiblelight.micarrays.MicArray" title="audiblelight.micarrays.MicArray"><em>MicArray</em></a><em>] </em><em>| </em><em>None</em>) – Type of microphone to add, defaults to mono capsule</p></li>
+<li><p><strong>mic_alias</strong> (<em>str</em><em> | </em><em>None</em>) – String reference for the microphone, auto-generated if None</p></li>
+<li><p><strong>emitter_alias</strong> (<em>str</em><em> | </em><em>None</em>) – String reference for the emitter, auto-generated if None</p></li>
+<li><p><strong>keep_existing_mics</strong> (<em>bool</em><em> | </em><em>None</em>) – Whether to keep existing microphones, defaults to True</p></li>
+<li><p><strong>keep_existing_emitters</strong> (<em>bool</em><em> | </em><em>None</em>) – Whether to keep existing emitters, defaults to True</p></li>
+<li><p><strong>ensure_direct_path</strong> (<em>bool</em><em> | </em><em>None</em>) – Whether to ensure line-of-sight between mic and emitter</p></li>
+<li><p><strong>max_place_attempts</strong> (<em>int</em><em> | </em><em>None</em>) – The number of times to try placing the microphone and emitter</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If unable to place microphone and emitter within the mesh</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p># Create a state with a given mesh
+&gt;&gt;&gt; spa = WorldStateRLR(mesh=…)</p>
+<p># Place emitter 2 meters in front of microphone
+&gt;&gt;&gt; spa.add_microphone_and_emitter(np.array([0, 0, 2.0]))</p>
+<p># Place emitter 1.5 meters to the left and slightly above
+&gt;&gt;&gt; spa.add_microphone_and_emitter(np.array([90, 30, 1.5]), mic_alias=”main_mic”, emitter_alias=”left_source”)</p>
+<p># Place emitter behind and below
+&gt;&gt;&gt; spa.add_microphone_and_emitter(np.array([180, -45, 1.0]))</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.add_microphones">
+<span class="sig-name descname"><span class="pre">add_microphones</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">microphone_types</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">positions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aliases</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_existing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_on_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.add_microphones" title="Link to this definition">#</a></dt>
+<dd><p>Add multiple microphones to the mesh.</p>
+<p>This function essentially takes in lists of the arguments expected by <cite>add_microphone</cite>. The <cite>raise_on_error</cite>
+command will skip over microphones that cannot be placed in the mesh and raise a warning in the console.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>microphone_types</strong> (<em>list</em><em>[</em><em>str</em><em> | </em><em>Type</em><em>[</em><a class="reference internal" href="audiblelight.micarrays.MicArray.html#audiblelight.micarrays.MicArray" title="audiblelight.micarrays.MicArray"><em>MicArray</em></a><em>]</em><em>] </em><em>| </em><em>None</em>) – Types of microphones to add, defaults to a single mono capsule.</p></li>
+<li><p><strong>positions</strong> (<em>list</em><em>[</em><em>list</em><em> | </em><em>ndarray</em><em>] </em><em>| </em><em>None</em>) – Locations to add the microphones in absolute cartesian units, defaults to a single location.</p></li>
+<li><p><strong>aliases</strong> (<em>list</em><em>[</em><em>str</em><em>] </em><em>| </em><em>None</em>) – String references to access the microphones inside the <cite>self.microphones</cite> dictionary.</p></li>
+<li><p><strong>keep_existing</strong> (<em>optional</em>) – whether to keep existing microphones from the mesh or remove, defaults to keep</p></li>
+<li><p><strong>raise_on_error</strong> (<em>optional</em>) – if True, will raise an error when unable to place a mic, otherwise skips to next</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Create a state with a given mesh
+&gt;&gt;&gt; spa = WorldStateRLR(mesh=…)</p>
+<p>Add some AmbeoVRs with random positions
+&gt;&gt;&gt; spa.add_microphones(microphone_types=[“ambeovr”, “ambeovr”, “ambeovr”])
+&gt;&gt;&gt; spa.microphones[“mic002”]    # access with default alias</p>
+<p>Add AmbeoVR and Eigenmike32 with given positions and aliases
+&gt;&gt;&gt; spa.add_microphones(
+&gt;&gt;&gt;     microphone_types=[“ambeovr”, “eigenmike32”],
+&gt;&gt;&gt;     positions=[[0.5, 0.5, 0.5], [0.1, 0.1, 0.1]],
+&gt;&gt;&gt;     alias=[“ambeo”, “eigen”],
+&gt;&gt;&gt;     keep_existing=False,     # removes microphones already added to the space
+&gt;&gt;&gt;     raise_on_error=True,    # raises an error if any microphone cannot be placed
+&gt;&gt;&gt; )
+&gt;&gt;&gt; spa.microphones[“eigen”]    # access using given alias</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.calculate_weighted_average_ray_length">
+<span class="sig-name descname"><span class="pre">calculate_weighted_average_ray_length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_rays</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.calculate_weighted_average_ray_length" title="Link to this definition">#</a></dt>
+<dd><p>Estimate how spatially “open” a point is by computing the weighted average length of rays cast from that point.</p>
+<p>Rays are emitted uniformly from the given point across 3D space. Each ray is traced until it intersects with
+the mesh surface. The distances of these intersections are squared and used as weights to calculate a weighted
+average, emphasising longer, unobstructed paths. This can be used as a heuristic for how suitable a point is
+within a mesh (e.g., avoiding corners)</p>
+<p>If any rays fail to intersect the mesh (due to holes or open surfaces), those rays are ignored, and a warning
+is logged.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>point</strong> (<em>np.ndarray</em>) – a 3D coordinate (shape: (3,)) representing the origin of the rays.</p></li>
+<li><p><strong>num_rays</strong> (<em>int</em>) – number of random rays to cast from the point (default is 100).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The weighted average distance of ray intersections: higher values indicate more open surroundings</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.create_plot">
+<span class="sig-name descname"><span class="pre">create_plot</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.create_plot" title="Link to this definition">#</a></dt>
+<dd><p>Creates a matplotlib.Figure object corresponding to top-down and side-views of the scene</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The rendered figure that can be shown with e.g. plt.show()</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>plt.Figure</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.create_scene">
+<span class="sig-name descname"><span class="pre">create_scene</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mic_radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">emitter_radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.create_scene" title="Link to this definition">#</a></dt>
+<dd><p>Creates a trimesh.Scene with the Space’s mesh, microphone position, and emitters all added</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The rendered scene, that can be shown in e.g. a notebook with the <cite>.show()</cite> command</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>trimesh.Scene</p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mic_radius</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>emitter_radius</strong> (<em>int</em><em> | </em><em>float</em><em> | </em><em>complex</em><em> | </em><em>integer</em><em> | </em><em>floating</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.define_trajectory">
+<span class="sig-name descname"><span class="pre">define_trajectory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">duration</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">velocity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.75</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_place_attempts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_direct_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.define_trajectory" title="Link to this definition">#</a></dt>
+<dd><p>Defines a trajectory for a moving sound event with specified spatial bounds and event duration.</p>
+<p>This method calculates a series of XYZ coordinates that outline the path of a sound event, based on the
+specified trajectory shape, the confines of the mesh, and the duration of the event. It generates a starting
+point and an end point that comply with these conditions, and then interpolates between these points according
+to the trajectory’s shape.</p>
+<p>Optionally, a custom starting position can also be provided, and a valid ending position will be randomly
+sampled. To provide a custom ENDING position, one possibility is to provide this as the starting position, then
+invert the trajectory array returned by this function. To use both a custom start AND end position, call the
+trajectory functions in <cite>utils.py</cite> directly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>duration</strong> (<em>Numeric</em>) – the length of time it should take to traverse from starting to ending position</p></li>
+<li><p><strong>starting_position</strong> (<em>np.ndarray</em>) – the starting position for the trajectory. If not provided, a random valid
+position within the mesh will be selected.</p></li>
+<li><p><strong>velocity</strong> (<em>Numeric</em>) – the speed limit for the trajectory, in meters per second</p></li>
+<li><p><strong>resolution</strong> (<em>Numeric</em>) – the number of emitters created per second</p></li>
+<li><p><strong>shape</strong> (<em>str</em>) – the shape of the trajectory; “linear”, “semicircular”, “random”, “sawtooth”, “sine”</p></li>
+<li><p><strong>max_place_attempts</strong> (<em>Numeric</em>) – the number of times to try and create the trajectory.</p></li>
+<li><p><strong>ensure_direct_path</strong> (<em>bool</em><em> | </em><em>list</em><em> | </em><em>str</em><em> | </em><em>None</em>) – Whether to ensure a direct line exists between the emitter and given microphone(s).
+If True, will ensure a direct line exists between the emitter and ALL <cite>microphone</cite> objects. If a list of
+strings, these should correspond to microphone aliases inside <cite>microphones</cite>; a direct line will be
+ensured with all of these microphones. If False, no direct line is required for a emitter.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – if a trajectory cannot be defined after <cite>max_place_attempts</cite></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the sanitised trajectory, with shape (n_points, 3)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.from_dict">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.from_dict" title="Link to this definition">#</a></dt>
+<dd><p>Instantiate a <cite>WorldStateRLR</cite> from a dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input_dict</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Dictionary that will be used to instantiate the <cite>WorldStateRLR</cite>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>WorldStateRLR instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.get_irs">
+<span class="sig-name descname"><span class="pre">get_irs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.get_irs" title="Link to this definition">#</a></dt>
+<dd><p>Get the IRs from the ray-tracing context</p>
+<p>By default, <cite>Context.get_audio</cite> expects all listeners to have the same channel layout type. If, however, e.g.
+some listeners have Mono and others have Ambisonics, <cite>Context.get_audio</cite> will fail due to <cite>numpy</cite> expecting all
+arrays to have equal dims.</p>
+<p>Instead, we need to return a dictionary of numpy arrays.
+The output will have shape: {mic1: (N_capsules, N_emitters, N_samples), …}</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>OrderedDict</em>[str, <em>ndarray</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.get_random_point_inside_mesh">
+<span class="sig-name descname"><span class="pre">get_random_point_inside_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.get_random_point_inside_mesh" title="Link to this definition">#</a></dt>
+<dd><p>Generates a random valid point inside the mesh.</p>
+<p>N positions will be generated in batches and a whole batch will be checked at once to take advantage of
+<cite>numpy</cite> vectorisation. In initial experiments, using a batch size of 10 resulted in a speed-up of 1.5x over
+a batch size of 1 (i.e., no batching). Improvements level off and decrease after, with a batch size of 100
+resulting in 2x worse performance than no batching.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>batch_size</strong> (<em>int</em>) – number of points to generate in a single batch, defaults to 10</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A valid point within the mesh in XYZ format</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.get_valid_position">
+<span class="sig-name descname"><span class="pre">get_valid_position</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position" title="Link to this definition">#</a></dt>
+<dd><p>Get a valid position to place an object inside the state</p>
+<p>If <cite>ensure_minimum_weighted_average_ray_length</cite> is enabled, this function attempts to find a position that
+meets the minimum openness criteria, measured by the weighted average ray length from the candidate point. It
+will try up to <cite>MAX_PLACE_ATTEMPTS</cite> times before returning the last attempted position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the random position to place an object inside the mesh</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.get_valid_position_with_max_distance">
+<span class="sig-name descname"><span class="pre">get_valid_position_with_max_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position_with_max_distance" title="Link to this definition">#</a></dt>
+<dd><p>Generate a sphere with origin <cite>ref</cite> and radius <cite>r</cite> and sample a valid position from within its volume.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ref</strong> (<em>np.ndarray</em>) – the reference point, treated as the origin of the sphere</p></li>
+<li><p><strong>r</strong> (<em>custom_types.Numeric</em>) – the maximum distance for the sampled point from <cite>ref</cite></p></li>
+<li><p><strong>n</strong> (<em>custom_types.Numeric</em>) – the number of points to create on the sphere. Only the first valid point will be returned</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – if a valid point from within <cite>n</cite> samples cannot be found</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.load_mesh_navigation_waypoints">
+<span class="sig-name descname"><span class="pre">load_mesh_navigation_waypoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">waypoints_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.load_mesh_navigation_waypoints" title="Link to this definition">#</a></dt>
+<dd><p>Load the navigation waypoints for this mesh from a JSON file.</p>
+<p>Default filepath is &lt;project-root&gt;/resources/waypoints/gibson/&lt;mesh-name&gt;.json.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>waypoints_json</strong> (<em>str</em><em> | </em><em>Path</em><em> | </em><em>None</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[<em>ndarray</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'RLR'</span></em><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.name" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.path_exists_between_points">
+<span class="sig-name descname"><span class="pre">path_exists_between_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point_a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point_b</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.path_exists_between_points" title="Link to this definition">#</a></dt>
+<dd><p>Returns True if a direct point exists between point_a and point_b in the mesh, False otherwise.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>point_a</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>point_b</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.simulate">
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.simulate" title="Link to this definition">#</a></dt>
+<dd><p>Simulates audio propagation in the state with the current listener and sound emitter positions.</p>
+<p>Note that returned IRs are NOT NORMALIZED: this occurs inside <cite>synthesize.render_event_audio</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="audiblelight.worldstate.WorldStateRLR.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audiblelight.worldstate.WorldStateRLR.to_dict" title="Link to this definition">#</a></dt>
+<dd><p>Returns metadata for this object as a dictionary</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../backend.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Backend</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="audiblelight.worldstate.WorldStateSOFA.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">audiblelight.worldstate.WorldStateSOFA</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.mesh"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.mesh</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.microphones"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.microphones</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.ctx"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.ctx</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.emitters"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.emitters</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.__init__"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.__str__"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.__str__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_emitter"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_emitters"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_emitters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_microphone"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_microphone()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_microphone_and_emitter"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_microphone_and_emitter()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.add_microphones"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.add_microphones()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.calculate_weighted_average_ray_length"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.calculate_weighted_average_ray_length()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.create_plot"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.create_plot()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.create_scene"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.create_scene()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.define_trajectory"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.define_trajectory()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.from_dict"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.from_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_irs"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_irs()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_random_point_inside_mesh"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_random_point_inside_mesh()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_valid_position()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.get_valid_position_with_max_distance"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.get_valid_position_with_max_distance()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.load_mesh_navigation_waypoints"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.load_mesh_navigation_waypoints()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.name"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.name</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.path_exists_between_points"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.path_exists_between_points()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.simulate"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.simulate()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#audiblelight.worldstate.WorldStateRLR.to_dict"><code class="docutils literal notranslate"><span class="pre">WorldStateRLR.to_dict()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Centre for Digital Music, Queen Mary University of London
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Centre for Digital Music, Queen Mary University of London.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

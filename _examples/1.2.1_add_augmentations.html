@@ -1,0 +1,1309 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>1.2.1: Add Augmentations &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_examples/1.2.1_add_augmentations';</script>
+    <link rel="icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="1.3.0: Add Ambience" href="1.3.0_add_ambience.html" />
+    <link rel="prev" title="1.2.0: Add Events" href="1.2.0_add_events.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="1.0.0_make_scene.html">1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.1.0_add_listeners.html">1.1.0: Add microphones and listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.2.0_add_events.html">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.3.0_add_ambience.html">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="2.0.0_synthesis.html">2.0.0: Synthesis</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../core.html">Core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.core.Scene.html">audiblelight.core.Scene</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../backend.html">Backend</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateRLR.html">audiblelight.worldstate.WorldStateRLR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateSOFA.html">audiblelight.worldstate.WorldStateSOFA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateShoebox.html">audiblelight.worldstate.WorldStateShoebox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../microphones.html">Microphones</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike64.html">audiblelight.micarrays.Eigenmike64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.FOAListener.html">audiblelight.micarrays.FOAListener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Binaural.html">audiblelight.micarrays.Binaural</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.dynamically_define_micarray.html">audiblelight.micarrays.dynamically_define_micarray</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../events.html">Sound Events</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../class_mappings.html">Class Mappings</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2023Task3.html">audiblelight.class_mappings.DCASE2023Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2021Task3.html">audiblelight.class_mappings.DCASE2021Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2020Task3.html">audiblelight.class_mappings.DCASE2020Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2025Task4.html">audiblelight.class_mappings.DCASE2025Task4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.ClassMapping.html">audiblelight.class_mappings.ClassMapping</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../augmentation.html">Augmentations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Bitcrush.html">audiblelight.augmentation.Bitcrush</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Chorus.html">audiblelight.augmentation.Chorus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Clipping.html">audiblelight.augmentation.Clipping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Compressor.html">audiblelight.augmentation.Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Deemphasis.html">audiblelight.augmentation.Deemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Delay.html">audiblelight.augmentation.Delay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Distortion.html">audiblelight.augmentation.Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Fade.html">audiblelight.augmentation.Fade</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.GSMFullRateCompressor.html">audiblelight.augmentation.GSMFullRateCompressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Gain.html">audiblelight.augmentation.Gain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighShelfFilter.html">audiblelight.augmentation.HighShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighpassFilter.html">audiblelight.augmentation.HighpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Invert.html">audiblelight.augmentation.Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Limiter.html">audiblelight.augmentation.Limiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowShelfFilter.html">audiblelight.augmentation.LowShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowpassFilter.html">audiblelight.augmentation.LowpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MP3Compressor.html">audiblelight.augmentation.MP3Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MultibandEqualizer.html">audiblelight.augmentation.MultibandEqualizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Phaser.html">audiblelight.augmentation.Phaser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.PitchShift.html">audiblelight.augmentation.PitchShift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Preemphasis.html">audiblelight.augmentation.Preemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Reverse.html">audiblelight.augmentation.Reverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SpeedUp.html">audiblelight.augmentation.SpeedUp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpDuplicate.html">audiblelight.augmentation.TimeWarpDuplicate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpRemove.html">audiblelight.augmentation.TimeWarpRemove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpReverse.html">audiblelight.augmentation.TimeWarpReverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpSilence.html">audiblelight.augmentation.TimeWarpSilence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Augmentation.html">audiblelight.augmentation.Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.EventAugmentation.html">audiblelight.augmentation.EventAugmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SceneAugmentation.html">audiblelight.augmentation.SceneAugmentation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../synthesis.html">Synthesis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_dcase2024_metadata.html">audiblelight.synthesize.generate_dcase2024_metadata</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../download_data.html">Downloading Data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fma.html">audiblelight.download_data.download_fma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fsd.html">audiblelight.download_data.download_fsd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson.html">audiblelight.download_data.download_gibson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson_waypoints.html">audiblelight.download_data.download_gibson_waypoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_rirs.html">audiblelight.download_data.download_rirs</a></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/_examples/1.2.1_add_augmentations.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>1.2.1: Add Augmentations</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Event-Augmentations">Event Augmentations</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Add-augmentations-when-creating-an-Event">Add augmentations when creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Add-augmentations-after-creating-an-Event">Add augmentations after creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Randomly-sampling-EventAugmentations">Randomly sampling <code class="docutils literal notranslate"><span class="pre">EventAugmentations</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Serialising-an-EventAugmentation">Serialising an <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Creating-custom-EventAugmentations">Creating custom <code class="docutils literal notranslate"><span class="pre">EventAugmentations</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Scene-Augmentations">Scene Augmentations</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="1.2.1:-Add-Augmentations">
+<h1>1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s<a class="headerlink" href="#1.2.1:-Add-Augmentations" title="Link to this heading">#</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> supports two kinds of augmentations, which each apply to different objects:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> objects are applied to <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects, prior to spatializing these.</p>
+<ul class="simple">
+<li><p>Typically, these manipulate some aspect of the underlying audio file used by the <code class="docutils literal notranslate"><span class="pre">Event</span></code>, such as by applying equalization, fade-ins or fade-outs, or distortion.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SceneAugmentation</span></code> objects are applied to an entire <code class="docutils literal notranslate"><span class="pre">Scene</span></code>, after spatializing the audio</p>
+<ul class="simple">
+<li><p>These augmentations manipulate the <em>entire</em> spatial audio, perhaps by masking particular frequency bands or time spans.</p></li>
+</ul>
+</li>
+</ol>
+<p><code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> provides many <code class="docutils literal notranslate"><span class="pre">Event</span></code> and <code class="docutils literal notranslate"><span class="pre">Scene</span></code> augmentations inside <code class="docutils literal notranslate"><span class="pre">audiblelight.augmentations</span></code>, that should be usable in many different circumstances. But if you want to define your own augmentation, you can also subclass either <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> or <code class="docutils literal notranslate"><span class="pre">SceneAugmentation</span></code> and provide your own logic.</p>
+<section id="Event-Augmentations">
+<h2>Event Augmentations<a class="headerlink" href="#Event-Augmentations" title="Link to this heading">#</a></h2>
+<p>Augmentations can be added to <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects in a number of ways.</p>
+<section id="Add-augmentations-when-creating-an-Event">
+<h3>Add augmentations when creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code><a class="headerlink" href="#Add-augmentations-when-creating-an-Event" title="Link to this heading">#</a></h3>
+<p>The simplest way is to provide a list of <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> classes or instances to <code class="docutils literal notranslate"><span class="pre">Scene.add_event</span></code>, as follows:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Import dependencies</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">Phaser</span><span class="p">,</span> <span class="n">Distortion</span><span class="p">,</span> <span class="n">Delay</span><span class="p">,</span> <span class="n">EventAugmentation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scene</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a Scene object</span>
+<span class="n">sc</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+    <span class="n">max_overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># no overlapping sound events allowed</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Material for category &#39;default&#39; was not found. Using default material instead.
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add in an event with augmentations</span>
+<span class="n">sc</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">ev</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">augmentations</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">Phaser</span><span class="p">,</span>
+        <span class="n">Distortion</span><span class="p">,</span>
+        <span class="n">Delay</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-08-20 11:21:31.498</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">705</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/femaleSpeech/242663.wav&#39; (unloaded, 3 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">ev</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{
+    &#34;name&#34;: &#34;Phaser&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;rate_hz&#34;: 6.348728068763655,
+    &#34;depth&#34;: 0.41020684362187443,
+    &#34;centre_frequency_hz&#34;: 4412.609900797627,
+    &#34;feedback&#34;: 0.3510782699274606,
+    &#34;mix&#34;: 0.4712792025582654
+}, {
+    &#34;name&#34;: &#34;Distortion&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;drive_db&#34;: 20.60130549467661
+}, {
+    &#34;name&#34;: &#34;Delay&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;delay_seconds&#34;: 0.4051989196838825,
+    &#34;feedback&#34;: 0.36445447690299937,
+    &#34;mix&#34;: 0.3234186049147648
+}]
+</pre></div></div>
+</div>
+<p>We can see now that we’ve added a <code class="docutils literal notranslate"><span class="pre">Phaser</span></code>, <code class="docutils literal notranslate"><span class="pre">Distortion</span></code>, and <code class="docutils literal notranslate"><span class="pre">Delay</span></code> to the augmentation. Calling <code class="docutils literal notranslate"><span class="pre">Event.load_audio()</span></code> will load in the audio and apply the effects in this order:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">Audio</span>
+
+<span class="n">Audio</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">ev</span><span class="o">.</span><span class="n">load_audio</span><span class="p">(),</span> <span class="n">rate</span><span class="o">=</span><span class="n">ev</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<audio  controls="controls" >
+    <source src="data:audio/wav;base64,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pQCmADcAQQK7Al0BjADuAVoC0AF8AVQBrAFSAaUBPAOmAUoBQQFpAoMCfAIuAfACQwNGAbIA1QE9AhUAYQBuAKUB+QDEAHEB6gJ+AhYBTgGoAlUCWQIYAToCCgGfAKcBegLqAZABFgGnA88B7ALUAqcC3AJ/AVAAewJjAcsArv9PAQsBJwFlAdkBwQGXAWkBIwLUAEkBagH9ARMBTABZAKkA6AGDAZ0AngL3AQoC8gGLAvYCGwKFADUBuAFgAj8AIgDhAEMBkgCaAQQCFQLSAf0BSwLLAQ8AOQFAAYAA9f/KAYcBMQF0AbwC/QLvAoMBpAKnAykD7QHNAfABuwFXAYsBuAF4AUwBiwIkA6UCOQLTAacC6wGRAbABtwDhALMAiQAQAlIBgQGPASQDGgN9ApYDlgPlApICGwLHAaEC5QAJAZEBYgHQAUYBqwOjA1ACZwErA2ECEwFnAAUBXwFd/6T/fQDMANkAnABeAScDaQIWArMCpAN8AjcB6AASAbUB+QAwAdoAjwFrAGkC5QIIA6cCDwKvAm8DKwEJAaQBkv/4/sH/DQGOABIAaAH8AnICiAFgAhwDGQTlAXYB6AFPARsB4QDiAcEBewBbAT0DZgT7ApsCSgMSBFoChwLcAfEBXAE/AD8ANAIQAf8AsQHRAqAD6AHPAscDmwPOAhAClwFUAX8BpwGLARUBdwCBAjoDfAPuAkQD5QOzAlUBrgKmAtcBWf+MAWMBlgGxAO0AbAEtA70BeALoAb8CdgKzAawB+gCnAGcAVwKnATkBHwHEAagBRgJ4Aq4CPAJDAtEBOgJrAuAAg/+fAKkBFwG9AMIBdAGKAQUCUQJoAnQBpwA5AoYBcgBVAFYBYgFFAasACQKmA1wCeAEzAyADDgNNAcsBMQLTAdcBQAF0ARUCYgJqAmkCxAEzAt0BMQO1AUEBYQGsAVgBrwC/Ab4CugEQAFYBhAP3AqUCTQJBA+cDUAGtAQwDCwJ4AYoASgJ6AiYByQLxAhADEwFwAioDjQIKAgEBCAEeAW8AOQAOAT4CJwKcAJQBmwLoAlwBNQJWAYkBnwGBAdIBWgLiAJoBIwG2AIcB2wIGA7kBhQBwAVYD2wFnANIACAIhAEQAYQA7AqIBMAGCAK0CxQKvATgBqwL+AdYA8P8PAm8BaQGNAcQB8QEDAfcBugKWAuwAHAG+AZ0B8gF4APoA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WJPDiemEZ4I0gZqATYAsgB+AGoAZgB2AIoAsgDqAToBzgMiAlYGeg0SIJ5KFpPjBI+jTFPo9ZlsfbBN1XHmPe9B8rX0/fql+8X4df0B/VX9gf2R/aH9mf2J/T38sf/N+nH4Jfhh9lHsWeW90mWuuWQU4OAT8zD6ltZC+h+iDEIIagZuAVIAvgBuAEoAPgA+AEoAYgCCALYA/gGOAtYBxgWiDeYiVlEmt/tOPBP8zV1e+a+l11noIfS9+vX4Pf0l/dH+Qf6B/qX+vf65/qX+hf5Z/hn9rfzR/335FfjB9NXvmdzlxBWXkT0kuEv+kzYCnxpGnh2qDo4HcgIKAT4AvgByAEoAMgAqACoAMgBKAHIAvgFGAjYACgQ+CvoQPjBGeUcOV9oQqRU8sZuhyw3n6fFV+AH9Qf3h/k3+qf7l/xn/Pf9J/03/Qf8h/u3+nf4V/S3/sfkJ+FX0HezN3dHAwZFpNHiSN8XPBd6ATjgKGnIIqgZCAS4AsgBuAEYALgAiABoAFgAWAB4ALgBSAJoBKgJKALYG9giWHUJTOtoTxjSoaU7dpj3VFe/R9IH+Uf8N/13/ff+R/5n/of+t/7X/tf+t/53/ff85/r39zfwB/IH6JfJp5RXQpalJXWzWEAtHNgabukCuHGYNTgZWAR4AmgBeAEIALgAmAB4AGgAWABYAHgAuAFoAtgGGA0YDLgRKEt4kfmUHBMwKhPodhP3GaeFp8SH46f6d/1H/lf+1/73/uf+x/63/pf+h/53/kf91/zn+of1R/tH5PfXZ6V3XtbMRf1UlwJ1H5KMugpSCQxIbZgjuBkoBMgCqAGYARgAyACYAIgAeABoAHgAiACoAQgB2AOYB7gBmBjoJPhv6QN6pz3YMhc1MoaxV2ZHvlfRt/on/Zf+5/9n/4f/h/93/1f/N/8X/wf+9/7X/pf9x/vH9of4B+KXxxdllqi1UgOE0U1uwLxZKjlI8ohkaC6IBogDeAIYAXgBGADYALgAqACYAJgAmACoANgBKAHIAzgGaA1oDOgS2EzolOlyy14emMJoZTqWrNdeN6iH3Ufnp/w3/jf+9/9H/2f/V/9H/zf/J/8X/wf+9/63/kf9J/o38qf+590HqVcxZl4kzpJ9z3p8izohSOPoX7gcyAW4AvgB6AFYAQgA2ACoAIgAiACIAIgAuAEIAbgDCAWYCmgDeBR4KjhOSJ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" type="audio/wav" />
+    Your browser does not support the audio element.
+</audio></div>
+</div>
+<p>By default, the parameters for each augmentation will be sampled at random from within an acceptable range of default values. We can override this by passing in a list of <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> <em>instances</em>, as follows:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add in an event with augmentations, with particular parameters</span>
+<span class="n">sc</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">ev2</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">augmentations</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">Phaser</span><span class="p">(</span><span class="n">rate_hz</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">mix</span><span class="o">=</span><span class="mf">0.1</span><span class="p">),</span>
+        <span class="n">Distortion</span><span class="p">(</span><span class="n">drive_db</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span>
+        <span class="n">Delay</span><span class="p">(</span><span class="n">feedback</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-08-20 11:21:32.874</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">705</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/maleSpeech/93853.wav&#39; (unloaded, 3 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<p>Now, when we print the <code class="docutils literal notranslate"><span class="pre">Event</span></code>, we can see that the parameters of the augmentation are set exactly as specified.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">ev2</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{
+    &#34;name&#34;: &#34;Phaser&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;rate_hz&#34;: 100.0,
+    &#34;depth&#34;: 0.6644394348227314,
+    &#34;centre_frequency_hz&#34;: 3489.427860809392,
+    &#34;feedback&#34;: 0.8854213590044991,
+    &#34;mix&#34;: 0.1
+}, {
+    &#34;name&#34;: &#34;Distortion&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;drive_db&#34;: 50.0
+}, {
+    &#34;name&#34;: &#34;Delay&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;delay_seconds&#34;: 0.9133643458982261,
+    &#34;feedback&#34;: 0.9,
+    &#34;mix&#34;: 0.11900467672432065
+}]
+</pre></div></div>
+</div>
+<p>For more information on the valid parameters for every <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>, see the corresponding documentation in <code class="docutils literal notranslate"><span class="pre">audiblelight.augmentation</span></code></p>
+</section>
+<section id="Add-augmentations-after-creating-an-Event">
+<h3>Add augmentations after creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code><a class="headerlink" href="#Add-augmentations-after-creating-an-Event" title="Link to this heading">#</a></h3>
+<p>We might want to add augmentations to an <code class="docutils literal notranslate"><span class="pre">Event</span></code> after placing it within a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. This is where <code class="docutils literal notranslate"><span class="pre">Event.register_augmentations()</span></code> comes in:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">sc</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">sc</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;needs_augments&quot;</span>
+<span class="p">)</span>
+<span class="n">needs_augments</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">get_event</span><span class="p">(</span><span class="s2">&quot;needs_augments&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-08-20 11:21:33.429</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">705</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;needs_augments&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/telephone/431669.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">needs_augments</span><span class="o">.</span><span class="n">register_augmentations</span><span class="p">(</span>
+    <span class="p">[</span>
+        <span class="n">Phaser</span><span class="p">(</span><span class="n">rate_hz</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">mix</span><span class="o">=</span><span class="mf">0.1</span><span class="p">),</span>
+        <span class="n">Distortion</span><span class="p">(</span><span class="n">drive_db</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">needs_augments</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{
+    &#34;name&#34;: &#34;Phaser&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;rate_hz&#34;: 100.0,
+    &#34;depth&#34;: 0.5290003312984538,
+    &#34;centre_frequency_hz&#34;: 6069.404969013234,
+    &#34;feedback&#34;: 0.5031044478572108,
+    &#34;mix&#34;: 0.1
+}, {
+    &#34;name&#34;: &#34;Distortion&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;drive_db&#34;: 50.0
+}]
+</pre></div></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">Event.register_augmentations</span></code> function is additive, so we can always add more augmentations later:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">needs_augments</span><span class="o">.</span><span class="n">register_augmentations</span><span class="p">(</span><span class="n">Delay</span><span class="p">(</span><span class="n">feedback</span><span class="o">=</span><span class="mf">0.9</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">needs_augments</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{
+    &#34;name&#34;: &#34;Phaser&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;rate_hz&#34;: 100.0,
+    &#34;depth&#34;: 0.5290003312984538,
+    &#34;centre_frequency_hz&#34;: 6069.404969013234,
+    &#34;feedback&#34;: 0.5031044478572108,
+    &#34;mix&#34;: 0.1
+}, {
+    &#34;name&#34;: &#34;Distortion&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;drive_db&#34;: 50.0
+}, {
+    &#34;name&#34;: &#34;Delay&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;delay_seconds&#34;: 0.6159262915190783,
+    &#34;feedback&#34;: 0.9,
+    &#34;mix&#34;: 0.1447728910045774
+}]
+</pre></div></div>
+</div>
+<p>And, there’s always <code class="docutils literal notranslate"><span class="pre">Event.clear_augmentations</span></code> to remove all augmentations (or <code class="docutils literal notranslate"><span class="pre">Event.clear_augmentation(idx)</span></code> to remove at a particular <code class="docutils literal notranslate"><span class="pre">idx</span></code>):</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">needs_augments</span><span class="o">.</span><span class="n">clear_augmentations</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">needs_augments</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">()))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0
+</pre></div></div>
+</div>
+</section>
+<section id="Randomly-sampling-EventAugmentations">
+<h3>Randomly sampling <code class="docutils literal notranslate"><span class="pre">EventAugmentations</span></code><a class="headerlink" href="#Randomly-sampling-EventAugmentations" title="Link to this heading">#</a></h3>
+<p>Having to explicitly pass a list of particular <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code>s can be difficult in large-scale data generation pipelines.</p>
+<p>Instead, we can simply pass an integer number of augmentations to add when creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code>, as follows:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">sc</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">three_augments</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;has_3_augments&quot;</span><span class="p">,</span>
+    <span class="n">augmentations</span><span class="o">=</span><span class="mi">3</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-08-20 11:21:34.116</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">705</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;has_3_augments&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/femaleSpeech/236657.wav&#39; (unloaded, 3 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">three_augments</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">()))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+3
+</pre></div></div>
+</div>
+<p>But how do we choose which augmentations will be selected?</p>
+<p>By default, we’ll randomly sample <code class="docutils literal notranslate"><span class="pre">N</span></code> augmentations from <code class="docutils literal notranslate"><span class="pre">audiblelight.augmentation.ALL_EVENT_AUGMENTATIONS</span></code>, which includes the following <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> types:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">ALL_EVENT_AUGMENTATIONS</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">ALL_EVENT_AUGMENTATIONS</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[&lt;class &#39;audiblelight.augmentation.LowpassFilter&#39;&gt;, &lt;class &#39;audiblelight.augmentation.HighpassFilter&#39;&gt;, &lt;class &#39;audiblelight.augmentation.MultibandEqualizer&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Compressor&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Chorus&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Delay&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Distortion&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Phaser&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Gain&#39;&gt;, &lt;class &#39;audiblelight.augmentation.GSMFullRateCompressor&#39;&gt;, &lt;class &#39;audiblelight.augmentation.MP3Compressor&#39;&gt;, &lt;class &#39;audiblelight.augmentation.PitchShift&#39;&gt;, &lt;class &#39;audiblelight.augmentation.TimeShift&#39;&gt;, &lt;class &#39;audiblelight.augmentation.TimeWarpRemove&#39;&gt;, &lt;class &#39;audiblelight.augmentation.TimeWarpSilence&#39;&gt;, &lt;class &#39;audiblelight.augmentation.TimeWarpDuplicate&#39;&gt;, &lt;class &#39;audiblelight.augmentation.TimeWarpReverse&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Preemphasis&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Deemphasis&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Fade&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Clipping&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Bitcrush&#39;&gt;, &lt;class &#39;audiblelight.augmentation.Limiter&#39;&gt;, &lt;class &#39;audiblelight.augmentation.HighShelfFilter&#39;&gt;, &lt;class &#39;audiblelight.augmentation.LowShelfFilter&#39;&gt;]
+</pre></div></div>
+</div>
+<p>It’s entirely possible that we might not want to use all of these augmentations. Instead, we can control the types of <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code>s that will be sampled by passing in a list when initialising the <code class="docutils literal notranslate"><span class="pre">Scene</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">LowpassFilter</span><span class="p">,</span> <span class="n">LowShelfFilter</span><span class="p">,</span> <span class="n">HighpassFilter</span><span class="p">,</span> <span class="n">HighShelfFilter</span>
+
+<span class="c1"># Create a Scene object</span>
+<span class="n">filters_only</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+    <span class="n">max_overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># no overlapping sound events allowed</span>
+    <span class="n">event_augmentations</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">LowpassFilter</span><span class="p">,</span>
+        <span class="n">LowShelfFilter</span><span class="p">,</span>
+        <span class="n">HighpassFilter</span><span class="p">,</span>
+        <span class="n">HighShelfFilter</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Material for category &#39;default&#39; was not found. Using default material instead.
+</pre></div></div>
+</div>
+<p>Now, when we create an <code class="docutils literal notranslate"><span class="pre">Event</span></code> for this <code class="docutils literal notranslate"><span class="pre">Scene</span></code>, the only augmentations we can sample from will be the ones passed in to <code class="docutils literal notranslate"><span class="pre">event_augmentations</span></code>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">filters_only</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">filtered_event</span> <span class="o">=</span> <span class="n">filters_only</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">augmentations</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-08-20 11:21:36.505</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">705</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/telephone/411581.wav&#39; (unloaded, 2 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">filtered_event</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{
+    &#34;name&#34;: &#34;HighpassFilter&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;cutoff_frequency_hz&#34;: 239.83249382662646
+}, {
+    &#34;name&#34;: &#34;LowpassFilter&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;cutoff_frequency_hz&#34;: 19063.40137525111
+}]
+</pre></div></div>
+</div>
+<p>As a final tweak, we might want to ensure that the parameters we sample for every <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> are within a particular range, or have a given value.</p>
+<p>To do this, we can pass <code class="docutils literal notranslate"><span class="pre">event_augmentations</span></code> as a list of <code class="docutils literal notranslate"><span class="pre">tuple</span></code>s, where the first element is the <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> type and the second is a dictionary of keyword arguments to pass to it. These arguments can be either explicit values (in which case, that value will be used every time the <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> is sampled) or a <code class="docutils literal notranslate"><span class="pre">Callable</span></code> that returns values:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="c1"># Create a Scene object</span>
+<span class="n">filters_only_kwargs</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+    <span class="n">max_overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># no overlapping sound events allowed</span>
+    <span class="n">event_augmentations</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">(</span><span class="n">LowShelfFilter</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">cutoff_frequency_hz</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">gain_db</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">))),</span>
+        <span class="p">(</span><span class="n">HighShelfFilter</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">cutoff_frequency_hz</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">gain_db</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)))</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Material for category &#39;default&#39; was not found. Using default material instead.
+</pre></div></div>
+</div>
+<p>In this case, whenever we add an <code class="docutils literal notranslate"><span class="pre">Event</span></code> with augmentations, our filter will always have a cutoff at either 500 or 5000 Hz, with a gain of between 0 and 0.1 dB:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">filters_only_kwargs</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">filtered_event_kws</span> <span class="o">=</span> <span class="n">filters_only_kwargs</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">augmentations</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-08-20 11:21:38.868</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">705</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/telephone/30085.wav&#39; (unloaded, 2 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">filtered_event_kws</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{
+    &#34;name&#34;: &#34;HighShelfFilter&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;cutoff_frequency_hz&#34;: 5000.0,
+    &#34;gain_db&#34;: 0.0067729024918738116,
+    &#34;q&#34;: 0.5313403568212344
+}, {
+    &#34;name&#34;: &#34;LowShelfFilter&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;cutoff_frequency_hz&#34;: 500.0,
+    &#34;gain_db&#34;: 0.023169297103648248,
+    &#34;q&#34;: 0.27914196992868523
+}]
+</pre></div></div>
+</div>
+</section>
+<section id="Serialising-an-EventAugmentation">
+<h3>Serialising an <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code><a class="headerlink" href="#Serialising-an-EventAugmentation" title="Link to this heading">#</a></h3>
+<p>As with all other <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> objects, <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code>s can be loaded and unloaded from a dictionary. This enables reproducible results, using the same randomly sampled parameters.</p>
+<p>To unserialise an <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> dictionary, use <code class="docutils literal notranslate"><span class="pre">EventAugmentation.from_dict(dict)</span></code>: note that the particular child class (e.g., <code class="docutils literal notranslate"><span class="pre">HighShelfFilter</span></code>, <code class="docutils literal notranslate"><span class="pre">Distortion</span></code>) should not be used directly, here.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">aug_1</span> <span class="o">=</span> <span class="n">filtered_event_kws</span><span class="o">.</span><span class="n">get_augmentation</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">dict_out</span> <span class="o">=</span> <span class="n">aug_1</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">aug_1_replicate</span> <span class="o">=</span> <span class="n">EventAugmentation</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dict_out</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>We can confirm that the two augmentations are equal:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">aug_1_replicate</span> <span class="o">==</span> <span class="n">aug_1</span>
+</pre></div>
+</div>
+</div>
+<p>Note that explicitly serialising and unserialising <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> objects should rarely be necessary: calling <code class="docutils literal notranslate"><span class="pre">Scene.to/from_dict</span></code> or <code class="docutils literal notranslate"><span class="pre">Event.to/from_dict</span></code> will automatically load and unload any associated <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> objects automatically.</p>
+</section>
+<section id="Creating-custom-EventAugmentations">
+<h3>Creating custom <code class="docutils literal notranslate"><span class="pre">EventAugmentations</span></code><a class="headerlink" href="#Creating-custom-EventAugmentations" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> ships with a wide variety of <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> classes that run out-of-the-box, using standard audio processing libraries like <code class="docutils literal notranslate"><span class="pre">Pedalboard</span></code> and <code class="docutils literal notranslate"><span class="pre">librosa</span></code>. But, for further customisation, you can also subclass <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> and provide your own logic.</p>
+<p>All <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> classes must take in:</p>
+<ul class="simple">
+<li><p>the <code class="docutils literal notranslate"><span class="pre">sample_rate</span></code> to use;</p></li>
+<li><p>any additional keyword arguments</p></li>
+</ul>
+<p>They must define:</p>
+<ul class="simple">
+<li><p>a <code class="docutils literal notranslate"><span class="pre">params</span></code> dictionary, holding all keyword arguments</p>
+<ul>
+<li><p>necessary to allow the augmentation to be serialised and unserialised</p></li>
+</ul>
+</li>
+<li><p>a <code class="docutils literal notranslate"><span class="pre">fx</span></code> property, linked to a <code class="docutils literal notranslate"><span class="pre">Callable</span></code> that applies the FX (can be a method of the class)</p></li>
+</ul>
+<p>NB: although all <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code> objects need to take in the <code class="docutils literal notranslate"><span class="pre">sample_rate</span></code> argument (and you may want to make use of it inside your class: see below), there is usually no need to worry about <strong>how</strong> this gets passed in. Whenever augmentations are registered to either a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> or <code class="docutils literal notranslate"><span class="pre">Event</span></code> object, the correct sample rate will always be passed in as well.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">EventAugmentation</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CustomLimiter</span><span class="p">(</span><span class="n">EventAugmentation</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A custom limiter that clips all samples above `thresh` during a given time period to `thresh`.</span>
+
+<span class="sd">    For example, with `thresh=0.5, start=1, stop=2`, when `|sample_val| &gt; 0.5` and `start &lt; sample_time &lt; stop`,</span>
+<span class="sd">    `sample_val = +/- thresh`, depdending on the value of `sample_val`</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        sample_rate: the sample rate to use in audio processing</span>
+<span class="sd">        thresh: the threshold above which limiting will be applied, sampled between 0.5 and 0.75 if not given</span>
+<span class="sd">        start: the starting period for limiting, sampled between 0 and 1 second if not given</span>
+<span class="sd">        stop: the stopping period for limiting, sampled between 1 and 2 second if not given</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">MIN_THRESH</span><span class="p">,</span> <span class="n">MAX_THRESH</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.75</span>
+    <span class="n">MIN_START</span><span class="p">,</span> <span class="n">MAX_START</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span>
+    <span class="n">MIN_STOP</span><span class="p">,</span> <span class="n">MAX_STOP</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sample_rate</span><span class="p">:</span> <span class="n">utils</span><span class="o">.</span><span class="n">Numeric</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">SAMPLE_RATE</span><span class="p">,</span>
+        <span class="n">thresh</span><span class="p">:</span> <span class="n">utils</span><span class="o">.</span><span class="n">Numeric</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">start</span><span class="p">:</span> <span class="n">utils</span><span class="o">.</span><span class="n">Numeric</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stop</span><span class="p">:</span> <span class="n">utils</span><span class="o">.</span><span class="n">Numeric</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">sample_rate</span><span class="p">)</span>
+
+        <span class="c1"># Either use override values, or sample from the distribution</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">sanitise_positive_number</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_value</span><span class="p">(</span>
+                <span class="n">thresh</span><span class="p">,</span>
+                <span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MIN_THRESH</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAX_THRESH</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">sanitise_positive_number</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_value</span><span class="p">(</span>
+                <span class="n">start</span><span class="p">,</span>
+                <span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MIN_START</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAX_START</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">sanitise_positive_number</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_value</span><span class="p">(</span>
+                <span class="n">stop</span><span class="p">,</span>
+                <span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MIN_STOP</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAX_STOP</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Start time must be before stop time!&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">thresh</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">thresh</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_fx</span>
+
+    <span class="c1"># Note that _apply_fx must also take arbitrary arguments</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_apply_fx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_audio</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="o">**</span><span class="n">__</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applies the FX to the input audio</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">a_out</span> <span class="o">=</span> <span class="n">input_audio</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Normalize input to peak at 1.0</span>
+        <span class="n">max_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">a_out</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">max_val</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">a_out</span> <span class="o">=</span> <span class="n">a_out</span> <span class="o">/</span> <span class="n">max_val</span>
+
+        <span class="c1"># Get starting and stopping sample, clamped to audio bounds</span>
+        <span class="n">start_sample</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">))</span>
+        <span class="n">stop_sample</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">a_out</span><span class="p">))</span>
+
+        <span class="c1"># Apply clipping in the specified range</span>
+        <span class="n">a_out</span><span class="p">[</span><span class="n">start_sample</span><span class="p">:</span><span class="n">stop_sample</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span>
+            <span class="n">a_out</span><span class="p">[</span><span class="n">start_sample</span><span class="p">:</span><span class="n">stop_sample</span><span class="p">],</span>
+            <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">thresh</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">a_out</span>
+<br/></pre></div>
+</div>
+</div>
+<p>Now, we can use our <code class="docutils literal notranslate"><span class="pre">CustomLimiter</span></code> exactly as defined above.</p>
+<p>Note that we can also pass in callables to any argument to randomly sample a value (see the documentation for <code class="docutils literal notranslate"><span class="pre">EventAugmentation.sample_value</span></code>).</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">sc</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">ev_custom</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">augmentations</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">CustomLimiter</span><span class="p">(</span>
+            <span class="n">thresh</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">),</span>
+            <span class="n">start</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+            <span class="n">stop</span><span class="o">=</span><span class="mf">1.5</span>
+        <span class="p">)</span>
+    <span class="p">],</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/music/000010.mp3&quot;</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ev_custom</span><span class="o">.</span><span class="n">get_augmentations</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-08-20 11:21:39.425</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">705</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/000010.mp3&#39; (unloaded, 1 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{
+    &#34;name&#34;: &#34;CustomLimiter&#34;,
+    &#34;sample_rate&#34;: 44100,
+    &#34;thresh&#34;: 0.294860214416647,
+    &#34;start&#34;: 0.5,
+    &#34;stop&#34;: 1.5
+}]
+</pre></div></div>
+</div>
+<p>If we process the audio and plot the waveform, we can see that the effect is applied successfully: during the time period specified, no audio sample exceeds the threshold.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+
+<span class="n">audio_out</span> <span class="o">=</span> <span class="n">ev_custom</span><span class="o">.</span><span class="n">load_audio</span><span class="p">(</span><span class="n">ignore_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="c1"># Truncate to within bounds</span>
+<span class="n">audio_trunc</span> <span class="o">=</span> <span class="n">audio_out</span><span class="p">[:</span><span class="nb">round</span><span class="p">(</span><span class="n">ev_custom</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">*</span> <span class="mf">2.0</span><span class="p">)]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">audio_trunc</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/_examples_1.2.1_add_augmentations_48_0.png" src="../_images/_examples_1.2.1_add_augmentations_48_0.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="Scene-Augmentations">
+<h2>Scene Augmentations<a class="headerlink" href="#Scene-Augmentations" title="Link to this heading">#</a></h2>
+<p>TODO</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="1.2.0_add_events.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="1.3.0_add_ambience.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Event-Augmentations">Event Augmentations</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Add-augmentations-when-creating-an-Event">Add augmentations when creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Add-augmentations-after-creating-an-Event">Add augmentations after creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Randomly-sampling-EventAugmentations">Randomly sampling <code class="docutils literal notranslate"><span class="pre">EventAugmentations</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Serialising-an-EventAugmentation">Serialising an <code class="docutils literal notranslate"><span class="pre">EventAugmentation</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Creating-custom-EventAugmentations">Creating custom <code class="docutils literal notranslate"><span class="pre">EventAugmentations</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Scene-Augmentations">Scene Augmentations</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Centre for Digital Music, Queen Mary University of London
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Centre for Digital Music, Queen Mary University of London.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

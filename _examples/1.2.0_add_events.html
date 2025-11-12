@@ -1,0 +1,1379 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>1.2.0: Add Events &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_examples/1.2.0_add_events';</script>
+    <link rel="icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="1.2.1: Add Augmentations" href="1.2.1_add_augmentations.html" />
+    <link rel="prev" title="1.1.0: Add microphones and listeners" href="1.1.0_add_listeners.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="1.0.0_make_scene.html">1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.1.0_add_listeners.html">1.1.0: Add microphones and listeners</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.2.1_add_augmentations.html">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.3.0_add_ambience.html">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="2.0.0_synthesis.html">2.0.0: Synthesis</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../core.html">Core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.core.Scene.html">audiblelight.core.Scene</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../backend.html">Backend</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateRLR.html">audiblelight.worldstate.WorldStateRLR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateSOFA.html">audiblelight.worldstate.WorldStateSOFA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateShoebox.html">audiblelight.worldstate.WorldStateShoebox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../microphones.html">Microphones</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike64.html">audiblelight.micarrays.Eigenmike64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.FOAListener.html">audiblelight.micarrays.FOAListener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Binaural.html">audiblelight.micarrays.Binaural</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.dynamically_define_micarray.html">audiblelight.micarrays.dynamically_define_micarray</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../events.html">Sound Events</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../class_mappings.html">Class Mappings</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2023Task3.html">audiblelight.class_mappings.DCASE2023Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2021Task3.html">audiblelight.class_mappings.DCASE2021Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2020Task3.html">audiblelight.class_mappings.DCASE2020Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2025Task4.html">audiblelight.class_mappings.DCASE2025Task4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.ClassMapping.html">audiblelight.class_mappings.ClassMapping</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../augmentation.html">Augmentations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Bitcrush.html">audiblelight.augmentation.Bitcrush</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Chorus.html">audiblelight.augmentation.Chorus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Clipping.html">audiblelight.augmentation.Clipping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Compressor.html">audiblelight.augmentation.Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Deemphasis.html">audiblelight.augmentation.Deemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Delay.html">audiblelight.augmentation.Delay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Distortion.html">audiblelight.augmentation.Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Fade.html">audiblelight.augmentation.Fade</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.GSMFullRateCompressor.html">audiblelight.augmentation.GSMFullRateCompressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Gain.html">audiblelight.augmentation.Gain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighShelfFilter.html">audiblelight.augmentation.HighShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighpassFilter.html">audiblelight.augmentation.HighpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Invert.html">audiblelight.augmentation.Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Limiter.html">audiblelight.augmentation.Limiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowShelfFilter.html">audiblelight.augmentation.LowShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowpassFilter.html">audiblelight.augmentation.LowpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MP3Compressor.html">audiblelight.augmentation.MP3Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MultibandEqualizer.html">audiblelight.augmentation.MultibandEqualizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Phaser.html">audiblelight.augmentation.Phaser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.PitchShift.html">audiblelight.augmentation.PitchShift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Preemphasis.html">audiblelight.augmentation.Preemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Reverse.html">audiblelight.augmentation.Reverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SpeedUp.html">audiblelight.augmentation.SpeedUp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpDuplicate.html">audiblelight.augmentation.TimeWarpDuplicate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpRemove.html">audiblelight.augmentation.TimeWarpRemove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpReverse.html">audiblelight.augmentation.TimeWarpReverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpSilence.html">audiblelight.augmentation.TimeWarpSilence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Augmentation.html">audiblelight.augmentation.Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.EventAugmentation.html">audiblelight.augmentation.EventAugmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SceneAugmentation.html">audiblelight.augmentation.SceneAugmentation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../synthesis.html">Synthesis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_dcase2024_metadata.html">audiblelight.synthesize.generate_dcase2024_metadata</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../download_data.html">Downloading Data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fma.html">audiblelight.download_data.download_fma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fsd.html">audiblelight.download_data.download_fsd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson.html">audiblelight.download_data.download_gibson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson_waypoints.html">audiblelight.download_data.download_gibson_waypoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_rirs.html">audiblelight.download_data.download_rirs</a></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/_examples/1.2.0_add_events.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>1.2.0: Add Events</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Adding-static-Event-objects">Adding static <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Using-overrides">Using overrides</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Controlling-duplicate-audio-files">Controlling duplicate audio files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Controlling-same-class-Event-objects">Controlling same class <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Inspecting-Event-objects">Inspecting <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Adding-moving-events">Adding moving events</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#A-note-on-class-labels">A note on class labels</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#But-what-if-we-want-to-use-a-different-class-mapping?">But what if we want to use a different class mapping?</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="1.2.0:-Add-Events">
+<h1>1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s<a class="headerlink" href="#1.2.0:-Add-Events" title="Link to this heading">#</a></h1>
+<p>In <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code>, <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects represent sounds placed within a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. There are two types of <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects:</p>
+<ul class="simple">
+<li><p>Static <code class="docutils literal notranslate"><span class="pre">Event</span></code>s, which occupy the same point in space;</p></li>
+<li><p>Moving <code class="docutils literal notranslate"><span class="pre">Event</span></code>s, which move through space according to a particular trajectory (e.g., linear, random…)</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> defines a comprehensive API for adding <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects to a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>, as well as controlling parameters relating to the underlying audio file (e.g., duration, offset, any augmentations), how it moves through space (e.g., its velocity and resolution), and how it relates to the whole <code class="docutils literal notranslate"><span class="pre">Scene</span></code> (e.g., how loud it is versus the noise floor).</p>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code> API for <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> has its own tutorial.</p>
+<section id="Adding-static-Event-objects">
+<h2>Adding static <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects<a class="headerlink" href="#Adding-static-Event-objects" title="Link to this heading">#</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scene</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">scene</span><span class="o">.</span><span class="n">add_microphone</span><span class="p">(</span><span class="n">microphone_type</span><span class="o">=</span><span class="s2">&quot;ambeovr&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:16.857</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">load_mesh_navigation_waypoints</span>:<span class="ansi-cyan-fg">1878</span> - <span class="ansi-yellow-intense-fg ansi-bold">Cannot find waypoints for mesh Oyens inside default location (/home/huw-cheston/Documents/python_projects/AudibleLight/resources/waypoints/gibson). No navigation waypoints will be loaded.</span>
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<p>We are now ready to add an <code class="docutils literal notranslate"><span class="pre">Event</span></code> to our scene. By default, this will start from between 0 and 59 seconds (i.e., <code class="docutils literal notranslate"><span class="pre">scene.duration</span></code> - 1), with an audio file pulled from our <code class="docutils literal notranslate"><span class="pre">fg_path</span></code>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">added</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;my_first_event&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:20.479</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;my_first_event&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/musicInstrument/8390.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<p>Note that the same functionality could be achieved by calling <code class="docutils literal notranslate"><span class="pre">Scene.add_event_static</span></code> with the same arguments (minus <code class="docutils literal notranslate"><span class="pre">event_type=&quot;static&quot;</span></code>).</p>
+<section id="Using-overrides">
+<h3>Using overrides<a class="headerlink" href="#Using-overrides" title="Link to this heading">#</a></h3>
+<p>To control more parameters of the <code class="docutils literal notranslate"><span class="pre">Event</span></code>, we can pass in arguments to <code class="docutils literal notranslate"><span class="pre">add_event</span></code>. These arguments will <strong>override</strong> any distributions passed to <code class="docutils literal notranslate"><span class="pre">Scene.__init__</span></code>, allowing for more finegrained placing of events.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">added2</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;my_second_event&quot;</span><span class="p">,</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/music/000010.mp3&quot;</span><span class="p">,</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">scene_start</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">event_start</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">polar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">position</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">45.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:20.798</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;my_second_event&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/000010.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<p>This example loads in a music file with an offset at 2 seconds and a duration of 10 seconds (i.e., seconds 2 – 12 will be used). The audio file will start 5 seconds in to the start of the scene. It will be placed 45 degrees to the front-left of the mic, level with the mic, and 0.5 meters away.</p>
+<p>Note that, when dealing with multiple microphones added to a single <code class="docutils literal notranslate"><span class="pre">Scene</span></code>, as well as passing <code class="docutils literal notranslate"><span class="pre">polar=True</span></code>, we also need to pass the alias of the microphone to <code class="docutils literal notranslate"><span class="pre">mic=...</span></code>, so the correct offset can be calculated.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span><span class="o">.</span><span class="n">clear_microphones</span><span class="p">()</span>
+<span class="n">mic1</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_microphone</span><span class="p">(</span><span class="n">microphone_type</span><span class="o">=</span><span class="s2">&quot;monocapsule&quot;</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;mic_a&quot;</span><span class="p">)</span>
+<span class="n">mic2</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_microphone</span><span class="p">(</span><span class="n">microphone_type</span><span class="o">=</span><span class="s2">&quot;monocapsule&quot;</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;mic_b&quot;</span><span class="p">)</span>
+
+<span class="n">pol</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">polar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mic</span><span class="o">=</span><span class="s2">&quot;mic_a&quot;</span><span class="p">,</span>
+    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;pol&quot;</span><span class="p">,</span>
+    <span class="n">position</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">45.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">1</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:22.305</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;pol&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/007527.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<p>Now, the <code class="docutils literal notranslate"><span class="pre">pol</span></code> <code class="docutils literal notranslate"><span class="pre">Event</span></code> is placed so that it is -45 degrees from the <code class="docutils literal notranslate"><span class="pre">mic_a</span></code> <code class="docutils literal notranslate"><span class="pre">MicArray</span></code>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span><span class="o">.</span><span class="n">clear_microphone</span><span class="p">(</span><span class="s2">&quot;mic_b&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Controlling-duplicate-audio-files">
+<h3>Controlling duplicate audio files<a class="headerlink" href="#Controlling-duplicate-audio-files" title="Link to this heading">#</a></h3>
+<p>By default, we allow a single unique audio file to appear numerous times in a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. In practice, this is usually not a problem as we would expect <code class="docutils literal notranslate"><span class="pre">fg_dir</span></code> to contain many audio files, and therefore duplicates (especially overlapping duplicates) are in reality very rare.</p>
+<p>If this behaviour is undesirable, the argument <code class="docutils literal notranslate"><span class="pre">allow_duplicate_audios=False</span></code> can be passed when initialising a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">no_dupes_allowed</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/music&quot;</span><span class="p">,</span>
+    <span class="n">allow_duplicate_audios</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+
+<span class="c1"># Add in some music files</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">no_dupes_allowed</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">)</span>
+
+<span class="c1"># Print the filepaths</span>
+<span class="n">events</span> <span class="o">=</span> <span class="n">no_dupes_allowed</span><span class="o">.</span><span class="n">get_events</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">ev</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">ev</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Controlling-same-class-Event-objects">
+<h3>Controlling same class <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects<a class="headerlink" href="#Controlling-same-class-Event-objects" title="Link to this heading">#</a></h3>
+<p>We also allow multiple appearances of the same class by default. For instance, if we have a “waterTap” class and <code class="docutils literal notranslate"><span class="pre">allow_duplicate_audios=False</span></code>, we may have multiple instances of “waterTap” <code class="docutils literal notranslate"><span class="pre">Events</span></code>, but each will use a different audio file.</p>
+<p>We can control this behaviour by setting <code class="docutils literal notranslate"><span class="pre">allow_same_class_events=False</span></code> when initialising a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. This will ensure that every <code class="docutils literal notranslate"><span class="pre">Event</span></code> added to the <code class="docutils literal notranslate"><span class="pre">Scene</span></code> has a unique class:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">no_same_class_events_allowed</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+    <span class="n">allow_duplicate_audios</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">allow_same_class_events</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+
+<span class="c1"># Add in a waterTap event</span>
+<span class="n">tap1</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/waterTap/95709.wav&quot;</span>
+<span class="n">no_same_class_events_allowed</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">tap1</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># If we try and add another waterTap object, we&#39;ll get an error</span>
+<span class="n">tap2</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/waterTap/205695.wav&quot;</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">no_same_class_events_allowed</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+        <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+        <span class="n">filepath</span><span class="o">=</span><span class="n">tap2</span>
+    <span class="p">)</span>
+<span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Raised error: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-04 15:39:44.303</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">load_mesh_navigation_waypoints</span>:<span class="ansi-cyan-fg">1878</span> - <span class="ansi-yellow-intense-fg ansi-bold">Cannot find waypoints for mesh Oyens inside default location (/home/huw-cheston/Documents/python_projects/AudibleLight/resources/waypoints/gibson). No navigation waypoints will be loaded.</span>
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2025-11-04 15:39:46.087</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">1002</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/waterTap/95709.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+Raised error: Audio file /home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/waterTap/205695.wav uses a class that has already been added to the Scene (10). Either choose a different audio file, or set `Scene.allow_duplicate_audios=False`.
+</pre></div></div>
+</div>
+</section>
+<section id="Inspecting-Event-objects">
+<h3>Inspecting <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects<a class="headerlink" href="#Inspecting-Event-objects" title="Link to this heading">#</a></h3>
+<p>For more information on the <code class="docutils literal notranslate"><span class="pre">Event</span></code>, we can use its alias to grab it from the <code class="docutils literal notranslate"><span class="pre">Scene</span></code></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">event2</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">get_event</span><span class="p">(</span><span class="s2">&quot;pol&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">event2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Static &#39;Event&#39; with alias &#39;pol&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/music/007527.mp3&#39; (unloaded, 0 augmentations), 1 emitter(s).
+</pre></div></div>
+</div>
+<p>We can also load the audio file with <code class="docutils literal notranslate"><span class="pre">Event.load_audio</span></code>.</p>
+<p>Note that this will happen automatically whenever <code class="docutils literal notranslate"><span class="pre">scene.generate</span></code> is called, so you don’t need to worry about making this part of your data generation code.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">audio</span> <span class="o">=</span> <span class="n">event2</span><span class="o">.</span><span class="n">load_audio</span><span class="p">(</span><span class="n">ignore_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">event2</span><span class="o">.</span><span class="n">is_audio_loaded</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+True
+</pre></div></div>
+</div>
+</section>
+<section id="Adding-moving-events">
+<h3>Adding moving events<a class="headerlink" href="#Adding-moving-events" title="Link to this heading">#</a></h3>
+<p>Simple moving <code class="docutils literal notranslate"><span class="pre">Event</span></code>s can be added in the same way as simple static <code class="docutils literal notranslate"><span class="pre">Event</span></code>s.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">moving1</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;moving&quot;</span><span class="p">,</span> <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;my_first_moving_event&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+Placing trajectory...:   0%|          | 0/1 [00:00&lt;?, ?it/s]
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2025-11-03 17:13:23.991</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Moving &#39;Event&#39; with alias &#39;my_first_moving_event&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/maleSpeech/93856.wav&#39; (unloaded, 0 augmentations), 2 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<p>Moving <code class="docutils literal notranslate"><span class="pre">Event</span></code>s expose the same parameters involved when creating a static <code class="docutils literal notranslate"><span class="pre">Event</span></code> (e.g., duration, offset), along with some new ones.</p>
+<p>In particular, we can control:</p>
+<ul class="simple">
+<li><p>the spatial velocity: how fast the event moves, in metres-per-second</p></li>
+<li><p>the spatial resolution: how many IRs are created per second, in Hz</p></li>
+<li><p>the trajectory: either <code class="docutils literal notranslate"><span class="pre">linear</span></code>, <code class="docutils literal notranslate"><span class="pre">circular</span></code>, or <code class="docutils literal notranslate"><span class="pre">random</span></code></p></li>
+<li><p>the starting position of the event.</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">added2</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;moving&quot;</span><span class="p">,</span>
+    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;my_second_moving_event&quot;</span><span class="p">,</span>
+    <span class="n">spatial_velocity</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span>
+    <span class="n">spatial_resolution</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">shape</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Placing trajectory...: 100%|██████████| 1/1 [00:00&lt;00:00,  5.34it/s]
+Placing trajectory...: 100%|██████████| 1/1 [00:00&lt;00:00,  6.76it/s]
+Placing trajectory...: 100%|██████████| 1/1 [00:00&lt;00:00,  7.27it/s]
+<span class="ansi-green-fg">2025-11-03 17:13:24.501</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">define_trajectory</span>:<span class="ansi-cyan-fg">1966</span> - <span class="ansi-yellow-intense-fg ansi-bold">Number of points in trajectory (2) is smaller than 2, so it is being clamped to 2 internally. If this is happening frequently, consider increasing `resolution` (currently 0.500).</span>
+Placing trajectory...:   0%|          | 0/1 [00:00&lt;?, ?it/s]
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:25.021</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Moving &#39;Event&#39; with alias &#39;my_second_moving_event&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/femaleSpeech/236657.wav&#39; (unloaded, 0 augmentations), 2 emitter(s).</span>
+</pre></div></div>
+</div>
+</section>
+</section>
+<section id="A-note-on-class-labels">
+<h2>A note on class labels<a class="headerlink" href="#A-note-on-class-labels" title="Link to this heading">#</a></h2>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects will try and define a <code class="docutils literal notranslate"><span class="pre">class_id</span></code> and <code class="docutils literal notranslate"><span class="pre">class_label</span></code> attribute using the 13 classes of the <a class="reference external" href="https://dcase.community/challenge2024/task-audio-and-audiovisual-sound-event-localization-and-detection-with-source-distance-estimation">DCASE 2023 task 3.</a> <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> will attempt to extract these attributes from the filepath of the audio file if they are not passed when creating an <code class="docutils literal notranslate"><span class="pre">Event</span></code>.</p>
+<p>To show what we mean, let’s try adding in a “femaleSpeech” audio event (class index 0 for this DCASE challenge)</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">female_speech</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/femaleSpeech/236385.wav&quot;</span><span class="p">,</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">female_speech</span><span class="o">.</span><span class="n">class_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">female_speech</span><span class="o">.</span><span class="n">class_label</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2025-11-03 17:13:25.636</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/femaleSpeech/236385.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+0
+femaleSpeech
+</pre></div></div>
+</div>
+<p>Alternatively, if only one parameter is passed (e.g., just <code class="docutils literal notranslate"><span class="pre">class_label</span></code>), the missing attribute will be inferred from this using these DCASE classes.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">female_speech</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/femaleSpeech/236385.wav&quot;</span><span class="p">,</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">class_id</span><span class="o">=</span><span class="mi">0</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">female_speech</span><span class="o">.</span><span class="n">class_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">female_speech</span><span class="o">.</span><span class="n">class_label</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:26.298</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/femaleSpeech/236385.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0
+femaleSpeech
+</pre></div></div>
+</div>
+<p>Of course, these IDs and labels can also be overridden:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">scene</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">custom_event</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">alias</span><span class="o">=</span><span class="s2">&quot;my_custom_event&quot;</span><span class="p">,</span>
+    <span class="n">class_id</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+    <span class="n">class_label</span><span class="o">=</span><span class="s2">&quot;customClass&quot;</span><span class="p">,</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/femaleSpeech/236385.wav&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">custom_event</span><span class="o">.</span><span class="n">class_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">custom_event</span><span class="o">.</span><span class="n">class_label</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:26.904</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;my_custom_event&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/femaleSpeech/236385.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+100
+customClass
+</pre></div></div>
+</div>
+<p>Any metadata generated from the scene (e.g., <code class="docutils literal notranslate"><span class="pre">generate_dcase2024_metadata</span></code>) will adhere to the custom IDs.</p>
+<section id="But-what-if-we-want-to-use-a-different-class-mapping?">
+<h3>But what if we want to use a different class mapping?<a class="headerlink" href="#But-what-if-we-want-to-use-a-different-class-mapping?" title="Link to this heading">#</a></h3>
+<p>It’s quite likely that you might want to use a different class mapping than the one defined in DCASE2023, task 3.</p>
+<p>To solve this, you can pass in a custom mapping when creating a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. Let’s try a custom mapping that maps “femaleSpeech” to class index 2, this time:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">custom_scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+    <span class="n">class_mapping</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">femaleSpeech</span><span class="o">=</span><span class="mi">2</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+<span class="n">custom_scene</span><span class="o">.</span><span class="n">add_microphone</span><span class="p">(</span><span class="n">microphone_type</span><span class="o">=</span><span class="s2">&quot;ambeovr&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:26.954</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">load_mesh_navigation_waypoints</span>:<span class="ansi-cyan-fg">1878</span> - <span class="ansi-yellow-intense-fg ansi-bold">Cannot find waypoints for mesh Oyens inside default location (/home/huw-cheston/Documents/python_projects/AudibleLight/resources/waypoints/gibson). No navigation waypoints will be loaded.</span>
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">female_speech_custom</span> <span class="o">=</span> <span class="n">custom_scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/femaleSpeech/236385.wav&quot;</span><span class="p">,</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">female_speech_custom</span><span class="o">.</span><span class="n">class_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">female_speech_custom</span><span class="o">.</span><span class="n">class_label</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2025-11-03 17:13:29.257</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">972</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/femaleSpeech/236385.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+2
+femaleSpeech
+</pre></div></div>
+</div>
+<p>You can also pass in the name of a particular task (e.g., DCASE 2025, task 4) and use the mapping directly, without having to define a dictionary.</p>
+<p><strong>Hint</strong>: to see which mappings can be used in this way, check out <code class="docutils literal notranslate"><span class="pre">audiblelight.class_mappings.py</span></code></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">dcase2025</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+    <span class="n">class_mapping</span><span class="o">=</span><span class="s2">&quot;dcase2025task4&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2025-11-03 17:13:29.315</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">load_mesh_navigation_waypoints</span>:<span class="ansi-cyan-fg">1878</span> - <span class="ansi-yellow-intense-fg ansi-bold">Cannot find waypoints for mesh Oyens inside default location (/home/huw-cheston/Documents/python_projects/AudibleLight/resources/waypoints/gibson). No navigation waypoints will be loaded.</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<p>We can also use <code class="docutils literal notranslate"><span class="pre">Scene.get_class_mapping</span></code> to check the current class mapping:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Compare with https://dcase.community/challenge2025/task-spatial-semantic-segmentation-of-sound-scenes#audio-dataset</span>
+<span class="n">dcase2025</span><span class="o">.</span><span class="n">get_class_mapping</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;AlarmClock&#39;: 0,
+ &#39;BicycleBell&#39;: 1,
+ &#39;Blender&#39;: 2,
+ &#39;Buzzer&#39;: 3,
+ &#39;Clapping&#39;: 4,
+ &#39;Cough&#39;: 5,
+ &#39;CupboardOpenClose&#39;: 6,
+ &#39;Dishes&#39;: 7,
+ &#39;Doorbell&#39;: 8,
+ &#39;FootSteps&#39;: 9,
+ &#39;HairDryer&#39;: 10,
+ &#39;MechanicalFans&#39;: 11,
+ &#39;MusicalKeyboard&#39;: 12,
+ &#39;Percussion&#39;: 13,
+ &#39;Pour&#39;: 14,
+ &#39;Speech&#39;: 15,
+ &#39;Typing&#39;: 16,
+ &#39;VacuumCleaner&#39;: 17}
+</pre></div></div>
+</div>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="1.1.0_add_listeners.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">1.1.0: Add microphones and listeners</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="1.2.1_add_augmentations.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Adding-static-Event-objects">Adding static <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Using-overrides">Using overrides</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Controlling-duplicate-audio-files">Controlling duplicate audio files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Controlling-same-class-Event-objects">Controlling same class <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Inspecting-Event-objects">Inspecting <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Adding-moving-events">Adding moving events</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#A-note-on-class-labels">A note on class labels</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#But-what-if-we-want-to-use-a-different-class-mapping?">But what if we want to use a different class mapping?</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Centre for Digital Music, Queen Mary University of London
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Centre for Digital Music, Queen Mary University of London.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
