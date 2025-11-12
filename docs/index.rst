@@ -39,9 +39,13 @@ What is ``AudibleLight``?
    :caption: API:
 
    core
-   events
+   backend
    microphones
+   events
+   class_mappings
+   augmentation
    synthesis
+   download_data
 
 
 Indices and tables
