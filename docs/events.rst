@@ -1,10 +1,19 @@
-Events and Emitters
-===================
+Sound Events
+============
+
+Foreground Sounds
+-----------------
 
 .. autosummary::
    :toctree: _autosummary
-   :caption: Events and Emitters:
 
    audiblelight.event.Event
+
+
+Background Sounds
+-----------------
+
+.. autosummary::
+   :toctree: _autosummary
+
    audiblelight.ambience.Ambience
-   audiblelight.worldstate.Emitter

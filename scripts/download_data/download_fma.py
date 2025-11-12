@@ -9,9 +9,9 @@ import shutil
 
 import numpy as np
 import pandas as pd
-from utils import BaseDataSetup, download_file, extract_zip
 
 from audiblelight.utils import get_project_root, sanitise_positive_number
+from scripts.download_data.utils import BaseDataSetup, download_file, extract_zip
 
 BASE_URL = "https://os.unil.cloud.switch.ch/fma/"
 METADATA_URL = "https://os.unil.cloud.switch.ch/fma/fma_metadata.zip"
@@ -28,7 +28,7 @@ DCASE_FSD50K_SELECTED = "https://zenodo.org/record/6406873/files/FSD50K_selected
 
 DEFAULT_PATH = str(get_project_root() / "resources/soundevents")
 DEFAULT_CLEANUP = False
-DEFAULT_REMOTE = "fma_small"
+DEFAULT_REMOTE = ["fma_small"]
 DEFAULT_NTRACKS = 30
 
 
@@ -131,7 +131,22 @@ class FMADataSetup(BaseDataSetup):
                 shutil.copyfile(fma_track_path, dcase_path)
 
 
-def main(path: str, cleanup: bool, remote: list[str], ntracks: int):
+def main(
+    path: str = DEFAULT_PATH,
+    cleanup: bool = DEFAULT_CLEANUP,
+    remote: list[str] = DEFAULT_REMOTE,
+    ntracks: int = DEFAULT_NTRACKS,
+):
+    f"""
+    Downloads and prepares the Free Music Archive.
+
+    Arguments:
+        path: Path to store and process the dataset, defaults to {DEFAULT_PATH}.
+        cleanup: Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}.
+        remote: List of remote URLs to download from. Defaults to {DEFAULT_REMOTE}.
+            Each value must be one of {", ".join(list(REMOTES.keys()))}
+        ntracks: keep this many tracks per genre, defaults to {DEFAULT_NTRACKS}.
+    """
     print("---- Free Music Archive download script ----")
     print(f"Datasets will be downloaded to: {path}")
     print(f"Using remotes: {', '.join(remote)}")
@@ -152,9 +167,7 @@ def main(path: str, cleanup: bool, remote: list[str], ntracks: int):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Download and prepare Free Music Archive database."
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,
@@ -169,7 +182,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--remote",
         nargs="*",
-        default=[DEFAULT_REMOTE],
+        default=DEFAULT_REMOTE,
         help=f"Remote files to download: defaults to {DEFAULT_REMOTE}. "
         f"Provide multiple values to download multiple datasets, e.g. --remote aaa --remote bbb --remote ccc. "
         f'Each value must be one of {", ".join(list(REMOTES.keys()))}',

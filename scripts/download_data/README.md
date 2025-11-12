@@ -3,8 +3,10 @@
 This folder contains scripts for downloading the following datasets, which may prove handy when working with `AudibleLight`:
 
 - [Gibson Database of 3D Spaces](http://gibsonenv.stanford.edu/database/): `download_gibson.py`
+  - Also `download_gibson_waypoints.py`, which downloads [preset navigation waypoints for the same spaces](https://github.com/StanfordVL/GibsonEnv/blob/master/gibson/data/README.md#navigation-waypoints).
 - [Free Music Archive](https://github.com/mdeff/fma): `download_fma.py`
 - [FSD50K](https://zenodo.org/records/4060432): `download_fsd.py`
+- [SpatialScaper RIRs](https://github.com/marl/SpatialScaper/tree/main?tab=readme-ov-file#preparing-rir-datasets): `download_rirs.py`
 
 Note that, by running these scripts, you confirm that you agree to abide by their terms of use. In particular, for the *Gibson Database of 3D Spaces*, you confirm that you have signed and completed the associated [user agreement form](https://docs.google.com/forms/d/e/1FAIpQLScWlx5Z1DM1M-wTSXaa6zV8lTFkPmTHW1LqMsoCBDWsTDjBkQ/viewform). 
 

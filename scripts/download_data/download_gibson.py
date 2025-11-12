@@ -11,9 +11,8 @@ import os
 import sys
 from pathlib import Path
 
-from utils import download_file, extract_zip
-
 from audiblelight import utils
+from scripts.download_data.utils import download_file, extract_zip
 
 USER_AGREEMENT = "https://docs.google.com/forms/d/e/1FAIpQLScWlx5Z1DM1M-wTSXaa6zV8lTFkPmTHW1LqMsoCBDWsTDjBkQ/viewform"
 # Download paths: the former contains 4 scenes
@@ -43,7 +42,23 @@ def get_user_confirmation() -> None:
         sys.exit(0)
 
 
-def main(path: str, cleanup: bool, remote: list[str]) -> None:
+def main(
+    path: str = DEFAULT_PATH,
+    cleanup: bool = DEFAULT_CLEANUP,
+    remote: list[str] = DEFAULT_REMOTE,
+) -> None:
+    f"""
+    Downloads and prepares the Gibson Environment dataset meshes.
+
+    NOTE: by running this script, we assume that you have completed the user agreement form
+    (https://docs.google.com/forms/d/e/1FAIpQLScWlx5Z1DM1M-wTSXaa6zV8lTFkPmTHW1LqMsoCBDWsTDjBkQ/viewform).
+
+    Arguments:
+        path: Path to store and process the dataset, defaults to {DEFAULT_PATH}.
+        cleanup: Whether to cleanup after download, defaults to {DEFAULT_CLEANUP}.
+        remote: List of remote URLs to download from. Defaults to {DEFAULT_REMOTE}.
+            Each value must be one of {", ".join(list(REMOTES.keys()))}
+    """
     print("---- Gibson Environment Database download script ----")
     get_user_confirmation()
     print(f"Datasets will be downloaded to: {path}")
@@ -78,9 +93,7 @@ def main(path: str, cleanup: bool, remote: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Download and prepare Gibson Environment database."
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--path",
         default=DEFAULT_PATH,

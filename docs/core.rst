@@ -6,4 +6,3 @@ Core
    :caption: Core API:
 
    audiblelight.core.Scene
-   audiblelight.worldstate.WorldState

@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "audiblelight"
-version = "0.1.0"
-description = "A library for soundscape synthesis using spatial impulse responses derived from ray-traced room scans"
+version = "0.1.1"
+description = "A controllable, end-to-end API for soundscape synthesis across ray-traced & real-world measured acoustics"
 authors = ["Huw Cheston <h.cheston@qmul.ac.uk>", "Iran Roman <i.roman@qmul.ac.uk>"]
 license = "CC-BY-4.0"
 homepage = "https://github.com/AudibleLight/AudibleLight"
@@ -16,6 +16,12 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis"
 ]
 readme = "README.md"
+packages = [
+    { include = "scripts/**/*.py", format=["sdist", "wheel"] },
+    { include = "resources/mp3d_material_config.json", format=["sdist", "wheel"] },
+    { include = "audiblelight/*", format=["sdist", "wheel"]}
+]
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -34,8 +40,10 @@ torch = "*"
 loguru = "*"
 pyroomacoustics = "*"
 deepdiff = "*"
-rlr-audio-propagation = { git = "https://github.com/AudibleLight/rlr-audio-propagation", branch = "main" }
+rlr-audio-propagation = "0.0.1"
 pedalboard = "0.9.17"
+pysofaconventions = "*"
+gdown = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -48,10 +56,14 @@ pre-commit = "*"
 black = "24.4.2"
 isort = "5.13.2"
 flake8 = "7.0.0"
+nbmake = "*"
+twine = "*"
+build = "*"
 
 [tool.poetry.group.datasets.dependencies]
 soundata = "*"
 requests = "*"
+mat73 = "*"
 
 [tool.poetry.group.docs.dependencies]
 IPython = "*"

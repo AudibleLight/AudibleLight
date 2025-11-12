@@ -193,7 +193,12 @@ def main(
     start = time()
     scene = Scene(
         duration=duration,
-        mesh_path=Path(mesh_path),
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=mesh_path,
+            add_to_context=False,
+        ),
+        sample_rate=44100,
         scene_start_dist=stats.uniform(0.0, duration - 1),
         event_start_dist=None,
         event_duration_dist=stats.uniform(min_duration, max_duration - min_duration),
@@ -206,7 +211,6 @@ def main(
         bg_path=Path(bg_folder),
         max_overlap=max_overlap,
         ref_db=ref_db,
-        state_kwargs=dict(add_to_context=False),
         allow_duplicate_audios=False,
     )
 

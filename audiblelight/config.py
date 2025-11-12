@@ -34,6 +34,8 @@ DEFAULT_EVENT_SNR = (MAX_EVENT_SNR - MIN_EVENT_SNR) / 2
 #  + example_generation.py files. latter takes precedence for any conflict
 
 # WorldState
+# Default to using the RLR backend
+DEFAULT_BACKEND = "rlr"
 MESH_UNITS = "meters"
 #  Reject a candidate point if the weighted average ray length is below this value
 MIN_AVG_RAY_LENGTH = 3.0

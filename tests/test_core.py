@@ -12,10 +12,16 @@ import pytest
 from audiblelight import custom_types, utils
 from audiblelight.ambience import Ambience
 from audiblelight.augmentation import LowpassFilter, Phaser, SpeedUp
+from audiblelight.class_mappings import ClassMapping
 from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.micarrays import MicArray
-from audiblelight.worldstate import Emitter
+from audiblelight.worldstate import (
+    Emitter,
+    WorldStateRLR,
+    WorldStateSOFA,
+    get_worldstate_from_string,
+)
 from tests import utils_tests
 
 
@@ -200,7 +206,9 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     is_polar = kwargs.get("polar", False)
     if is_polar:
         oyens_scene_no_overlap.clear_microphones()
-        oyens_scene_no_overlap.add_microphone(alias="mic000", position=[2.5, -1.0, 1.0])
+        oyens_scene_no_overlap.add_microphone(
+            microphone_type="ambeovr", alias="mic000", position=[2.5, -1.0, 1.0]
+        )
 
     # Add the event in
     oyens_scene_no_overlap.clear_events()
@@ -269,6 +277,75 @@ def test_add_moving_event(kwargs, oyens_scene_no_overlap: Scene):
     assert not np.array_equal(
         ev.start_coordinates_absolute, ev.end_coordinates_absolute
     )
+
+
+@pytest.mark.parametrize(
+    "event_kwargs",
+    [
+        dict(
+            filepath=utils_tests.TEST_MUSICS[0],
+            duration=5,
+            trajectory=None,
+            ensure_direct_path=True,
+            spatial_velocity=0.5,
+        ),
+        dict(
+            filepath=utils_tests.TEST_MUSICS[0],
+            duration=0.3,
+            trajectory=np.array([[2.0, -0.3, 0.5], [2.0, -0.4, 0.5], [2.0, -0.5, 0.5]]),
+            spatial_resolution=0.5,
+        ),
+    ],
+)
+def test_add_moving_event_predefined_trajectory(
+    event_kwargs, oyens_scene_no_overlap: Scene
+):
+    # Add microphone to center of the mesh
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphone(
+        microphone_type="ambeovr", alias="mic000", position=[2.0, -0.5, 1.0]
+    )
+
+    # Try N times to add the event in
+    oyens_scene_no_overlap.clear_events()
+    oyens_scene_no_overlap.add_event(
+        event_type="predefined", alias="test_event", **event_kwargs
+    )
+
+    # Should have added exactly one event
+    assert len(oyens_scene_no_overlap.events) == 1
+
+    # Get the event
+    ev = oyens_scene_no_overlap.get_event("test_event")
+    assert isinstance(ev, Event)
+    assert ev.is_moving
+    assert ev.has_emitters
+    assert len(ev) >= 2
+
+    # Should infer characteristics from the trajectory
+    assert ev.shape == "predefined"
+    assert isinstance(ev.spatial_resolution, custom_types.Numeric)
+    assert isinstance(ev.spatial_velocity, custom_types.Numeric)
+    assert isinstance(ev.duration, custom_types.Numeric)
+
+    # Expected resolution should be equivalent to the number of emitters over the audio duration, subtracting 1
+    expected_resolution = (
+        utils.sanitise_positive_number(len(ev) / ev.duration, cast_to=round) - 1
+    )
+    assert ev.spatial_resolution == expected_resolution
+
+    # Expected velocity is equivalent to the distance travelled in the trajectory over the time
+    coords = np.array([em.coordinates_absolute for em in ev.get_emitters()])
+    start = coords[0]
+    differences = coords[1:] - start
+    distances = np.linalg.norm(differences, axis=1)
+    max_distance = distances[np.argmax(distances)]
+    expected_velocity = max_distance / ev.duration
+    assert ev.spatial_velocity == expected_velocity
+
+    # Expected velocity should be within bounds of distribution
+    assert ev.spatial_velocity < oyens_scene_no_overlap.event_velocity_dist.max
+    assert ev.spatial_velocity > oyens_scene_no_overlap.event_velocity_dist.min
 
 
 @pytest.mark.parametrize(
@@ -722,7 +799,9 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
             "audiblelight_version": "0.1.0",
             "rlr_audio_propagation_version": "0.0.1",
             "creation_time": "2025-08-11_13:07:21",
+            "backend": "rlr",
             "duration": 50.0,
+            "sample_rate": 44100.0,
             "ref_db": -50,
             "max_overlap": 1,
             "fg_path": [str(utils_tests.SOUNDEVENT_DIR)],
@@ -777,9 +856,13 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                             "mix": 0.4228090059318278,
                         }
                     ],
+                    "ref_ir_channel": 0,
+                    "direct_path_time_ms": [6, 30],
                 }
             },
             "state": {
+                "backend": "rlr",
+                "sample_rate": 44100.0,
                 "emitters": {
                     "test_event": [
                         [1.8156068957785347, -1.863507837016133, 1.8473540916136413]
@@ -856,19 +939,174 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                 "empty_space_around_capsule": 0.05,
                 "repair_threshold": None,
             },
-        }
+            "class_mapping": {
+                "femaleSpeech": 0,
+                "maleSpeech": 1,
+                "clapping": 2,
+                "telephone": 3,
+                "laughter": 4,
+                "domesticSounds": 5,
+                "footsteps": 6,
+                "doorCupboard": 7,
+                "music": 8,
+                "musicInstrument": 9,
+                "waterTap": 10,
+                "bell": 11,
+                "knock": 12,
+            },
+        },
+        {
+            "audiblelight_version": "0.1.0",
+            "rlr_audio_propagation_version": "0.0.1",
+            "creation_time": "2025-10-30_11:18:02",
+            "duration": 50.0,
+            "backend": "SOFA",
+            "sample_rate": 44100,
+            "ref_db": -65,
+            "max_overlap": 1,
+            "fg_path": [str(utils_tests.SOUNDEVENT_DIR)],
+            "bg_path": [str(utils_tests.BACKGROUND_DIR)],
+            "ambience": {
+                "ambience000": {
+                    "alias": "ambience000",
+                    "beta": 0,
+                    "filepath": None,
+                    "channels": 4,
+                    "sample_rate": 44100,
+                    "duration": 50.0,
+                    "ref_db": -65,
+                    "noise_kwargs": {},
+                }
+            },
+            "events": {
+                "event000": {
+                    "alias": "event000",
+                    "filename": "70345.wav",
+                    "filepath": str(
+                        utils_tests.SOUNDEVENT_DIR / "doorCupboard/70345.wav"
+                    ),
+                    "class_id": 7,
+                    "class_label": "doorCupboard",
+                    "is_moving": False,
+                    "scene_start": 11.008224860918492,
+                    "scene_end": 12.320447083140714,
+                    "event_start": 0.0,
+                    "event_end": 1.3122222222222222,
+                    "duration": 1.3122222222222222,
+                    "snr": 25.595045335730944,
+                    "sample_rate": 44100.0,
+                    "spatial_resolution": None,
+                    "spatial_velocity": None,
+                    "shape": "static",
+                    "num_emitters": 1,
+                    "emitters": [[-1.5, -1.5, 1.0]],
+                    "emitters_relative": {
+                        "mic000": [[-135.0, 25.23940182067891, 2.345207879911715]]
+                    },
+                    "augmentations": [
+                        {
+                            "name": "Phaser",
+                            "sample_rate": 44100,
+                            "rate_hz": 9.480337646552867,
+                            "depth": 0.4725113710968438,
+                            "centre_frequency_hz": 2348.1728842622597,
+                            "feedback": 0.0810976870856293,
+                            "mix": 0.4228090059318278,
+                        }
+                    ],
+                    "ref_ir_channel": 0,
+                    "direct_path_time_ms": [6, 30],
+                }
+            },
+            "state": {
+                "backend": "SOFA",
+                "sofa": str(utils_tests.METU_SOFA_PATH),
+                "sample_rate": 44100,
+                "emitters": {"event000": [[-1.5, -1.5, 1.0]]},
+                "emitter_sofa_idxs": {"event000": [132]},
+                "microphones": {
+                    "mic000": {
+                        "name": "em32",
+                        "micarray_type": "_DynamicMicArray",
+                        "is_spherical": False,
+                        "channel_layout_type": "foa",
+                        "n_capsules": 4,
+                        "capsule_names": ["1", "2", "3", "4"],
+                        "coordinates_absolute": [
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                        ],
+                        "coordinates_center": [0.0, 0.0, 0.0],
+                        "coordinates_polar": None,
+                        "coordinates_cartesian": [
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                        ],
+                    }
+                },
+                "metadata": {
+                    "bounds": [[-1.5, -1.5, -1.0], [1.5, 1.5, 1.0]],
+                    "Conventions": "SOFA",
+                    "Version": "2.1",
+                    "SOFAConventions": "SingleRoomSRIR",
+                    "SOFAConventionsVersion": "1.0",
+                    "APIName": "pysofaconventions",
+                    "APIVersion": "0.1.5",
+                    "AuthorContact": "chris.ick@nyu.edu",
+                    "Organization": "Music and Audio Research Lab - NYU",
+                    "License": "Use whatever you want",
+                    "DataType": "FIR",
+                    "DateCreated": "Thu Apr 11 19:39:03 2024",
+                    "DateModified": "Thu Apr 11 19:39:03 2024",
+                    "Title": "METU-SPARG - classroom",
+                    "RoomType": "shoebox",
+                    "DatabaseName": "METU-SPARG",
+                    "ListenerShortName": "em32",
+                    "RoomShortName": "classroom",
+                    "Comment": "N/A",
+                },
+            },
+            "class_mapping": {
+                "femaleSpeech": 0,
+                "maleSpeech": 1,
+                "clapping": 2,
+                "telephone": 3,
+                "laughter": 4,
+                "domesticSounds": 5,
+                "footsteps": 6,
+                "doorCupboard": 7,
+                "music": 8,
+                "musicInstrument": 9,
+                "waterTap": 10,
+                "bell": 11,
+                "knock": 12,
+            },
+        },
     ],
 )
 def test_scene_from_dict(input_dict: dict):
     ev = Scene.from_dict(input_dict)
     assert isinstance(ev, Scene)
+
+    # Check number of events, ambiences, emitters, microphones
     assert len(ev.events) == len(input_dict["events"])
-    assert (
-        ev.state.num_emitters
-        == sum(len(em) for em in input_dict["state"]["emitters"].values())
-        == ev.state.ctx.get_source_count()
-    )
     assert len(ev.ambience.keys()) == len(input_dict["ambience"])
+    assert ev.state.num_emitters == sum(
+        len(em) for em in input_dict["state"]["emitters"].values()
+    )
+    assert len(ev.state.microphones) == len(input_dict["state"]["microphones"])
+
+    # Check serialising back and forth to dictionary
+    out_dict = ev.to_dict()
+    assert Scene.from_dict(out_dict) == ev
+
+    # Check source count in ray-tracing engine
+    if ev.state.name == "RLR":
+        assert ev.state.num_emitters == ev.state.ctx.get_source_count()
 
 
 @pytest.mark.parametrize(
@@ -933,10 +1171,14 @@ def test_add_events_with_random_augmentations(aug_list, n_augs, params):
     """
     sc = Scene(
         duration=50,
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        sample_rate=44100,
         event_augmentations=aug_list,
         fg_path=utils_tests.SOUNDEVENT_DIR,
         max_overlap=1,
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
     ev = sc.add_event(
         augmentations=n_augs,
@@ -998,10 +1240,14 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
     """
     sc = Scene(
         duration=50,
-        mesh_path=utils_tests.OYENS_PATH,
+        sample_rate=44100,
         event_augmentations=aug_list_of_tuples,
         fg_path=utils_tests.SOUNDEVENT_DIR,
         max_overlap=1,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
     ev = sc.add_event(augmentations=n_augs, event_type="static")
     augs = ev.get_augmentations()
@@ -1067,7 +1313,14 @@ def test_add_events_with_parametrised_augmentations(aug_list_of_tuples, n_augs):
 )
 def test_parse_audio_paths(fg_path, bg_path):
     sc = Scene(
-        duration=50, mesh_path=utils_tests.OYENS_PATH, fg_path=fg_path, bg_path=bg_path
+        duration=50,
+        fg_path=fg_path,
+        bg_path=bg_path,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
     assert isinstance(sc.fg_audios, list)
     assert isinstance(sc.bg_audios, list)
@@ -1088,7 +1341,13 @@ def test_parse_audio_paths(fg_path, bg_path):
 @pytest.mark.parametrize("bad_event_type", ["static", "moving"])
 def test_add_duplicated_event_audio(bad_event_type):
     sc = Scene(
-        duration=50, mesh_path=utils_tests.OYENS_PATH, allow_duplicate_audios=False
+        duration=50,
+        allow_duplicate_audios=False,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
 
     # Add the audio in the first time: should be fine
@@ -1112,7 +1371,13 @@ def test_add_duplicated_event_audio(bad_event_type):
 
 def test_add_duplicated_ambience_audio():
     sc = Scene(
-        duration=50, mesh_path=utils_tests.OYENS_PATH, allow_duplicate_audios=False
+        duration=50,
+        allow_duplicate_audios=False,
+        sample_rate=44100,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
     )
 
     # Add the audio in the first time should be fine
@@ -1126,9 +1391,13 @@ def test_add_duplicated_ambience_audio():
 @pytest.mark.parametrize("allow_dupes", [True, False])
 def test_get_random_audio_dupes(allow_dupes):
     sc = Scene(
-        mesh_path=utils_tests.OYENS_PATH,
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
         duration=50,
         allow_duplicate_audios=allow_dupes,
+        sample_rate=44100,
     )
 
     chosen_audio = utils.sanitise_filepath(utils_tests.TEST_MUSICS[0])
@@ -1142,6 +1411,75 @@ def test_get_random_audio_dupes(allow_dupes):
         assert chosen_audio in randoms
     else:
         assert chosen_audio not in randoms
+
+
+@pytest.mark.parametrize("allow_same_class", [True, False])
+def test_get_random_audio_no_same_class_events(allow_same_class):
+    sc = Scene(
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+        duration=50,
+        allow_duplicate_audios=True,
+        allow_same_class_events=allow_same_class,
+        sample_rate=44100,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        class_mapping="dcase2023task3",
+    )
+
+    # Add a set audio file with music class
+    chosen_audio = utils.sanitise_filepath(utils_tests.TEST_MUSICS[0])
+    sc.add_event(duration=1, event_type="static", filepath=chosen_audio)
+
+    # Get more audio files
+    randoms = [sc._get_random_audio() for _ in range(50)]
+
+    # Map the chosen audio files to labels with the scene's mapping object
+    mapped = set(
+        [sc.class_mapping.infer_label_idx_from_filepath(ap)[1] for ap in randoms]
+    )
+
+    # If not allowing same classes, we shouldn't get any music audio files
+    if not allow_same_class:
+        assert "music" not in mapped
+    else:
+        assert "music" in mapped
+
+
+@pytest.mark.parametrize(
+    "audio1, audio2, raises",
+    [
+        ("waterTap/95709.wav", "waterTap/205695.wav", True),
+        ("music/000010.mp3", "music/001666.mp3", True),
+        ("music/000010.mp3", "musicInstrument/3471.wav", False),
+        ("maleSpeech/93853.wav", "femaleSpeech/236385.wav", False),
+    ],
+)
+def test_add_duplicated_class_event(audio1, audio2, raises):
+    sc = Scene(
+        backend="rlr",
+        backend_kwargs=dict(
+            mesh=utils_tests.OYENS_PATH,
+        ),
+        duration=50,
+        allow_same_class_events=False,
+        sample_rate=44100,
+        class_mapping="dcase2023task3",
+    )
+
+    # Add first audio path, should be OK
+    sc.add_event(event_type="static", filepath=utils_tests.SOUNDEVENT_DIR / audio1)
+
+    # Trying to add second audio path should raise an error
+    if raises:
+        with pytest.raises(ValueError):
+            sc.add_event(
+                event_type="static", filepath=utils_tests.SOUNDEVENT_DIR / audio2
+            )
+    else:
+        sc.add_event(event_type="static", filepath=utils_tests.SOUNDEVENT_DIR / audio2)
+        assert len(sc.get_events()) == 2
 
 
 @pytest.mark.parametrize("n_events", [1, 2, 3])
@@ -1239,9 +1577,215 @@ def test_add_event_overrides(overrides, oyens_scene_no_overlap: Scene):
         if kw in overrides:
             assert getattr(created, kw) == overrides[kw]
 
-        # Otherwise, sample N values from the Scene distribution: should be in range
+        # Otherwise, should be in range of min/max values of dist
         else:
             dist = getattr(oyens_scene_no_overlap, kw + "_dist", None)
             if dist is not None:
-                sampled = [dist.rvs() for _ in range(1000)]
-                assert min(sampled) <= getattr(created, kw) <= max(sampled)
+                assert dist.min <= getattr(created, kw) <= dist.max
+
+
+@pytest.mark.parametrize(
+    "backend,kwargs",
+    [
+        # Test with strings
+        ("rlr", dict(mesh=utils_tests.OYENS_PATH)),
+        ("sofa", dict(sofa=utils_tests.METU_SOFA_PATH)),
+        # Test with initialised backends
+        (
+            WorldStateSOFA,
+            dict(
+                sofa=utils_tests.METU_SOFA_PATH,
+                sample_rate=44100,
+            ),
+        ),
+        (
+            WorldStateRLR,
+            dict(
+                mesh=utils_tests.OYENS_PATH,
+                sample_rate=44100,
+                add_to_context=True,  # update worldstate with every addition
+                empty_space_around_emitter=0.2,  # all in meters
+                empty_space_around_mic=0.1,  # all in meters
+                empty_space_around_surface=0.2,  # all in meters
+                waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
+            ),
+        ),
+    ],
+)
+def test_parse_backend(backend, kwargs):
+    if not isinstance(backend, str):
+        backend = backend(**kwargs)
+        sc = Scene(
+            duration=60,
+            backend=backend,
+        )
+    else:
+        sc = Scene(duration=60, backend=backend, backend_kwargs=kwargs)
+
+    if isinstance(backend, str):
+        expected_ws = get_worldstate_from_string(backend)
+    else:
+        expected_ws = type(backend)
+
+    # Type should be identical
+    assert type(sc.state) is expected_ws
+    assert getattr(sc.state, "sample_rate") == 44100
+
+    if expected_ws is WorldStateRLR:
+        assert str(sc.state.mesh.metadata["fpath"]) == str(utils_tests.OYENS_PATH)
+    else:
+        assert str(getattr(sc.state, "sofa_path")) == str(utils_tests.METU_SOFA_PATH)
+
+
+@pytest.mark.parametrize(
+    "backend,expected",
+    [
+        (12345, TypeError),
+        (
+            WorldStateRLR(
+                mesh=utils_tests.OYENS_PATH,
+                sample_rate=123456,
+                add_to_context=True,  # update worldstate with every addition
+                empty_space_around_emitter=0.2,  # all in meters
+                empty_space_around_mic=0.1,  # all in meters
+                empty_space_around_surface=0.2,  # all in meters
+                waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH,
+            ),
+            ValueError,
+        ),
+    ],
+)
+def test_parse_backend_failure(backend, expected):
+    with pytest.raises(expected):
+        _ = Scene(
+            duration=60,
+            sample_rate=44100,
+            backend=backend,
+        )
+
+
+@pytest.mark.parametrize(
+    "filepath,mapping,expected",
+    [
+        (utils_tests.TEST_MUSICS[0], "dcase2023task3", 8),
+        (
+            utils_tests.TEST_RESOURCES / "soundevents/waterTap/95709.wav",
+            dict(
+                music=1,
+                musicInstrument=2,
+                waterTap=3,
+                anotherClass=4,
+                anotherClassAgain=5,
+            ),
+            3,
+        ),
+    ],
+)
+@pytest.mark.parametrize("event_type", ["static", "moving"])
+def test_parse_class_mapping(filepath, mapping, expected, event_type):
+    sc = Scene(
+        backend="rlr",
+        duration=50,
+        sample_rate=22050,
+        class_mapping=mapping,
+        backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+    )
+
+    # Add in the event
+    sc.add_event(
+        event_type=event_type, filepath=filepath, alias="class_mapping", duration=1
+    )
+
+    # Grab the event
+    ev = sc.get_event("class_mapping")
+
+    # ID should have been passed correctly
+    assert ev.class_id == expected
+
+    current_mapping = sc.get_class_mapping()
+    assert ev.class_label in current_mapping
+    assert expected == current_mapping[ev.class_label]
+
+    # Should be a ClassMapping child
+    assert issubclass(type(sc.class_mapping), ClassMapping)
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        dict(
+            music=1,
+            musicInstrument=2,
+            waterTap=3,
+            anotherClass=4,
+            anotherClassAgain=5,
+        ),
+        None,
+    ],
+)
+def test_get_class_mapping(mapping):
+    sc = Scene(
+        backend="rlr",
+        duration=50,
+        sample_rate=22050,
+        class_mapping=mapping,
+        backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+    )
+    returned = sc.get_class_mapping()
+    assert returned == mapping
+
+
+def test_coerce_polar_position(oyens_scene_factory):
+    # Create scene with a single mic
+    scene = oyens_scene_factory()
+
+    # Coerce position
+    #  Don't need to provide a mic as there is one in the scene already
+    outp = scene._coerce_polar_position(mic=None, position=[90, 0, 0.5])
+    assert isinstance(outp, np.ndarray)
+
+    # Try without position
+    with pytest.raises(ValueError, match="Must pass a position when `polar` is True"):
+        _ = scene._coerce_polar_position(mic="mic000", position=None)
+
+    # Add another mic
+    #  Will raise an error if we don't explicitly provide an alias
+    scene.add_microphone(microphone_type="ambeovr", alias="tester")
+    with pytest.raises(
+        ValueError, match="Must pass a microphone alias when `polar` is True"
+    ):
+        _ = scene._coerce_polar_position(mic=None, position=[90, 0, 0.5])
+
+    # Remove all mics
+    #  Will raise an error as no microphones added to the scene
+    scene.clear_microphones()
+    with pytest.raises(
+        ValueError,
+        match="Cannot set `polar=True` when adding an Event when no microphone",
+    ):
+        _ = scene._coerce_polar_position(mic=None, position=[90, 0, 0.5])
+
+
+def test_add_functions(oyens_scene_no_overlap):
+    # Test add emitter
+    oyens_scene_no_overlap.add_emitter()
+    assert len(oyens_scene_no_overlap.state.emitters) == 1
+    oyens_scene_no_overlap.clear_emitters()
+
+    # Test add emitters
+    oyens_scene_no_overlap.add_emitters(aliases=["asdf", "fdsa"])
+    assert len(oyens_scene_no_overlap.state.emitters) == 2
+    oyens_scene_no_overlap.clear_emitters()
+
+    # Test add microphones
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.add_microphones(microphone_types=["ambeovr", "ambeovr"])
+    assert len(oyens_scene_no_overlap.state.microphones) == 2
+    oyens_scene_no_overlap.clear_microphones()
+
+    # Test add microphone and emitter
+    oyens_scene_no_overlap.add_microphone_and_emitter(position=[90.0, 0.0, 0.5])
+    assert len(oyens_scene_no_overlap.state.microphones) == 1
+    assert len(oyens_scene_no_overlap.state.emitters) == 1
+    oyens_scene_no_overlap.clear_microphones()
+    oyens_scene_no_overlap.clear_emitters()

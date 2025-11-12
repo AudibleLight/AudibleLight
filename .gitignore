@@ -39,9 +39,13 @@ coverage.xml
 *.json
 *.csv
 
+# Ignore partial gdown downloads
+*.part
+
 !/resources/mp3d_material_config.json
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
+!/tests/test_resources/daga_foa.sofa
 
 # Sphinx documentation
 /docs/_build/
