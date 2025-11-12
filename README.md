@@ -120,3 +120,21 @@ make tests
 - HRTF support
 - Directional microphone capsules support
 - Increased visualisation options
+
+## Citation
+
+If you refer to any aspect of this work, please cite the following paper:
+
+<details>
+<summary>View citation</summary>
+
+```
+@inproceedings{cheston2025audiblelight,
+    title={AudibleLight (RC): A Controllable, End-to-End API for Soundscape Synthesis Across Ray-Traced & Real-World Measured Acoustics}, 
+    author={Cheston, Huw and Stepien, Adrian, and Azcarreta, Juan and Roman, Adrian S. and Chen, Chuyang and Roman, Iran R.},
+    year={2025},
+    booktitle={DMRN+ 20: Digital Music Research Network One-Day Workshop 2025}
+}
+```
+
+</details>
