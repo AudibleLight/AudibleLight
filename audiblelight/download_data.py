@@ -41,5 +41,4 @@ __all__ = [
     "download_gibson",
     "download_gibson_waypoints",
     "download_rirs",
-    "download_rirs",
 ]
