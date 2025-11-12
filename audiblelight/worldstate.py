@@ -299,7 +299,7 @@ class Emitter:
 
 class WorldState:
     """
-    Represents a 3D space defined by a mesh, microphone position(s), and emitter position(s).
+    Represents a 3D space defined by a room, microphone position(s), and emitter position(s).
 
     Should not be used directly: instead, a child class (e.g., `WorldStateRIR`, `WorldStateSOFA`) should be used.
     """
