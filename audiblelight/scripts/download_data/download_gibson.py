@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 from audiblelight import utils
-from scripts.download_data.utils import download_file, extract_zip
+from audiblelight.scripts.download_data.utils import download_file, extract_zip
 
 USER_AGREEMENT = "https://docs.google.com/forms/d/e/1FAIpQLScWlx5Z1DM1M-wTSXaa6zV8lTFkPmTHW1LqMsoCBDWsTDjBkQ/viewform"
 # Download paths: the former contains 4 scenes
@@ -21,7 +21,7 @@ REMOTES = {
     "habitat_11gb": "https://dl.fbaipublicfiles.com/habitat/data/scene_datasets/gibson_habitat_trainval.zip",
 }
 
-DEFAULT_PATH = str(utils.get_project_root() / "resources/meshes")
+DEFAULT_PATH = str(utils.get_project_root() / "audiblelight/resources/meshes")
 if not os.path.exists(DEFAULT_PATH):
     os.makedirs(DEFAULT_PATH)
 

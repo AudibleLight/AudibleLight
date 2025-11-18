@@ -42,7 +42,7 @@ coverage.xml
 # Ignore partial gdown downloads
 *.part
 
-!/resources/mp3d_material_config.json
+!/audiblelight/resources/mp3d_material_config.json
 !/audiblelight/resources/**/*.obj
 !/audiblelight/resources/**/*.wav
 !/audiblelight/resources/**/*.mp3

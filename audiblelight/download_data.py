@@ -3,9 +3,9 @@
 
 """Dataset downloading functions, can be called directly inside Python."""
 
-from scripts.download_data.download_fma import main as download_fma
-from scripts.download_data.download_gibson import main as download_gibson
-from scripts.download_data.download_gibson_waypoints import (
+from audiblelight.scripts.download_data.download_fma import main as download_fma
+from audiblelight.scripts.download_data.download_gibson import main as download_gibson
+from audiblelight.scripts.download_data.download_gibson_waypoints import (
     main as download_gibson_waypoints,
 )
 
@@ -15,7 +15,7 @@ from scripts.download_data.download_gibson_waypoints import (
 
 # FSD50K has an optional dependency on soundata
 try:
-    from scripts.download_data.download_fsd import main as download_fsd
+    from audiblelight.scripts.download_data.download_fsd import main as download_fsd
 except ImportError as e:
     _import_error_fsd = e
 
@@ -26,7 +26,7 @@ except ImportError as e:
 
 # RIRs have an optional dependency on mat73
 try:
-    from scripts.download_data.download_rirs import main as download_rirs
+    from audiblelight.scripts.download_data.download_rirs import main as download_rirs
 except ImportError as e:
     _import_error_rirs = e
 

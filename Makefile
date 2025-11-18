@@ -34,7 +34,7 @@ docs:
 	poetry run sphinx-build docs docs/_build
 
 download:
-	poetry run python scripts/download_data/download_fma.py --cleanup
-	poetry run python scripts/download_data/download_gibson.py --cleanup
-	poetry run python scripts/download_data/download_fsd.py --cleanup
-	poetry run python scripts/download_data/download_rirs.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_fma.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_gibson.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_fsd.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_rirs.py --cleanup

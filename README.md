@@ -73,7 +73,7 @@ download_fsd(path="path/to/save/fsd", cleanup=True)
 Alternatively, for a _development install_, you can run them from the command line:
 
 ```bash
-poetry run python scripts/download_data/download_fsd.py --path path/to/save/fsd --cleanup
+poetry run python audiblelight/scripts/download_data/download_fsd.py --path path/to/save/fsd --cleanup
 ```
 
 From a development install, you can also run all download scripts at once using the `Makefile`:
@@ -82,7 +82,7 @@ From a development install, you can also run all download scripts at once using 
 make download
 ```
 
-For further information, see [scripts/download_data/README.md](scripts/download_data/README.md).
+For further information, see [audiblelight/scripts/download_data/README.md](audiblelight/scripts/download_data/README.md).
 
 ## Usage
 
@@ -94,7 +94,7 @@ We include scripts to generate large datasets for common tasks relating to spati
 
 To generate a dataset for sound event localization and detection (**SELD**) that conforms with the [DCASE2023 task 3](https://dcase.community/challenge2023/task-sound-event-localization-and-detection-evaluated-in-real-spatial-sound-scenes) format, run:
 ```bash
-poetry run python scripts/seld/generate_dataset.py
+poetry run python audiblelight/scripts/seld/generate_dataset.py
 ```
 
 To see the available arguments that this script takes, add the `--help` argument

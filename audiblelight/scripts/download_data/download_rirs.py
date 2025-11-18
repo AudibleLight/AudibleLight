@@ -18,7 +18,11 @@ import soundfile as sf
 from scipy.io import loadmat
 
 from audiblelight import utils
-from scripts.download_data.utils import combine_multizip, download_file, extract_zip
+from audiblelight.scripts.download_data.utils import (
+    combine_multizip,
+    download_file,
+    extract_zip,
+)
 
 try:
     import mat73
@@ -30,7 +34,7 @@ except ImportError:
 
 SAMPLE_RATE = 24000
 
-DEFAULT_PATH = str(utils.get_project_root() / "resources/sofa")
+DEFAULT_PATH = str(utils.get_project_root() / "audiblelight/resources/sofa")
 DEFAULT_CLEANUP = True
 
 METU_REMOTES = {

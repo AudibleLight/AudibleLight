@@ -9,7 +9,7 @@ The main script is `generate_dataset.py` First, ensure that you have installed `
 Then, from the command line:
 
 ```bash
-poetry run python scripts/ssseg/generate_dataset.py
+poetry run python audiblelight/scripts/ssseg/generate_dataset.py
 ```
 
 Additional arguments can be accessed for this script by passing in the `--help` flag, or by modifying the `CONFIG` dictionary inside the script.

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "audiblelight"
-version = "0.1.1"
+version = "0.1.1.post1"
 description = "A controllable, end-to-end API for soundscape synthesis across ray-traced & real-world measured acoustics"
 authors = ["Huw Cheston <h.cheston@qmul.ac.uk>", "Iran Roman <i.roman@qmul.ac.uk>"]
 license = "CC-BY-4.0"
@@ -17,8 +17,6 @@ classifiers = [
 ]
 readme = "README.md"
 packages = [
-    { include = "scripts/**/*.py", format=["sdist", "wheel"] },
-    { include = "resources/mp3d_material_config.json", format=["sdist", "wheel"] },
     { include = "audiblelight/*", format=["sdist", "wheel"]}
 ]
 

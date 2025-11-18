@@ -1,5 +1,6 @@
 [run]
 omit =
     tests/*
-    scripts/*
+    audiblelight/scripts/*
+    audiblelight/resources/*
     audiblelight/download_data.py

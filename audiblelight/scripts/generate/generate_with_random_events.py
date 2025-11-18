@@ -16,7 +16,7 @@ from audiblelight import config, utils
 from audiblelight.core import Scene
 
 # OUTPUT DIRECTORY
-OUTFOLDER = utils.get_project_root() / "spatial_scenes"
+OUTFOLDER = utils.get_project_root() / "audiblelight/spatial_scenes"
 if not os.path.isdir(OUTFOLDER):
     os.makedirs(OUTFOLDER)
 

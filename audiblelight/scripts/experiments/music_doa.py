@@ -18,8 +18,8 @@ from audiblelight import config, utils
 from audiblelight.core import Scene
 
 # Filepaths, directories, etc.
-FG_DIR = utils.get_project_root() / "resources/soundevents"
-MESH_DIR = utils.get_project_root() / "resources/meshes"
+FG_DIR = utils.get_project_root() / "audiblelight/resources/soundevents"
+MESH_DIR = utils.get_project_root() / "audiblelight/resources/meshes"
 MESHES = list(MESH_DIR.rglob("*.glb"))
 
 # Types of noise we'll add

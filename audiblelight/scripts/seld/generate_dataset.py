@@ -39,17 +39,17 @@ from tqdm import tqdm
 from audiblelight import config, utils
 from audiblelight.augmentation import Distortion, Invert, PitchShift, Reverse, SpeedUp
 from audiblelight.core import Scene
+from audiblelight.scripts.seld.seld_dataset_assets import MESHES, SOFAS
 from audiblelight.worldstate import MATERIALS_JSON
-from scripts.seld.seld_dataset_assets import MESHES, SOFAS
 
 # For reproducible randomisation
 utils.seed_everything(utils.SEED)
 
 # Filepaths, directories, etc.
-FG_DIR = utils.get_project_root() / "resources/soundevents"
-MESH_DIR = utils.get_project_root() / "resources/meshes/gibson"
-SOFA_DIR = utils.get_project_root() / "resources/sofa/rirs"
-OUTPUT_DIR = utils.get_project_root() / "spatial_scenes_dcase_synthetic"
+FG_DIR = utils.get_project_root() / "audiblelight/resources/soundevents"
+MESH_DIR = utils.get_project_root() / "audiblelight/resources/meshes/gibson"
+SOFA_DIR = utils.get_project_root() / "audiblelight/resources/sofa/rirs"
+OUTPUT_DIR = utils.get_project_root() / "audiblelight/spatial_scenes_dcase_synthetic"
 
 # Parameters taken from DCASE data
 DURATION = 60

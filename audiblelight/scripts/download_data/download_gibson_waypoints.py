@@ -9,14 +9,14 @@ import shutil
 from pathlib import Path
 
 from audiblelight import utils
-from scripts.download_data.utils import download_file, extract_tar
+from audiblelight.scripts.download_data.utils import download_file, extract_tar
 
 # Download paths
 WAYPOINTS_ZIP = (
     "https://storage.googleapis.com/gibson_scenes/navigation_scenarios.tar.gz"
 )
 
-DEFAULT_PATH = str(utils.get_project_root() / "resources/waypoints")
+DEFAULT_PATH = str(utils.get_project_root() / "audiblelight/resources/waypoints")
 if not os.path.exists(DEFAULT_PATH):
     os.makedirs(DEFAULT_PATH)
 
