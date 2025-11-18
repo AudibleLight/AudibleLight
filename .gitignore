@@ -43,9 +43,11 @@ coverage.xml
 *.part
 
 !/resources/mp3d_material_config.json
-!/tests/test_resources/**/*.obj
-!/tests/test_resources/**/*.wav
-!/tests/test_resources/daga_foa.sofa
+!/audiblelight/resources/**/*.obj
+!/audiblelight/resources/**/*.wav
+!/audiblelight/resources/**/*.mp3
+!/audiblelight/resources/**/*.json
+!/audiblelight/resources/sofa/rirs/daga_foa.sofa
 
 # Sphinx documentation
 /docs/_build/

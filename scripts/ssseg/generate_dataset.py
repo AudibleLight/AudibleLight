@@ -83,7 +83,7 @@ def generate(generation_idx: int, **config) -> None:
     )
 
     # Uncomment to use a hardcoded SOFA path
-    # sofa_path = utils.get_project_root() / "tests/test_resources/metu_foa.sofa"
+    # sofa_path = utils.get_project_root() / "audiblelight/resources/metu_foa.sofa"
 
     # We want to add an extra key-value pair to our mapping so we can keep our interference audios separate
     init_mapper = sanitize_class_mapping(config["label_set"]).mapping

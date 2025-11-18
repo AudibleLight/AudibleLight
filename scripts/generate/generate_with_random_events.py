@@ -21,9 +21,9 @@ if not os.path.isdir(OUTFOLDER):
     os.makedirs(OUTFOLDER)
 
 # PATHS
-FG_FOLDER = utils.get_project_root() / "tests/test_resources/soundevents"
+FG_FOLDER = utils.get_project_root() / "audiblelight/resources/soundevents"
 BG_FOLDER = FG_FOLDER / "domesticSounds"
-MESH_PATH = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
+MESH_PATH = utils.get_project_root() / "audiblelight/resources/meshes/gibson/Oyens.glb"
 
 
 def parse_arguments():
