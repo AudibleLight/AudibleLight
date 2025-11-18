@@ -802,8 +802,8 @@ def main(path: Path = DEFAULT_PATH, cleanup: bool = DEFAULT_CLEANUP):
     print(f"RIRs will be downloaded to: {path}")
 
     source_path, sofa_path = (
-        Path(args.path) / "source_data",
-        Path(args.path) / "rirs",
+        Path(path) / "source_data",
+        Path(path) / "rirs",
     )
     for p in (source_path, sofa_path):
         os.makedirs(p, exist_ok=True)
