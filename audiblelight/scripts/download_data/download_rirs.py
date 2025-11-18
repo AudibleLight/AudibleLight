@@ -87,7 +87,7 @@ GDRIVE_REMOTES = {
     "database_name": "gdrive",
     "remotes": {
         "daga_foa.sofa": "https://drive.google.com/uc?id=1Wa4XD9I_Xa7F2v_DitQtU4Zcru93Gnlf",
-        "metu_foa.sofa": "https://drive.google.com/uc?id=1zamCd6OR6Tr5M40RdDhswYbT1wbGo2ZO",
+        "metu_foa.sofa": "https://drive.google.com/uc?id=1M0gLk9mhQks1o8YoZQI_qxI0OboSzPGB",
         "rsoanu_foa.sofa": "https://drive.google.com/uc?id=1_EzzntIc_ypJ8MoLKreWGEhouWUKOCDY",
     },
 }
