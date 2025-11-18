@@ -330,7 +330,12 @@ def test_list_all_directories(directory, raises):
 
 @pytest.mark.parametrize(
     "directory,expected",
-    [(utils.get_project_root() / "tests", ["femaleSpeech", "music", "meshes"])],
+    [
+        (
+            utils.get_project_root() / "audiblelight/resources",
+            ["femaleSpeech", "music", "gibson"],
+        )
+    ],
 )
 def test_list_deepest_directories(directory, expected):
     out = utils.list_deepest_directories(directory)
@@ -341,7 +346,12 @@ def test_list_deepest_directories(directory, expected):
 
 @pytest.mark.parametrize(
     "directory,expected",
-    [(utils.get_project_root() / "tests", ["femaleSpeech", "music", "meshes"])],
+    [
+        (
+            utils.get_project_root() / "audiblelight/resources",
+            ["femaleSpeech", "music", "gibson"],
+        )
+    ],
 )
 def test_list_innermost_directory_names(directory, expected):
     out = utils.list_innermost_directory_names(directory)
@@ -352,7 +362,12 @@ def test_list_innermost_directory_names(directory, expected):
 
 @pytest.mark.parametrize(
     "directory,expected",
-    [(utils.get_project_root() / "tests", ["femaleSpeech", "music", "meshes"])],
+    [
+        (
+            utils.get_project_root() / "audiblelight/resources",
+            ["femaleSpeech", "music", "gibson"],
+        )
+    ],
 )
 def test_list_innermost_directory_names_unique(directory, expected):
     out = utils.list_innermost_directory_names_unique(directory)
