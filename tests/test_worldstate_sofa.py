@@ -69,7 +69,7 @@ def test_add_emitter(kwargs, daga_space: WorldStateSOFA):
     ],
 )
 def test_get_nearest_source_idx(candidate_position, expected_idxs):
-    ws = WorldStateSOFA(sofa=utils_tests.TEST_RESOURCES / "daga_foa.sofa")
+    ws = WorldStateSOFA(sofa=utils_tests.TEST_RESOURCES / "sofa/rirs/daga_foa.sofa")
 
     # Define some arbitrary source positions
     source_positions = np.array(
@@ -96,7 +96,7 @@ def test_get_nearest_source_idx(candidate_position, expected_idxs):
 def test_simulate(sofa_path: str, n_emitters: int):
     # Create the WorldState
     ws = WorldStateSOFA(
-        sofa=utils_tests.TEST_RESOURCES / sofa_path,
+        sofa=utils_tests.TEST_RESOURCES / "sofa/rirs" / sofa_path,
         mic_alias="tester",
         sample_rate=22050,
     )
@@ -142,7 +142,7 @@ def test_define_trajectory(
 ):
     # Define the worldstate with the given .sofa file
     ws = WorldStateSOFA(
-        sofa=utils_tests.TEST_RESOURCES / sofa_path,
+        sofa=utils_tests.TEST_RESOURCES / "sofa/rirs" / sofa_path,
     )
 
     # Define the trajectory
@@ -260,7 +260,7 @@ def test_not_implemented_funcs(func_name: str, metu_space: WorldStateSOFA):
 def test_to_dict(sofa_name):
     # Create the worldstate and add a few emitters in
     ws = WorldStateSOFA(
-        sofa=utils_tests.TEST_RESOURCES / sofa_name,
+        sofa=utils_tests.TEST_RESOURCES / "sofa/rirs" / sofa_name,
         sample_rate=22050,
         mic_alias="tester",
     )
