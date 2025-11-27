@@ -11,11 +11,11 @@ import numpy as np
 from audiblelight import utils
 from audiblelight.micarrays import MicArray
 
-TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
+TEST_RESOURCES = utils.get_project_root() / "audiblelight/resources"
 SOUNDEVENT_DIR = TEST_RESOURCES / "soundevents"
 # Use tap for background audio
 BACKGROUND_DIR = SOUNDEVENT_DIR / "waterTap"
-MESH_DIR = TEST_RESOURCES / "meshes"
+MESH_DIR = TEST_RESOURCES / "meshes/gibson"
 OYENS_PATH = MESH_DIR / "Oyens.glb"
 OYENS_WAYPOINTS_PATH = MESH_DIR / "Oyens_waypoints.json"
 
@@ -30,8 +30,8 @@ TEST_AUDIOS = sorted(
 )
 TEST_MUSICS = [i for i in TEST_AUDIOS if "music" in i]
 
-METU_SOFA_URL = "https://drive.google.com/uc?id=1zamCd6OR6Tr5M40RdDhswYbT1wbGo2ZO"
-METU_SOFA_PATH = TEST_RESOURCES / "metu_foa.sofa"
+METU_SOFA_URL = "https://drive.google.com/uc?id=1M0gLk9mhQks1o8YoZQI_qxI0OboSzPGB"
+METU_SOFA_PATH = TEST_RESOURCES / "sofa/rirs/metu_foa.sofa"
 
 
 @dataclass(eq=False)

@@ -36,7 +36,7 @@ def oyens_space() -> WorldStateRLR:
 def daga_space() -> WorldStateSOFA:
     """Returns a WorldStateSOFA with DAGA file"""
     return WorldStateSOFA(
-        sofa=utils_tests.TEST_RESOURCES / "daga_foa.sofa",
+        sofa=utils_tests.TEST_RESOURCES / "sofa/rirs/daga_foa.sofa",
         sample_rate=config.SAMPLE_RATE,
     )
 
@@ -44,7 +44,7 @@ def daga_space() -> WorldStateSOFA:
 @pytest.fixture(scope="function")
 def metu_space() -> WorldStateSOFA:
     return WorldStateSOFA(
-        sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa",
+        sofa=utils_tests.TEST_RESOURCES / "sofa/rirs/metu_foa.sofa",
         sample_rate=config.SAMPLE_RATE,
     )
 
@@ -76,7 +76,7 @@ def metu_scene_no_overlap() -> Scene:
     Returns a scene object with the METU SOFA file, that doesn't allow for overlapping Events
     """
     backend = WorldStateSOFA(
-        sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa",
+        sofa=utils_tests.TEST_RESOURCES / "sofa/rirs/metu_foa.sofa",
         sample_rate=config.SAMPLE_RATE,
     )
 
@@ -117,7 +117,7 @@ def metu_scene_factory() -> Callable:
             duration=50,
             backend="sofa",
             backend_kwargs=dict(
-                sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa",
+                sofa=utils_tests.TEST_RESOURCES / "sofa/rirs/metu_foa.sofa",
             ),
             sample_rate=config.SAMPLE_RATE,
             fg_path=utils_tests.SOUNDEVENT_DIR,

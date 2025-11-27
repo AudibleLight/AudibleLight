@@ -54,11 +54,12 @@ CONFIG = {
     "ninterference_range": [1, 2],
     "dataset_length": 100000,
     "shuffle_label": False,
-    "foreground_dir": utils.get_project_root() / "resources/soundevents",
-    "background_dir": utils.get_project_root() / "resources/noise",
-    "rir_dir": utils.get_project_root() / "resources/sofa/rirs",
-    "interference_dir": utils.get_project_root() / "resources/interference",
-    "output_dir": utils.get_project_root() / "spatial_scenes_ssseg",
+    "foreground_dir": utils.get_project_root() / "audiblelight/resources/soundevents",
+    "background_dir": utils.get_project_root() / "audiblelight/resources/noise",
+    "rir_dir": utils.get_project_root() / "audiblelight/resources/sofa/rirs",
+    "interference_dir": utils.get_project_root()
+    / "audiblelight/resources/interference",
+    "output_dir": utils.get_project_root() / "audiblelight/spatial_scenes_ssseg",
     "duration": 10.0,
     "sr": 32000,
     "max_event_overlap": 3,
@@ -83,7 +84,7 @@ def generate(generation_idx: int, **config) -> None:
     )
 
     # Uncomment to use a hardcoded SOFA path
-    # sofa_path = utils.get_project_root() / "tests/test_resources/metu_foa.sofa"
+    # sofa_path = utils.get_project_root() / "audiblelight/resources/metu_foa.sofa"
 
     # We want to add an extra key-value pair to our mapping so we can keep our interference audios separate
     init_mapper = sanitize_class_mapping(config["label_set"]).mapping

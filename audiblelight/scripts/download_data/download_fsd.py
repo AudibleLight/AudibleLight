@@ -8,8 +8,8 @@ import os
 import shutil
 import subprocess
 
+from audiblelight.scripts.download_data.utils import BaseDataSetup, download_txt
 from audiblelight.utils import get_project_root
-from scripts.download_data.utils import BaseDataSetup, download_txt
 
 try:
     import soundata
@@ -20,7 +20,7 @@ except ImportError:
     )
 
 
-DEFAULT_PATH = str(get_project_root() / "resources/soundevents")
+DEFAULT_PATH = str(get_project_root() / "audiblelight/resources/soundevents")
 DEFAULT_CLEANUP = False
 DCASE_FSD50K_SELECTED = "https://zenodo.org/record/6406873/files/FSD50K_selected.txt"
 

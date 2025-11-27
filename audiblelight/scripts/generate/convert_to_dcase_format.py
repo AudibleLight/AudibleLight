@@ -16,8 +16,8 @@ from tqdm import tqdm
 
 from audiblelight import utils
 
-INPUT_DIR = utils.get_project_root() / "spatial_scenes"
-OUTPUT_DIR = utils.get_project_root() / "seld-dcase2023-data"
+INPUT_DIR = utils.get_project_root() / "audiblelight/spatial_scenes"
+OUTPUT_DIR = utils.get_project_root() / "audiblelight/seld-dcase2023-data"
 
 DCASE_SAMPLE_RATE = 24000
 TRAIN_SIZE = 0.8

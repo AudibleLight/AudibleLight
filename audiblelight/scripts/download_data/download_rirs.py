@@ -18,7 +18,11 @@ import soundfile as sf
 from scipy.io import loadmat
 
 from audiblelight import utils
-from scripts.download_data.utils import combine_multizip, download_file, extract_zip
+from audiblelight.scripts.download_data.utils import (
+    combine_multizip,
+    download_file,
+    extract_zip,
+)
 
 try:
     import mat73
@@ -30,7 +34,7 @@ except ImportError:
 
 SAMPLE_RATE = 24000
 
-DEFAULT_PATH = str(utils.get_project_root() / "resources/sofa")
+DEFAULT_PATH = str(utils.get_project_root() / "audiblelight/resources/sofa")
 DEFAULT_CLEANUP = True
 
 METU_REMOTES = {
@@ -83,7 +87,7 @@ GDRIVE_REMOTES = {
     "database_name": "gdrive",
     "remotes": {
         "daga_foa.sofa": "https://drive.google.com/uc?id=1Wa4XD9I_Xa7F2v_DitQtU4Zcru93Gnlf",
-        "metu_foa.sofa": "https://drive.google.com/uc?id=1zamCd6OR6Tr5M40RdDhswYbT1wbGo2ZO",
+        "metu_foa.sofa": "https://drive.google.com/uc?id=1M0gLk9mhQks1o8YoZQI_qxI0OboSzPGB",
         "rsoanu_foa.sofa": "https://drive.google.com/uc?id=1_EzzntIc_ypJ8MoLKreWGEhouWUKOCDY",
     },
 }
@@ -798,8 +802,8 @@ def main(path: Path = DEFAULT_PATH, cleanup: bool = DEFAULT_CLEANUP):
     print(f"RIRs will be downloaded to: {path}")
 
     source_path, sofa_path = (
-        Path(args.path) / "source_data",
-        Path(args.path) / "rirs",
+        Path(path) / "source_data",
+        Path(path) / "rirs",
     )
     for p in (source_path, sofa_path):
         os.makedirs(p, exist_ok=True)

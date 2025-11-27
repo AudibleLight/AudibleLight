@@ -19,7 +19,7 @@ install:
 
 tests:
 	poetry run flake8 audiblelight --count --select=E9,F63,F7,F82 --show-source --statistics
-	poetry run pytest -n 1 -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
+	poetry run pytest -n 1 -x --maxfail=1 --tb=long -vv --cov-branch --cov-report term-missing --cov-report=xml --cov=audiblelight tests --reruns 3 --reruns-delay 5 --random-order
 
 notebooks:
 	poetry run jupyter nbconvert --clear-output --inplace notebooks/*.ipynb
@@ -34,7 +34,7 @@ docs:
 	poetry run sphinx-build docs docs/_build
 
 download:
-	poetry run python scripts/download_data/download_fma.py --cleanup
-	poetry run python scripts/download_data/download_gibson.py --cleanup
-	poetry run python scripts/download_data/download_fsd.py --cleanup
-	poetry run python scripts/download_data/download_rirs.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_fma.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_gibson.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_fsd.py --cleanup
+	poetry run python audiblelight/scripts/download_data/download_rirs.py --cleanup

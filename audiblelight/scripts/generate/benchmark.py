@@ -16,12 +16,12 @@ from tqdm import tqdm
 
 from audiblelight import config, utils
 
-FG_DIR = utils.get_project_root() / "resources/soundevents"
+FG_DIR = utils.get_project_root() / "audiblelight/resources/soundevents"
 BG_DIR = FG_DIR / "domesticSounds"
-MESH_DIR = utils.get_project_root() / "resources/meshes"
+MESH_DIR = utils.get_project_root() / "audiblelight/resources/meshes"
 MESHES = list(MESH_DIR.rglob("*.glb"))
 
-OUTPUT_DIR = utils.get_project_root() / "spatial_scenes"
+OUTPUT_DIR = utils.get_project_root() / "audiblelight/spatial_scenes"
 
 # Distributions to sample
 STATIC_EVENTS = utils.sanitise_distribution(

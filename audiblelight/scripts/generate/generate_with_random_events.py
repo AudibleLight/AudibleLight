@@ -16,14 +16,14 @@ from audiblelight import config, utils
 from audiblelight.core import Scene
 
 # OUTPUT DIRECTORY
-OUTFOLDER = utils.get_project_root() / "spatial_scenes"
+OUTFOLDER = utils.get_project_root() / "audiblelight/spatial_scenes"
 if not os.path.isdir(OUTFOLDER):
     os.makedirs(OUTFOLDER)
 
 # PATHS
-FG_FOLDER = utils.get_project_root() / "tests/test_resources/soundevents"
+FG_FOLDER = utils.get_project_root() / "audiblelight/resources/soundevents"
 BG_FOLDER = FG_FOLDER / "domesticSounds"
-MESH_PATH = utils.get_project_root() / "tests/test_resources/meshes/Oyens.glb"
+MESH_PATH = utils.get_project_root() / "audiblelight/resources/meshes/gibson/Oyens.glb"
 
 
 def parse_arguments():

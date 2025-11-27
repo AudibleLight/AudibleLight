@@ -54,7 +54,7 @@ Alternatively, for a *development install*, you can run them from the command li
 
 .. code-block:: bash
 
-   poetry run python scripts/download_data/download_fsd.py --path path/to/save/fsd --cleanup
+   poetry run python audiblelight/scripts/download_data/download_fsd.py --path path/to/save/fsd --cleanup
 
 From a development install, you can also run all download scripts at once using the ``Makefile``:
 
@@ -62,7 +62,7 @@ From a development install, you can also run all download scripts at once using 
 
    make download
 
-For further information, see :file:`scripts/download_data/README.md`.
+For further information, see :file:`audiblelight/scripts/download_data/README.md`.
 
 Generate a dataset
 ^^^^^^^^^^^^^^^^^^
@@ -71,7 +71,7 @@ To generate an example dataset, run:
 
 .. code-block:: bash
 
-   poetry run python scripts/experiments/generate_dataset.py
+   poetry run python audiblelight/scripts/experiments/generate_dataset.py
 
 To see the available arguments that this script takes, add the ``--help`` argument
 

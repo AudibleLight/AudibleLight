@@ -34,7 +34,7 @@ from audiblelight.micarrays import (
 FACE_FILL_COLOR = [255, 0, 0, 255]
 MATERIALS_JSON = str(
     utils.sanitise_filepath(
-        utils.get_project_root() / "resources/mp3d_material_config.json"
+        utils.get_project_root() / "audiblelight/resources/mp3d_material_config.json"
     )
 )
 
