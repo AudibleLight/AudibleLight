@@ -23,6 +23,7 @@ from audiblelight.augmentation import ALL_EVENT_AUGMENTATIONS, EventAugmentation
 from audiblelight.class_mappings import (
     ClassMapping,
     TClassMapping,
+    infer_id_and_label_from_inputs,
     sanitize_class_mapping,
 )
 from audiblelight.event import Event
@@ -45,6 +46,7 @@ class Scene:
         sample_rate: Optional[custom_types.Numeric] = config.SAMPLE_RATE,
         fg_path: Optional[Union[str, Path]] = None,
         bg_path: Optional[Union[str, Path]] = None,
+        image_path: Optional[Union[str, Path]] = None,
         allow_duplicate_audios: bool = True,
         allow_same_class_events: bool = True,
         ref_db: Optional[custom_types.Numeric] = config.DEFAULT_REF_DB,
@@ -73,8 +75,10 @@ class Scene:
             backend: the name of the backend to use. Either 'rlr', 'sofa', 'or 'shoebox' are supported.
             fg_path: a directory (or list of directories) pointing to foreground audio. Note that directories will be
                 introspected recursively, such that audio files within any subdirectories will be detected also.
-            bg_path: a directory (or list of directories pointing to background audio. Note that directories will be
+            bg_path: a directory (or list of directories) pointing to background audio. Note that directories will be
                 introspected recursively, such that audio files within any subdirectories will be detected also.
+            fg_path: a directory (or list of directories) pointing to Event images. Note that directories will be
+                introspected recursively, such that image files within any subdirectories will be detected also.
             allow_duplicate_audios: if True (default), the same audio file can appear multiple times in the Scene.
             allow_same_class_events: if True (default), multiple Events from the same class may be added to the Scene.
             ref_db: reference decibel level for scene noise floor, defaults to -65 dB
@@ -183,14 +187,23 @@ class Scene:
 
         # Parse foreground audio directory (or directories) and obtain all valid audio files from within it
         self.fg_paths = (
-            self._parse_audio_directories(fg_path) if fg_path is not None else []
+            self._parse_input_directories(fg_path) if fg_path is not None else []
         )
-        self.fg_audios = self._introspect_audio_directories(self.fg_paths)
+        self.fg_audios = self._introspect_input_directories(self.fg_paths)
+
         # Do the same for background audio
         self.bg_paths = (
-            self._parse_audio_directories(bg_path) if bg_path is not None else []
+            self._parse_input_directories(bg_path) if bg_path is not None else []
         )
-        self.bg_audios = self._introspect_audio_directories(self.bg_paths)
+        self.bg_audios = self._introspect_input_directories(self.bg_paths)
+
+        # Parse image directory and obtain all valid image files
+        self.image_paths = (
+            self._parse_input_directories(image_path) if image_path is not None else []
+        )
+        self.fg_images = self._introspect_input_directories(
+            self.image_paths, exts=custom_types.IMAGE_EXTS
+        )
 
         # If False, we'll ensure that all randomly sampled event/ambience audio is unique when sampling
         self.allow_duplicate_audios = allow_duplicate_audios
@@ -233,26 +246,28 @@ class Scene:
         return int(ref_db)
 
     @staticmethod
-    def _parse_audio_directories(
-        audio_dir: Union[str, Path, list[str], list[Path]]
+    def _parse_input_directories(
+        input_dir: Union[str, Path, list[str], list[Path]]
     ) -> tuple[list[Path], list[Path]]:
         """
-        Validate audio directory (or list of directories) and return as a list of Path objects
+        Validate input directory (or list of directories) and return as a list of Path objects
         """
-        if not isinstance(audio_dir, list):
-            audio_dir = [audio_dir]
-        return utils.sanitise_directories(audio_dir)
+        if not isinstance(input_dir, list):
+            input_dir = [input_dir]
+        return utils.sanitise_directories(input_dir)
 
     @staticmethod
-    def _introspect_audio_directories(audio_dir: list[Path]) -> list[Path]:
+    def _introspect_input_directories(
+        audio_dir: list[Path], exts: tuple[str] = custom_types.AUDIO_EXTS
+    ) -> list[Path]:
         """
-        Introspect a list of audio directories to obtain all valid audio files
+        Introspect a list of directories to obtain all valid files ending with "ext"
         """
-        audio_paths = []
-        for ext in custom_types.AUDIO_EXTS:
+        input_paths = []
+        for ext in exts:
             for fg in audio_dir:
-                audio_paths.extend((fg.rglob(f"*.{ext}")))
-        return utils.sanitise_filepaths(audio_paths)
+                input_paths.extend((fg.rglob(f"*.{ext}")))
+        return utils.sanitise_filepaths(input_paths)
 
     def _parse_event_augmentations(
         self,
@@ -555,6 +570,14 @@ class Scene:
         Returns:
             bool: True if successful, False otherwise.
         """
+        # Coerce user provided image
+        if event_kwargs["image_filepath"] is not None:
+            image_filepath = utils.sanitise_filepath(event_kwargs["image_filepath"])
+
+            # Run validation checks on image
+            if not str(image_filepath).endswith(custom_types.IMAGE_EXTS):
+                logger.warning(f"Image filepath {image_filepath.name} may be invalid!")
+
         # Grab the alias: this should always be present inside the dictionary
         alias = event_kwargs["alias"]
 
@@ -572,6 +595,7 @@ class Scene:
         # Pre-resolve all user-specified override values (only done once)
         overrides = {
             "filepath": event_kwargs.get("filepath"),
+            "image_filepath": event_kwargs.get("image_filepath"),
             "scene_start": event_kwargs.get("scene_start"),
             "event_start": event_kwargs.get("event_start"),
             "duration": event_kwargs.get("duration"),
@@ -620,6 +644,33 @@ class Scene:
                     ),
                 }
             )
+
+            # Try and get the class ID and label from the filepath + mapping
+            current_kws["class_id"], current_kws["class_label"] = (
+                infer_id_and_label_from_inputs(
+                    current_kws["class_id"],
+                    current_kws["class_label"],
+                    self.class_mapping,
+                    current_kws["filepath"],
+                )
+            )
+
+            # If we have class labels, no image for this Event, but some images associated with the Scene
+            if all(
+                (
+                    current_kws["class_label"] is not None,
+                    current_kws["image_filepath"] is None,
+                    len(self.fg_images) > 0,
+                )
+            ):
+                # Try and grab a matching image for the class
+                valid_class_images = [
+                    img
+                    for img in self.fg_images
+                    if current_kws["class_label"] == img.parent.stem
+                ]
+                if len(valid_class_images) > 0:
+                    current_kws["image_filepath"] = random.choice(valid_class_images)
 
             # Create the event with the current keywords
             #  Need to strip out arguments that are only valid for adding emitters to the backend
@@ -855,6 +906,7 @@ class Scene:
         spatial_resolution: Optional[custom_types.Numeric] = None,
         spatial_velocity: Optional[custom_types.Numeric] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        image_filepath: Optional[Union[str, Path]] = None,
         **event_kwargs,
     ) -> Event:
         """
@@ -901,6 +953,8 @@ class Scene:
             spatial_resolution: Resolution of a moving sound event in Hz (i.e., number of IRs created per second)
             shape: the shape of a moving event trajectory; one of "linear", "semicircular", "random", "sine", "sawtooth", "predefined"
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
+            image_filepath: A path to an image file, used when generating visual representations of a scene.
+                Must be provided in order to generate videos from a Scene.
             event_kwargs: additional keyword arguments passed to Event.__init__
 
         Returns:
@@ -941,6 +995,15 @@ class Scene:
             ...     snr=0.0,
             ... )
 
+            Creating an event with an image:
+
+            >>> scene = Scene(...)
+            >>> scene.add_event(
+            ...     event_type="moving",
+            ...     filepath="some/path.wav",
+            ...     image_filepath="some/image.jpg"
+            ... )
+
         """
         # Call the requisite function to add the event
         if event_type == "static":
@@ -959,6 +1022,7 @@ class Scene:
                 class_label=class_label,
                 augmentations=augmentations,
                 max_place_attempts=max_place_attempts,
+                image_filepath=image_filepath,
                 **event_kwargs,
             )
 
@@ -981,6 +1045,7 @@ class Scene:
                 augmentations=augmentations,
                 ensure_direct_path=ensure_direct_path,
                 max_place_attempts=max_place_attempts,
+                image_filepath=image_filepath,
                 **event_kwargs,
             )
 
@@ -1002,6 +1067,7 @@ class Scene:
                 class_label=class_label,
                 ensure_direct_path=ensure_direct_path,
                 max_place_attempts=max_place_attempts,
+                image_filepath=image_filepath,
             )
 
         else:
@@ -1069,6 +1135,7 @@ class Scene:
         class_id: Optional[int] = None,
         class_label: Optional[str] = None,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        image_filepath: Optional[Union[str, Path]] = None,
         **event_kwargs,
     ) -> Event:
         """
@@ -1105,6 +1172,9 @@ class Scene:
             class_id: Optional ID to use for sound event class.
                 If not provided, will attempt to infer ID from filepath using the DCASE sound event classes.
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
+            image_filepath: A path to an image file, used when generating visual representations of a scene.
+                Must be provided in order to generate videos from a Scene.
+            event_kwargs: additional keyword arguments passed to Event.__init__
 
         Returns:
             the Event object added to the Scene
@@ -1157,6 +1227,8 @@ class Scene:
             keep_existing=True,
             max_place_attempts=max_place_attempts,
             class_mapping=self.class_mapping,
+            # Image stuff
+            image_filepath=image_filepath,
             **event_kwargs,
         )
 
@@ -1199,6 +1271,7 @@ class Scene:
         spatial_velocity: Optional[custom_types.Numeric] = None,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        image_filepath: Optional[Union[str, Path]] = None,
         **event_kwargs,
     ) -> Event:
         """
@@ -1238,6 +1311,8 @@ class Scene:
                 strings, these should correspond to microphone aliases inside `microphones`; a direct line will be
                 ensured with all of these microphones. If False, no direct line is required for a emitter.
             max_place_attempts (Numeric): the number of times to try and place an Event before giving up.
+            image_filepath: A path to an image file, used when generating visual representations of a scene.
+                Must be provided in order to generate videos from a Scene.
             event_kwargs: additional keyword arguments passed to Event.__init__
 
         Returns:
@@ -1288,6 +1363,8 @@ class Scene:
             ensure_direct_path=ensure_direct_path,
             max_place_attempts=max_place_attempts,
             class_mapping=self.class_mapping,
+            # Image stuff
+            image_filepath=image_filepath,
             **event_kwargs,
         )
 
@@ -1327,6 +1404,13 @@ class Scene:
         Returns:
             bool: True if successful, False otherwise.
         """
+        # Coerce user provided image
+        if event_kwargs["image_filepath"] is not None:
+            image_filepath = utils.sanitise_filepath(event_kwargs["image_filepath"])
+
+            # Run validation checks on image
+            if not str(image_filepath).endswith(custom_types.IMAGE_EXTS):
+                logger.warning(f"Image filepath {image_filepath.name} may be invalid!")
 
         # Grab the alias: this should always be present inside the dictionary
         alias = event_kwargs["alias"]
@@ -1421,6 +1505,35 @@ class Scene:
                     }
                 )
 
+                # Try and get the class ID and label from the filepath + mapping
+                current_kws["class_id"], current_kws["class_label"] = (
+                    infer_id_and_label_from_inputs(
+                        current_kws["class_id"],
+                        current_kws["class_label"],
+                        self.class_mapping,
+                        current_kws["filepath"],
+                    )
+                )
+
+                # If we have class labels, no image for this Event, but some images associated with the Scene
+                if all(
+                    (
+                        current_kws["class_label"] is not None,
+                        current_kws["image_filepath"] is None,
+                        len(self.fg_images) > 0,
+                    )
+                ):
+                    # Try and grab a matching image for the class
+                    valid_class_images = [
+                        img
+                        for img in self.fg_images
+                        if current_kws["class_label"] == img.parent.stem
+                    ]
+                    if len(valid_class_images) > 0:
+                        current_kws["image_filepath"] = random.choice(
+                            valid_class_images
+                        )
+
                 # Create the event with the current keywords
                 current_event = Event(**current_kws)
 
@@ -1489,6 +1602,7 @@ class Scene:
         class_label: Optional[str] = None,
         ensure_direct_path: Optional[Union[bool, list, str]] = False,
         max_place_attempts: Optional[custom_types.Numeric] = config.MAX_PLACE_ATTEMPTS,
+        image_filepath: Optional[Union[str, Path]] = None,
     ):
         """
         Add a moving event to the foreground that follows a predefined path.
@@ -1536,6 +1650,7 @@ class Scene:
             class_label=class_label,
             augmentations=augmentations,
             class_mapping=self.class_mapping,
+            image_filepath=image_filepath,
         )
         # Pre-initialise the event with required arguments + register the emitters
         utils.validate_kwargs(Event.__init__, **event_kwargs)

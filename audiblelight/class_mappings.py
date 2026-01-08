@@ -342,3 +342,36 @@ def sanitize_class_mapping(
         raise TypeError(
             f"Could not parse class mapping with type {type(class_mapping)}"
         )
+
+
+def infer_id_and_label_from_inputs(
+    class_id: Optional[int] = None,
+    class_label: Optional[str] = None,
+    class_mapping: ClassMapping = None,
+    filepath: str = None,
+) -> tuple[Union[int, None], Union[str, None]]:
+    """
+    Attempt to infer missing class IDs and labels from inputs
+    """
+    # Case 1: both provided → trust them
+    if class_id is not None and class_label is not None:
+        return class_id, class_label
+
+    # Case 2: one provided → infer the other
+    if (class_id is None) != (class_label is None):  # XOR: exactly one is None
+        if class_mapping is not None:
+            class_id, class_label = class_mapping.infer_missing_values(
+                class_id, class_label
+            )
+            return class_id, class_label
+
+    # Case 3: neither provided → infer both from filepath
+    if class_id is None and class_label is None:
+        if class_mapping is not None and filepath is not None:
+            class_id, class_label = class_mapping.infer_label_idx_from_filepath(
+                filepath
+            )
+            return class_id, class_label
+
+    # Optional: fallback / error handling
+    return class_id, class_label

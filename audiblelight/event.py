@@ -15,7 +15,11 @@ from PIL import Image
 
 from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
-from audiblelight.class_mappings import TClassMapping, sanitize_class_mapping
+from audiblelight.class_mappings import (
+    TClassMapping,
+    infer_id_and_label_from_inputs,
+    sanitize_class_mapping,
+)
 from audiblelight.worldstate import Emitter
 
 
@@ -118,19 +122,10 @@ class Event:
         # Class mapping: infer from input
         self.class_mapping = sanitize_class_mapping(class_mapping)
 
-        #  Attempt to infer class ID and labels in cases where only one is provided
-        if class_id or class_label:
-            if self.class_mapping:
-                class_id, class_label = self.class_mapping.infer_missing_values(
-                    class_id, class_label
-                )
-        # Otherwise, try and infer both the ID and the label from the filepath
-        else:
-            if self.class_mapping:
-                class_id, class_label = (
-                    self.class_mapping.infer_label_idx_from_filepath(self.filepath)
-                )
-        self.class_id, self.class_label = class_id, class_label
+        # Try and infer ID and label from inputs
+        self.class_id, self.class_label = infer_id_and_label_from_inputs(
+            class_id, class_label, self.class_mapping, self.filepath
+        )
 
         # Get the full duration of the audio file
         self.audio_full_duration = utils.sanitise_positive_number(
