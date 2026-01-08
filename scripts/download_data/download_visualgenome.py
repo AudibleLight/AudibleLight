@@ -41,11 +41,9 @@ DCASE_VG_SELECTED = {
         "locker",
     ],
     "bell": [
-        "campbell",
         "bell",
         "chime",
         "alarm",
-        "signal",
     ],
     "music": [
         "musician",
@@ -88,7 +86,6 @@ DCASE_VG_SELECTED = {
         "closet",
         "cabinet",
         "locker",
-        "cubicle",
     ],
 }
 
