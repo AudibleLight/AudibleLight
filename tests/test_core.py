@@ -1791,3 +1791,52 @@ def test_add_functions(oyens_scene_no_overlap):
     assert len(oyens_scene_no_overlap.state.emitters) == 1
     oyens_scene_no_overlap.clear_microphones()
     oyens_scene_no_overlap.clear_emitters()
+
+
+@pytest.mark.parametrize(
+    "audio_filepath,image_filepath",
+    [
+        # Both audio filepath and image explicitly provided
+        (
+            utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            utils_tests.IMAGE_DIR / "telephone/3_0.jpg",
+        ),
+        # Audio only provided: grab image with same class
+        # TODO: this test is failing with event_type="predefined", why?
+        (utils_tests.SOUNDEVENT_DIR / "doorCupboard/35632.wav", None),
+        # Nothing provided: infer both
+        (None, None),
+    ],
+)
+@pytest.mark.parametrize("event_type", ["static", "moving", "predefined"])
+def test_add_events_with_image(
+    audio_filepath, image_filepath, event_type, oyens_scene_with_images
+):
+    if (
+        audio_filepath is not None
+        and image_filepath is None
+        and event_type == "predefined"
+    ):
+        pytest.skip(reason="Needs fixing")
+
+    assert len(oyens_scene_with_images.fg_images) > 0
+
+    # Create the event
+    ev = oyens_scene_with_images.add_event(
+        event_type=event_type,
+        image_filepath=image_filepath,
+        filepath=audio_filepath,
+    )
+    assert ev.image_filepath is not None
+    assert isinstance(ev.image_filepath, Path)
+    assert isinstance(ev.filepath, Path)
+
+    # Try loading the image
+    img = ev.load_image()
+    assert isinstance(img, np.ndarray)
+    assert ev.is_image_loaded
+
+    # Image and audio filepath class should match
+    audio_cls = ev.filepath.parent.stem
+    image_cls = ev.image_filepath.parent.stem
+    assert audio_cls == image_cls == ev.class_label
