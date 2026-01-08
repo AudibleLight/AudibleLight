@@ -46,6 +46,7 @@ coverage.xml
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
 !/tests/test_resources/daga_foa.sofa
+!/tests/test_resources/**/*.jpg
 
 # Sphinx documentation
 /docs/_build/
