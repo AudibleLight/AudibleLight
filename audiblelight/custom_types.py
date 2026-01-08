@@ -19,6 +19,7 @@ NUMERIC_DTYPES = (
 # Used as a typehint
 Numeric = Union[int, float, complex, np.integer, np.floating]
 AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
+IMAGE_EXTS = ("jpg", "jpeg", "png")
 
 
 class DistributionLike(Protocol):
