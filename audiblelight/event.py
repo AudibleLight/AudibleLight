@@ -11,6 +11,7 @@ import librosa
 import numpy as np
 from deepdiff import DeepDiff
 from loguru import logger
+from PIL import Image
 
 from audiblelight import config, custom_types, utils
 from audiblelight.augmentation import EventAugmentation, validate_event_augmentation
@@ -31,6 +32,7 @@ class Event:
         augmentations: Optional[
             Union[Iterable[Type[EventAugmentation]], Type[EventAugmentation]]
         ] = None,
+        image_filepath: Optional[Union[str, Path]] = None,
         scene_start: Optional[float] = None,
         event_start: Optional[float] = None,
         duration: Optional[float] = None,
@@ -55,6 +57,8 @@ class Event:
                 If not provided, `register_emitters` must be called prior to rendering any Scene this Event is in.
             augmentations: Iterable of EventAugmentation objects associated with this Event.
                 If not provided, EventAugmentations can be registered later by calling `register_augmentations`.
+            image_filepath: A path to an image file, used when generating visual representations of a scene.
+                Must be provided in order to generate videos from a Scene.
             scene_start: Time to start the Event within the Scene, in seconds. Must be a positive number.
                 If not provided, defaults to the beginning of the Scene (i.e., 0 seconds).
             event_start: Time to start the Event audio from, in seconds. Must be a positive number.
@@ -99,6 +103,14 @@ class Event:
         # Spatial attributes
         self.spatial_resolution = spatial_resolution
         self.spatial_velocity = spatial_velocity
+
+        # Image attributes: we'll load the image later, when calling `load_image`
+        self.image_filepath = (
+            utils.sanitise_filepath(image_filepath)
+            if image_filepath is not None
+            else None
+        )
+        self.image = None
 
         # Metadata attributes
         self.filename = self.filepath.name
@@ -378,6 +390,17 @@ class Event:
         """
         return self.audio is not None and librosa.util.valid_audio(self.audio)
 
+    @property
+    def is_image_loaded(self) -> bool:
+        """
+        Returns True if image is loaded and valid
+        """
+        return (
+            self.image is not None
+            and isinstance(self.image, np.ndarray)
+            and self.image.ndim == 3
+        )
+
     # noinspection PyUnreachableCode
     def _parse_emitters(
         self,
@@ -520,6 +543,33 @@ class Event:
         self.audio = audio_out
         return self.audio
 
+    def load_image(
+        self,
+        ignore_cache: Optional[bool] = False,
+    ) -> np.ndarray:
+        """
+        Returns the image array of the Event.
+
+        The image will be loaded and converted to RGB.
+
+        After calling this function once, `audio` is cached as an attribute of this Event instance, and this
+        attribute will be returned on successive calls unless `ignore_cache` is True.
+
+        Returns:
+            np.ndarray: the image array.
+        """
+        if self.is_image_loaded and not ignore_cache:
+            return self.image
+        elif self.image_filepath is None:
+            raise FileNotFoundError(
+                "No image filepath was passed when calling `Event.__init__`"
+            )
+        else:
+            # Load in PIL, convert to RGB, and convert to numpy array
+            image_loaded = Image.open(self.image_filepath).convert("RGB")
+            self.image = np.asarray(image_loaded).astype(int)
+            return self.image
+
     def to_dict(self) -> dict:
         """
         Returns metadata for this Event as a dictionary.
@@ -552,6 +602,10 @@ class Event:
             duration=self.duration,
             snr=self.snr,
             sample_rate=self.sample_rate,
+            # Image stuff,
+            image_filepath=(
+                str(self.image_filepath) if self.image_filepath is not None else None
+            ),
             # Spatial stuff (inherited from Emitter objects)
             spatial_resolution=self.spatial_resolution if self.is_moving else None,
             spatial_velocity=self.spatial_velocity if self.is_moving else None,
@@ -637,6 +691,7 @@ class Event:
             event_start=input_dict["event_start"],
             duration=input_dict["duration"],
             snr=input_dict["snr"],
+            image_filepath=input_dict.get("image_filepath", None),
             shape=input_dict.get("shape", None),
             sample_rate=input_dict["sample_rate"],
             class_id=input_dict["class_id"],
