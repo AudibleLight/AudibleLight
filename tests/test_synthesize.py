@@ -424,3 +424,52 @@ def test_compute_dry_audio(event_kwargs, oyens_scene_no_overlap):
         # Min/max of the audio should be the same, however
         assert pytest.approx(padded_audio.min()) == audio.min()
         assert pytest.approx(padded_audio.max()) == audio.max()
+
+
+@pytest.mark.parametrize(
+    "image_filepath",
+    [
+        utils_tests.IMAGE_DIR / "telephone/3_0.jpg",
+    ],
+)
+def test_video_generation(image_filepath, oyens_scene_with_images):
+    # add some short events with a set audio file and image
+    oyens_scene_with_images.add_event(
+        event_type="static",
+        filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+        image_filepath=image_filepath,
+        duration=0.5,
+        scene_start=2.5,
+        # add at a known position: definitely visible from microphone
+        position=[1.5, -0.5, 0.5],
+    )
+    oyens_scene_with_images.add_event(
+        event_type="static",
+        filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+        image_filepath=image_filepath,
+        duration=0.5,
+        scene_start=7.5,
+        # add at another known position
+        position=[2.5, -3.0, 1.0],
+    )
+
+    video_out_path = utils_tests.TEST_RESOURCES / "video_test"
+    audio_out_path = utils_tests.TEST_RESOURCES / "audio_test"
+    oyens_scene_with_images.generate(
+        audio=True,
+        metadata_dcase=False,
+        metadata_json=False,
+        video=True,
+        video_fname=video_out_path,
+        audio_fname=audio_out_path,
+    )
+
+    # Video file should exist
+    assert video_out_path.with_name("video_test_mic000.mp4").exists()
+
+    # TODO: check video file duration, fps, resolution, etc.
+
+    # Manual checks:
+    #  1) Check video file manually to ensure that the two images appear correctly
+    #  2) Combine with `ffmpeg -i video_test_mic000.mp4 -i audio_test_mic000.wav -c:v copy -c:a aac output.mp4`
+    #       Check video + audio start and stop at same time

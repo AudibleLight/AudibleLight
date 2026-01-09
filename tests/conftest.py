@@ -77,18 +77,22 @@ def oyens_scene_with_images() -> Scene:
     """
     # Create a dummy scene
     sc = Scene(
-        duration=50,
+        duration=10,  # short duration to keep video size small
         backend="rlr",
         sample_rate=config.SAMPLE_RATE,
         fg_path=utils_tests.SOUNDEVENT_DIR,
         bg_path=utils_tests.BACKGROUND_DIR,
         image_path=utils_tests.IMAGE_DIR,
+        # Run on low power mode: decimate textures, no anti-aliasing
+        video_low_power=False,
         max_overlap=1,  # no overlapping sound events allowed
         backend_kwargs=dict(
             waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH
         ),
     )
-    sc.add_microphone(microphone_type="ambeovr")
+
+    # Add mic at specific position
+    sc.add_microphone(microphone_type="ambeovr", position=[3.5, -3.5, 1.5])
     return sc
 
 
