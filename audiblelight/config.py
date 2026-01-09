@@ -10,6 +10,11 @@ FFT_SIZE = 512
 WIN_SIZE = 256
 HOP_SIZE = 128
 
+# Video
+VIDEO_RESOLUTION = (3072, 1024)  # width, height
+VIDEO_FPS = 10
+VIDEO_TEXTURE_DECIMATE = (1072, 1072)  # reduce textures to this on low power mode
+
 # Scene
 SCENE_DURATION = 60
 DEFAULT_REF_DB = -65
