@@ -4,15 +4,17 @@
 """Test cases for functionality inside audiblelight/synthesize.py"""
 
 
+import os
+import subprocess
 from time import time
 from unittest.mock import PropertyMock, patch
 
+import cv2
 import librosa.util
 import numpy as np
 import pytest
 
 import audiblelight.synthesize as syn
-from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.worldstate import Emitter
 from tests import utils_tests
@@ -445,28 +447,6 @@ def test_compute_dry_audio(event_kwargs, oyens_scene_no_overlap):
     ],
 )
 def test_video_generation(audio_filepath, image_filepath, oyens_scene_with_images):
-    import cv2
-
-    video_res = (1920, 960)
-    video_fps = 10
-
-    test_scene = Scene(
-        duration=10,  # short duration to keep video size small
-        backend="rlr",
-        sample_rate=22050,
-        fg_path=utils_tests.SOUNDEVENT_DIR,
-        bg_path=utils_tests.BACKGROUND_DIR,
-        image_path=utils_tests.IMAGE_DIR,
-        # Run on low power mode: decimate textures, no anti-aliasing
-        video_low_power=True,
-        video_res=video_res,
-        video_fps=video_fps,
-        max_overlap=1,  # no overlapping sound events allowed
-        backend_kwargs=dict(
-            waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH
-        ),
-    )
-
     # add some short events with a set audio file and image
     oyens_scene_with_images.add_event(
         event_type="static",
@@ -478,12 +458,15 @@ def test_video_generation(audio_filepath, image_filepath, oyens_scene_with_image
         position=[1.5, -0.5, 0.5],
     )
     ev = oyens_scene_with_images.add_event(
-        event_type="static",
+        event_type="moving",
+        shape="linear",
         filepath=audio_filepath,
         image_filepath=image_filepath,
         duration=0.5,
         scene_start=7.5,
-        # add at another known position
+        spatial_velocity=0.5,
+        spatial_resolution=2.0,
+        # start at another known position
         position=[2.5, -3.0, 1.0],
     )
 
@@ -504,6 +487,12 @@ def test_video_generation(audio_filepath, image_filepath, oyens_scene_with_image
     )
     assert video_out_path_full.exists()
 
+    # Audio file should exist
+    audio_out_path_full = audio_out_path.with_name(
+        f"audio_test_{ev.class_label}_mic000.wav"
+    )
+    assert audio_out_path_full.exists()
+
     # Read video in openCV
     vid = cv2.VideoCapture(video_out_path_full)
 
@@ -515,12 +504,19 @@ def test_video_generation(audio_filepath, image_filepath, oyens_scene_with_image
     duration = frame_count / fps
 
     # Should be the same as set in the Scene object
-    assert height == test_scene.video_res[1]
-    assert width == test_scene.video_res[0]
-    assert fps == test_scene.video_fps
-    assert pytest.approx(duration) == test_scene.duration
+    assert height == oyens_scene_with_images.video_res[1]
+    assert width == oyens_scene_with_images.video_res[0]
+    assert fps == oyens_scene_with_images.video_fps
+    assert pytest.approx(duration) == oyens_scene_with_images.duration
 
     # Manual checks:
     #  1) Check video file manually to ensure that the two images appear correctly
     #  2) Combine with `ffmpeg -i video_test_mic000.mp4 -i audio_test_mic000.wav -c:v copy -c:a aac output.mp4`
     #       Check video + audio start and stop at same time
+    output_video_path = utils_tests.TEST_RESOURCES / f"output_{ev.class_label}.mp4"
+    subprocess.call(
+        f"ffmpeg -i {str(video_out_path_full)} -i {str(audio_out_path_full)} -c:v libx264 -c:a aac -y {str(output_video_path)}",
+        shell=True,
+    )
+    os.remove(video_out_path_full)
+    os.remove(audio_out_path_full)

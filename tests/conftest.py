@@ -89,6 +89,8 @@ def oyens_scene_with_images() -> Scene:
         backend_kwargs=dict(
             waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH
         ),
+        video_res=(960, 480),
+        video_fps=5,
     )
 
     # Add mic at specific position
