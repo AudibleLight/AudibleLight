@@ -66,6 +66,11 @@ class Scene:
         ] = None,
         backend_kwargs: Optional[dict] = None,
         class_mapping: Optional[Union[TClassMapping, dict, str]] = "DCASE2023Task3",
+        video_fps: Optional[custom_types.Numeric] = config.VIDEO_FPS,
+        video_res: Optional[
+            tuple[custom_types.Numeric, custom_types.Numeric]
+        ] = config.VIDEO_RESOLUTION,
+        video_low_power: Optional[bool] = True,
     ):
         """
         Initializes the Scene with a given duration and mesh.
@@ -104,6 +109,10 @@ class Scene:
             backend_kwargs: keyword arguments passed to `audiblelight.WorldState`.
             class_mapping: a mapping used to map class names to indices, and vice versa. Can be a subclass of
                 `audiblelight.class_mapping.ClassMapping`, `dict`, or `str`. Defaults to DCASE 2023, task 3 mapping
+            video_fps: The number of frames-per-second to use when creating a video, defaults to 10
+            video_res: The resolution of generated video files, defaults to (3072 x 1024)
+            video_low_power: Applies a variety of adjustments to improve video performance on weaker hardware.
+
         """
 
         # Set attributes passed in by the user
@@ -231,6 +240,17 @@ class Scene:
 
         # Parse class mapping
         self.class_mapping = sanitize_class_mapping(class_mapping)
+
+        # Video stuff
+        self.video_fps = utils.sanitise_positive_number(video_fps, cast_to=int)
+        if not isinstance(video_res, (tuple, list)) or len(video_res) != 2:
+            raise TypeError(
+                "Video resolution must be an iterable of exactly two positive numeric values."
+            )
+        self.video_res = [
+            utils.sanitise_positive_number(vr, cast_to=int) for vr in video_res
+        ]
+        self.video_low_power = video_low_power
 
     @staticmethod
     def _sanitise_ref_db(ref_db: Any) -> int:
@@ -1697,6 +1717,8 @@ class Scene:
         metadata_dcase: bool = True,
         audio_fname: Optional[Union[str, Path]] = "audio_out",
         metadata_fname: Optional[Union[str, Path]] = "metadata_out",
+        video: bool = False,
+        video_fname: Optional[Union[str, Path]] = "video_out",
     ) -> None:
         """
         Render scene to disk. Currently only audio and metadata are rendered.
@@ -1708,16 +1730,12 @@ class Scene:
             metadata_dcase: whether to save metadata CSVs in DCASE format, default to `True`
             audio_fname: name to use for the output audio file, default to "audio_out"
             metadata_fname: name to use for the output metadata, default to "metadata_out"
+            video: whether to save video as an output, default to `False`
+            video_fname: name to use for the output video, default to "video_out"
 
         Returns:
             None
         """
-        from audiblelight.synthesize import (
-            generate_dcase2024_metadata,
-            generate_scene_audio_from_events,
-            render_audio_for_all_scene_events,
-        )
-
         # Sanitise output directory
         #  Create a new temporary directory inside project root if not provided
         if output_dir is None:
@@ -1730,16 +1748,22 @@ class Scene:
         # Sanitise filepaths: strip out suffixes, we'll add these in later
         audio_path = (output_dir / audio_fname).with_suffix("")
         metadata_path = (output_dir / metadata_fname).with_suffix("")
-
-        # Render all the audio
-        #  This renders the IRs inside the worldstate
-        #  It then populates the `.spatial_audio` attribute inside each Event
-        #  And populates the `audio` attribute inside this instance
-        render_audio_for_all_scene_events(self)
-        generate_scene_audio_from_events(self)
+        video_path = (output_dir / video_fname).with_suffix("")
 
         # Write the audio output to a separate .wav, one per mic
         if audio:
+            from audiblelight.synthesize import (
+                generate_scene_audio_from_events,
+                render_audio_for_all_scene_events,
+            )
+
+            # Render all the audio
+            #  This renders the IRs inside the worldstate
+            #  It then populates the `.spatial_audio` attribute inside each Event
+            #  And populates the `audio` attribute inside this instance
+            render_audio_for_all_scene_events(self)
+            generate_scene_audio_from_events(self)
+
             for mic_alias, mic_audio in self.audio.items():
                 sf.write(
                     audio_path.with_suffix(".wav").with_stem(
@@ -1748,6 +1772,12 @@ class Scene:
                     mic_audio.T,
                     int(self.sample_rate),
                 )
+
+        # Generating a video
+        if video:
+            from audiblelight.synthesize import generate_scene_video_from_events
+
+            generate_scene_video_from_events(self, video_path)
 
         # Get the metadata and add the spatial audio format in
         if metadata_json or metadata_dcase:
@@ -1760,6 +1790,8 @@ class Scene:
 
         # Generate DCASE-2024 style metadata
         if metadata_dcase:
+            from audiblelight.synthesize import generate_dcase2024_metadata
+
             dcase_meta = generate_dcase2024_metadata(self)
             # Save a single CSV file for every microphone we have
             for mic, df in dcase_meta.items():
@@ -1955,6 +1987,12 @@ class Scene:
         Alias for `WorldState.get_microphone`
         """
         return self.state.get_microphone(alias)
+
+    def get_microphones(self) -> list[Type["MicArray"]]:
+        """
+        Alias for `WorldState.get_microphones`
+        """
+        return self.state.get_microphones()
 
     def get_ambience(self, alias) -> Ambience:
         """

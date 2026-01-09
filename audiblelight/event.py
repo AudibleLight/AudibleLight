@@ -562,7 +562,7 @@ class Event:
         else:
             # Load in PIL, convert to RGB, and convert to numpy array
             image_loaded = Image.open(self.image_filepath).convert("RGB")
-            self.image = np.asarray(image_loaded).astype(int)
+            self.image = np.asarray(image_loaded, dtype=np.uint8)
             return self.image
 
     def to_dict(self) -> dict:
