@@ -997,7 +997,7 @@ def get_video_frames_with_events(
     scene: Scene, video_timestamps: np.ndarray
 ) -> np.ndarray:
     """
-    Return a list of dictionries containing information about the Events within frames of the video
+    Return an array containing information about the Events within frames of the video
     """
     video_res = []
 
@@ -1026,7 +1026,48 @@ def get_video_frames_with_events(
                 )
                 video_res.append(frame_res)
 
-        # TODO: deal with moving events
+        elif ev.is_moving:
+            # Determine frame indices for event start and end
+            #  The `max/min` function just provide some clamping in case somehow we exceed the duration
+            start_idx = np.argmin(np.abs(video_timestamps - max(ev.scene_start, 0.0)))
+            end_idx = np.argmin(
+                np.abs(video_timestamps - min(ev.scene_end, scene.duration))
+            )
+
+            # This is the frame indices where the frame lasts
+            event_range = np.arange(start_idx, end_idx + 1)
+
+            # Get the absolute position of all emitters for this event
+            coords = np.vstack([e.coordinates_absolute for e in ev.emitters])
+
+            # Get the times we'll interpolate using
+            interp_times = video_timestamps[event_range]
+
+            # Get the approximate times for every coordinate
+            coord_times = np.linspace(
+                min(interp_times), max(interp_times), num=len(coords)
+            )
+            # Interpolate between the coordinates and timepoints
+            interpolated = np.stack(
+                [
+                    np.interp(interp_times, coord_times, coords[:, dim])
+                    for dim in range(coords.shape[1])
+                ],
+                axis=1,
+            )
+
+            # Iterate over all frame indices that this Event is contained in
+            for ts_idx, (x, y, z) in zip(event_range, interpolated):
+                # event number, frame number, timestamp, x, y, z
+                frame_res = (
+                    ev_idx,
+                    int(ts_idx),
+                    float(video_timestamps[ts_idx]),
+                    float(x),
+                    float(y),
+                    float(z),
+                )
+                video_res.append(frame_res)
 
     return np.array(video_res)
 
@@ -1137,7 +1178,7 @@ def generate_scene_video_from_events(
     video_frame_len = 1 / scene.video_fps
     video_n_frames = round(scene.duration / video_frame_len)
     video_timestamps = np.linspace(
-        0, scene.duration, video_n_frames, endpoint=True, dtype=float
+        0, scene.duration, video_n_frames, endpoint=False, dtype=float
     )
 
     # Numpy array corresponding to annotated frames
@@ -1156,13 +1197,12 @@ def generate_scene_video_from_events(
 
         # Camera position is the center point of the microphone
         camera_position = mic.coordinates_center
-
-        # Grab a pyvista plotter for this microphone
-        plotter = initialise_plotter(scene)
-
         # Camera should look horizontally (same Z-coordinate as camera position)
         #  Need to do this or result will look "tilted"
         focal_point = (0.0, 0.0, camera_position[2])
+
+        # Grab a pyvista plotter for this microphone
+        plotter = initialise_plotter(scene)
 
         # Set camera position within the plotter
         plotter.camera_position = [
@@ -1207,7 +1247,7 @@ def generate_scene_video_from_events(
             if frame_out.dtype != np.uint8:
                 frame_out = frame_out.astype(np.uint8)
 
-            # Convert RGB → BGR for OpenCV
+            # Convert RGB -> BGR for OpenCV
             frame_out_bgr = cv2.cvtColor(frame_out, cv2.COLOR_RGB2BGR)
 
             # Write frame
