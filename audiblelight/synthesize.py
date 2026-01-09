@@ -1160,10 +1160,14 @@ def generate_scene_video_from_events(
         # Grab a pyvista plotter for this microphone
         plotter = initialise_plotter(scene)
 
+        # Camera should look horizontally (same Z-coordinate as camera position)
+        #  Need to do this or result will look "tilted"
+        focal_point = (0.0, 0.0, camera_position[2])
+
         # Set camera position within the plotter
         plotter.camera_position = [
             camera_position,
-            (0.0, 0.0, 0.0),  # focal point
+            focal_point,
             VIEW_UP,
         ]
 

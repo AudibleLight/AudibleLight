@@ -84,7 +84,7 @@ def oyens_scene_with_images() -> Scene:
         bg_path=utils_tests.BACKGROUND_DIR,
         image_path=utils_tests.IMAGE_DIR,
         # Run on low power mode: decimate textures, no anti-aliasing
-        video_low_power=False,
+        video_low_power=True,
         max_overlap=1,  # no overlapping sound events allowed
         backend_kwargs=dict(
             waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH

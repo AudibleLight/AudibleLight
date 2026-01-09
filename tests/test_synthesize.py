@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 import audiblelight.synthesize as syn
+from audiblelight.core import Scene
 from audiblelight.event import Event
 from audiblelight.worldstate import Emitter
 from tests import utils_tests
@@ -427,25 +428,58 @@ def test_compute_dry_audio(event_kwargs, oyens_scene_no_overlap):
 
 
 @pytest.mark.parametrize(
-    "image_filepath",
+    "audio_filepath,image_filepath",
     [
-        utils_tests.IMAGE_DIR / "telephone/3_0.jpg",
+        (
+            utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            utils_tests.IMAGE_DIR / "telephone/3_0.jpg",
+        ),
+        (
+            utils_tests.SOUNDEVENT_DIR / "waterTap/95709.wav",
+            utils_tests.IMAGE_DIR / "waterTap/32_0.jpg",
+        ),
+        (
+            utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+            utils_tests.IMAGE_DIR / "maleSpeech/2_0.jpg",
+        ),
     ],
 )
-def test_video_generation(image_filepath, oyens_scene_with_images):
+def test_video_generation(audio_filepath, image_filepath, oyens_scene_with_images):
+    import cv2
+
+    video_res = (1920, 960)
+    video_fps = 10
+
+    test_scene = Scene(
+        duration=10,  # short duration to keep video size small
+        backend="rlr",
+        sample_rate=22050,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        image_path=utils_tests.IMAGE_DIR,
+        # Run on low power mode: decimate textures, no anti-aliasing
+        video_low_power=True,
+        video_res=video_res,
+        video_fps=video_fps,
+        max_overlap=1,  # no overlapping sound events allowed
+        backend_kwargs=dict(
+            waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH
+        ),
+    )
+
     # add some short events with a set audio file and image
     oyens_scene_with_images.add_event(
         event_type="static",
-        filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+        filepath=audio_filepath,
         image_filepath=image_filepath,
         duration=0.5,
         scene_start=2.5,
         # add at a known position: definitely visible from microphone
         position=[1.5, -0.5, 0.5],
     )
-    oyens_scene_with_images.add_event(
+    ev = oyens_scene_with_images.add_event(
         event_type="static",
-        filepath=utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+        filepath=audio_filepath,
         image_filepath=image_filepath,
         duration=0.5,
         scene_start=7.5,
@@ -453,8 +487,8 @@ def test_video_generation(image_filepath, oyens_scene_with_images):
         position=[2.5, -3.0, 1.0],
     )
 
-    video_out_path = utils_tests.TEST_RESOURCES / "video_test"
-    audio_out_path = utils_tests.TEST_RESOURCES / "audio_test"
+    video_out_path = utils_tests.TEST_RESOURCES / f"video_test_{ev.class_label}"
+    audio_out_path = utils_tests.TEST_RESOURCES / f"audio_test_{ev.class_label}"
     oyens_scene_with_images.generate(
         audio=True,
         metadata_dcase=False,
@@ -465,9 +499,26 @@ def test_video_generation(image_filepath, oyens_scene_with_images):
     )
 
     # Video file should exist
-    assert video_out_path.with_name("video_test_mic000.mp4").exists()
+    video_out_path_full = video_out_path.with_name(
+        f"video_test_{ev.class_label}_mic000.mp4"
+    )
+    assert video_out_path_full.exists()
 
-    # TODO: check video file duration, fps, resolution, etc.
+    # Read video in openCV
+    vid = cv2.VideoCapture(video_out_path_full)
+
+    # Get properties of the video file
+    height = vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    width = vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+    fps = vid.get(cv2.CAP_PROP_FPS)
+    frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = frame_count / fps
+
+    # Should be the same as set in the Scene object
+    assert height == test_scene.video_res[1]
+    assert width == test_scene.video_res[0]
+    assert fps == test_scene.video_fps
+    assert pytest.approx(duration) == test_scene.duration
 
     # Manual checks:
     #  1) Check video file manually to ensure that the two images appear correctly
