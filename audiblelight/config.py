@@ -14,7 +14,7 @@ HOP_SIZE = 128
 #  resolution is default to STARSS videos
 VIDEO_RESOLUTION = (1920, 960)  # width, height
 VIDEO_FPS = 10
-VIDEO_TEXTURE_DECIMATE = (1072, 1072)  # reduce textures to this on low power mode
+VIDEO_TEXTURE_DECIMATE = (536, 536)  # reduce textures to this on low power mode
 
 # Scene
 SCENE_DURATION = 60
