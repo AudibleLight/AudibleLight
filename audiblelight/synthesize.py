@@ -1075,6 +1075,10 @@ def get_video_frames_with_events(
 def create_event_plane(
     event_position: np.ndarray,
     camera_position: np.ndarray,
+    distance_scale_factor: Optional[
+        custom_types.Numeric
+    ] = config.VIDEO_OVERLAY_DISTANCE_SCALE_FACTOR,
+    base_size: Optional[custom_types.Numeric] = config.VIDEO_OVERLAY_BASE_SIZE,
 ):
     """
     Creates plane for an event at `event_position`, facing towards camera at `camera_position`.
@@ -1087,7 +1091,11 @@ def create_event_plane(
 
     # Compute vector from plane to camera
     direction_to_camera = camera_position - event_position
-    direction_to_camera /= np.linalg.norm(direction_to_camera)  # normalize
+    distance = np.linalg.norm(direction_to_camera)
+    direction_to_camera /= distance  # normalize
+
+    # Scale size inversely with distance (closer = smaller)
+    scaled_size = distance_scale_factor * distance * base_size
 
     # Compute right vector for plane to enforce upright
     right_vector = np.cross(VIEW_UP, direction_to_camera)
@@ -1104,7 +1112,7 @@ def create_event_plane(
     rotation_matrix[:3, 3] = event_position  # translation
 
     # Create unit plane (centered at origin)
-    plane = pv.Plane(i_size=1.0, j_size=1.0)
+    plane = pv.Plane(i_size=scaled_size, j_size=scaled_size)
 
     # Apply transform
     plane.transform(rotation_matrix)
@@ -1233,7 +1241,12 @@ def generate_scene_video_from_events(
 
                     # Create plane for event at its current position and add to the mesh
                     event_pos = np.array([x, y, z])
-                    event_plane = create_event_plane(event_pos, camera_position)
+                    event_plane = create_event_plane(
+                        event_pos,
+                        camera_position,
+                        base_size=scene.video_overlay_base_size,
+                        distance_scale_factor=scene.video_overlay_distance_scaling_factor,
+                    )
                     plotter.add_mesh(
                         event_plane,
                         texture=pv.Texture(event_img),

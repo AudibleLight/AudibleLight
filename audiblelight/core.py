@@ -71,6 +71,12 @@ class Scene:
             tuple[custom_types.Numeric, custom_types.Numeric]
         ] = config.VIDEO_RESOLUTION,
         video_low_power: Optional[bool] = True,
+        video_overlay_distance_scale_factor: Optional[
+            custom_types.Numeric
+        ] = config.VIDEO_OVERLAY_DISTANCE_SCALE_FACTOR,
+        video_overlay_base_size: Optional[
+            custom_types.Numeric
+        ] = config.VIDEO_OVERLAY_BASE_SIZE,
     ):
         """
         Initializes the Scene with a given duration and mesh.
@@ -112,6 +118,11 @@ class Scene:
             video_fps: The number of frames-per-second to use when creating a video, defaults to 10
             video_res: The resolution of generated video files, defaults to (3072 x 1024)
             video_low_power: Applies a variety of adjustments to improve video performance on weaker hardware.
+            video_overlay_distance_scale_factor: Scales the size of overlaid images depending on proximity to camera.
+                A larger scaling factor means that images closer to the camera will appear smaller, vs. a lower scaling
+                factor. Defaults to 0.1.
+            video_overlay_base_size: The base size of overlaid images on the video, independent of distance. Defaults
+                to 0.5.
 
         """
 
@@ -251,6 +262,12 @@ class Scene:
             utils.sanitise_positive_number(vr, cast_to=int) for vr in video_res
         ]
         self.video_low_power = video_low_power
+        self.video_overlay_base_size = utils.sanitise_positive_number(
+            video_overlay_base_size
+        )
+        self.video_overlay_distance_scaling_factor = utils.sanitise_positive_number(
+            video_overlay_distance_scale_factor
+        )
 
     @staticmethod
     def _sanitise_ref_db(ref_db: Any) -> int:
