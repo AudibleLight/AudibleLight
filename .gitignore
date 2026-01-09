@@ -18,6 +18,7 @@ coverage.xml
 *.zip
 
 # Ignore outputs
+*.mp4
 *.wav
 *.mp3
 *.aac
