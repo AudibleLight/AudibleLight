@@ -8,7 +8,7 @@ import json
 import os
 import random
 from contextlib import contextmanager
-from importlib import resources
+from importlib import import_module, resources
 from pathlib import Path
 from time import time
 from typing import Any, Callable, Generator, Optional, Union
@@ -716,3 +716,17 @@ def coerce_nested_inputs(inp: Any) -> Any:
         return inp.tolist()
     else:
         return inp
+
+
+def safe_import(module_name: str, message: str = None) -> Any:
+    """
+    Safe import function for an optional dependency, with custom error message support
+    """
+    try:
+        module = import_module(module_name)
+    except (ImportError, ModuleNotFoundError):
+        if message is None:
+            message = f"Cannot import module '{module_name}': try running 'pip install {module_name}'"
+        raise ImportError(message)
+    else:
+        return module
