@@ -73,6 +73,11 @@ sphinx-book-theme = "*"
 nbsphinx = "*"
 myst-parser = "*"
 
+[tool.poetry.group.video.dependencies]
+vtk = "*"
+pyvista = "*"
+opencv-python = "*"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
