@@ -579,7 +579,7 @@ def test_initialise_event_with_image(audio_fpath, image_fpath, oyens_space):
     assert isinstance(img, np.ndarray)
     assert img.ndim == 3  # should be RGB
     assert ev.is_image_loaded
-    assert img.dtype == int
+    assert img.dtype == np.uint8
 
     # Try loading up again with caching
     img2 = ev.load_image(ignore_cache=False)
