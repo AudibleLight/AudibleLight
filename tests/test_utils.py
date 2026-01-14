@@ -638,6 +638,7 @@ def test_get_valid_kwargs(inp, expected, exc):
         ("math", None, False),
         ("json", None, False),
         ("still_no_mod", "custom error!", True),
+        ("asdf", "Cannot import module 'asdf': ", True),
     ],
 )
 def test_safe_import(module_name, message, errors):
