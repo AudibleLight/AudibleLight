@@ -1812,12 +1812,9 @@ def test_add_functions(oyens_scene_no_overlap):
 def test_add_events_with_image(
     audio_filepath, image_filepath, event_type, oyens_scene_with_images
 ):
-    if (
-        audio_filepath is not None
-        and image_filepath is None
-        and event_type == "predefined"
-    ):
-        pytest.skip(reason="Needs fixing")
+    if audio_filepath is None or image_filepath is None:
+        if event_type == "predefined":
+            pytest.skip(reason="Needs fixing")
 
     assert len(oyens_scene_with_images.fg_images) > 0
 
@@ -1840,3 +1837,63 @@ def test_add_events_with_image(
     audio_cls = ev.filepath.parent.stem
     image_cls = ev.image_filepath.parent.stem
     assert audio_cls == image_cls == ev.class_label
+
+
+@pytest.mark.parametrize("image_filepath", [utils_tests.TEST_AUDIOS[0]])
+@pytest.mark.parametrize("event_type", ["static", "moving", "predefined"])
+def test_add_event_with_bad_image(image_filepath, event_type, oyens_scene_with_images):
+    # sanitise to get as a Path object, which lets us call {}.name
+    image_filepath = utils.sanitise_filepath(image_filepath)
+
+    # add the event: should raise an error about invalid extension
+    with pytest.raises(
+        ValueError,
+        match=f"Image filepath {image_filepath.name} is invalid! Extension must be one of",
+    ):
+        oyens_scene_with_images.add_event(
+            event_type=event_type, image_filepath=image_filepath
+        )
+
+
+@pytest.mark.parametrize(
+    ["video_res", "error", "msg"],
+    [
+        ((1920.0, 960.0), False, None),
+        (
+            "asdf",
+            TypeError,
+            "Expected video_res to be an iterable, but got type <class 'str'>",
+        ),
+        (
+            (500, 400, 600),
+            ValueError,
+            "Expected video_res to contain exactly 2 values, but got 3 values",
+        ),
+        ((123, -1), ValueError, "Expected all values in video_res to be positive"),
+        ((400, 600), ValueError, "Expected height to be exactly half of width"),
+    ],
+)
+def test_sanitise_video_res(video_res, error, msg):
+    if not error:
+        out = Scene(
+            backend="rlr",
+            video_res=video_res,
+            duration=60,
+            backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+        )
+
+        assert isinstance(out.video_res, list)
+        height, width = out.video_res
+        assert isinstance(height, int)
+        assert isinstance(width, int)
+        assert height == video_res[0]
+        assert width == video_res[1]
+
+    else:
+        with pytest.raises(error, match=msg):
+            _ = Scene(
+                backend="rlr",
+                video_res=video_res,
+                duration=60,
+                backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+            )

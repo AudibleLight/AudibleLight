@@ -22,7 +22,18 @@ Numeric = Union[int, float, complex, np.integer, np.floating]
 Filepath = Union[str, Path]
 
 AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
-IMAGE_EXTS = ("jpg", "jpeg", "png")
+IMAGE_EXTS = (
+    "jpg",
+    "jpeg",
+    "png",
+    "pdf",
+    "gif",
+    "tiff",
+    "webp",
+    "eps",
+    "svg",
+    "raw",
+)
 
 
 class DistributionLike(Protocol):

@@ -910,7 +910,7 @@ def validate_scene_for_video(scene: Scene) -> None:
             )
         elif not ev.image_filepath.exists():
             raise FileNotFoundError(
-                f"Event image file '{ev.image_filepath}' does not exist!"
+                f"Event with alias '{ev.alias}', image file '{ev.image_filepath}' does not exist!"
             )
 
 
@@ -1257,10 +1257,7 @@ def generate_scene_video_from_events(
             frame_out = create_video_frame(plotter, scene.video_res)
 
             # Ensure correct dtype and color format for OpenCV
-            if frame_out.dtype != np.uint8:
-                frame_out = frame_out.astype(np.uint8)
-
-            # Convert RGB -> BGR for OpenCV
+            frame_out = frame_out.astype(np.uint8)
             frame_out_bgr = cv2.cvtColor(frame_out, cv2.COLOR_RGB2BGR)
 
             # Write frame

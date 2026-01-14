@@ -116,7 +116,8 @@ class Scene:
             class_mapping: a mapping used to map class names to indices, and vice versa. Can be a subclass of
                 `audiblelight.class_mapping.ClassMapping`, `dict`, or `str`. Defaults to DCASE 2023, task 3 mapping
             video_fps: The number of frames-per-second to use when creating a video, defaults to 10
-            video_res: The resolution of generated video files, defaults to (3072 x 1024)
+            video_res: The resolution of generated video files, defaults to (1920 x 960). Note that height must be
+                exactly half of width for an equirectangular video.
             video_low_power: Applies a variety of adjustments to improve video performance on weaker hardware.
             video_overlay_distance_scale_factor: Scales the size of overlaid images depending on proximity to camera.
                 A larger scaling factor means that images closer to the camera will appear smaller, vs. a lower scaling
@@ -254,13 +255,7 @@ class Scene:
 
         # Video stuff
         self.video_fps = utils.sanitise_positive_number(video_fps, cast_to=int)
-        if not isinstance(video_res, (tuple, list)) or len(video_res) != 2:
-            raise TypeError(
-                "Video resolution must be an iterable of exactly two positive numeric values."
-            )
-        self.video_res = [
-            utils.sanitise_positive_number(vr, cast_to=int) for vr in video_res
-        ]
+        self.video_res = self._sanitise_video_res(video_res)
         self.video_low_power = video_low_power
         self.video_overlay_base_size = utils.sanitise_positive_number(
             video_overlay_base_size
@@ -268,6 +263,44 @@ class Scene:
         self.video_overlay_distance_scaling_factor = utils.sanitise_positive_number(
             video_overlay_distance_scale_factor
         )
+
+    @staticmethod
+    def _sanitise_video_res(video_res: Any) -> list[int]:
+        """
+        Validate video resolution, and raise errors as required
+        """
+
+        if not isinstance(video_res, (tuple, list, set, np.ndarray)):
+            raise TypeError(
+                "Expected video_res to be an iterable, but got type {}".format(
+                    type(video_res)
+                )
+            )
+
+        if len(video_res) != 2:
+            raise ValueError(
+                "Expected video_res to contain exactly 2 values, but got {} values".format(
+                    len(video_res)
+                )
+            )
+
+        if not all([v > 0 for v in video_res]):
+            raise ValueError(
+                "Expected all values in video_res to be positive, but got {}".format(
+                    video_res
+                )
+            )
+
+        # For an equirectangular video, height must be width // 2
+        w, h = video_res
+        if not int(h) == int(w // 2):
+            raise ValueError(
+                "Expected height to be exactly half of width for an equirectangular video, but got {} x {}".format(
+                    h, w
+                )
+            )
+
+        return [utils.sanitise_positive_number(vr, cast_to=int) for vr in video_res]
 
     @staticmethod
     def _sanitise_ref_db(ref_db: Any) -> int:
@@ -613,7 +646,10 @@ class Scene:
 
             # Run validation checks on image
             if not str(image_filepath).endswith(custom_types.IMAGE_EXTS):
-                logger.warning(f"Image filepath {image_filepath.name} may be invalid!")
+                raise ValueError(
+                    f"Image filepath {image_filepath.name} is invalid! "
+                    f"Extension must be one of {', '.join(custom_types.IMAGE_EXTS)}"
+                )
 
         # Grab the alias: this should always be present inside the dictionary
         alias = event_kwargs["alias"]
@@ -1447,7 +1483,10 @@ class Scene:
 
             # Run validation checks on image
             if not str(image_filepath).endswith(custom_types.IMAGE_EXTS):
-                logger.warning(f"Image filepath {image_filepath.name} may be invalid!")
+                raise ValueError(
+                    f"Image filepath {image_filepath.name} is invalid! "
+                    f"Extension must be one of {', '.join(custom_types.IMAGE_EXTS)}"
+                )
 
         # Grab the alias: this should always be present inside the dictionary
         alias = event_kwargs["alias"]
