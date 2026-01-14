@@ -12,7 +12,7 @@ A Controllable, End-to-End API for Soundscape Synthesis Across Ray-Traced & Real
 What is ``AudibleLight``?
 -------------------------
 
-``AudibleLight`` is a unified API for soundscape synthesis supporting ray-traced, real-world, and parametric RIR generation. It enables flexible microphone array modeling and dynamic, fully annotated source trajectories within a single workflow. It is built upon `SpatialScaper <https://github.com/marl/SpatialScaper>`_, `SoundSpaces <https://github.com/facebookresearch/sound-spaces>`_ and `Pyroomacoustics <https://github.com/LCAV/pyroomacoustics>`_ for scalable soundscape generation with unprecedented acoustic diversity.
+``AudibleLight`` is a unified API for audio-visual soundscape synthesis supporting ray-traced, real-world, and parametric RIR generation. It enables flexible microphone array modeling and dynamic, fully annotated source trajectories within a single workflow. It is built upon `SpatialScaper <https://github.com/marl/SpatialScaper>`_, `SoundSpaces <https://github.com/facebookresearch/sound-spaces>`_, `Pyroomacoustics <https://github.com/LCAV/pyroomacoustics>`_, and `SELDVisualSynth <https://github.com/adrianSRoman/SELDVisualSynth>`_ for scalable soundscape generation with unprecedented acoustic diversity.
 
 ``AudibleLight`` is developed by researchers at the `Centre for Digital Music, Queen Mary University of London <https://www.c4dm.eecs.qmul.ac.uk/>`_ in collaboration with `Meta Reality Labs <https://www.meta.com/en-gb/emerging-tech>`_.
 
@@ -31,6 +31,7 @@ What is ``AudibleLight``?
    _examples/1.1.0_add_listeners
    _examples/1.2.0_add_events
    _examples/1.2.1_add_augmentations
+   _examples/1.2.2_audiovisual_scenes.ipynb
    _examples/1.3.0_add_ambience
    _examples/2.0.0_synthesis
 
