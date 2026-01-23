@@ -8,6 +8,7 @@ from scripts.download_data.download_gibson import main as download_gibson
 from scripts.download_data.download_gibson_waypoints import (
     main as download_gibson_waypoints,
 )
+from scripts.download_data.download_visualgenome import main as download_visualgenome
 
 # These scripts have optional dependencies
 #  we define stub functions here in cases where they aren't installed
@@ -41,4 +42,5 @@ __all__ = [
     "download_gibson",
     "download_gibson_waypoints",
     "download_rirs",
+    "download_visualgenome",
 ]

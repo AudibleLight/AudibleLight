@@ -9,6 +9,7 @@ from audiblelight.class_mappings import (
     ALL_MAPPINGS,
     ClassMapping,
     DCASE2023Task3,
+    infer_id_and_label_from_inputs,
     sanitize_class_mapping,
 )
 
@@ -133,3 +134,28 @@ def test_magic_methods(mapper):
 def test_validate_mapping(actual, expected, error):
     with pytest.raises(expected, match=error):
         _ = ClassMapping.from_dict(actual)
+
+
+@pytest.mark.parametrize(
+    "class_id, class_label, class_mapping, filepath, expected_id, expected_label",
+    [
+        (1, "asdf", None, None, 1, "asdf"),
+        (1, None, DCASE2023Task3(), None, 1, "maleSpeech"),
+        (None, None, DCASE2023Task3(), "maleSpeech/asdf.wav", 1, "maleSpeech"),
+        (None, None, None, None, None, None),
+    ],
+)
+def test_infer_id_and_label_from_inputs(
+    class_id, class_label, class_mapping, filepath, expected_id, expected_label
+):
+    actual_id, actual_label = infer_id_and_label_from_inputs(
+        class_id, class_label, class_mapping, filepath
+    )
+
+    assert actual_id == expected_id
+    assert actual_label == expected_label
+
+    # test using the mapping
+    if class_mapping is not None:
+        assert class_mapping[actual_id] == expected_label == actual_label
+        assert class_mapping[actual_label] == expected_id == actual_id

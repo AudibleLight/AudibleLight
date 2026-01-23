@@ -3,13 +3,18 @@
 
 """Test cases for functionality inside audiblelight/synthesize.py"""
 
-
+import os
+import subprocess
+from pathlib import Path
 from time import time
-from unittest.mock import PropertyMock, patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import cv2
 import librosa.util
 import numpy as np
 import pytest
+from PIL import Image
 
 import audiblelight.synthesize as syn
 from audiblelight.event import Event
@@ -352,7 +357,6 @@ def test_normalize_irs(n_moving, n_static, oyens_scene_no_overlap):
 
     # Iterate over all events
     for event_alias, event in oyens_scene_no_overlap.events.items():
-
         # Grab the IRs for the current event's emitters and check (not normalized)
         event_irs = mic_ir[:, emitter_counter : len(event) + emitter_counter, :]
         energies = np.mean(np.sqrt(np.sum(np.power(np.abs(event_irs), 2), axis=-1)))
@@ -424,3 +428,262 @@ def test_compute_dry_audio(event_kwargs, oyens_scene_no_overlap):
         # Min/max of the audio should be the same, however
         assert pytest.approx(padded_audio.min()) == audio.min()
         assert pytest.approx(padded_audio.max()) == audio.max()
+
+
+@pytest.mark.parametrize(
+    "audio_filepath,image_filepath",
+    [
+        (
+            utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            utils_tests.IMAGE_DIR / "telephone/3_0.jpg",
+        ),
+        (
+            utils_tests.SOUNDEVENT_DIR / "waterTap/95709.wav",
+            utils_tests.IMAGE_DIR / "waterTap/32_0.jpg",
+        ),
+        (
+            utils_tests.SOUNDEVENT_DIR / "maleSpeech/93853.wav",
+            utils_tests.IMAGE_DIR / "maleSpeech/2_0.jpg",
+        ),
+    ],
+)
+def test_video_generation(audio_filepath, image_filepath, oyens_scene_with_images):
+    # add some short events with a set audio file and image
+    oyens_scene_with_images.add_event(
+        event_type="static",
+        filepath=audio_filepath,
+        image_filepath=image_filepath,
+        duration=0.5,
+        scene_start=2.5,
+        # add at a known position: definitely visible from microphone
+        position=[1.5, -0.5, 0.5],
+    )
+    ev = oyens_scene_with_images.add_event(
+        event_type="moving",
+        shape="linear",
+        filepath=audio_filepath,
+        image_filepath=image_filepath,
+        duration=0.5,
+        scene_start=7.5,
+        spatial_velocity=0.5,
+        spatial_resolution=2.0,
+        # start at another known position
+        position=[2.5, -3.0, 1.0],
+    )
+
+    video_out_path = utils_tests.TEST_RESOURCES / f"video_test_{ev.class_label}"
+    audio_out_path = utils_tests.TEST_RESOURCES / f"audio_test_{ev.class_label}"
+    oyens_scene_with_images.generate(
+        audio=True,
+        metadata_dcase=False,
+        metadata_json=False,
+        video=True,
+        video_fname=video_out_path,
+        audio_fname=audio_out_path,
+    )
+
+    # Video file should exist
+    video_out_path_full = video_out_path.with_name(
+        f"video_test_{ev.class_label}_mic000.mp4"
+    )
+    assert video_out_path_full.exists()
+
+    # Audio file should exist
+    audio_out_path_full = audio_out_path.with_name(
+        f"audio_test_{ev.class_label}_mic000.wav"
+    )
+    assert audio_out_path_full.exists()
+
+    # Read video in openCV
+    vid = cv2.VideoCapture(video_out_path_full)
+
+    # Get properties of the video file
+    height = vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    width = vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+    fps = vid.get(cv2.CAP_PROP_FPS)
+    frame_count = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = frame_count / fps
+
+    # Should be the same as set in the Scene object
+    assert height == oyens_scene_with_images.video_res[1]
+    assert width == oyens_scene_with_images.video_res[0]
+    assert fps == oyens_scene_with_images.video_fps
+    assert pytest.approx(duration) == oyens_scene_with_images.duration
+
+    # Manual checks:
+    #  1) Check video file manually to ensure that the two images appear correctly
+    #  2) Combine with `ffmpeg -i video_test_mic000.mp4 -i audio_test_mic000.wav -c:v copy -c:a aac output.mp4`
+    #       Check video + audio start and stop at same time
+    output_video_path = utils_tests.TEST_RESOURCES / f"output_{ev.class_label}.mp4"
+    subprocess.call(
+        f"ffmpeg -i {str(video_out_path_full)} -i {str(audio_out_path_full)} -c:v libx264 -c:a aac -y {str(output_video_path)}",
+        shell=True,
+    )
+    os.remove(video_out_path_full)
+    os.remove(audio_out_path_full)
+
+
+def test_validate_scene_for_video(oyens_scene_with_images):
+    from audiblelight.core import Scene
+    from audiblelight.worldstate import WorldStateSOFA
+
+    # Test with incorrect backend
+    sofa_scene = Scene(
+        duration=50,
+        backend=WorldStateSOFA(
+            sofa=utils_tests.TEST_RESOURCES / "metu_foa.sofa", sample_rate=22050
+        ),
+        sample_rate=22050,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        max_overlap=1,
+    )
+    with pytest.raises(
+        NotImplementedError,
+        match="Currently, video generation is only supported for Scene objects that use the ray-tracing backend",
+    ):
+        sofa_scene.generate(
+            video=True, audio=False, metadata_dcase=False, metadata_json=False
+        )
+
+    # Test with no events
+    oyens_scene_with_images.clear_events()
+    with pytest.raises(ValueError, match="Need to add at least one Event to the Scene"):
+        oyens_scene_with_images.generate(
+            video=True, audio=False, metadata_dcase=False, metadata_json=False
+        )
+
+    # Test with events, no microphones
+    oyens_scene_with_images.add_event(event_type="static")
+    oyens_scene_with_images.clear_microphones()
+    with pytest.raises(
+        ValueError, match="Need to add at least one MicArray to the Scene"
+    ):
+        oyens_scene_with_images.generate(
+            video=True, audio=False, metadata_dcase=False, metadata_json=False
+        )
+
+    # Add Event objects without video filepath
+    oyens_scene_with_images.clear_events()
+    oyens_scene_with_images.add_microphone(
+        microphone_type="ambeovr", position=[3.5, -3.5, 1.5]
+    )
+    ev = oyens_scene_with_images.add_event(event_type="static", alias="asdf")
+    ev.image_filepath = None
+    with pytest.raises(
+        ValueError, match="Event with alias 'asdf' has no image file associated with it"
+    ):
+        oyens_scene_with_images.generate(
+            video=True, audio=False, metadata_dcase=False, metadata_json=False
+        )
+
+    # Add Event objects with missing filepath
+    oyens_scene_with_images.clear_events()
+    ev = oyens_scene_with_images.add_event(event_type="static", alias="asdf")
+    ev.image_filepath = Path("/a/missing/path")
+    with pytest.raises(
+        FileNotFoundError,
+        match="Event with alias 'asdf', image file '/a/missing/path' does not exist!",
+    ):
+        oyens_scene_with_images.generate(
+            video=True, audio=False, metadata_dcase=False, metadata_json=False
+        )
+
+
+@pytest.mark.parametrize(
+    "material, decimate, expected",
+    [
+        # No material
+        (None, True, None),
+        # SimpleMaterial -> PBRMaterial -> PIL.Image (decimate on)
+        ("simple_pil", True, np.ndarray),
+        # PBRMaterial with numpy texture
+        ("pbr_numpy", True, np.ndarray),
+        # PBRMaterial with PIL.Image (decimate off)
+        ("pbr_pil", False, np.ndarray),
+    ],
+)
+def test_extract_texture(monkeypatch, material, decimate, expected):
+    # Mock classes and config
+    class DummyConfig:
+        VIDEO_TEXTURE_DECIMATE = (64, 64)
+
+    class SimpleMaterial:
+        def __init__(self, pbr=None):
+            self._pbr = pbr
+
+        def to_pbr(self):
+            return self._pbr
+
+    class PBRMaterial:
+        def __init__(self, base_color_texture):
+            self.baseColorTexture = base_color_texture
+
+    # Mocking namespace
+    dummy_material_ns = SimpleNamespace(
+        SimpleMaterial=SimpleMaterial,
+        PBRMaterial=PBRMaterial,
+    )
+    dummy_visual_ns = SimpleNamespace(material=dummy_material_ns)
+    dummy_trimesh = SimpleNamespace(visual=dummy_visual_ns)
+
+    # Monkey patch attributes on synthesize module
+    monkeypatch.setattr(syn, "config", DummyConfig, raising=False)
+    monkeypatch.setattr(syn, "trimesh", dummy_trimesh, raising=False)
+
+    # Factory
+    pil_image = Image.new("RGB", (128, 128))
+    np_texture = np.zeros((32, 32, 3), dtype=np.uint8)
+    if material == "simple_pil":
+        simple = SimpleMaterial()
+        simple._pbr = PBRMaterial(pil_image)
+        material_obj = simple
+    elif material == "pbr_numpy":
+        material_obj = PBRMaterial(np_texture)
+    elif material == "pbr_pil":
+        material_obj = PBRMaterial(pil_image)
+    else:
+        material_obj = None
+
+    # Mock mesh
+    mesh = MagicMock()
+    mesh.visual = MagicMock()
+    mesh.visual.material = material_obj
+
+    # Testing
+    result = syn.extract_texture(mesh, decimate_texture=decimate)
+    if expected is None:
+        assert result is None
+    else:
+        assert isinstance(result, expected)
+
+    # Invalid texture branch
+    mesh.visual.material = PBRMaterial("invalid_texture")
+    with pytest.raises(TypeError):
+        syn.extract_texture(mesh)
+
+
+@pytest.mark.parametrize("video_low_power", [True, False])
+@pytest.mark.parametrize(
+    "extract_texture_out", [None, np.zeros((32, 32, 3), dtype=np.uint8)]
+)
+def test_initialise_plotter(
+    monkeypatch, video_low_power, extract_texture_out, oyens_scene_with_images
+):
+    from pyvista import Plane
+
+    # Force extract_texture to always return given value
+    monkeypatch.setattr(
+        syn,
+        "extract_texture",
+        lambda mesh, decimate_texture=video_low_power: extract_texture_out,
+    )
+
+    # mock scene: mesh needs to be a plane as this has texture coords
+    scene = MagicMock()
+    scene.video_low_power = video_low_power
+    scene.state.mesh = Plane()
+
+    # do test
+    plotter = syn.initialise_plotter(scene)
+    assert plotter is not None

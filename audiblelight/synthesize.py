@@ -10,8 +10,11 @@ from typing import Optional
 import librosa
 import numpy as np
 import pandas as pd
+import trimesh.visual
 from loguru import logger
+from PIL import Image
 from scipy import fft, signal
+from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
 from audiblelight.ambience import Ambience
@@ -27,6 +30,11 @@ DCASE_2024_COLUMNS = [
     "elevation",
     "distance",
 ]
+
+# Seems to be necessary to get textures working properly in PyVista
+Image.MAX_IMAGE_PIXELS = None
+
+VIEW_UP = (0.0, 0.0, 1.0)
 
 
 def apply_snr(x: np.ndarray, snr: custom_types.Numeric) -> np.ndarray:
@@ -863,3 +871,408 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
         )
 
     return res_df
+
+
+def validate_scene_for_video(scene: Scene) -> None:
+    """
+    Runs validation checks to ensure that we can create a video from this scene and raises errors as required.
+
+    Returns:
+        None
+    """
+
+    backend = scene.state.name
+    if not backend.upper() == "RLR":
+        raise NotImplementedError(
+            f"Currently, video generation is only supported for Scene objects that use "
+            f"the ray-tracing backend (current backend: {backend})."
+        )
+
+    # Get all events + microphones for the scene
+    events = scene.get_events()
+    microphones = scene.get_microphones()
+
+    # Need to have at least one event and one microphone
+    if not len(events) >= 1:
+        raise ValueError(
+            "Need to add at least one Event to the Scene to generate a video!"
+        )
+    if not len(microphones) >= 1:
+        raise ValueError(
+            "Need to add at least one MicArray to the Scene to generate a video!"
+        )
+
+    # Need to check that all Event objects have valid video
+    for ev in scene.get_events():
+        if ev.image_filepath is None:
+            raise ValueError(
+                f"Event with alias '{ev.alias}' has no image file associated with it!"
+            )
+        elif not ev.image_filepath.exists():
+            raise FileNotFoundError(
+                f"Event with alias '{ev.alias}', image file '{ev.image_filepath}' does not exist!"
+            )
+
+
+def extract_texture(
+    mesh: trimesh.Trimesh, decimate_texture: Optional[bool] = True
+) -> Optional[np.ndarray]:
+    """
+    Extracts the texture from a Trimesh object and returns as a Numpy array if found.
+    """
+
+    # Try and get the material from the mesh
+    material = getattr(mesh.visual, "material", None)
+
+    # This type of material can be coerced to PBR easily
+    if isinstance(material, trimesh.visual.material.SimpleMaterial):
+        material = material.to_pbr()
+
+    # Safely handle getting the texture from the material
+    if isinstance(material, trimesh.visual.material.PBRMaterial):
+        texture = material.baseColorTexture
+
+        if isinstance(texture, Image.Image):
+            # Reduce size of the texture to fit in memory
+            if decimate_texture:
+                texture.thumbnail(config.VIDEO_TEXTURE_DECIMATE)
+
+            return np.asarray(texture)
+        elif isinstance(texture, np.ndarray):
+            return texture
+        else:
+            raise TypeError(
+                f"Cannot coerce texture type {type(texture)} to numpy array"
+            )
+
+    return None
+
+
+def create_video_frame(
+    plotter, resolution: tuple[custom_types.Numeric, custom_types.Numeric]
+) -> np.ndarray:
+    """
+    Creates a video frame with the current plotter
+    """
+    # Safe imports for videos
+    vtk = utils.safe_import(
+        "vtk", "'vtk' is required to generate videos; install it with 'pip install vtk'"
+    )
+
+    # Grab the renderer
+    renderer = plotter.renderer
+
+    # Create basic passes (lighting, geometry, etc.)
+    basic_passes = vtk.vtkRenderPassCollection()
+    for item in [vtk.vtkLightsPass, vtk.vtkOpaquePass, vtk.vtkOverlayPass]:
+        basic_passes.AddItem(item())
+
+    # Wrap basic passes in a sequence
+    sequence = vtk.vtkSequencePass()
+    sequence.SetPasses(basic_passes)
+
+    # Camera pass delegates to sequence
+    camera_pass = vtk.vtkCameraPass()
+    camera_pass.SetDelegatePass(sequence)
+
+    # Panoramic projection pass delegates to camera pass
+    pan = vtk.vtkPanoramicProjectionPass()
+    pan.SetProjectionTypeToEquirectangular()
+    pan.SetAngle(360.0)
+    pan.SetCubeResolution(resolution[1])
+    pan.SetInterpolate(True)
+    pan.SetDelegatePass(camera_pass)
+
+    # Set the final pass into the renderer
+    renderer.SetPass(pan)
+
+    # Render the plot
+    plotter.render()
+
+    # Return the frame as a screenshot (numpy array)
+    return plotter.screenshot(return_img=True, window_size=resolution)
+
+
+def get_video_frames_with_events(
+    scene: Scene, video_timestamps: np.ndarray
+) -> np.ndarray:
+    """
+    Return an array containing information about the Events within frames of the video
+    """
+    video_res = []
+
+    # Iterate over all Events in the Scene
+    for ev_idx, ev in enumerate(scene.get_events()):
+
+        # Get the closest matching index to the event start and end
+        video_ev_start_idx = np.argmin(np.abs(video_timestamps - ev.scene_start))
+        video_ev_end_idx = np.argmin(np.abs(video_timestamps - ev.scene_end))
+
+        # Dealing with static events
+        if not ev.is_moving:
+            # Static events have the same position always
+            x, y, z = ev.start_coordinates_absolute
+
+            # Iterate over all frame indices that this Event is contained in
+            for ts_idx in range(video_ev_start_idx, video_ev_end_idx + 1):
+                # event number, frame number, timestamp, x, y, z
+                frame_res = (
+                    ev_idx,
+                    ts_idx,
+                    float(video_timestamps[ts_idx]),
+                    float(x),
+                    float(y),
+                    float(z),
+                )
+                video_res.append(frame_res)
+
+        elif ev.is_moving:
+            # Determine frame indices for event start and end
+            #  The `max/min` function just provide some clamping in case somehow we exceed the duration
+            start_idx = np.argmin(np.abs(video_timestamps - max(ev.scene_start, 0.0)))
+            end_idx = np.argmin(
+                np.abs(video_timestamps - min(ev.scene_end, scene.duration))
+            )
+
+            # This is the frame indices where the frame lasts
+            event_range = np.arange(start_idx, end_idx + 1)
+
+            # Get the absolute position of all emitters for this event
+            coords = np.vstack([e.coordinates_absolute for e in ev.emitters])
+
+            # Get the times we'll interpolate using
+            interp_times = video_timestamps[event_range]
+
+            # Get the approximate times for every coordinate
+            coord_times = np.linspace(
+                min(interp_times), max(interp_times), num=len(coords)
+            )
+            # Interpolate between the coordinates and timepoints
+            interpolated = np.stack(
+                [
+                    np.interp(interp_times, coord_times, coords[:, dim])
+                    for dim in range(coords.shape[1])
+                ],
+                axis=1,
+            )
+
+            # Iterate over all frame indices that this Event is contained in
+            for ts_idx, (x, y, z) in zip(event_range, interpolated):
+                # event number, frame number, timestamp, x, y, z
+                frame_res = (
+                    ev_idx,
+                    int(ts_idx),
+                    float(video_timestamps[ts_idx]),
+                    float(x),
+                    float(y),
+                    float(z),
+                )
+                video_res.append(frame_res)
+
+    return np.array(video_res)
+
+
+def create_event_plane(
+    event_position: np.ndarray,
+    camera_position: np.ndarray,
+    distance_scale_factor: Optional[
+        custom_types.Numeric
+    ] = config.VIDEO_OVERLAY_DISTANCE_SCALE_FACTOR,
+    base_size: Optional[custom_types.Numeric] = config.VIDEO_OVERLAY_BASE_SIZE,
+):
+    """
+    Creates plane for an event at `event_position`, facing towards camera at `camera_position`.
+    """
+    # Safe imports for videos
+    pv = utils.safe_import(
+        "pyvista",
+        "'pyvista' is required to generate videos; install it with 'pip install pyvista'",
+    )
+
+    # Compute vector from plane to camera
+    direction_to_camera = camera_position - event_position
+    distance = np.linalg.norm(direction_to_camera)
+    direction_to_camera /= distance  # normalize
+
+    # Scale size inversely with distance (closer = smaller)
+    scaled_size = distance_scale_factor * distance * base_size
+
+    # Compute right vector for plane to enforce upright
+    right_vector = np.cross(VIEW_UP, direction_to_camera)
+    right_vector /= np.linalg.norm(right_vector)
+
+    # Recompute up to ensure orthogonality
+    true_up = np.cross(direction_to_camera, right_vector)
+
+    # Create rotation matrix to orient plane
+    rotation_matrix = np.eye(4)
+    rotation_matrix[:3, 0] = right_vector  # x-axis
+    rotation_matrix[:3, 1] = true_up  # y-axis
+    rotation_matrix[:3, 2] = direction_to_camera  # z-axis (normal)
+    rotation_matrix[:3, 3] = event_position  # translation
+
+    # Create unit plane (centered at origin)
+    plane = pv.Plane(i_size=scaled_size, j_size=scaled_size)
+
+    # Apply transform
+    plane.transform(rotation_matrix)
+
+    return plane
+
+
+def initialise_plotter(scene: Scene):
+    """
+    Initialise a pyvista `Plotter` object, with the mesh for the Scene registered
+    """
+    # Safe imports for videos
+    pv = utils.safe_import(
+        "pyvista",
+        "'pyvista' is required to generate videos; install it with 'pip install pyvista'",
+    )
+
+    # Create off-screen plotter
+    plotter = pv.Plotter(off_screen=True)
+
+    # Disable anti-aliasing on weaker hardware
+    if scene.video_low_power:
+        plotter.disable_anti_aliasing()
+
+    # Wrap mesh for PyVista
+    mesh = scene.state.mesh
+    pv_mesh = pv.wrap(mesh)
+
+    # Apply texture if available
+    #  Decimate texture on weaker hardware
+    texture = extract_texture(mesh, decimate_texture=scene.video_low_power)
+    if texture is not None:
+        pv_texture = pv.Texture(texture)
+        plotter.add_mesh(pv_mesh, texture=pv_texture)
+    else:
+        plotter.add_mesh(pv_mesh)
+
+    return plotter
+
+
+def generate_scene_video_from_events(
+    scene: Scene, video_name: custom_types.Filepath
+) -> None:
+    """
+    Generate complete video from a Scene and all of its associated Events.
+
+    Note that this function has no direct return. Instead, the finalised video is written to the Scene as an attribute,
+    as a list of numpy arrays corresponding to image frames. This can later be saved by combining all the frames using
+    (for instance) ffmpeg.
+
+    Returns:
+        None
+    """
+    # Safe video imports
+    cv2 = utils.safe_import(
+        "cv2",
+        "'opencv' is required to generate videos; install it with 'pip install opencv-python'",
+    )
+    pv = utils.safe_import(
+        "pyvista",
+        "'pyvista' is required to generate videos; install it with 'pip install pyvista'",
+    )
+
+    # Need to run some validation checks first to ensure that we are able to create a video
+    validate_scene_for_video(scene)
+
+    # Grab events for the Scene
+    events = scene.get_events()
+
+    # Create an array of timestamps, one for each frame in the video
+    video_frame_len = 1 / scene.video_fps
+    video_n_frames = round(scene.duration / video_frame_len)
+    video_timestamps = np.linspace(
+        0, scene.duration, video_n_frames, endpoint=False, dtype=float
+    )
+
+    # Numpy array corresponding to annotated frames
+    #  (event_idx, frame_idx, frame_start, x, y, z)
+    video_annots = get_video_frames_with_events(scene, video_timestamps)
+    frames_with_annotations = np.unique(video_annots[:, 1])
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+
+    # Iterate over all microphones in the scene
+    for mic_alias, mic in scene.state.microphones.items():
+        # Set the filename
+        video_path = video_name.with_suffix(".mp4").with_stem(
+            f"{video_name.name}_{mic_alias}"
+        )
+
+        # Camera position is the center point of the microphone
+        camera_position = mic.coordinates_center
+        # Camera should look horizontally (same Z-coordinate as camera position)
+        #  Need to do this or result will look "tilted"
+        focal_point = (0.0, 0.0, camera_position[2])
+
+        # Grab a pyvista plotter for this microphone
+        plotter = initialise_plotter(scene)
+
+        # Set camera position within the plotter
+        plotter.camera_position = [
+            camera_position,
+            focal_point,
+            VIEW_UP,
+        ]
+
+        # Initialise the video writer for this microphone
+        writer = cv2.VideoWriter(video_path, fourcc, scene.video_fps, scene.video_res)
+
+        # Iterate over all
+        for frame_idx in tqdm(range(video_n_frames), desc="Rendering video..."):
+
+            # If we need to add an annotation to the frame, do so now
+            if frame_idx in frames_with_annotations:
+                annot_frames = video_annots[
+                    np.argwhere(video_annots[:, 1] == frame_idx).flatten()
+                ]
+
+                # Iterate over all the annotations for this frame
+                for event_idx, _, frame_start, x, y, z in annot_frames:
+
+                    # Grab the event and load up the image
+                    #  This will cache after the first attempt, so it is fast
+                    current_event = events[int(event_idx)]
+                    event_img = current_event.load_image(ignore_cache=False)
+
+                    # Create plane for event at its current position and add to the mesh
+                    event_pos = np.array([x, y, z])
+                    event_plane = create_event_plane(
+                        event_pos,
+                        camera_position,
+                        base_size=scene.video_overlay_base_size,
+                        distance_scale_factor=scene.video_overlay_distance_scaling_factor,
+                    )
+                    plotter.add_mesh(
+                        event_plane,
+                        texture=pv.Texture(event_img),
+                        name=f"{event_idx}_{frame_idx}",
+                    )
+
+            # Render frame (expected RGB uint8 image)
+            frame_out = create_video_frame(plotter, scene.video_res)
+
+            # Ensure correct dtype and color format for OpenCV
+            frame_out = frame_out.astype(np.uint8)
+            frame_out_bgr = cv2.cvtColor(frame_out, cv2.COLOR_RGB2BGR)
+
+            # Write frame
+            writer.write(frame_out_bgr)
+
+            # Remove any annotations as otherwise they'll persist across frames
+            if frame_idx in frames_with_annotations:
+                annot_frames = video_annots[
+                    np.argwhere(video_annots[:, 1] == frame_idx).flatten()
+                ]
+                for event_idx in annot_frames[:, 0]:
+                    plotter.remove_actor(f"{event_idx}_{frame_idx}")
+
+        # Finalize video
+        writer.release()
+
+    # Finally, destroy everything
+    cv2.destroyAllWindows()

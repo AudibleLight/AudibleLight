@@ -24,7 +24,7 @@
 
 ## What is `AudibleLight`?
 
-`AudibleLight` is a unified API for soundscape synthesis supporting ray-traced, real-world, and parametric RIR generation. It enables flexible microphone array modeling and dynamic, fully annotated source trajectories within a single workflow. It is built upon [`SpatialScaper`](https://github.com/marl/SpatialScaper), [`SoundSpaces`](https://github.com/facebookresearch/sound-spaces) and [`Pyroomacoustics`](https://github.com/LCAV/pyroomacoustics) for scalable soundscape generation with unprecedented acoustic diversity.
+`AudibleLight` is a unified API for audio-visual soundscape synthesis supporting ray-traced, real-world, and parametric RIR generation. It enables flexible microphone array modeling and dynamic, fully annotated source trajectories within a single workflow. It is built upon [`SpatialScaper`](https://github.com/marl/SpatialScaper), [`SoundSpaces`](https://github.com/facebookresearch/sound-spaces), [`Pyroomacoustics`](https://github.com/LCAV/pyroomacoustics), and [`SELDVisualSynth`](https://github.com/adrianSRoman/SELDVisualSynth) for scalable soundscape generation with unprecedented acoustic diversity.
 
 `AudibleLight` is developed by researchers at the [Centre for Digital Music, Queen Mary University of London](https://www.c4dm.eecs.qmul.ac.uk/) in collaboration with [Meta Reality Labs](https://www.meta.com/en-gb/emerging-tech).
 
@@ -46,6 +46,7 @@ If you're looking to develop `AudibleLight`, you'll also need to install:
 For non-development installs, the simplest way to install `AudibleLight` is via pypi:
 
 ```bash
+sudo apt update
 sudo apt install -y libsox-dev libsox-fmt-all freeglut3-dev pandoc
 pip install audiblelight
 ```
@@ -60,7 +61,7 @@ make install
 
 ### Download data
 
-We provide several helper scripts to download and prepare data (3D meshes, sofa files, audio files) that may be useful in `AudibleLight`. 
+We provide several helper scripts to download and prepare data (3D meshes, sofa files, audio files, images) that may be useful in `AudibleLight`. 
 
 You can run these scripts directly from the Python interpreter:
 
@@ -119,7 +120,6 @@ make tests
 - Spatial audio augmentations (from https://arxiv.org/abs/2101.02919)
 - HRTF support
 - Directional microphone capsules support
-- Increased visualisation options
 
 ## Citation
 

@@ -13,6 +13,8 @@ from audiblelight.micarrays import MicArray
 
 TEST_RESOURCES = utils.get_project_root() / "tests/test_resources"
 SOUNDEVENT_DIR = TEST_RESOURCES / "soundevents"
+IMAGE_DIR = TEST_RESOURCES / "images"
+
 # Use tap for background audio
 BACKGROUND_DIR = SOUNDEVENT_DIR / "waterTap"
 MESH_DIR = TEST_RESOURCES / "meshes"
@@ -29,6 +31,15 @@ TEST_AUDIOS = sorted(
     ]
 )
 TEST_MUSICS = [i for i in TEST_AUDIOS if "music" in i]
+
+TEST_IMAGES = sorted(
+    [
+        os.path.join(xs, x)
+        for xs in utils.list_deepest_directories(IMAGE_DIR)
+        for x in os.listdir(xs)
+        if x.endswith(".jpg")
+    ]
+)
 
 METU_SOFA_URL = "https://drive.google.com/uc?id=1M0gLk9mhQks1o8YoZQI_qxI0OboSzPGB"
 METU_SOFA_PATH = TEST_RESOURCES / "metu_foa.sofa"

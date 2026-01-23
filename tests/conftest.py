@@ -71,6 +71,34 @@ def oyens_scene_no_overlap() -> Scene:
 
 
 @pytest.fixture(scope="function")
+def oyens_scene_with_images() -> Scene:
+    """
+    Returns a scene object with the Oyens mesh (Gibson), that has image paths passed
+    """
+    # Create a dummy scene
+    sc = Scene(
+        duration=10,  # short duration to keep video size small
+        backend="rlr",
+        sample_rate=config.SAMPLE_RATE,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        image_path=utils_tests.IMAGE_DIR,
+        # Run on low power mode: decimate textures, no anti-aliasing
+        video_low_power=True,
+        max_overlap=1,  # no overlapping sound events allowed
+        backend_kwargs=dict(
+            waypoints_json=utils_tests.OYENS_WAYPOINTS_PATH, mesh=utils_tests.OYENS_PATH
+        ),
+        video_res=(960, 480),
+        video_fps=5,
+    )
+
+    # Add mic at specific position
+    sc.add_microphone(microphone_type="ambeovr", position=[3.5, -3.5, 1.5])
+    return sc
+
+
+@pytest.fixture(scope="function")
 def metu_scene_no_overlap() -> Scene:
     """
     Returns a scene object with the METU SOFA file, that doesn't allow for overlapping Events

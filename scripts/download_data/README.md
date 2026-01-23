@@ -7,6 +7,7 @@ This folder contains scripts for downloading the following datasets, which may p
 - [Free Music Archive](https://github.com/mdeff/fma): `download_fma.py`
 - [FSD50K](https://zenodo.org/records/4060432): `download_fsd.py`
 - [SpatialScaper RIRs](https://github.com/marl/SpatialScaper/tree/main?tab=readme-ov-file#preparing-rir-datasets): `download_rirs.py`
+- [VisualGenome Images](https://homes.cs.washington.edu/~ranjay/visualgenome/index.html): `download_visualgenome.py`
 
 Note that, by running these scripts, you confirm that you agree to abide by their terms of use. In particular, for the *Gibson Database of 3D Spaces*, you confirm that you have signed and completed the associated [user agreement form](https://docs.google.com/forms/d/e/1FAIpQLScWlx5Z1DM1M-wTSXaa6zV8lTFkPmTHW1LqMsoCBDWsTDjBkQ/viewform). 
 
@@ -26,3 +27,18 @@ Additional arguments to the individual scripts called by this command include:
 
 These scripts have been adapted from [`spatialscaper`](https://github.com/marl/SpatialScaper/tree/main/scripts).
 
+## A note about `VisualGenome`
+
+This dataset contains an extremely large number of annotated images, only a small minority of which are likely to be useful to `AudibleLight` users.
+
+As such, this script hardcodes a few object classes that are likely to be of most use, and only downloads these images. These classes are broadly the same as those commonly used in the [DCASE Challenge](https://dcase.community) for Sound Event Localisation and Detection.
+
+In order to modify the image classes that are downloaded, you need to modify the `DCASE_VG_SELECTED` variable inside `download_visualgenome.py`. This variable is a dictionary, where the keys correspond with new object names (can be anything) and the values a list of VisualGenome `name` types (must be contained inside `objects.json`, downloaded from VisualGenome). For example:
+
+```python
+DCASE_VG_SELECTED = {
+    "telephone": ["telephone", "phone", "cellphone"],
+}
+```
+
+will download and crop all VisualGenome objects tagged with `name IN [telephone, phone, cellphone]`, and extract them to the new folder `telephone`.

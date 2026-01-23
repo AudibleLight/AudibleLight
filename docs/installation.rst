@@ -22,6 +22,7 @@ For non-development installs, the simplest way to install ``AudibleLight`` is vi
 
 .. code-block:: bash
 
+   sudo apt update
    sudo apt install -y libsox-dev libsox-fmt-all freeglut3-dev pandoc
    pip install audiblelight
 
@@ -40,7 +41,7 @@ If you wish to develop `AudibleLight`, you'll likely want to clone the repositor
 Download data
 ^^^^^^^^^^^^^
 
-We provide several helper scripts to download and prepare data (3D meshes, sofa files, audio files) that may be useful in ``AudibleLight``.
+We provide several helper scripts to download and prepare data (3D meshes, sofa files, audio files, images) that may be useful in ``AudibleLight``.
 
 You can run these scripts directly from the Python interpreter:
 

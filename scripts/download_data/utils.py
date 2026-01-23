@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import tarfile
 import zipfile
+from pathlib import Path
+from typing import Union
 
 import requests
 from tqdm import tqdm
@@ -69,6 +71,34 @@ def download_txt(url: str) -> list[str]:
     response = requests.get(url)
     response.raise_for_status()  # Check if the download was successful
     return response.text.splitlines()
+
+
+def move_all_files_in_folder(
+    src_folder: Union[str, Path], target_folder: Union[str, Path]
+) -> None:
+    """
+    Move all files in a given folder to a new folder
+    """
+
+    src_files = os.listdir(src_folder)
+    for file_name in src_files:
+        full_file_name = os.path.join(src_folder, file_name)
+        if os.path.isfile(full_file_name):
+            shutil.move(full_file_name, target_folder)
+
+
+def increment_filename(pattern: str, upper_limit: int = 1000) -> str:
+    """
+    Increments the filename based on the pattern until an extension is found
+    """
+    i = 0
+
+    while os.path.exists(pattern % i):
+        i += 1
+        if i > upper_limit:
+            raise RuntimeError(f"Incremented filename too long: {pattern}")
+
+    return pattern % i
 
 
 class BaseDataSetup:

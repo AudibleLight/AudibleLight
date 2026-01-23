@@ -33,15 +33,23 @@ def test_create_static_event(audio_fpath: str, oyens_space):
     emitter = oyens_space.get_emitters("test_emitter")
     ev = Event(audio_fpath, "test_event", emitters=emitter)
     assert not ev.is_moving
+
     # Coordinates should be set properly
     assert np.array_equal(
         ev.start_coordinates_absolute, emitter[0].coordinates_absolute
     )
     assert np.array_equal(ev.end_coordinates_absolute, emitter[0].coordinates_absolute)
+
     # Should be able to create a dictionary
     ev_dict = ev.to_dict()
     for k in ["alias", "duration", "filepath", "emitters", "emitters_relative"]:
         assert k in ev_dict.keys()
+
+    # Should not have an image associated with the Event
+    assert ev.image_filepath is None
+    with pytest.raises(FileNotFoundError):
+        _ = ev.load_image()
+    assert not ev.is_image_loaded
 
 
 @pytest.mark.parametrize(
@@ -154,6 +162,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             "augmentations": [],
             "ref_ir_channel": 0,
             "direct_path_time_ms": [6, 30],
+            "image_filepath": None,
         },
         {
             "alias": "test_event",
@@ -235,6 +244,7 @@ def test_parse_duration(duration: float, expected: float, oyens_space):
             ],
             "ref_ir_channel": None,
             "direct_path_time_ms": None,
+            "image_filepath": str(utils_tests.IMAGE_DIR / "music/3_0.jpg"),
         },
     ],
 )
@@ -550,3 +560,27 @@ def test_infer_class_id_labels(class_id, class_label):
     )
     assert parsed.class_id == 0
     assert parsed.class_label == "femaleSpeech"
+
+
+@pytest.mark.parametrize("audio_fpath", utils_tests.TEST_AUDIOS[:2])
+@pytest.mark.parametrize("image_fpath", utils_tests.TEST_IMAGES[:2])
+def test_initialise_event_with_image(audio_fpath, image_fpath, oyens_space):
+    # Initialise mic, emitter
+    oyens_space.add_microphone()
+    oyens_space.add_emitter(alias="test_emitter")
+    emitter = oyens_space.get_emitters("test_emitter")
+
+    # Add event with image
+    ev = Event(audio_fpath, "test_event", emitters=emitter, image_filepath=image_fpath)
+    assert ev.image_filepath is not None
+
+    # Try loading up the image
+    img = ev.load_image(ignore_cache=True)
+    assert isinstance(img, np.ndarray)
+    assert img.ndim == 3  # should be RGB
+    assert ev.is_image_loaded
+    assert img.dtype == np.uint8
+
+    # Try loading up again with caching
+    img2 = ev.load_image(ignore_cache=False)
+    assert np.array_equal(img2, img)

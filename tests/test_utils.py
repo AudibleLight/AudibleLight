@@ -630,3 +630,24 @@ def test_get_valid_kwargs(inp, expected, exc):
             utils.get_valid_kwargs(inp)
     else:
         assert utils.get_valid_kwargs(inp) == expected
+
+
+@pytest.mark.parametrize(
+    "module_name,message,errors",
+    [
+        ("math", None, False),
+        ("json", None, False),
+        ("still_no_mod", "custom error!", True),
+        ("asdf", "Cannot import module 'asdf': ", True),
+    ],
+)
+def test_safe_import(module_name, message, errors):
+    # should import successfully
+    if not errors:
+        mod = utils.safe_import(module_name, message)
+        assert mod is not None
+
+    # should raise with expected message
+    else:
+        with pytest.raises(ImportError, match=message):
+            utils.safe_import(module_name, message)

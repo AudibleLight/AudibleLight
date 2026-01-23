@@ -10,6 +10,14 @@ FFT_SIZE = 512
 WIN_SIZE = 256
 HOP_SIZE = 128
 
+# Video
+#  resolution is default to STARSS videos
+VIDEO_RESOLUTION = (1920, 960)  # width, height
+VIDEO_FPS = 10
+VIDEO_TEXTURE_DECIMATE = (536, 536)  # reduce textures to this on low power mode
+VIDEO_OVERLAY_DISTANCE_SCALE_FACTOR = 1.0
+VIDEO_OVERLAY_BASE_SIZE = 0.5
+
 # Scene
 SCENE_DURATION = 60
 DEFAULT_REF_DB = -65

@@ -18,6 +18,7 @@ coverage.xml
 *.zip
 
 # Ignore outputs
+*.mp4
 *.wav
 *.mp3
 *.aac
@@ -46,6 +47,7 @@ coverage.xml
 !/tests/test_resources/**/*.obj
 !/tests/test_resources/**/*.wav
 !/tests/test_resources/daga_foa.sofa
+!/tests/test_resources/**/*.jpg
 
 # Sphinx documentation
 /docs/_build/

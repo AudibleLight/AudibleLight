@@ -4,6 +4,7 @@
 """Custom data types, exceptions, objects, etc. used across the entire pipeline"""
 
 from functools import cached_property
+from pathlib import Path
 from typing import Any, Callable, Protocol, Union
 
 import numpy as np
@@ -18,7 +19,21 @@ NUMERIC_DTYPES = (
 )
 # Used as a typehint
 Numeric = Union[int, float, complex, np.integer, np.floating]
+Filepath = Union[str, Path]
+
 AUDIO_EXTS = ("wav", "mp3", "mpeg4", "m4a", "flac", "aac")
+IMAGE_EXTS = (
+    "jpg",
+    "jpeg",
+    "png",
+    "pdf",
+    "gif",
+    "tiff",
+    "webp",
+    "eps",
+    "svg",
+    "raw",
+)
 
 
 class DistributionLike(Protocol):

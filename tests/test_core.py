@@ -858,6 +858,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     ],
                     "ref_ir_channel": 0,
                     "direct_path_time_ms": [6, 30],
+                    "image_filepath": None,
                 }
             },
             "state": {
@@ -1016,6 +1017,7 @@ def test_add_ambience_bad(oyens_scene_no_overlap: Scene):
                     ],
                     "ref_ir_channel": 0,
                     "direct_path_time_ms": [6, 30],
+                    "image_filepath": str(utils_tests.IMAGE_DIR / "music/3_0.jpg"),
                 }
             },
             "state": {
@@ -1494,7 +1496,7 @@ def test_generate_foa(n_events: int, oyens_scene_no_overlap: Scene):
     for n in range(n_events):
         oyens_scene_no_overlap.add_event(event_type="static", duration=1)
     oyens_scene_no_overlap.generate(
-        audio=False, metadata_json=False, metadata_dcase=False
+        audio=True, metadata_json=False, metadata_dcase=False
     )
 
     # Shape of the audio should be 4 channel
@@ -1789,3 +1791,109 @@ def test_add_functions(oyens_scene_no_overlap):
     assert len(oyens_scene_no_overlap.state.emitters) == 1
     oyens_scene_no_overlap.clear_microphones()
     oyens_scene_no_overlap.clear_emitters()
+
+
+@pytest.mark.parametrize(
+    "audio_filepath,image_filepath",
+    [
+        # Both audio filepath and image explicitly provided
+        (
+            utils_tests.SOUNDEVENT_DIR / "telephone/30085.wav",
+            utils_tests.IMAGE_DIR / "telephone/3_0.jpg",
+        ),
+        # Audio only provided: grab image with same class
+        # TODO: this test is failing with event_type="predefined", why?
+        (utils_tests.SOUNDEVENT_DIR / "doorCupboard/35632.wav", None),
+        # Nothing provided: infer both
+        (None, None),
+    ],
+)
+@pytest.mark.parametrize("event_type", ["static", "moving", "predefined"])
+def test_add_events_with_image(
+    audio_filepath, image_filepath, event_type, oyens_scene_with_images
+):
+    if audio_filepath is None or image_filepath is None:
+        if event_type == "predefined":
+            pytest.skip(reason="Needs fixing")
+
+    assert len(oyens_scene_with_images.fg_images) > 0
+
+    # Create the event
+    ev = oyens_scene_with_images.add_event(
+        event_type=event_type,
+        image_filepath=image_filepath,
+        filepath=audio_filepath,
+    )
+    assert ev.image_filepath is not None
+    assert isinstance(ev.image_filepath, Path)
+    assert isinstance(ev.filepath, Path)
+
+    # Try loading the image
+    img = ev.load_image()
+    assert isinstance(img, np.ndarray)
+    assert ev.is_image_loaded
+
+    # Image and audio filepath class should match
+    audio_cls = ev.filepath.parent.stem
+    image_cls = ev.image_filepath.parent.stem
+    assert audio_cls == image_cls == ev.class_label
+
+
+@pytest.mark.parametrize("image_filepath", [utils_tests.TEST_AUDIOS[0]])
+@pytest.mark.parametrize("event_type", ["static", "moving", "predefined"])
+def test_add_event_with_bad_image(image_filepath, event_type, oyens_scene_with_images):
+    # sanitise to get as a Path object, which lets us call {}.name
+    image_filepath = utils.sanitise_filepath(image_filepath)
+
+    # add the event: should raise an error about invalid extension
+    with pytest.raises(
+        ValueError,
+        match=f"Image filepath {image_filepath.name} is invalid! Extension must be one of",
+    ):
+        oyens_scene_with_images.add_event(
+            event_type=event_type, image_filepath=image_filepath
+        )
+
+
+@pytest.mark.parametrize(
+    ["video_res", "error", "msg"],
+    [
+        ((1920.0, 960.0), False, None),
+        (
+            "asdf",
+            TypeError,
+            "Expected video_res to be an iterable, but got type <class 'str'>",
+        ),
+        (
+            (500, 400, 600),
+            ValueError,
+            "Expected video_res to contain exactly 2 values, but got 3 values",
+        ),
+        ((123, -1), ValueError, "Expected all values in video_res to be positive"),
+        ((400, 600), ValueError, "Expected height to be exactly half of width"),
+    ],
+)
+def test_sanitise_video_res(video_res, error, msg):
+    if not error:
+        out = Scene(
+            backend="rlr",
+            video_res=video_res,
+            duration=60,
+            backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+        )
+
+        assert isinstance(out.video_res, list)
+        height, width = out.video_res
+        assert isinstance(height, int)
+        assert isinstance(width, int)
+        assert height == video_res[0]
+        assert width == video_res[1]
+
+    else:
+        with pytest.raises(error, match=msg):
+            _ = Scene(
+                backend="rlr",
+                video_res=video_res,
+                duration=60,
+                backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
+            )

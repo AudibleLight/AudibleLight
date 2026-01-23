@@ -562,6 +562,12 @@ class WorldState:
         else:
             raise KeyError("Microphone alias '{}' not found.".format(alias))
 
+    def get_microphones(self) -> list[Type["MicArray"]]:
+        """
+        Get all microphones associated with the current State
+        """
+        return list(self.microphones.values())
+
     def clear_microphones(self) -> None:
         """
         Removes all current microphones.

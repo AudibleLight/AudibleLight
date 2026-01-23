@@ -74,7 +74,7 @@ def test_simulated_azimuth_with_music(microphone: list, events: list):
         )
 
     # Generate the audio and grab
-    test_scene.generate(metadata_json=False, metadata_dcase=False, audio=False)
+    test_scene.generate(metadata_json=False, metadata_dcase=False, audio=True)
     output = test_scene.audio["tester"]
 
     # Coordinates of our capsules for the eigenmike
@@ -175,7 +175,7 @@ def test_simulated_sound_distance_vs_two_mics(
     )
 
     # Do the generation, grab the IRs
-    test_scene.generate(audio=False, metadata_dcase=False, metadata_json=False)
+    test_scene.generate(audio=True, metadata_dcase=False, metadata_json=False)
     output = test_scene.state.get_irs()
 
     # Shape of the output should be as expected
@@ -238,7 +238,7 @@ def test_simulated_sound_distance_vs_two_events(
         )
 
     # Do the generation, grab the IRs
-    test_scene.generate(audio=False, metadata_dcase=False, metadata_json=False)
+    test_scene.generate(audio=True, metadata_dcase=False, metadata_json=False)
     output = test_scene.state.get_irs()
 
     # Separate IR by event

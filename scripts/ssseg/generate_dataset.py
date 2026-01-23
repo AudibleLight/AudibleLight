@@ -126,7 +126,7 @@ def generate(generation_idx: int, **config) -> None:
     ninterferences = random.randint(
         config["ninterference_range"][0], config["ninterference_range"][1]
     )
-    interference_audios = ssc._introspect_audio_directories(
+    interference_audios = ssc._introspect_input_directories(
         [config["interference_dir"]]
     )
     for _ in range(ninterferences):
@@ -147,7 +147,7 @@ def generate(generation_idx: int, **config) -> None:
             logger.error(e)
 
     # Randomly add a background audio file in
-    background_audios = ssc._introspect_audio_directories([config["background_dir"]])
+    background_audios = ssc._introspect_input_directories([config["background_dir"]])
     ssc.add_ambience(channels=4, filepath=random.choice(background_audios))
 
     # Do the generation but don't save any outputs just yet
