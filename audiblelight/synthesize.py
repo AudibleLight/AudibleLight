@@ -739,7 +739,9 @@ def validate_scene(scene: Scene) -> None:
         )
 
 
-def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
+def generate_dcase2024_metadata(
+    scene: Scene, temporal_resolution: custom_types.Numeric = 0.1
+) -> dict[str, pd.DataFrame]:
     """
     Given a Scene, generate metadata for each microphone in the DCASE 2024 format.
 
@@ -758,7 +760,8 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
 
     The audio is quantised to 10 frames per second (i.e., frame length = 100 ms). In cases of moving trajectories, the
     position of each IR is linearly interpolated throughout the duration of the audio file in order to obtain a value
-    for azimuth, elevation, and distance estimated at every frame.
+    for azimuth, elevation, and distance estimated at every frame. The quantisation can be changed by adjusting the
+    `temporal_resolution` argument.
 
     Note that, `source number index` value is assigned **separately** for each class (in the STARSS format):
     thus, with two `telephone` classes and one `femaleSpeech`, we would expect to see values of 0 and 1 for the two
@@ -769,7 +772,9 @@ def generate_dcase2024_metadata(scene: Scene) -> dict[str, pd.DataFrame]:
     """
 
     # Produce an array of frames, lasting as long as the scene itself.
-    frames = np.round(np.arange(0, scene.duration + 0.1, 0.1), 1)
+    frames = np.round(
+        np.arange(0, scene.duration + temporal_resolution, temporal_resolution), 1
+    )
 
     # Aliases for all microphones
     microphones = list(scene.state.microphones.keys())
