@@ -78,6 +78,11 @@ vtk = "*"
 pyvista = "*"
 opencv-python = "*"
 
+[tool.poetry.group.acoustic-imaging.dependencies]
+astropy = "<7.2"
+pyunlocbox = "^0.6.1"
+scikit-image = "<0.26.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
