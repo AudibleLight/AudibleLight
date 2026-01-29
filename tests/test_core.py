@@ -1897,3 +1897,68 @@ def test_sanitise_video_res(video_res, error, msg):
                 duration=60,
                 backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
             )
+
+
+@pytest.mark.parametrize("scale", ["log", "linear"])
+def test_generate_acoustic_image(scale):
+    # generate test scene with ray-tracing
+    tmp_scene = Scene(
+        duration=10,
+        backend=WorldStateRLR(mesh=utils_tests.OYENS_PATH, sample_rate=22050),
+        sample_rate=22050,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        max_overlap=1,
+    )
+
+    # add microphone + event, generate audio
+    tmp_scene.add_microphone(microphone_type="eigenmike32", alias="tester")
+    ev = tmp_scene.add_event(event_type="static", duration=0.5, scene_start=0.0)
+    tmp_scene.generate(
+        audio=True, metadata_json=False, metadata_dcase=False, video=False
+    )
+
+    # generate acoustic image with metadata
+    #  set a small frame cap and number of bands to reduce time needed
+    tmp_scene.generate_acoustic_image(
+        output_dir=utils_tests.SOUNDEVENT_DIR,
+        json_fname="tmp_out",
+        frame_cap=10,
+        nbands=1,
+        scale=scale,
+    )
+
+    # check the JSON file exists
+    assert (utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json").exists()
+    assert "tester" in tmp_scene.acoustic_image.keys()
+    assert "tester" in tmp_scene.acoustic_image_json.keys()
+
+    # validate that the acoustic image looks ok
+    #  this is all hardcoded for now
+    aimg = tmp_scene.acoustic_image["tester"]
+    assert isinstance(aimg, np.ndarray)
+    assert aimg.shape == (484, 1, 10)  # (tesselation, bands, frames)
+
+    # validate the metadata looks alright
+    js = tmp_scene.acoustic_image_json["tester"]
+    assert isinstance(js, list)
+
+    # the event has a duration of 5 seconds, so it should appear across 6 frames
+    assert len(js) == 6
+
+    # check the results for each individual frame
+    for j in js:
+        assert j["category_id"] == ev.class_id
+        assert j["instance_id"] == 0
+        assert j["metadata_frame_index"] <= 5
+
+        segment = j["segmentation"]
+        if len(segment) >= 1:
+            # check polygons: should have two dims with second == 3, and all amplitude values >= 0
+            for seg in segment:
+                seg_arr = np.array(seg)
+                assert seg_arr.shape[1] == 3
+                assert np.all(seg_arr[:, -1] >= 0)
+
+    # cleanup old JSON files
+    os.remove(utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json")
