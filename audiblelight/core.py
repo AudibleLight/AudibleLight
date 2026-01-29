@@ -1901,7 +1901,7 @@ class Scene:
         Metadata for the acoustic images consists of the pixel coordinates of associated "segmentations" (or "blobs"!)
         extracted from the acoustic image. These segmentations can be treated similar to bounding boxes often found in
         computer vision, and can be used for tasks like sound event localisation and detection. The method used to
-        obtain the metata is as follows:
+        obtain the metadata is as follows:
 
         1. Take the median energy for each band in the acoustic image: gives (tesselation, frames)
         2. Iterate over all frames with an active annotation in the metadata array

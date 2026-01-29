@@ -22,14 +22,12 @@ import scipy.linalg as linalg
 import scipy.signal.windows as windows
 import scipy.sparse.linalg as splinalg
 import skimage.util as skutil
-from loguru import logger
 from pyunlocbox.functions import dummy
 from scipy.constants import speed_of_sound
 from scipy.interpolate import griddata
 from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
-from audiblelight.core import Scene
 
 
 class L2Loss(opt.functions.func):
@@ -40,9 +38,9 @@ class L2Loss(opt.functions.func):
     def __init__(self, s: np.ndarray, a: np.ndarray):
         m, n = a.shape
         if not ((s.shape[0] == s.shape[1]) and (s.shape[0] == m)):
-            raise ValueError("Parameters[S, A] are inconsistent.")
+            raise ValueError("Parameters `s` and `a` are inconsistent.")
         if not np.allclose(s, s.conj().T):
-            raise ValueError("Parameter[S] must be Hermitian.")
+            raise ValueError("Parameter `s` must be Hermitian.")
 
         super().__init__()
         self._S = s.copy()
@@ -91,9 +89,9 @@ class ElasticNetLoss(opt.functions.func):
 
     def __init__(self, lambda_: custom_types.Numeric, gamma: custom_types.Numeric):
         if lambda_ < 0:
-            raise ValueError("Parameter[lambda_] must be positive.")
+            raise ValueError("Parameter `lambda_` must be positive.")
         if not (0 <= gamma <= 1):
-            raise ValueError("Parameter[gamma] must be in (0, 1).")
+            raise ValueError("Parameter `gamma` must be in (0, 1).")
 
         super().__init__()
         self._lambda = lambda_
@@ -134,7 +132,7 @@ class GroundTruthAccel(opt.acceleration.accel):
         super().__init__()
 
         if d < 2:
-            raise ValueError("Parameter[d] is out of range.")
+            raise ValueError("Parameter `d` is out of range.")
 
         self._d = d
         self._step = 1 / l_
@@ -237,7 +235,7 @@ def _polar_to_cartesian(coords_dict: dict[str, list], units: Optional[str] = Non
         or units.lower() not in ["degrees", "radians"]
     ):
         raise ValueError("Units must be specified as one of 'degrees' or 'radians'")
-    elif units == "degrees":
+    elif units.lower() == "degrees":
         coords_dict = _degrees_to_radians(coords_dict)
     return {
         m: [
@@ -334,7 +332,7 @@ def _equirectangular_to_spherical(
     return azimuth_deg, elevation_deg
 
 
-def get_mic_xyz_coords(mic_coords: np.ndarray) -> list:
+def get_mic_xyz_coords(mic_coords: dict) -> list:
     """
     Get XYZ coordinates for microphone array
     """
@@ -529,30 +527,21 @@ def _solve(
     rtol: Optional[custom_types.Numeric] = 1e-3,
     xtol: Optional[custom_types.Numeric] = None,
     maxit: Optional[custom_types.Numeric] = 200,
-    verbosity: Optional[str] = "LOW",
 ) -> dict:
     """
     Solve an optimization problem whose objective function is the sum of some
     convex functions.
     """
-    if verbosity not in ["NONE", "LOW", "HIGH", "ALL"]:
-        raise ValueError("Verbosity should be either NONE, LOW, HIGH or ALL.")
-
     # Add a second dummy convex function if only one function is provided.
     if len(functions) < 1:
         raise ValueError("At least 1 convex function should be provided.")
     elif len(functions) == 1:
         functions.append(dummy())
-        if verbosity in ["LOW", "HIGH", "ALL"]:
-            logger.info("Dummy objective function added.")
 
     # Set solver and functions verbosity.
-    translation = {"ALL": "HIGH", "HIGH": "HIGH", "LOW": "LOW", "NONE": "NONE"}
-    solver.verbosity = translation[verbosity]
-    functions_verbosity = []
+    solver.verbosity = "NONE"
     for f in functions:
-        functions_verbosity.append(f.verbosity)
-        f.verbosity = translation[verbosity]
+        f.verbosity = "NONE"
 
     tstart = time.time()
     crit = None
@@ -571,10 +560,6 @@ def _solve(
         if xtol is not None:
             last_sol = np.array(solver.sol, copy=True)
 
-        if verbosity in ["HIGH", "ALL"]:
-            name = solver.__class__.__name__
-            logger.info("Iteration {} of {}:".format(niter, name))
-
         # Solver iterative algorithm.
         solver.algo(objective, niter)
         tape_buffer[niter] = solver.sol
@@ -591,8 +576,6 @@ def _solve(
         if rtol is not None:
             div = current  # Prevent division by 0.
             if div == 0:
-                if verbosity in ["LOW", "HIGH", "ALL"]:
-                    logger.warning("(rtol) objective function is equal to 0!")
                 if last != 0:
                     div = last
                 else:
@@ -609,18 +592,6 @@ def _solve(
                 crit = "XTOL"
         if maxit is not None and niter >= maxit:
             crit = "MAXIT"
-
-        if verbosity in ["HIGH", "ALL"]:
-            logger.info("    objective = {:.2e}".format(current))
-
-    # Restore verbosity for functions. In case they are called outside solve().
-    for k, f in enumerate(functions):
-        f.verbosity = functions_verbosity[k]
-
-    if verbosity in ["LOW", "HIGH", "ALL"]:
-        logger.success(
-            f"Solution found after {niter} iterations: objective function f(sol) = {current}, stopping criterion {crit}"
-        )  # noqa
 
     # Returned dictionary.
     result = {
@@ -654,7 +625,6 @@ def solve(
     x0: Optional[np.ndarray] = None,
     eps: Optional[custom_types.Numeric] = 1e-3,
     n_iter_max: Optional[custom_types.Numeric] = 200,
-    verbosity: Optional[str] = "LOW",
     momentum: Optional[bool] = True,
 ) -> dict:
     """
@@ -662,17 +632,17 @@ def solve(
     """
     m, n = a.shape
     if not ((s.shape[0] == s.shape[1]) and (s.shape[0] == m)):
-        raise ValueError("Parameters[S, A] are inconsistent.")
+        raise ValueError("Parameters `s` and `a` are inconsistent.")
     if not np.allclose(s, s.conj().T):
-        raise ValueError("Parameter[S] must be Hermitian.")
+        raise ValueError("Parameter `s` must be Hermitian.")
 
     if not (0 <= gamma <= 1):
-        raise ValueError("Parameter[gamma] is must lie in [0, 1].")
+        raise ValueError("Parameter `gamma` is must lie in [0, 1].")
 
     if l_ is None:
         l_ = 2 * eigh_max(a)
     elif l_ <= 0:
-        raise ValueError("Parameter[L] must be positive.")
+        raise ValueError("Parameter `l_` must be positive.")
 
     if d < 2:
         raise ValueError(r"Parameter[d] must be \ge 2.")
@@ -680,16 +650,13 @@ def solve(
     if x0 is None:
         x0 = np.zeros((n,), dtype=np.float64)
     elif np.any(x0 < 0):
-        raise ValueError("Parameter[x0] must be non-negative.")
+        raise ValueError("Parameter `x0` must be non-negative.")
 
     if not (0 < eps < 1):
-        raise ValueError("Parameter[eps] must lie in (0, 1).")
+        raise ValueError("Parameter `eps` must lie in (0, 1).")
 
     if n_iter_max < 1:
-        raise ValueError("Parameter[N_iter_max] must be positive.")
-
-    if verbosity not in ("NONE", "LOW", "HIGH", "ALL"):
-        raise ValueError("Unknown verbosity specification.")
+        raise ValueError("Parameter `N_iter_max` must be positive.")
 
     if lambda_ is None:
         if gamma > 0:  # Procedure of Remark 3.4
@@ -705,14 +672,13 @@ def solve(
                 solver=solver,
                 rtol=eps,
                 maxit=1,
-                verbosity=verbosity,
             )
             alpha = 1 / l_
             lambda_ = np.max(i_opt["sol"]) / (10 * alpha * gamma)
         else:
             lambda_ = 1  # Anything will do.
     elif lambda_ < 0:
-        raise ValueError("Parameter[lambda_] must be non-negative.")
+        raise ValueError("Parameter `lambda_` must be non-negative.")
 
     func = [L2Loss(s, a), ElasticNetLoss(lambda_, gamma)]
     solver = opt.solvers.forward_backward(accel=GroundTruthAccel(d, l_, momentum))
@@ -722,7 +688,6 @@ def solve(
         solver=solver,
         rtol=eps,
         maxit=n_iter_max,
-        verbosity=verbosity,
     )
     i_opt["gamma"] = gamma
     i_opt["lambda_"] = lambda_
@@ -789,7 +754,7 @@ def get_visibility_matrix(
         np.ndarray: the acoustic image with shape (tesselation, bands, frames)
     """
     # frequency bands
-    if fmin <= fmax:
+    if fmin >= fmax:
         raise ValueError(
             f"Minimum frequency must be smaller than maximum frequency "
             f"(current minimum: {fmin}, maximum: {fmax})."
@@ -848,9 +813,7 @@ def get_visibility_matrix(
             visibilities_per_frame.append(s_norm)
 
             # gradient descent
-            i_apgd = solve(
-                s_norm, a, gamma=apgd_gamma, x0=i_prev.copy(), verbosity="NONE"
-            )
+            i_apgd = solve(s_norm, a, gamma=apgd_gamma, x0=i_prev.copy())
             apgd_per_band[s_idx] = i_apgd["sol"]
             i_prev = i_apgd["sol"]
 
@@ -889,6 +852,16 @@ def create_2d_gaussian(
 
     The radius of the circle is set to contain 2 SD of the values within the span of (width, height)
     """
+    # Check inputs are valid
+    if not 0 <= cx <= width:
+        raise ValueError(
+            f"X coordinate is outside of width! (x = {cx}, width = {width})"
+        )
+    if not 0 <= cy <= height:
+        raise ValueError(
+            f"Y coordinate is outside of height! (y = {cy}, height = {height})"
+        )
+
     # The circle should contain 2 SD of the vals (68-*95*-99.7% rule)
     sigma_deg = circle_radius / 2.0
 
@@ -920,76 +893,31 @@ def create_2d_gaussian(
     return gaussian
 
 
-def find_wrapped_contours(acoustic_image: np.ndarray) -> list[np.ndarray]:
+def find_contours(acoustic_image: np.ndarray) -> list[np.ndarray]:
     """
-    Find contours in an equirectangular mask with horizontal wrap-around.
+    Find contours in an equirectangular image. Horizontal wrap-around is handled naturally:
+      - If a blob is split across left/right edges, findContours returns two separate contours
+      - Both contours are kept in the segmentation list
 
-    Wrapping around is necessary to find contours that wrap around both sides of the equirectangular frame, e.g. a
-    person standing at left edge of the screen making noise likely will "wrap around" to the right edge of the screen
-
-    Arguments:
-        acoustic_image (np.ndarray): frame from acoustic image, should already be scaled using 2D Gaussian
+    Args:
+        acoustic_image (np.ndarray): 2D acoustic image (already scaled/masked)
 
     Returns:
-        list: contours in original coordinate space.
+        list[np.ndarray]: list of contours
     """
-    # Safe OpenCV import
     cv2 = utils.safe_import("cv2")
 
-    # Compute binary mask for the frame
+    # Binary mask
     binary_mask = (acoustic_image > 0).astype(np.uint8) * 255
-    h, w = binary_mask.shape
 
-    # Tile image horizontally (3x gives safety margin)
-    tiled = np.hstack([binary_mask, binary_mask, binary_mask])
+    # Find contours normally
+    contours, _ = cv2.findContours(
+        binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
-    # Find contours from the tiled image
-    contours, _ = cv2.findContours(tiled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    wrapped_contours = []
-
-    # Iterate over wrapped contours and shift them back to the center
-    for cnt in contours:
-        # Shift contour back to center tile
-        cnt = cnt.copy()
-        cnt[:, 0, 0] -= w  # subtract one width
-
-        # Keep contours that intersect original image range
-        if np.any((cnt[:, 0, 0] >= 0) & (cnt[:, 0, 0] < w)):
-            wrapped_contours.append(cnt)
-
-    # Note that this has to be a list of arrays, not a single array, as the individual contours
-    #  themselves may have different dims
-    return wrapped_contours
-
-
-def split_contour_on_seam(
-    contour: list[np.ndarray], width: custom_types.Numeric
-) -> list[np.ndarray]:
-    """
-    Split contour if it crosses the horizontal seam of an equirectangular video.
-
-    Returns:
-        list: contains either one contour (not crossing seam), or two contours (crosses seam)
-    """
-    xs = contour[:, 0, 0]
-
-    if xs.max() - xs.min() < width / 2:
-        # Normal contour, no wrap
-        return [contour]
-
-    # Split into left and right parts
-    left = contour[xs < width * 0.5]
-    right = contour[xs >= width * 0.5]
-
-    if len(left) == 0 or len(right) == 0:
-        return [contour]
-
-    # Shift right part to negative space
-    right_shifted = right.copy()
-    right_shifted[:, 0, 0] -= width
-
-    return [left, right_shifted]
+    # [(n_coordinates, 2), (n_coordinates, 2), ...]
+    #  this will be len == 1 in all cases BUT when a sound event wraps around both edges of an image
+    return [c.squeeze() for c in contours]
 
 
 def get_segmentation_pixels(
@@ -1151,7 +1079,7 @@ def generate_acoustic_image_json(
             acoustic_image_gauss_masked[polygon_mask] = 0
 
             # Find contours within the masked image
-            contours = find_wrapped_contours(acoustic_image_gauss_masked)
+            contours = find_contours(acoustic_image_gauss_masked)
 
             # We'll store segmentations for this frame inside here
             segmentations = []
@@ -1159,25 +1087,15 @@ def generate_acoustic_image_json(
             # Iterate over all the contours we've found
             for contour in contours:
 
-                # We need to split the contours along the seam
-                splitted = split_contour_on_seam(contour, video_width)
+                # skip degenerate contours
+                if contour.ndim == 1:
+                    continue
 
-                for sc in splitted:
-                    sc = sc.copy()
-                    sc[:, 0, 0] %= video_width
-
-                    # Grab all pixels that are contained within the boundary
-                    boundary = sc.squeeze()
-
-                    # Skip over malformed boundaries
-                    if boundary.ndim == 1:
-                        continue
-
-                    # Grab the pixels + amplitude values within this segmentation and append to the list
-                    pixels_list = get_segmentation_pixels(
-                        acoustic_image_gauss_masked, boundary
-                    )
-                    segmentations.append(pixels_list)
+                # Grab the pixels + amplitude values within this segmentation and append to the list
+                pixels_list = get_segmentation_pixels(
+                    acoustic_image_gauss_masked, contour
+                )
+                segmentations.append(pixels_list)
 
             # Now we can create the annotations dictionary
             annotations_dict = {
@@ -1190,24 +1108,3 @@ def generate_acoustic_image_json(
             scene_res.append(annotations_dict)
 
     return scene_res
-
-
-if __name__ == "__main__":
-    from audiblelight.worldstate import WorldStateRLR
-    from tests import utils_tests
-
-    tmp_scene = Scene(
-        duration=10,
-        backend=WorldStateRLR(mesh=utils_tests.OYENS_PATH),
-        sample_rate=config.SAMPLE_RATE,
-        fg_path=utils_tests.SOUNDEVENT_DIR,
-        bg_path=utils_tests.BACKGROUND_DIR,
-        max_overlap=1,
-    )
-    tmp_scene.add_microphone(microphone_type="eigenmike32")
-    tmp_scene.add_event(event_type="static", duration=0.5, scene_start=0.0)
-    tmp_scene.generate(
-        audio=True, metadata_json=False, metadata_dcase=False, video=False
-    )
-
-    tmp_scene.generate_acoustic_image()
