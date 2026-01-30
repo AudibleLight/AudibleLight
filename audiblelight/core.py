@@ -1954,6 +1954,7 @@ class Scene:
         from audiblelight.imaging import (
             generate_acoustic_image_json,
             get_visibility_matrix,
+            standardise_acoustic_image_amplitude,
         )
         from audiblelight.synthesize import generate_dcase2024_metadata
 
@@ -2036,9 +2037,12 @@ class Scene:
                 ),
             )
 
+            # Standardise the amplitude values in the JSON
+            aimg_js_std = standardise_acoustic_image_amplitude(aimg_js)
+
             # Set all properties to the current object
             self.acoustic_image[micarray_alias] = apgd_arr
-            self.acoustic_image_json[micarray_alias] = aimg_js
+            self.acoustic_image_json[micarray_alias] = aimg_js_std
 
             # Dump the JSON
             with open(

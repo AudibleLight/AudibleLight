@@ -1108,3 +1108,58 @@ def generate_acoustic_image_json(
             scene_res.append(annotations_dict)
 
     return scene_res
+
+
+def standardise_acoustic_image_amplitude(
+    acoustic_image_labels: list[dict],
+) -> list[dict]:
+    """
+    Standardise the amplitude values within the acoustic image labels using distribution from STARSS23 training data.
+
+    The process is as follows:
+        - We start by grabbing the mean and standard deviation amplitude values within the STARSS23 training set
+            - Note that these values are HARDCODED as they have been found from empirical testing with this data
+        - Each dictionary in the input consists of 1/2 polygons for a single object in a single frame
+            - Usually, we'd expect to just have one polygon if the object is in the middle of the frame, but if it
+                crosses to the edge of the frame, it will wrap around, so we'll end up with two polygons.
+        - For each polygon, take the amplitude values, subtract STARSS_MU, and divide by STARSS_SD (i.e., z-scoring)
+            - Next, add 0.5 to the Z-scored values and clip anything above 1 and below 0.01
+
+    This process then standardises the amplitude values of the synthetic data generated with AudibleLight to lie
+    within the range of the (real) data contained inside the STARSS23 training data.
+    """
+
+    # These values are hardcoded, should not be changed
+    starss23_mu, starss23_sigma = config.AIMG_STARSS23_MU, config.AIMG_STARSS23_SIGMA
+
+    # Store standardised results
+    res_std = []
+
+    # Iterate over all the labels
+    for aimg in acoustic_image_labels:
+
+        new_polys = []
+
+        # Grab the polygons for this label and iterate over them
+        for poly in aimg["segmentation"]:
+            poly_arr = np.array(poly)
+            poly_amp = poly_arr[:, -1]
+
+            # Z-score
+            poly_amp = (poly_amp - starss23_mu) / starss23_sigma
+
+            # Add 0.5 and clip
+            poly_amp = np.clip(poly_amp + 0.5, 0.01, 1.0)
+
+            # Create new array and replace the amplitude values with standardised version
+            poly_new = poly_arr.copy()
+            poly_new[:, -1] = poly_amp
+
+            new_polys.append(poly_new.tolist())
+
+        # Update the list with the new polygons and append everything
+        aimg["segmentation"] = new_polys
+        res_std.append(aimg)
+
+    # Return standardised results
+    return res_std

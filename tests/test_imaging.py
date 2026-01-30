@@ -31,6 +31,7 @@ from audiblelight.imaging import (
     get_segmentation_pixels,
     get_visibility_matrix,
     solve,
+    standardise_acoustic_image_amplitude,
 )
 from audiblelight.micarrays import Eigenmike32
 from audiblelight.utils import SMALL
@@ -756,3 +757,76 @@ def test_generate_acoustic_image_json_invalid_inputs():
 def test_eigh_max_invalid_inputs():
     with pytest.raises(ValueError, match="`a` has wrong dimensions"):
         _ = eigh_max(np.zeros((2,)))
+
+
+@pytest.mark.parametrize(
+    "acoustic_image",
+    [
+        # Just some dummy labels I made up
+        [
+            {
+                "metadata_frame_index": 4,
+                "instance_id": 0,
+                "category_id": 3,
+                "segmentation": [],
+                "distance": 296.0,
+            },
+            {
+                "metadata_frame_index": 5,
+                "instance_id": 0,
+                "category_id": 3,
+                "segmentation": [
+                    [
+                        [31, 172, 4.0364242363765154e-05],
+                        [32, 172, 4.070701469734546e-05],
+                        [33, 172, 4.092166246117612e-05],
+                        [34, 172, 4.100662574964808e-05],
+                        [35, 172, 4.096155773159229e-05],
+                    ],
+                    [
+                        [22, 183, 5.476282593022971e-05],
+                        [23, 183, 5.729792870801646e-05],
+                        [24, 183, 5.972850381068057e-05],
+                        [25, 183, 6.203015096749988e-05],
+                        [26, 183, 6.372703554105687e-05],
+                        [27, 183, 6.525805978087924e-05],
+                        [28, 183, 6.661017169406419e-05],
+                    ],
+                ],
+                "distance": 296.0,
+            },
+            {
+                "metadata_frame_index": 5,
+                "instance_id": 0,
+                "category_id": 3,
+                "segmentation": [
+                    [
+                        [46, 204, 4.317460756407866e-05],
+                        [47, 204, 4.119375333057327e-05],
+                        [23, 205, 4.173396071277285e-05],
+                        [24, 205, 4.407868843951187e-05],
+                        [25, 205, 4.6344364875221856e-05],
+                        [26, 205, 4.8512154691918684e-05],
+                        [27, 205, 5.0421919736560936e-05],
+                        [28, 205, 5.1311185948953864e-05],
+                    ]
+                ],
+                "distance": 297.0,
+            },
+        ]
+    ],
+)
+def test_standardise_acoustic_image_amplitude(acoustic_image: list[dict]):
+    std = standardise_acoustic_image_amplitude(acoustic_image)
+
+    for lab in std:
+        # Should have no more than 2 polygons
+        assert len(lab["segmentation"]) <= 2
+
+        for poly in lab["segmentation"]:
+            poly_arr = np.array(poly)
+            assert poly_arr.shape[-1] == 3
+
+            # Check ranges are correct and scaled
+            poly_amp = poly_arr[:, -1]
+            assert bool(np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.01)))

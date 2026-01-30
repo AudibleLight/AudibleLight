@@ -1954,11 +1954,14 @@ def test_generate_acoustic_image(scale):
 
         segment = j["segmentation"]
         if len(segment) >= 1:
-            # check polygons: should have two dims with second == 3, and all amplitude values >= 0
             for seg in segment:
+                # check polygons: should have two dims with second == 3
                 seg_arr = np.array(seg)
                 assert seg_arr.shape[1] == 3
-                assert np.all(seg_arr[:, -1] >= 0)
+
+                # check also that the values are standardised correctly
+                poly_amp = seg_arr[:, -1]
+                assert bool(np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.01)))
 
     # cleanup old JSON files
     os.remove(utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json")

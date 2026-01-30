@@ -77,14 +77,21 @@ N_SCENES = 1000
 # Acoustic imaging
 #  Values taken from LAM paper
 AIMG_FMIN, AIMG_FMAX = 1500, 4500
-# AIMG_NBANDS = 9
-AIMG_NBANDS = 2
+AIMG_NBANDS = 9
+# AIMG_NBANDS = 2
 AIMG_SCALE = "linear"
 AIMG_BANDWIDTH = 50.0
 AIMG_TSTI = 10e-3
-# AIMG_FRAME_CAP = None
-AIMG_FRAME_CAP = 10
+AIMG_FRAME_CAP = None
+# AIMG_FRAME_CAP = 10
 AIMG_SH_ORDER = 10
 AIMG_CIRCLE_RADIUS_DEG = 20
 AIMG_POLYGON_MASK_THRESHOLD = 4e-5
 AIMG_RESOLUTION = 640, 320
+
+#  These values reflect the distribution of amplitude values contained within the (real)
+#  STARSS23 training data. They are hardcoded and SHOULD NOT BE CHANGED from these values.
+#  These values will be used to standardise amplitude values for synthetic data.
+# TODO: need replacing with real values!
+AIMG_STARSS23_MU = 4.079222060070542e-05
+AIMG_STARSS23_SIGMA = 2.37413244910272e-07
