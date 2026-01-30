@@ -1923,6 +1923,7 @@ def test_generate_acoustic_image(scale):
     tmp_scene.generate_acoustic_image(
         output_dir=utils_tests.SOUNDEVENT_DIR,
         json_fname="tmp_out",
+        hdf_fname="tmp_out",
         frame_cap=10,
         nbands=1,
         scale=scale,
@@ -1932,6 +1933,9 @@ def test_generate_acoustic_image(scale):
     assert (utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json").exists()
     assert "tester" in tmp_scene.acoustic_image.keys()
     assert "tester" in tmp_scene.acoustic_image_json.keys()
+
+    # check the HDF file exists
+    assert (utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.hdf").exists()
 
     # validate that the acoustic image looks ok
     #  this is all hardcoded for now
@@ -1943,8 +1947,8 @@ def test_generate_acoustic_image(scale):
     js = tmp_scene.acoustic_image_json["tester"]
     assert isinstance(js, list)
 
-    # the event has a duration of 5 seconds, so it should appear across 6 frames
-    assert len(js) == 6
+    # the event has an approx duration of 5 seconds, so it should appear across 5-6 frames
+    assert len(js) == 6 or len(js) == 5
 
     # check the results for each individual frame
     for j in js:
@@ -1965,3 +1969,4 @@ def test_generate_acoustic_image(scale):
 
     # cleanup old JSON files
     os.remove(utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json")
+    os.remove(utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.hdf")

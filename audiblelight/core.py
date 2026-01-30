@@ -1872,6 +1872,30 @@ class Scene:
                 )
                 df.to_csv(outp, sep=",", encoding="utf-8", header=None)
 
+    def _generate_acoustic_image_hdf(
+        self, hdf_outpath: Union[str, Path], a_np: np.ndarray
+    ) -> None:
+        """
+        Save a HDF file containing the acoustic image `a_np` in the required location
+        """
+        from h5py import File
+
+        with File(hdf_outpath, "w") as f:
+            # overall metadata
+            if self.state.name == "RLR":
+                filename = self.state.mesh.metadata["fname"]
+            elif self.state.name == "SOFA":
+                filename = self.state.sofa_path.stem  # noqa
+            else:
+                filename = ""
+
+            f.attrs["file"] = filename
+
+            # acoustic image
+            f.create_dataset("ai_apgd", shape=a_np.shape, dtype=a_np.dtype, data=a_np)
+            f.attrs["ai_n_frames"] = a_np.shape[0]
+            f.attrs["ai_n_bands"] = a_np.shape[1]
+
     def generate_acoustic_image(
         self,
         output_dir: Optional[Union[str, Path]] = None,
@@ -1891,6 +1915,7 @@ class Scene:
         ] = config.AIMG_RESOLUTION,
         circle_radius: Optional[custom_types.Numeric] = config.AIMG_CIRCLE_RADIUS_DEG,
         json_fname: Optional[Union[str, Path]] = "acoustic_image_metadata",
+        hdf_fname: Optional[Union[str, Path]] = "acoustic_image",
     ) -> None:
         """
         Generate acoustic image and associated metadata for each microphone array added to the Scene.
@@ -1947,6 +1972,7 @@ class Scene:
             circle_radius (Numeric): the radius of the circle placed at ground-truth azimuth and elevation points when
                 calculating the 2D Gaussian
             json_fname (str): name to use for the output JSON, default to "acoustic_image_metadata"
+            hdf_fname (str): name to use for the output HDF file, default to "acoustic_image"
 
         Returns:
             None
@@ -1963,6 +1989,7 @@ class Scene:
 
         # Sanitise filepaths: strip out suffixes, we'll add these in later
         json_path = (output_dir / json_fname).with_suffix("")
+        hdf_path = (output_dir / hdf_fname).with_suffix("")
 
         # Do some sanitising of variables used across pipeline
         sh_order = utils.sanitise_positive_number(sh_order, cast_to=int)
@@ -2045,13 +2072,17 @@ class Scene:
             self.acoustic_image_json[micarray_alias] = aimg_js_std
 
             # Dump the JSON
-            with open(
-                json_path.with_suffix(".json").with_stem(
-                    f"{json_path.name}_{micarray_alias}"
-                ),
-                "w",
-            ) as f:
+            js_full_path = json_path.with_suffix(".json").with_stem(
+                f"{json_path.name}_{micarray_alias}"
+            )
+            with open(js_full_path, "w") as f:
                 json.dump(aimg_js, f, indent=4, ensure_ascii=False)
+
+            # Dump the acoustic image as a HDF file
+            aimg_full_path = hdf_path.with_suffix(".hdf").with_stem(
+                f"{hdf_path.name}_{micarray_alias}"
+            )
+            self._generate_acoustic_image_hdf(aimg_full_path, apgd_arr)
 
     def to_dict(self) -> dict:
         """
