@@ -231,6 +231,7 @@ def test_get_visibility_matrix_invalid_inputs():
             micarray_coords=np.zeros((32, 3)),
             fmin=4500,
             fmax=1500,
+            n_jobs=1,
         )
 
     with pytest.raises(ValueError, match="'asdf' is not a valid scale"):
@@ -238,6 +239,7 @@ def test_get_visibility_matrix_invalid_inputs():
             audio_in=np.zeros((32, 44100)),
             micarray_coords=np.zeros((32, 3)),
             scale="asdf",
+            n_jobs=1,
         )
 
 

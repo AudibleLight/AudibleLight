@@ -44,6 +44,7 @@ rlr-audio-propagation = "0.0.1"
 pedalboard = "0.9.17"
 pysofaconventions = "*"
 gdown = "*"
+joblib = "^1.5.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

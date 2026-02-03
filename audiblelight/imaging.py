@@ -22,10 +22,10 @@ import scipy.linalg as linalg
 import scipy.signal.windows as windows
 import scipy.sparse.linalg as splinalg
 import skimage.util as skutil
+from joblib import Parallel, delayed
 from pyunlocbox.functions import dummy
 from scipy.constants import speed_of_sound
 from scipy.interpolate import griddata
-from tqdm import tqdm
 
 from audiblelight import config, custom_types, utils
 
@@ -720,6 +720,59 @@ def form_visibility(
     )
 
 
+def _process_visibility_matrix_band(
+    audio_in: np.ndarray,
+    fc: np.ndarray,
+    fs: custom_types.Numeric,
+    steering_matrix: np.ndarray,
+    t_sti: custom_types.Numeric = config.AIMG_TSTI,
+    bw: custom_types.Numeric = config.AIMG_BANDWIDTH,
+    frame_cap: custom_types.Numeric = config.AIMG_FRAME_CAP,
+) -> np.ndarray:
+    """
+    Process visibility matrix with a single frequency band `fc`
+    """
+    n_px = steering_matrix.shape[1]
+
+    t_stationarity = 10 * t_sti
+    s = form_visibility(audio_in, fs, fc, bw, t_sti, t_stationarity)
+    n_sample = s.shape[0]
+
+    # Cap frames if required
+    if frame_cap:
+        s = s[:frame_cap, :, :]
+        n_sample = frame_cap
+
+    apgd_gamma = 0.5
+    apgd_per_band = np.zeros((n_sample, n_px))
+    i_prev = np.zeros((n_px,))
+
+    for s_idx in range(n_sample):
+
+        # Eigen-decomposition
+        try:
+            s_d, s_v = linalg.eigh(s[s_idx])
+        except IndexError:
+            break
+
+        if s_d.max() <= 0:
+            s_d[:] = 0
+        else:
+            s_d = np.clip(s_d / s_d.max(), 0, None)
+        s_norm = (s_v * s_d) @ s_v.conj().T
+
+        i_apgd = solve(
+            s_norm,
+            steering_matrix,
+            gamma=apgd_gamma,
+            x0=i_prev.copy(),
+        )
+        apgd_per_band[s_idx] = i_apgd["sol"]
+        i_prev = i_apgd["sol"]
+
+    return apgd_per_band
+
+
 def get_visibility_matrix(
     audio_in: np.ndarray,
     micarray_coords: np.ndarray,
@@ -732,6 +785,8 @@ def get_visibility_matrix(
     fmax: Optional[custom_types.Numeric] = config.AIMG_FMAX,
     bw: Optional[custom_types.Numeric] = config.AIMG_BANDWIDTH,
     sh_order: Optional[custom_types.Numeric] = config.AIMG_SH_ORDER,
+    n_jobs: Optional[custom_types.Numeric] = config.AIMG_N_JOBS,
+    verbosity: Optional[custom_types.Numeric] = config.AIMG_VERBOSITY,
 ) -> np.ndarray:
     """
     Compute visibility matrix from audio data using accelerated proximal gradient descent (APGD) algorithm.
@@ -749,6 +804,8 @@ def get_visibility_matrix(
         fmax (Numeric): maximum frequency for `nbands` frequency bands
         bw (Numeric): bandwidth for `nbands` frequency bands
         sh_order (Numeric): spherical harmonic order that determines sampling density: higher values make denser fields
+        n_jobs (Numeric): number of multiprocessing jobs, set to 1 to disable multiprocessing
+        verbosity (Numeric): verbosity level to use when multiprocessing: higher prints more frequently
 
     Returns:
         np.ndarray: the acoustic image with shape (tesselation, bands, frames)
@@ -777,47 +834,16 @@ def get_visibility_matrix(
 
     # steering operator
     a = steering_operator(dev_xyz, r)
-    n_px = a.shape[1]
     apgd_map = []
 
     # Process bands
-    for i in range(nbands):
-
-        # somehow, need to do this
-        t_stationarity = 10 * t_sti
-        s = form_visibility(audio_in, sr, freq[i], bw, t_sti, t_stationarity)
-        n_sample = s.shape[0]
-
-        # Cap frames if required
-        if frame_cap:
-            s = s[:frame_cap, :, :]
-            n_sample = frame_cap
-
-        visibilities_per_frame = []
-        apgd_gamma = 0.5
-        apgd_per_band = np.zeros((n_sample, n_px))
-        i_prev = np.zeros((n_px,))
-
-        for s_idx in tqdm(range(n_sample), desc=f"Computing band {i}..."):
-
-            # Eigen-decomposition
-            s_d, s_v = linalg.eigh(s[s_idx])
-
-            # Clamp results
-            if s_d.max() <= 0:
-                s_d[:] = 0
-            else:
-                s_d = np.clip(s_d / s_d.max(), 0, None)
-            s_norm = (s_v * s_d) @ s_v.conj().T
-
-            visibilities_per_frame.append(s_norm)
-
-            # gradient descent
-            i_apgd = solve(s_norm, a, gamma=apgd_gamma, x0=i_prev.copy())
-            apgd_per_band[s_idx] = i_apgd["sol"]
-            i_prev = i_apgd["sol"]
-
-        apgd_map.append(apgd_per_band)
+    with Parallel(n_jobs=n_jobs, verbose=verbosity) as parallel:
+        apgd_map = parallel(
+            delayed(_process_visibility_matrix_band)(
+                audio_in, freq[i], sr, a, t_sti, bw, frame_cap
+            )
+            for i in range(nbands)
+        )
 
     # (tesselation, bands, frames)
     apgd_arr = np.array(apgd_map)

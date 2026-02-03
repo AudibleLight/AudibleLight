@@ -1917,6 +1917,8 @@ class Scene:
         json_fname: Optional[Union[str, Path]] = "acoustic_image_metadata",
         hdf_fname: Optional[Union[str, Path]] = "acoustic_image",
         standardise: Optional[bool] = True,
+        n_jobs: Optional[custom_types.Numeric] = config.AIMG_N_JOBS,
+        verbosity: Optional[custom_types.Numeric] = config.AIMG_VERBOSITY,
     ) -> None:
         """
         Generate acoustic image and associated metadata for each microphone array added to the Scene.
@@ -1982,6 +1984,8 @@ class Scene:
             hdf_fname (str): name to use for the output HDF file, default to "acoustic_image"
             standardise (bool): whether to standardise the results according to the distribution of pixel values within
                 the STARSS23 training set, defaults to True.
+            n_jobs (Numeric): number of multiprocessing jobs, set to 1 to disable multiprocessing
+            verbosity (Numeric): verbosity level to use when multiprocessing: higher prints more frequently
 
         Returns:
             None
@@ -2058,6 +2062,8 @@ class Scene:
                 fmax=utils.sanitise_positive_number(fmax, cast_to=int),
                 bw=utils.sanitise_positive_number(bw),
                 sh_order=sh_order,
+                n_jobs=n_jobs,
+                verbosity=verbosity,
             )
 
             # Compute the JSON

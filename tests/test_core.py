@@ -1928,6 +1928,8 @@ def test_generate_acoustic_image(scale):
         nbands=1,
         scale=scale,
         standardise=True,
+        n_jobs=1,
+        verbosity=0,
     )
 
     # check the JSON file exists
