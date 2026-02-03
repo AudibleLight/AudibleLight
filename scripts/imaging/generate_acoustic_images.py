@@ -60,7 +60,7 @@ MIN_MOVING_EVENTS, MAX_MOVING_EVENTS = 0, 6
 MIN_EVENT_DURATION, MAX_EVENT_DURATION = 2.0, 10.0
 MIN_EVENT_VELOCITY, MAX_EVENT_VELOCITY = 0.5, 2.0
 MIN_EVENT_RESOLUTION, MAX_EVENT_RESOLUTION = 1.0, 4.0
-MIN_EVENT_SNR, MAX_EVENT_SNR = 5, 30
+MIN_EVENT_SNR, MAX_EVENT_SNR = 1.0, 5.0
 MOVING_EVENT_SHAPES = ["random", "linear", "semicircular"]
 
 # Data splits
@@ -83,7 +83,7 @@ def generate(
     output_dir: Union[str, Path],
     split: str,
     scape_num: int,
-):
+) -> None:
     # Setting up output filepaths
     fold = 1 if split == "train" else 2
     common = f"dev-{split}-alight/fold{fold}_scape{str(scape_num).zfill(5)}"
@@ -91,6 +91,8 @@ def generate(
     aimg_path = output_dir / f"aimg_dev/{common}.hdf"
     dcase_labels_path = output_dir / f"metadata_dev/{common}.csv"
     aimg_labels_path = output_dir / f"aimg_labels_dev/{common}.json"
+
+    logger.info(f"Generating with mesh {str(mesh_path)}...")
 
     # Create the scene with all the default arguments and the given mesh
     scene = Scene(

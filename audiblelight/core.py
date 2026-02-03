@@ -1916,6 +1916,7 @@ class Scene:
         circle_radius: Optional[custom_types.Numeric] = config.AIMG_CIRCLE_RADIUS_DEG,
         json_fname: Optional[Union[str, Path]] = "acoustic_image_metadata",
         hdf_fname: Optional[Union[str, Path]] = "acoustic_image",
+        standardise: Optional[bool] = True,
     ) -> None:
         """
         Generate acoustic image and associated metadata for each microphone array added to the Scene.
@@ -1938,7 +1939,13 @@ class Scene:
                 2biii. Mask all values in the scaled acoustic image frame that are below `polygon_mask_threshold`
                 2biv. Apply contour detection to grab the edges of each "blob" in the image
             2c. Append all "blobs" for the frame: each of these have the format [x_pixel, y_pixel, amplitude]
-        3. Return a full dictionary containing annotations of every frame
+        3. If standardise:
+            3a. The pixel amplitude values are Z-scored using the mean/SD of the distribution of max pixel values per
+                    mask, according to the training data in the STARSS23 dataset
+            3b. 0.5 is added to the Z-scored values
+            3c. The results are then clipped between 0.01 and 1.0
+        4. Return a full dictionary containing annotations of every frame
+
 
         The dictionaries contain the following keys:
             - "metadata_frame_index": the index of the frame within the acoustic image
@@ -1973,6 +1980,8 @@ class Scene:
                 calculating the 2D Gaussian
             json_fname (str): name to use for the output JSON, default to "acoustic_image_metadata"
             hdf_fname (str): name to use for the output HDF file, default to "acoustic_image"
+            standardise (bool): whether to standardise the results according to the distribution of pixel values within
+                the STARSS23 training set, defaults to True.
 
         Returns:
             None
@@ -2065,11 +2074,12 @@ class Scene:
             )
 
             # Standardise the amplitude values in the JSON
-            aimg_js_std = standardise_acoustic_image_amplitude(aimg_js)
+            if standardise:
+                aimg_js = standardise_acoustic_image_amplitude(aimg_js)
 
             # Set all properties to the current object
             self.acoustic_image[micarray_alias] = apgd_arr
-            self.acoustic_image_json[micarray_alias] = aimg_js_std
+            self.acoustic_image_json[micarray_alias] = aimg_js
 
             # Dump the JSON
             js_full_path = json_path.with_suffix(".json").with_stem(
