@@ -1900,7 +1900,8 @@ def test_sanitise_video_res(video_res, error, msg):
 
 
 @pytest.mark.parametrize("scale", ["log", "linear"])
-def test_generate_acoustic_image(scale):
+@pytest.mark.parametrize("standardise", [True, False])
+def test_generate_acoustic_image(scale, standardise):
     # generate test scene with ray-tracing
     tmp_scene = Scene(
         duration=10,
@@ -1927,7 +1928,7 @@ def test_generate_acoustic_image(scale):
         frame_cap=10,
         nbands=1,
         scale=scale,
-        standardise=True,
+        standardise=standardise,
         n_jobs=1,
         verbosity=0,
     )
@@ -1967,8 +1968,11 @@ def test_generate_acoustic_image(scale):
                 assert seg_arr.shape[1] == 3
 
                 # check also that the values are standardised correctly
-                poly_amp = seg_arr[:, -1]
-                assert bool(np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.01)))
+                if standardise:
+                    poly_amp = seg_arr[:, -1]
+                    assert bool(
+                        np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.0))
+                    )
 
     # cleanup old JSON files
     os.remove(utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json")

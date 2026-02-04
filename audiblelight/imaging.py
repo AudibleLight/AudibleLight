@@ -11,7 +11,7 @@ Much of the code is adapted from [this repo](https://github.com/adrianSRoman/LAM
 
 import math
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import astropy.coordinates as coord
 import astropy.units as u
@@ -1136,6 +1136,17 @@ def generate_acoustic_image_json(
     return scene_res
 
 
+def sigmoid(
+    x: Union[np.ndarray, custom_types.Numeric]
+) -> Union[np.ndarray, custom_types.Numeric]:
+    """
+    Applies sigmoid function to an array or scalar input.
+
+    Output is mapped within the range [0, 1.]
+    """
+    return np.exp(-np.logaddexp(0, -x))
+
+
 def standardise_acoustic_image_amplitude(
     acoustic_image_labels: list[dict],
 ) -> list[dict]:
@@ -1174,8 +1185,8 @@ def standardise_acoustic_image_amplitude(
             # Z-score
             poly_amp = (poly_amp - starss23_mu) / starss23_sigma
 
-            # Add 0.5 and clip
-            poly_amp = np.clip(poly_amp + 0.5, 0.01, 1.0)
+            # Apply the sigmoid function, maps between [0, 1]
+            poly_amp = sigmoid(poly_amp)
 
             # Create new array and replace the amplitude values with standardised version
             poly_new = poly_arr.copy()

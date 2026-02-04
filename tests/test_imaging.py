@@ -30,6 +30,7 @@ from audiblelight.imaging import (
     get_mic_xyz_coords,
     get_segmentation_pixels,
     get_visibility_matrix,
+    sigmoid,
     solve,
     standardise_acoustic_image_amplitude,
 )
@@ -832,3 +833,12 @@ def test_standardise_acoustic_image_amplitude(acoustic_image: list[dict]):
             # Check ranges are correct and scaled
             poly_amp = poly_arr[:, -1]
             assert bool(np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.01)))
+
+
+@pytest.mark.parametrize("inp", [-7.0, 6.0, 0.5, np.array([1e-5, 0.1, 0.5, 1.0])])
+def test_sigmoid(inp):
+    out = sigmoid(inp)
+    if isinstance(inp, (int, float)):
+        assert 0.0 <= out <= 1.0
+    else:
+        assert np.logical_and(out >= 0.0, out <= 1.0).all()
