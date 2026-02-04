@@ -191,6 +191,7 @@ def generate(
             frame_cap=AIMG_FRAME_CAP,
             nbands=AIMG_NBANDS,
             scale=AIMG_SCALE,
+            standardise=True,
         )
 
         # Added to satisfy type checking
