@@ -730,3 +730,67 @@ def safe_import(module_name: str, message: str = None) -> Any:
         raise ImportError(message)
     else:
         return module
+
+
+def dynamic_parallel_run(
+    func: Callable,
+    args_list: Optional[list[tuple]] = None,
+    kwargs_list: Optional[list[dict]] = None,
+    n_jobs: Optional[Numeric] = None,
+    verbosity: Optional[Numeric] = None,
+):
+    """
+    Run func over a list of argument tuples in parallel, dynamically reducing workers on TerminatedWorkerError
+
+    Arguments:
+        func (callable): the function to run.
+        args_list (list[tuple]): each tuple contains the positional arguments for a single call to func.
+        kwargs_list (list[dict]): each dict contains keyword arguments for the corresponding call.
+        n_jobs (int): number of parallel jobs; -1 means use all CPU cores.
+        verbosity (int): verbosity of parallel calls with joblib
+
+    Returns:
+        List of results.
+    """
+    # Parsing arguments to func
+    if args_list is None:
+        args_list = []
+    if kwargs_list is None:
+        kwargs_list = [{} for _ in args_list]
+
+    # Parsing number of jobs, with fallback to maximum CPU cores
+    if n_jobs is None:
+        from audiblelight.config import AIMG_N_JOBS
+
+        n_jobs = AIMG_N_JOBS
+    if n_jobs == -1:
+        n_jobs = os.cpu_count() or 1
+
+    # Sanity checking
+    current_jobs = sanitise_positive_number(n_jobs, cast_to=int)
+    verbosity = sanitise_positive_number(verbosity, cast_to=int)
+
+    # joblib imports
+    from joblib import Parallel, delayed
+    from joblib.externals.loky.process_executor import TerminatedWorkerError
+
+    while current_jobs > 1:
+        try:
+            logger.info(f"Trying with n_jobs={current_jobs}...")
+            results = Parallel(n_jobs=current_jobs, verbosity=verbosity)(
+                delayed(func)(*args_, **kwargs_)
+                for args_, kwargs_ in zip(args_list, kwargs_list)
+            )
+            return results
+        except TerminatedWorkerError:
+            new_current_jobs = max(1, current_jobs // 2)
+            logger.error(
+                f"Workers terminated at n_jobs={current_jobs}. Reducing workers to {new_current_jobs}..."
+            )
+            current_jobs = new_current_jobs
+            if current_jobs == 1:
+                break
+
+    # Fallback: serial execution if all else fails
+    logger.info("Falling back to serial execution...")
+    return [func(*args_, **kwargs_) for args_, kwargs_ in zip(args_list, kwargs_list)]

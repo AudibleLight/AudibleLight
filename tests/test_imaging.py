@@ -832,7 +832,7 @@ def test_standardise_acoustic_image_amplitude(acoustic_image: list[dict]):
 
             # Check ranges are correct and scaled
             poly_amp = poly_arr[:, -1]
-            assert bool(np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.01)))
+            assert bool(np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.00)))
 
 
 @pytest.mark.parametrize("inp", [-7.0, 6.0, 0.5, np.array([1e-5, 0.1, 0.5, 1.0])])

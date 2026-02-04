@@ -22,7 +22,6 @@ import scipy.linalg as linalg
 import scipy.signal.windows as windows
 import scipy.sparse.linalg as splinalg
 import skimage.util as skutil
-from joblib import Parallel, delayed
 from pyunlocbox.functions import dummy
 from scipy.constants import speed_of_sound
 from scipy.interpolate import griddata
@@ -804,7 +803,10 @@ def get_visibility_matrix(
         fmax (Numeric): maximum frequency for `nbands` frequency bands
         bw (Numeric): bandwidth for `nbands` frequency bands
         sh_order (Numeric): spherical harmonic order that determines sampling density: higher values make denser fields
-        n_jobs (Numeric): number of multiprocessing jobs, set to 1 to disable multiprocessing
+        n_jobs (Numeric): number of multiprocessing jobs, set to 1 to disable multiprocessing.
+            Note that the number of workers will be dynamically reduced on out-of-memory or CPU errors: thus, it is
+            recommended to set `n_jobs=-1` to take advantage of all CPU cores for small audio files, falling back
+            automatically to `n_jobs=1` (no multiprocessing) for larger files.
         verbosity (Numeric): verbosity level to use when multiprocessing: higher prints more frequently
 
     Returns:
@@ -834,16 +836,17 @@ def get_visibility_matrix(
 
     # steering operator
     a = steering_operator(dev_xyz, r)
-    apgd_map = []
 
-    # Process bands
-    with Parallel(n_jobs=n_jobs, verbose=verbosity) as parallel:
-        apgd_map = parallel(
-            delayed(_process_visibility_matrix_band)(
-                audio_in, freq[i], sr, a, t_sti, bw, frame_cap
-            )
-            for i in range(nbands)
-        )
+    # Process bands in parallel, dynamically reducing worker count on CPU/OOMs
+    args_list = [
+        (audio_in, freq[i], sr, a, t_sti, bw, frame_cap) for i in range(nbands)
+    ]
+    apgd_map = utils.dynamic_parallel_run(
+        _process_visibility_matrix_band,
+        args_list=args_list,
+        n_jobs=n_jobs,
+        verbosity=verbosity,
+    )
 
     # (tesselation, bands, frames)
     apgd_arr = np.array(apgd_map)

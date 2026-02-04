@@ -1948,7 +1948,6 @@ class Scene:
             3c. The results are then clipped between 0.01 and 1.0
         4. Return a full dictionary containing annotations of every frame
 
-
         The dictionaries contain the following keys:
             - "metadata_frame_index": the index of the frame within the acoustic image
             - "instance_id": a unique integer identifier for each event in the scene
@@ -1984,7 +1983,10 @@ class Scene:
             hdf_fname (str): name to use for the output HDF file, default to "acoustic_image"
             standardise (bool): whether to standardise the results according to the distribution of pixel values within
                 the STARSS23 training set, defaults to True.
-            n_jobs (Numeric): number of multiprocessing jobs, set to 1 to disable multiprocessing
+            n_jobs (Numeric): number of multiprocessing jobs, set to 1 to disable multiprocessing.
+                Note that the number of workers will be dynamically reduced on out-of-memory or CPU errors: thus, it is
+                recommended to set `n_jobs=-1` to take advantage of all CPU cores for small audio files, falling back
+                automatically to `n_jobs=1` (no multiprocessing) for larger files.
             verbosity (Numeric): verbosity level to use when multiprocessing: higher prints more frequently
 
         Returns:
