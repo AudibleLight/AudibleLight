@@ -87,7 +87,7 @@ AIMG_FRAME_CAP = None
 AIMG_SH_ORDER = 10
 AIMG_CIRCLE_RADIUS_DEG = 20
 AIMG_POLYGON_MASK_THRESHOLD = 4e-5
-AIMG_RESOLUTION = 640, 320
+AIMG_RESOLUTION = 360, 180
 #  These parameters control multiprocessing
 #  Note that N_JOBS=-1 can be very computationally intensive
 #  Consider setting this to == 1 to disable multiprocessing
@@ -98,4 +98,4 @@ AIMG_VERBOSITY = 50
 #  STARSS23 training data. They are hardcoded and SHOULD NOT BE CHANGED from these values.
 #  These values will be used to standardise amplitude values for synthetic data.
 # TODO: need calculating again
-AIMG_STARSS23_MU, AIMG_STARSS23_SIGMA = 6.65586885931554e-05, 2.161661818949044e-05
+AIMG_STARSS23_MU, AIMG_STARSS23_SIGMA = 0.0006132456403200415, 0.0004943698488906652
