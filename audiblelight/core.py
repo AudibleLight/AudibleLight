@@ -1798,7 +1798,8 @@ class Scene:
         video_fname: Optional[Union[str, Path]] = "video_out",
     ) -> None:
         """
-        Render scene to disk. Currently only audio, video, and metadata are rendered.
+        Render scene to disk.
+        Generating audio, its metadata, and a video representation.
 
         Arguments:
             output_dir: directory to save the output, defaults to current working directory
