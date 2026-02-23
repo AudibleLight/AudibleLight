@@ -1148,11 +1148,11 @@ def initialise_plotter(scene: Scene):
 
     # Apply texture if available
     #  Decimate texture on weaker hardware
-    texture = extract_texture(mesh, decimate_texture=scene.video_low_power)
-    if texture is not None:
+    try:
+        texture = extract_texture(mesh, decimate_texture=scene.video_low_power)
         pv_texture = pv.Texture(texture)
         plotter.add_mesh(pv_mesh, texture=pv_texture)
-    else:
+    except TypeError:
         plotter.add_mesh(pv_mesh)
 
     return plotter
