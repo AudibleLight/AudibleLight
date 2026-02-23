@@ -97,5 +97,4 @@ AIMG_VERBOSITY = 50
 #  These values reflect the distribution of amplitude values contained within the (real)
 #  STARSS23 training data. They are hardcoded and SHOULD NOT BE CHANGED from these values.
 #  These values will be used to standardise amplitude values for synthetic data.
-# TODO: need calculating again
 AIMG_STARSS23_MU, AIMG_STARSS23_SIGMA = 0.0006132456403200415, 0.0004943698488906652

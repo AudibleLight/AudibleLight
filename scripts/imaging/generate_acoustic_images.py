@@ -37,11 +37,16 @@ AIMG_FRAME_CAP = None
 AIMG_SH_ORDER = 10
 AIMG_CIRCLE_RADIUS_DEG = 20
 AIMG_POLYGON_MASK_THRESHOLD = 4e-5
-AIMG_RESOLUTION = 640, 320
+AIMG_RESOLUTION = 360, 180
+
+# Video
+VIDEO_FPS = 29.97
+VIDEO_RES = 360, 180
 
 # Filepaths, directories, etc.
 FG_DIR = utils.get_project_root() / "resources/soundevents"
 MESH_DIR = utils.get_project_root() / "resources/meshes/gibson"
+IMG_DIR = utils.get_project_root() / "resources/images"
 
 # Output directory: change this to wherever you want
 OUTPUT_DIR = utils.get_project_root() / "acoustic_images"
@@ -87,10 +92,11 @@ def generate(
     # Setting up output filepaths
     fold = 1 if split == "train" else 2
     common = f"dev-{split}-alight/fold{fold}_scape{str(scape_num).zfill(5)}"
-    audio_path = output_dir / f"mic_dev/{common}.wav"
-    aimg_path = output_dir / f"aimg_dev/{common}.hdf"
+    audio_path = output_dir / f"32ch_audio_dev/{common}.wav"
+    video_path = output_dir / f"video_dev/{common}.mp4"
+    aimg_path = output_dir / f"labels_dev/{common}.hdf"
     dcase_labels_path = output_dir / f"metadata_dev/{common}.csv"
-    aimg_labels_path = output_dir / f"aimg_labels_dev/{common}.json"
+    aimg_labels_path = output_dir / f"labels_dev_std/{common}.json"
 
     logger.info(f"Generating with mesh {str(mesh_path)}...")
 
@@ -129,6 +135,9 @@ def generate(
         ),
         # Events have SNR between 5 and 30 dB
         snr_dist=stats.uniform(MIN_EVENT_SNR, MAX_EVENT_SNR - MIN_EVENT_SNR),
+        video_fps=VIDEO_FPS,
+        video_res=VIDEO_RES,
+        image_path=IMG_DIR,
     )
 
     # Add the eigenmike32 in
@@ -182,6 +191,8 @@ def generate(
             audio=True,
             metadata_json=True,
             metadata_dcase=False,
+            video=True,
+            video_fname=video_path,
             audio_fname=audio_path,
             metadata_fname=dcase_labels_path,
         )
@@ -204,17 +215,16 @@ def main(output_dir: Union[str, Path]) -> None:
 
     # Create the output folders if they don't currently exist
     for fp in [
-        output_dir / "aimg_dev/dev-train-alight",
-        output_dir / "aimg_dev/dev-test-alight",
-        output_dir / "metadata_dev/dev-train-alight",
-        output_dir / "metadata_dev/dev-test-alight",
-        output_dir / "aimg_labels_dev/dev-train-alight",
-        output_dir / "aimg_labels_dev/dev-test-alight",
-        output_dir / "mic_dev/dev-train-alight",
-        output_dir / "mic_dev/dev-test-alight",
+        output_dir / "video_dev",
+        output_dir / "metadata_dev",
+        output_dir / "labels_dev_std",
+        output_dir / "labels_dev",
+        output_dir / "32ch_audio_dev",
     ]:
-        if not fp.exists():
-            os.makedirs(fp)
+        for ext in ["dev-test-alight", "dev-train-alight"]:
+            full = fp / ext
+            if not full.exists():
+                os.makedirs(full)
 
     # Start generating the training scenes
     logger.info("Generating training acoustic images...")
