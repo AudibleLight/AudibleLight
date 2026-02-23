@@ -250,6 +250,11 @@ class Scene:
         #  Note that this is a dictionary to support multiple microphones
         self.audio = OrderedDict()
 
+        # Acoustic image
+        #  Note again that this is a dictionary to support multiple microphones
+        self.acoustic_image = OrderedDict()
+        self.acoustic_image_json = OrderedDict()
+
         # Parse class mapping
         self.class_mapping = sanitize_class_mapping(class_mapping)
 
@@ -1763,6 +1768,22 @@ class Scene:
                 intersections += 1
         return intersections >= self.max_overlap
 
+    @staticmethod
+    def _sanitise_output_directory(output_dir: Union[str, Path]) -> Path:
+        """
+        Sanitise output directory and raise errors as required
+        """
+
+        #  Create a new temporary directory inside project root if not provided
+        if output_dir is None:
+            output_dir = Path.cwd()
+        if not isinstance(output_dir, Path):
+            output_dir = Path(output_dir)
+        if not output_dir.is_dir():
+            raise FileNotFoundError(f"Output directory {output_dir} does not exist")
+
+        return output_dir
+
     # noinspection PyProtectedMember
     # noinspection PyUnboundLocalVariable
     def generate(
@@ -1781,7 +1802,7 @@ class Scene:
         Generating audio, its metadata, and a video representation.
 
         Arguments:
-            output_dir: directory to save the output, defaults to a temp directory inside AudibleLight/spatial_scenes
+            output_dir: directory to save the output, defaults to current working directory
             audio: whether to save audio as an output, default to `True`
             metadata_json: whether to save metadata JSON file, default to `True`
             metadata_dcase: whether to save metadata CSVs in DCASE format, default to `True`
@@ -1795,12 +1816,7 @@ class Scene:
         """
         # Sanitise output directory
         #  Create a new temporary directory inside project root if not provided
-        if output_dir is None:
-            output_dir = Path.cwd()
-        if not isinstance(output_dir, Path):
-            output_dir = Path(output_dir)
-        if not output_dir.is_dir():
-            raise FileNotFoundError(f"Output directory {output_dir} does not exist")
+        output_dir = self._sanitise_output_directory(output_dir)
 
         # Sanitise filepaths: strip out suffixes, we'll add these in later
         audio_path = (output_dir / audio_fname).with_suffix("")
@@ -1856,6 +1872,236 @@ class Scene:
                     f"{metadata_path.name}_{mic}"
                 )
                 df.to_csv(outp, sep=",", encoding="utf-8", header=None)
+
+    def _generate_acoustic_image_hdf(
+        self, hdf_outpath: Union[str, Path], a_np: np.ndarray
+    ) -> None:
+        """
+        Save a HDF file containing the acoustic image `a_np` in the required location
+        """
+        from h5py import File
+
+        with File(hdf_outpath, "w") as f:
+            # overall metadata
+            if self.state.name == "RLR":
+                filename = self.state.mesh.metadata["fname"]
+            elif self.state.name == "SOFA":
+                filename = self.state.sofa_path.stem  # noqa
+            else:
+                filename = ""
+
+            f.attrs["file"] = filename
+
+            # acoustic image
+            f.create_dataset("ai_apgd", shape=a_np.shape, dtype=a_np.dtype, data=a_np)
+            f.attrs["ai_n_frames"] = a_np.shape[0]
+            f.attrs["ai_n_bands"] = a_np.shape[1]
+
+    def generate_acoustic_image(
+        self,
+        output_dir: Optional[Union[str, Path]] = None,
+        t_sti: Optional[custom_types.Numeric] = config.AIMG_TSTI,
+        scale: Optional[str] = config.AIMG_SCALE,
+        nbands: Optional[custom_types.Numeric] = config.AIMG_NBANDS,
+        frame_cap: Optional[custom_types.Numeric] = config.AIMG_FRAME_CAP,
+        fmin: Optional[custom_types.Numeric] = config.AIMG_FMIN,
+        fmax: Optional[custom_types.Numeric] = config.AIMG_FMAX,
+        bw: Optional[custom_types.Numeric] = config.AIMG_BANDWIDTH,
+        sh_order: Optional[custom_types.Numeric] = config.AIMG_SH_ORDER,
+        polygon_mask_threshold: Optional[
+            custom_types.Numeric
+        ] = config.AIMG_POLYGON_MASK_THRESHOLD,
+        resolution: Optional[
+            tuple[custom_types.Numeric, custom_types.Numeric]
+        ] = config.AIMG_RESOLUTION,
+        circle_radius: Optional[custom_types.Numeric] = config.AIMG_CIRCLE_RADIUS_DEG,
+        json_fname: Optional[Union[str, Path]] = "acoustic_image_metadata",
+        hdf_fname: Optional[Union[str, Path]] = "acoustic_image",
+        standardise: Optional[bool] = True,
+        n_jobs: Optional[custom_types.Numeric] = config.AIMG_N_JOBS,
+        verbosity: Optional[custom_types.Numeric] = config.AIMG_VERBOSITY,
+    ) -> None:
+        """
+        Generate acoustic image and associated metadata for each microphone array added to the Scene.
+
+        Acoustic images are produced in the form (tesselation, bands, frames). These are produced from synthesised
+        audio using the Accelerated Proximal Gradient Descent (APGD) method.
+
+        Metadata for the acoustic images consists of the pixel coordinates of associated "segmentations" (or "blobs"!)
+        extracted from the acoustic image. These segmentations can be treated similar to bounding boxes often found in
+        computer vision, and can be used for tasks like sound event localisation and detection. The method used to
+        obtain the metadata is as follows:
+
+        1. Take the median energy for each band in the acoustic image: gives (tesselation, frames)
+        2. Iterate over all frames with an active annotation in the metadata array
+            2a. Interpolate the corresponding acoustic image frame to an image with shape (height, width)
+            2b. Iterate over all annotations for the current frame:
+                2bi. Create a 2D Gaussian centered at the X and Y pixel coordinates of the annotation, with radius set
+                        to span 2SD of all pixel values
+                2bii. Scale the acoustic image frame by multiplying by the Gaussian
+                2biii. Mask all values in the scaled acoustic image frame that are below `polygon_mask_threshold`
+                2biv. Apply contour detection to grab the edges of each "blob" in the image
+            2c. Append all "blobs" for the frame: each of these have the format [x_pixel, y_pixel, amplitude]
+        3. If standardise:
+            3a. The pixel amplitude values are Z-scored using the mean/SD of the distribution of max pixel values per
+                    mask, according to the training data in the STARSS23 dataset
+            3b. 0.5 is added to the Z-scored values
+            3c. The results are then clipped between 0.01 and 1.0
+        4. Return a full dictionary containing annotations of every frame
+
+        The dictionaries contain the following keys:
+            - "metadata_frame_index": the index of the frame within the acoustic image
+            - "instance_id": a unique integer identifier for each event in the scene
+            - "category_id": the index of the soundevent
+            - "distance": the distance of the soundevent
+            - "segmentation": a list of [x_pixel, y_pixel, amplitude] values for every segmentation in that frame.
+
+        The resulting JSON dictionaries are dumped at `metadata_fname`: one JSON per microphone added to the Scene.
+        It is also assumed that the amplitude values should be scaled *across* multiple JSON files that constitute
+        an entire dataset, e.g. by Z-scoring, scaling between 0 and 1, etc. As this process relies on summary
+        statistics that cannot easily be known when computing individual JSONs, this must be accomplished after calling
+        this function.
+
+        Note that this functionality is separated from `generate` due to the number of optional arguments.
+
+        Arguments:
+            output_dir: directory to save the output, defaults to current working directory
+            t_sti (Numeric): frame length, defaults to 100 ms (same as DCASE label resolution)
+            scale (str): scaling to use for `nbands` frequency bands, must be either "linear" or "log"
+            nbands (Numeric): number of frequency bands
+            frame_cap (Numeric): maximum number of frames to compute: set to `None` to use all frames
+            fmin (Numeric): minimum frequency for `nbands` frequency bands
+            fmax (Numeric): maximum frequency for `nbands` frequency bands
+            bw (Numeric): bandwidth for `nbands` frequency bands
+            sh_order (Numeric): spherical harmonic order that determines sampling density
+            resolution (tuple): the resolution to interpolate the image to: must be equirectangular, in form
+                (width, height)
+            polygon_mask_threshold (Numeric): after scaling the acoustic image according to the 2D Gaussian, values
+                below this threshold will be set to 0. This value should be tweaked based on looking at the images.
+            circle_radius (Numeric): the radius of the circle placed at ground-truth azimuth and elevation points when
+                calculating the 2D Gaussian
+            json_fname (str): name to use for the output JSON, default to "acoustic_image_metadata"
+            hdf_fname (str): name to use for the output HDF file, default to "acoustic_image"
+            standardise (bool): whether to standardise the results according to the distribution of pixel values within
+                the STARSS23 training set, defaults to True.
+            n_jobs (Numeric): number of multiprocessing jobs, set to 1 to disable multiprocessing.
+                Note that the number of workers will be dynamically reduced on out-of-memory or CPU errors: thus, it is
+                recommended to set `n_jobs=-1` to take advantage of all CPU cores for small audio files, falling back
+                automatically to `n_jobs=1` (no multiprocessing) for larger files.
+            verbosity (Numeric): verbosity level to use when multiprocessing: higher prints more frequently
+
+        Returns:
+            None
+        """
+        from audiblelight.imaging import (
+            generate_acoustic_image_json,
+            get_visibility_matrix,
+            standardise_acoustic_image_amplitude,
+        )
+        from audiblelight.synthesize import generate_dcase2024_metadata
+
+        #  Sanitise output directory
+        output_dir = self._sanitise_output_directory(output_dir)
+
+        # Sanitise filepaths: strip out suffixes, we'll add these in later
+        json_path = (output_dir / json_fname).with_suffix("")
+        hdf_path = (output_dir / hdf_fname).with_suffix("")
+
+        # Do some sanitising of variables used across pipeline
+        sh_order = utils.sanitise_positive_number(sh_order, cast_to=int)
+        frame_cap = (
+            utils.sanitise_positive_number(frame_cap, cast_to=int)
+            if frame_cap is not None
+            else None
+        )
+        resolution = self._sanitise_video_res(resolution)
+
+        # We need to generate some DCASE style metadata to use in the acoustic image
+        # TODO: resolution of the metadata should be generated according to `t_sti`
+        dcase_meta = generate_dcase2024_metadata(self, temporal_resolution=t_sti * 10)
+
+        # We need to iterate over every microphone added to the scene
+        for micarray_alias, micarray in self.state.microphones.items():
+
+            # We must have metadata for this microphone
+            if micarray_alias not in dcase_meta.keys():
+                raise ValueError(
+                    f"No metadata generated for microphone with alias '{micarray_alias}'!"
+                )
+
+            # Get the metadata: reset_index is needed to ensure that the frame number is contained in the array
+            micarray_meta = (
+                dcase_meta[micarray_alias].reset_index(drop=False).to_numpy()
+            )
+
+            # We must have audio for this microphone
+            if micarray_alias not in self.audio.keys():
+                raise ValueError(
+                    f"No audio for microphone with alias '{micarray_alias}' found. "
+                    f"Call `scene.generate` first, with `audio=True`, to generate audio."
+                )
+
+            # Grab both the microphone coordinates and audio
+            micarray_coords = micarray.coordinates_polar
+            micarray_audio = self.audio[micarray_alias].T
+
+            # Audio channels and microphone capsules should be the same
+            if not micarray_coords.shape[0] == micarray_audio.shape[1]:
+                raise ValueError(
+                    f"Expected audio to have {micarray_coords.shape[0]} channels, "
+                    f"but got {micarray_audio.shape[1]} channels"
+                )
+
+            # Compute visibility matrix: shape (tesselation, bands, frames)
+            apgd_arr = get_visibility_matrix(
+                micarray_audio,
+                micarray_coords,
+                sr=self.sample_rate,
+                t_sti=utils.sanitise_positive_number(t_sti),
+                scale=scale,
+                nbands=utils.sanitise_positive_number(nbands, cast_to=int),
+                frame_cap=frame_cap,
+                fmin=utils.sanitise_positive_number(fmin, cast_to=int),
+                fmax=utils.sanitise_positive_number(fmax, cast_to=int),
+                bw=utils.sanitise_positive_number(bw),
+                sh_order=sh_order,
+                n_jobs=n_jobs,
+                verbosity=verbosity,
+            )
+
+            # Compute the JSON
+            aimg_js = generate_acoustic_image_json(
+                apgd_arr,
+                micarray_meta,
+                resolution=resolution,
+                polygon_mask_threshold=utils.sanitise_positive_number(
+                    polygon_mask_threshold, cast_to=float
+                ),
+                circle_radius=utils.sanitise_positive_number(
+                    circle_radius, cast_to=float
+                ),
+            )
+
+            # Standardise the amplitude values in the JSON
+            if standardise:
+                aimg_js = standardise_acoustic_image_amplitude(aimg_js)
+
+            # Set all properties to the current object
+            self.acoustic_image[micarray_alias] = apgd_arr
+            self.acoustic_image_json[micarray_alias] = aimg_js
+
+            # Dump the JSON
+            js_full_path = json_path.with_suffix(".json").with_stem(
+                f"{json_path.name}_{micarray_alias}"
+            )
+            with open(js_full_path, "w") as f:
+                json.dump(aimg_js, f, indent=4, ensure_ascii=False)
+
+            # Dump the acoustic image as a HDF file
+            aimg_full_path = hdf_path.with_suffix(".hdf").with_stem(
+                f"{hdf_path.name}_{micarray_alias}"
+            )
+            self._generate_acoustic_image_hdf(aimg_full_path, apgd_arr)
 
     def to_dict(self) -> dict:
         """

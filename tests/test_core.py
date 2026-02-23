@@ -1897,3 +1897,83 @@ def test_sanitise_video_res(video_res, error, msg):
                 duration=60,
                 backend_kwargs=dict(mesh=utils_tests.OYENS_PATH),
             )
+
+
+@pytest.mark.parametrize("scale", ["log", "linear"])
+@pytest.mark.parametrize("standardise", [True, False])
+def test_generate_acoustic_image(scale, standardise):
+    # generate test scene with ray-tracing
+    tmp_scene = Scene(
+        duration=10,
+        backend=WorldStateRLR(mesh=utils_tests.OYENS_PATH, sample_rate=22050),
+        sample_rate=22050,
+        fg_path=utils_tests.SOUNDEVENT_DIR,
+        bg_path=utils_tests.BACKGROUND_DIR,
+        max_overlap=1,
+    )
+
+    # add microphone + event, generate audio
+    tmp_scene.add_microphone(microphone_type="eigenmike32", alias="tester")
+    ev = tmp_scene.add_event(event_type="static", duration=0.5, scene_start=0.0)
+    tmp_scene.generate(
+        audio=True, metadata_json=False, metadata_dcase=False, video=False
+    )
+
+    # generate acoustic image with metadata
+    #  set a small frame cap and number of bands to reduce time needed
+    tmp_scene.generate_acoustic_image(
+        output_dir=utils_tests.SOUNDEVENT_DIR,
+        json_fname="tmp_out",
+        hdf_fname="tmp_out",
+        frame_cap=10,
+        nbands=1,
+        scale=scale,
+        standardise=standardise,
+        n_jobs=1,
+        verbosity=0,
+    )
+
+    # check the JSON file exists
+    assert (utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json").exists()
+    assert "tester" in tmp_scene.acoustic_image.keys()
+    assert "tester" in tmp_scene.acoustic_image_json.keys()
+
+    # check the HDF file exists
+    assert (utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.hdf").exists()
+
+    # validate that the acoustic image looks ok
+    #  this is all hardcoded for now
+    aimg = tmp_scene.acoustic_image["tester"]
+    assert isinstance(aimg, np.ndarray)
+    assert aimg.shape == (484, 1, 10)  # (tesselation, bands, frames)
+
+    # validate the metadata looks alright
+    js = tmp_scene.acoustic_image_json["tester"]
+    assert isinstance(js, list)
+
+    # the event has an approx duration of 5 seconds, so it should appear across 5-6 frames
+    assert len(js) == 6 or len(js) == 5
+
+    # check the results for each individual frame
+    for j in js:
+        assert j["category_id"] == ev.class_id
+        assert j["instance_id"] == 0
+        assert j["metadata_frame_index"] <= 5
+
+        segment = j["segmentation"]
+        if len(segment) >= 1:
+            for seg in segment:
+                # check polygons: should have two dims with second == 3
+                seg_arr = np.array(seg)
+                assert seg_arr.shape[1] == 3
+
+                # check also that the values are standardised correctly
+                if standardise:
+                    poly_amp = seg_arr[:, -1]
+                    assert bool(
+                        np.all(np.logical_and(poly_amp <= 1.0, poly_amp >= 0.0))
+                    )
+
+    # cleanup old JSON files
+    os.remove(utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.json")
+    os.remove(utils_tests.SOUNDEVENT_DIR / "tmp_out_tester.hdf")

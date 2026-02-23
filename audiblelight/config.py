@@ -73,3 +73,28 @@ DEFAULT_MOVING_EVENTS = 1
 MIC_ARRAY_TYPE = "ambeovr"
 DEFAULT_CHANNEL_LAYOUT = "mic"
 N_SCENES = 1000
+
+# Acoustic imaging
+#  Values taken from LAM paper
+AIMG_FMIN, AIMG_FMAX = 1500, 4500
+AIMG_NBANDS = 9
+# AIMG_NBANDS = 2
+AIMG_SCALE = "linear"
+AIMG_BANDWIDTH = 50.0
+AIMG_TSTI = 10e-3
+AIMG_FRAME_CAP = None
+# AIMG_FRAME_CAP = 10
+AIMG_SH_ORDER = 10
+AIMG_CIRCLE_RADIUS_DEG = 20
+AIMG_POLYGON_MASK_THRESHOLD = 4e-5
+AIMG_RESOLUTION = 360, 180
+#  These parameters control multiprocessing
+#  Note that N_JOBS=-1 can be very computationally intensive
+#  Consider setting this to == 1 to disable multiprocessing
+AIMG_N_JOBS = -1
+AIMG_VERBOSITY = 50
+
+#  These values reflect the distribution of amplitude values contained within the (real)
+#  STARSS23 training data. They are hardcoded and SHOULD NOT BE CHANGED from these values.
+#  These values will be used to standardise amplitude values for synthetic data.
+AIMG_STARSS23_MU, AIMG_STARSS23_SIGMA = 0.0006132456403200415, 0.0004943698488906652

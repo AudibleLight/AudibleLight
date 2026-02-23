@@ -39,6 +39,7 @@ coverage.xml
 *.reapeaks
 *.json
 *.csv
+*.hdf
 
 # Ignore partial gdown downloads
 *.part

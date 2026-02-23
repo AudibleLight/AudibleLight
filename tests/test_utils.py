@@ -6,9 +6,11 @@
 import os
 from pathlib import Path
 from typing import Union
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
+from joblib.externals.loky.process_executor import TerminatedWorkerError
 from scipy import stats
 
 from audiblelight import custom_types, utils
@@ -651,3 +653,52 @@ def test_safe_import(module_name, message, errors):
     else:
         with pytest.raises(ImportError, match=message):
             utils.safe_import(module_name, message)
+
+
+@pytest.mark.parametrize(
+    "args_list,kwargs_list,n_jobs,side_effects,expected",
+    [
+        ([(1,), (2,), (3,)], None, 2, None, [1, 2, 3]),
+        ([(1,), (2,), (3,)], [{}, {}, {}], 2, None, [1, 2, 3]),
+        ([(1,), (2,), (3,)], [{"y": 10}, {"y": 20}, {"y": 30}], 2, None, [11, 22, 33]),
+        (None, None, 2, None, []),
+        ([], [], 2, None, []),
+        ([(5,)], [{"y": 5}], 2, None, [10]),
+        (
+            [(1,), (2,), (3,)],
+            None,
+            None,
+            [TerminatedWorkerError("test"), [1, 2, 3]],
+            [1, 2, 3],
+        ),
+        (
+            [(1,), (2,), (3,)],
+            None,
+            -1,
+            [TerminatedWorkerError("test"), TerminatedWorkerError("test"), [1, 2, 3]],
+            [1, 2, 3],
+        ),
+        ([(1,), (2,), (3,)], None, 4, TerminatedWorkerError("test"), [1, 2, 3]),
+    ],
+)
+def test_dynamic_parallel_run(args_list, kwargs_list, n_jobs, side_effects, expected):
+    def sample_func(x, y=0):
+        return x + y
+
+    result = None
+    if side_effects is None:
+        result = utils.dynamic_parallel_run(
+            sample_func, args_list, kwargs_list, n_jobs=n_jobs, verbosity=0
+        )
+    else:
+        with patch("joblib.Parallel") as mock_parallel:
+            mock_instance = Mock()
+            mock_parallel.return_value = mock_instance
+            mock_instance.side_effect = (
+                side_effects if isinstance(side_effects, list) else [side_effects] * 10
+            )
+            result = utils.dynamic_parallel_run(
+                sample_func, args_list, kwargs_list, n_jobs=n_jobs, verbosity=0
+            )
+
+    assert result == expected
