@@ -1,0 +1,974 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>1.2.2: Audiovisual Scene objects &#8212; AudibleLight 0.1.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=a1637f0b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_examples/1.2.2_audiovisual_scenes';</script>
+    <link rel="icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="1.3.0: Add Ambience" href="1.3.0_add_ambience.html" />
+    <link rel="prev" title="1.2.1: Add Augmentations" href="1.2.1_add_augmentations.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">AudibleLight 0.1.0 documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="1.0.0_make_scene.html">1.0.0: Make a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.1.0_add_listeners.html">1.1.0: Add microphones and listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.2.0_add_events.html">1.2.0: Add <code class="docutils literal notranslate"><span class="pre">Event</span></code>s</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.2.1_add_augmentations.html">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">1.2.2: Audiovisual <code class="docutils literal notranslate"><span class="pre">Scene</span></code> objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="1.3.0_add_ambience.html">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="2.0.0_synthesis.html">2.0.0: Synthesis</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../core.html">Core</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.core.Scene.html">audiblelight.core.Scene</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../backend.html">Backend</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateRLR.html">audiblelight.worldstate.WorldStateRLR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateSOFA.html">audiblelight.worldstate.WorldStateSOFA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldStateShoebox.html">audiblelight.worldstate.WorldStateShoebox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.WorldState.html">audiblelight.worldstate.WorldState</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.worldstate.Emitter.html">audiblelight.worldstate.Emitter</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../microphones.html">Microphones</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike32.html">audiblelight.micarrays.Eigenmike32</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Eigenmike64.html">audiblelight.micarrays.Eigenmike64</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.AmbeoVR.html">audiblelight.micarrays.AmbeoVR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MonoCapsule.html">audiblelight.micarrays.MonoCapsule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.FOAListener.html">audiblelight.micarrays.FOAListener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.Binaural.html">audiblelight.micarrays.Binaural</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.MicArray.html">audiblelight.micarrays.MicArray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.micarrays.dynamically_define_micarray.html">audiblelight.micarrays.dynamically_define_micarray</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../events.html">Sound Events</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.event.Event.html">audiblelight.event.Event</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.ambience.Ambience.html">audiblelight.ambience.Ambience</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../class_mappings.html">Class Mappings</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2023Task3.html">audiblelight.class_mappings.DCASE2023Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2021Task3.html">audiblelight.class_mappings.DCASE2021Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2020Task3.html">audiblelight.class_mappings.DCASE2020Task3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.DCASE2025Task4.html">audiblelight.class_mappings.DCASE2025Task4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.class_mappings.ClassMapping.html">audiblelight.class_mappings.ClassMapping</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../augmentation.html">Augmentations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Bitcrush.html">audiblelight.augmentation.Bitcrush</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Chorus.html">audiblelight.augmentation.Chorus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Clipping.html">audiblelight.augmentation.Clipping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Compressor.html">audiblelight.augmentation.Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Deemphasis.html">audiblelight.augmentation.Deemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Delay.html">audiblelight.augmentation.Delay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Distortion.html">audiblelight.augmentation.Distortion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Fade.html">audiblelight.augmentation.Fade</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.GSMFullRateCompressor.html">audiblelight.augmentation.GSMFullRateCompressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Gain.html">audiblelight.augmentation.Gain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighShelfFilter.html">audiblelight.augmentation.HighShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.HighpassFilter.html">audiblelight.augmentation.HighpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Invert.html">audiblelight.augmentation.Invert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Limiter.html">audiblelight.augmentation.Limiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowShelfFilter.html">audiblelight.augmentation.LowShelfFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.LowpassFilter.html">audiblelight.augmentation.LowpassFilter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MP3Compressor.html">audiblelight.augmentation.MP3Compressor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.MultibandEqualizer.html">audiblelight.augmentation.MultibandEqualizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Phaser.html">audiblelight.augmentation.Phaser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.PitchShift.html">audiblelight.augmentation.PitchShift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Preemphasis.html">audiblelight.augmentation.Preemphasis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Reverse.html">audiblelight.augmentation.Reverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SpeedUp.html">audiblelight.augmentation.SpeedUp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpDuplicate.html">audiblelight.augmentation.TimeWarpDuplicate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpRemove.html">audiblelight.augmentation.TimeWarpRemove</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpReverse.html">audiblelight.augmentation.TimeWarpReverse</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.TimeWarpSilence.html">audiblelight.augmentation.TimeWarpSilence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.Augmentation.html">audiblelight.augmentation.Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.EventAugmentation.html">audiblelight.augmentation.EventAugmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.augmentation.SceneAugmentation.html">audiblelight.augmentation.SceneAugmentation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../synthesis.html">Synthesis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_variant_convolution.html">audiblelight.synthesize.time_variant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.time_invariant_convolution.html">audiblelight.synthesize.time_invariant_convolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_event_audio.html">audiblelight.synthesize.render_event_audio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.render_audio_for_all_scene_events.html">audiblelight.synthesize.render_audio_for_all_scene_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_scene_audio_from_events.html">audiblelight.synthesize.generate_scene_audio_from_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.synthesize.generate_dcase2024_metadata.html">audiblelight.synthesize.generate_dcase2024_metadata</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../download_data.html">Downloading Data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fma.html">audiblelight.download_data.download_fma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_fsd.html">audiblelight.download_data.download_fsd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson.html">audiblelight.download_data.download_gibson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_gibson_waypoints.html">audiblelight.download_data.download_gibson_waypoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_rirs.html">audiblelight.download_data.download_rirs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/audiblelight.download_data.download_visualgenome.html">audiblelight.download_data.download_visualgenome</a></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/_examples/1.2.2_audiovisual_scenes.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>1.2.2: Audiovisual Scene objects</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Creating-a-Scene-that-supports-images">Creating a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> that supports images</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Optional-arguments">Optional arguments</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Adding-Event-objects-with-images">Adding <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects with images</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Manually-adding-Event-images">Manually adding <code class="docutils literal notranslate"><span class="pre">Event</span></code> images</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Audiovisual-Scene-synthesis">Audiovisual <code class="docutils literal notranslate"><span class="pre">Scene</span></code> synthesis</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="1.2.2:-Audiovisual-Scene-objects">
+<h1>1.2.2: Audiovisual <code class="docutils literal notranslate"><span class="pre">Scene</span></code> objects<a class="headerlink" href="#1.2.2:-Audiovisual-Scene-objects" title="Link to this heading">#</a></h1>
+<p>Up until now, we’ve seen how we can use <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> to generate audio-only <code class="docutils literal notranslate"><span class="pre">Scene</span></code> objects.</p>
+<p>However, <code class="docutils literal notranslate"><span class="pre">AudibleLight</span></code> can also be used to create audio-visual soundscapes. This allows a visual representation of a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> to be generated, in a similar manner to <code class="docutils literal notranslate"><span class="pre">SELDVisualSynth</span></code>[<a class="github reference external" href="https://github.com/adrianSRoman/SELDVisualSynth/">adrianSRoman/SELDVisualSynth</a>].</p>
+<p>The resulting video can be played back for debugging <code class="docutils literal notranslate"><span class="pre">MicArray</span></code> and <code class="docutils literal notranslate"><span class="pre">Event</span></code> positions, or can be used to train a model on audio-visual data. For more information, see the <a class="reference external" href="https://dcase.community/challenge2023/task-sound-event-localization-and-detection-evaluated-in-real-spatial-sound-scenes#track-b-audiovisual-inference">DCASE community challenges</a> on audio-visual sound event localisation and detection.</p>
+<section id="Creating-a-Scene-that-supports-images">
+<h2>Creating a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> that supports images<a class="headerlink" href="#Creating-a-Scene-that-supports-images" title="Link to this heading">#</a></h2>
+<p>Let’s create a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> that supports visual synthesis. To make this easier, we can pass in a directory of images using the <code class="docutils literal notranslate"><span class="pre">image_path</span></code> argument.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">Audio</span><span class="p">,</span> <span class="n">display</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scene</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">audiblelight</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">visual_scene</span> <span class="o">=</span> <span class="n">Scene</span><span class="p">(</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;rlr&quot;</span><span class="p">,</span>
+    <span class="n">sample_rate</span><span class="o">=</span><span class="mi">22050</span><span class="p">,</span>
+    <span class="n">video_low_power</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">max_overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">video_res</span><span class="o">=</span><span class="p">(</span><span class="mi">960</span><span class="p">,</span> <span class="mi">480</span><span class="p">),</span>
+    <span class="n">video_fps</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">backend_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">mesh</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/meshes/Oyens.glb&quot;</span>
+    <span class="p">),</span>
+    <span class="n">fg_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents&quot;</span><span class="p">,</span>
+    <span class="n">image_path</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/images&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2026-01-14 12:54:07.974</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">audiblelight.worldstate</span>:<span class="ansi-cyan-fg">load_mesh_navigation_waypoints</span>:<span class="ansi-cyan-fg">1884</span> - <span class="ansi-yellow-intense-fg ansi-bold">Cannot find waypoints for mesh Oyens inside default location (/home/huw-cheston/Documents/python_projects/AudibleLight/resources/waypoints/gibson). No navigation waypoints will be loaded.</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<p>We can inspect the images available to our <code class="docutils literal notranslate"><span class="pre">Scene</span></code> under the <code class="docutils literal notranslate"><span class="pre">fg_images</span></code> attribute:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">visual_scene</span><span class="o">.</span><span class="n">fg_images</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[PosixPath(&#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/images/doorCupboard/27_0.jpg&#39;), PosixPath(&#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/images/doorCupboard/36_0.jpg&#39;)]
+</pre></div></div>
+</div>
+<p>Note that currently visual synthesis is only support for the ray-tracing backend (i.e., where <code class="docutils literal notranslate"><span class="pre">scene.state.name.upper()</span> <span class="pre">==</span> <span class="pre">&quot;RLR&quot;</span></code>).</p>
+<section id="Optional-arguments">
+<h3>Optional arguments<a class="headerlink" href="#Optional-arguments" title="Link to this heading">#</a></h3>
+<p>When creating such a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>, we can specify a variety of arguments, including:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">video_fps</span></code>: the frames-per-second of the video</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">video_res</span></code>: the resolution of the video, in the format (width x height)</p>
+<ul>
+<li><p>Note that the width of the video must be exactly twice that of the height, for correct perspective video rendering</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">video_low_power</span></code>: applies a variety of adjustments to improve performance on weaker hardware</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">video_overlay_distance_scale_factor</span></code>: scales the size of overlaid images depending on proximity to camera.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">video_overlay_base_size</span></code>: the base size of overlaid images on the video, independent of distance.</p></li>
+</ul>
+<p>For more information, including default arguments, see <code class="docutils literal notranslate"><span class="pre">Scene.__init__</span></code>.</p>
+</section>
+</section>
+<section id="Adding-Event-objects-with-images">
+<h2>Adding <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects with images<a class="headerlink" href="#Adding-Event-objects-with-images" title="Link to this heading">#</a></h2>
+<p>If we’ve correctly specified <code class="docutils literal notranslate"><span class="pre">image_filepath</span></code>, then image objects will automatically be added to <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects, using the closest possible class to the audio file.</p>
+<p>To show what we mean, let’s start by adding a <code class="docutils literal notranslate"><span class="pre">waterTap</span></code> <code class="docutils literal notranslate"><span class="pre">Event</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">tap</span> <span class="o">=</span> <span class="n">visual_scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/waterTap/95709.wav&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tap</span><span class="o">.</span><span class="n">image_filepath</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2026-01-14 12:54:10.471</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">1152</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/waterTap/95709.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/images/waterTap/32_0.jpg
+</pre></div></div>
+</div>
+<p>We can load up the image as a <code class="docutils literal notranslate"><span class="pre">numpy</span></code> array using <code class="docutils literal notranslate"><span class="pre">Event.load_image</span></code>.</p>
+<p>This method operates similarly to <code class="docutils literal notranslate"><span class="pre">Event.load_audio</span></code>: once an image has been loaded once, it will be cached to speed up future reads. Cached generation can be disabled with <code class="docutils literal notranslate"><span class="pre">ignore_cache</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">tap_image</span> <span class="o">=</span> <span class="n">tap</span><span class="o">.</span><span class="n">load_image</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tap_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(96, 95, 3)
+</pre></div></div>
+</div>
+<p>Let’s try plotting the image.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">tap_image</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/_examples_1.2.2_audiovisual_scenes_13_0.png" src="../_images/_examples_1.2.2_audiovisual_scenes_13_0.png" />
+</div>
+</div>
+<p>That looks like a tap to me!</p>
+</section>
+<section id="Manually-adding-Event-images">
+<h2>Manually adding <code class="docutils literal notranslate"><span class="pre">Event</span></code> images<a class="headerlink" href="#Manually-adding-Event-images" title="Link to this heading">#</a></h2>
+<p>Of course, we can also add a specific image to an <code class="docutils literal notranslate"><span class="pre">Event</span></code> when adding this to a <code class="docutils literal notranslate"><span class="pre">Scene</span></code>. All we need to do is specify <code class="docutils literal notranslate"><span class="pre">image_filepath</span></code> in <code class="docutils literal notranslate"><span class="pre">Scene.add_event</span></code>.</p>
+<p>Let’s try adding an <code class="docutils literal notranslate"><span class="pre">Event</span></code> with the audio from a running tap, but the image of a telephone:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">visual_scene</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">tapphone</span> <span class="o">=</span> <span class="n">visual_scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/waterTap/95709.wav&quot;</span><span class="p">,</span>
+    <span class="n">image_filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/images/telephone/3_0.jpg&quot;</span><span class="p">,</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">scene_start</span><span class="o">=</span><span class="mf">2.5</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">tapphone</span><span class="o">.</span><span class="n">image_filepath</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tapphone</span><span class="o">.</span><span class="n">filepath</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+Warning: initializing context twice. Will destroy old context and create a new one.
+<span class="ansi-green-fg">2026-01-14 12:54:11.338</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">1152</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/waterTap/95709.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/images/telephone/3_0.jpg
+/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/waterTap/95709.wav
+</pre></div></div>
+</div>
+<p>Now, let’s play the audio and show the image, to show that the classes are different.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">phone_img</span> <span class="o">=</span> <span class="n">tapphone</span><span class="o">.</span><span class="n">load_image</span><span class="p">()</span>
+<span class="n">tap_audio</span> <span class="o">=</span> <span class="n">tapphone</span><span class="o">.</span><span class="n">load_audio</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">phone_img</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/_examples_1.2.2_audiovisual_scenes_19_0.png" src="../_images/_examples_1.2.2_audiovisual_scenes_19_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">Audio</span><span class="p">(</span><span class="n">tap_audio</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="n">visual_scene</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<audio  controls="controls" >
+    <source src="data:audio/wav;base64,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" type="audio/wav" />
+    Your browser does not support the audio element.
+</audio></div>
+</div>
+</section>
+<section id="Audiovisual-Scene-synthesis">
+<h2>Audiovisual <code class="docutils literal notranslate"><span class="pre">Scene</span></code> synthesis<a class="headerlink" href="#Audiovisual-Scene-synthesis" title="Link to this heading">#</a></h2>
+<p>Now that we’ve added <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects with images to our <code class="docutils literal notranslate"><span class="pre">Scene</span></code>, we’re ready to generate a video file containing these objects.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Remove all the Events</span>
+<span class="n">visual_scene</span><span class="o">.</span><span class="n">clear_events</span><span class="p">()</span>
+<span class="n">visual_scene</span><span class="o">.</span><span class="n">clear_microphones</span><span class="p">()</span>
+
+<span class="c1"># Add a microphone + single Event at known positions</span>
+<span class="n">visual_scene</span><span class="o">.</span><span class="n">add_microphone</span><span class="p">(</span><span class="n">microphone_type</span><span class="o">=</span><span class="s2">&quot;ambeovr&quot;</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="p">[</span><span class="mf">3.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">])</span>
+<span class="n">ev</span> <span class="o">=</span> <span class="n">visual_scene</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+    <span class="n">event_type</span><span class="o">=</span><span class="s2">&quot;static&quot;</span><span class="p">,</span>
+    <span class="n">filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/soundevents/telephone/30085.wav&quot;</span><span class="p">,</span>
+    <span class="n">image_filepath</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_project_root</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;tests/test_resources/images/telephone/3_0.jpg&quot;</span><span class="p">,</span>
+    <span class="n">duration</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">scene_start</span><span class="o">=</span><span class="mf">2.5</span><span class="p">,</span>
+    <span class="c1"># add at a known position: definitely visible from microphone</span>
+    <span class="n">position</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+Warning: initializing context twice. Will destroy old context and create a new one.
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Warning: initializing context twice. Will destroy old context and create a new one.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CreateContext: Context created
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+<span class="ansi-green-fg">2026-01-14 12:54:12.812</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">audiblelight.core</span>:<span class="ansi-cyan-fg">add_event</span>:<span class="ansi-cyan-fg">1152</span> - <span class="ansi-bold">Event added successfully: Static &#39;Event&#39; with alias &#39;event000&#39;, audio file &#39;/home/huw-cheston/Documents/python_projects/AudibleLight/tests/test_resources/soundevents/telephone/30085.wav&#39; (unloaded, 0 augmentations), 1 emitter(s).</span>
+</pre></div></div>
+</div>
+<p>To generate the video file, just call <code class="docutils literal notranslate"><span class="pre">Scene.generate</span></code> with <code class="docutils literal notranslate"><span class="pre">video=True</span></code>. You can also pass <code class="docutils literal notranslate"><span class="pre">video_fname</span></code> to specify the output pattern for any video files.</p>
+<p>By default, one video will be generated for each <code class="docutils literal notranslate"><span class="pre">MicArray</span></code> object added to the <code class="docutils literal notranslate"><span class="pre">Scene</span></code>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">visual_scene</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">audio</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">metadata_dcase</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">metadata_json</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Rendering video...:  22%|██▏       | 11/50 [00:01&lt;00:02, 13.63it/s]/home/huw-cheston/.cache/pypoetry/virtualenvs/audiblelight-5f5KpqNP-py3.10/lib/python3.10/site-packages/pyvista/core/filters/data_object.py:180: PyVistaDeprecationWarning: The default value of `inplace` for the filter `PolyData.transform` will change in the future. Previously it defaulted to `True`, but will change to `False`. Explicitly set `inplace` to `True` or `False` to silence this warning.
+  warnings.warn(msg, PyVistaDeprecationWarning)
+Rendering video...: 100%|██████████| 50/50 [00:03&lt;00:00, 15.12it/s]
+</pre></div></div>
+</div>
+<p>Now that we’ve generated the video, we can play it. We’ll use <code class="docutils literal notranslate"><span class="pre">ffmpeg</span></code> to generate a <code class="docutils literal notranslate"><span class="pre">.gif</span></code> file that should play in most browsers.</p>
+<p>Under normal use cases, however, you’ll probably just use the <code class="docutils literal notranslate"><span class="pre">.mp4</span></code> file!</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="c1"># Convert with ffmpeg</span>
+<span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
+    <span class="s1">&#39;ffmpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;-i&#39;</span><span class="p">,</span> <span class="s1">&#39;video_out_mic000.mp4&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;-vf&#39;</span><span class="p">,</span> <span class="s1">&#39;fps=5,scale=960:-1:flags=lanczos&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;-loop&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;-y&#39;</span><span class="p">,</span> <span class="s1">&#39;video_out.gif&#39;</span>
+<span class="p">])</span>
+<span class="n">display</span><span class="p">(</span><span class="n">Image</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s1">&#39;video_out.gif&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+  built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
+  configuration: --prefix=/usr --extra-version=3ubuntu5 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from &#39;video_out_mic000.mp4&#39;:
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2mp41
+    encoder         : Lavf59.27.100
+  Duration: 00:00:10.00, start: 0.000000, bitrate: 121 kb/s
+  Stream #0:0[0x1](und): Video: mpeg4 (Simple Profile) (mp4v / 0x7634706D), yuv420p, 960x480 [SAR 1:1 DAR 2:1], 120 kb/s, 5 fps, 5 tbr, 10240 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+Stream mapping:
+  Stream #0:0 -&gt; #0:0 (mpeg4 (native) -&gt; gif (native))
+Press [q] to stop, [?] for help
+[swscaler @ 0x5737909cd580] [swscaler @ 0x5737909dd040] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x5737909ec840] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x5737909fc040] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a0b840] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a1b040] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a2a840] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a3a040] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a49840] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a59040] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a68840] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a78040] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a87840] No accelerated colorspace conversion found from yuv420p to bgr8.
+[swscaler @ 0x5737909cd580] [swscaler @ 0x573790a97040] No accelerated colorspace conversion found from yuv420p to bgr8.
+Output #0, gif, to &#39;video_out.gif&#39;:
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2mp41
+    encoder         : Lavf60.16.100
+  Stream #0:0(und): Video: gif, bgr8(pc, gbr/unknown/unknown, progressive), 960x480 [SAR 1:1 DAR 2:1], q=2-31, 200 kb/s, 5 fps, 100 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+      encoder         : Lavc60.31.102 gif
+[out#0/gif @ 0x57379092c940] video:217kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.009000%
+frame=   50 fps=0.0 q=-0.0 Lsize=     217kB time=00:00:09.80 bitrate= 181.4kbits/s speed=79.9x
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;IPython.core.display.Image object&gt;
+</pre></div></div>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="1.2.1_add_augmentations.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">1.2.1: Add <code class="docutils literal notranslate"><span class="pre">Augmentation</span></code>s</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="1.3.0_add_ambience.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">1.3.0: Add <code class="docutils literal notranslate"><span class="pre">Ambience</span></code></p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Creating-a-Scene-that-supports-images">Creating a <code class="docutils literal notranslate"><span class="pre">Scene</span></code> that supports images</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#Optional-arguments">Optional arguments</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Adding-Event-objects-with-images">Adding <code class="docutils literal notranslate"><span class="pre">Event</span></code> objects with images</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Manually-adding-Event-images">Manually adding <code class="docutils literal notranslate"><span class="pre">Event</span></code> images</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Audiovisual-Scene-synthesis">Audiovisual <code class="docutils literal notranslate"><span class="pre">Scene</span></code> synthesis</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Centre for Digital Music, Queen Mary University of London
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Centre for Digital Music, Queen Mary University of London.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
