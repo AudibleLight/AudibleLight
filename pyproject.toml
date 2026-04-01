@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "audiblelight"
-version = "0.1.1"
+version = "0.1.2"
 description = "A controllable, end-to-end API for soundscape synthesis across ray-traced & real-world measured acoustics"
 authors = ["Huw Cheston <h.cheston@qmul.ac.uk>", "Iran Roman <i.roman@qmul.ac.uk>"]
 license = "CC-BY-4.0"
